@@ -217,8 +217,14 @@ object RootfsManager {
         // name resolution fails inside proot ("DNS: transient error").
         // Write public DNS servers into the guest's resolv.conf.
         ensureDns(rootfs)
+        // X servers (Xvfb) need a writable /tmp for lock files and sockets
+        // (/tmp/.X0-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
+        // and the app runs as a normal UID, so bind-mount the app's
+        // private tmp dir over the guest's /tmp.
         val pb = ProcessBuilder(
-            listOf(bin.absolutePath, "-r", rootfs.absolutePath, "-w", "/root") + guestCommand
+            listOf(bin.absolutePath, "-r", rootfs.absolutePath,
+                "-b", tmpDir.absolutePath + ":/tmp",
+                "-w", "/root") + guestCommand
         ).redirectErrorStream(true)
         pb.environment()["LD_LIBRARY_PATH"] = EngineCheck.binDir(context).absolutePath
         pb.environment()["TMPDIR"] = tmpDir.absolutePath
