@@ -9,10 +9,13 @@ import com.bolm.mudif.databinding.ItemDistroBinding
 
 class DistroAdapter(
     private val items: List<Distro>,
+    private val isInstalled: (Distro) -> Boolean = { false },
     private val onInstall: (Distro) -> Unit
 ) : RecyclerView.Adapter<DistroAdapter.Holder>() {
 
     inner class Holder(val binding: ItemDistroBinding) : RecyclerView.ViewHolder(binding.root)
+
+    fun refresh() = notifyDataSetChanged()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val binding = ItemDistroBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -27,6 +30,9 @@ class DistroAdapter(
             distroSize.text = d.size
             distroLetter.text = d.name.first().toString()
             distroLetter.backgroundTintList = ColorStateList.valueOf(Color.parseColor(d.color))
+            val installed = isInstalled(d)
+            btnInstall.text = if (installed) "مثبت ✓" else root.context.getString(com.bolm.mudif.R.string.install)
+            btnInstall.isEnabled = !installed
             btnInstall.setOnClickListener { onInstall(d) }
         }
     }
