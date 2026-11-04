@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.databinding.ActivityMainBinding
 import com.bolm.mudif.ui.apps.AppsFragment
+import com.bolm.mudif.ui.games.GamesFragment
 import com.bolm.mudif.ui.home.HomeFragment
 import com.bolm.mudif.ui.placeholder.PlaceholderFragment
 import com.bolm.mudif.ui.store.StoreFragment
@@ -26,7 +27,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_home -> HomeFragment()
                 R.id.nav_store -> StoreFragment()
                 R.id.nav_apps -> AppsFragment()
-                R.id.nav_games -> PlaceholderFragment.newInstance(getString(R.string.tab_games))
+                R.id.nav_games -> GamesFragment()
                 R.id.nav_profile -> PlaceholderFragment.newInstance(getString(R.string.tab_profile))
                 else -> HomeFragment()
             }
