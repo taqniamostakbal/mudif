@@ -217,6 +217,8 @@ object RootfsManager {
         // name resolution fails inside proot ("DNS: transient error").
         // Write public DNS servers into the guest's resolv.conf.
         ensureDns(rootfs)
+        // /tmp must be writable for X servers (lock files, sockets).
+        ensureWritableTmp(rootfs)
         // X servers (Xvfb) need a writable /tmp for lock files and sockets
         // (/tmp/.X0-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
         // and the app runs as a normal UID, so bind-mount the app's
@@ -264,6 +266,21 @@ object RootfsManager {
                 resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
             } catch (_: Exception) { /* non-fatal */ }
         }
+    }
+
+    /**
+     * Makes the guest's /tmp writable (1777). The tarball's /tmp has
+     * restrictive modes; X servers need to create lock files and sockets
+     * there (/tmp/.X0-lock, /tmp/.X11-unix/). The app owns the extracted
+     * files, so chmod always succeeds. Belt-and-suspenders alongside the
+     * /tmp bind-mount in prootBuilder.
+     */
+    private fun ensureWritableTmp(rootfs: File) {
+        try {
+            val tmp = File(rootfs, "tmp")
+            tmp.mkdirs()
+            android.system.Os.chmod(tmp.absolutePath, 1777)
+        } catch (_: Exception) { /* non-fatal */ }
     }
 
     /**
