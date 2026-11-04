@@ -148,6 +148,46 @@ object RootfsManager {
     }
 
     /**
+     * Phone-side diagnostics: reports what is ACTUALLY in the rootfs,
+     * so we debug from facts instead of guesses.
+     */
+    fun diagnose(context: Context): String {
+        val sb = StringBuilder()
+        try {
+            val rootfs = File(context.filesDir, "rootfs")
+            sb.appendLine("ABI: ${Build.SUPPORTED_ABIS.joinToString(",")}")
+            sb.appendLine("rootfs موجود: ${rootfs.exists()}")
+            sb.appendLine("marker: ${File(rootfs, READY_MARKER).exists()}")
+            val binCat = File(rootfs, "bin/cat")
+            val isLink = try {
+                java.nio.file.Files.isSymbolicLink(binCat.toPath())
+            } catch (e: Exception) {
+                null
+            }
+            sb.appendLine("bin/cat رابط؟: $isLink")
+            if (isLink == true) {
+                val target = try {
+                    java.nio.file.Files.readSymbolicLink(binCat.toPath()).toString()
+                } catch (e: Exception) {
+                    "خطأ: ${e.message}"
+                }
+                sb.appendLine("bin/cat -> $target")
+            }
+            sb.appendLine("bin/cat يتحل؟: ${binCat.exists()}")
+            sb.appendLine("bin/busybox موجود: ${File(rootfs, "bin/busybox").exists()}")
+            val libDir = File(rootfs, "lib")
+            val loaders = libDir.listFiles { f -> f.name.startsWith("ld-musl") }
+                ?.map { it.name } ?: emptyList()
+            sb.appendLine("ld-musl: $loaders")
+            sb.appendLine("عدد ملفات bin: ${File(rootfs, "bin").listFiles()?.size}")
+            sb.appendLine("عدد ملفات lib: ${libDir.listFiles()?.size}")
+        } catch (e: Exception) {
+            sb.appendLine("التشخيص فشل: ${e.message}")
+        }
+        return sb.toString()
+    }
+
+    /**
      * First real boot: runs /bin/cat /etc/alpine-release inside the rootfs.
      * Returns "Alpine خدام ✓" + version on success, else the raw output.
      *
@@ -190,7 +230,7 @@ object RootfsManager {
                 code != 0
             when {
                 out.isEmpty() -> "خرج بلا مخرجات (code=$code)"
-                failed -> "الإقلاع فشل (code=$code):\n$out"
+                failed -> "الإقلاع فشل (code=$code):\n$out\n\n--- تشخيص ---\n${diagnose(context)}"
                 else -> "Alpine خدام ✓\nالإصدار: $out"
             }
         } catch (e: Exception) {
