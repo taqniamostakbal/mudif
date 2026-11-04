@@ -8,6 +8,7 @@ import com.bolm.mudif.ui.apps.AppsFragment
 import com.bolm.mudif.ui.games.GamesFragment
 import com.bolm.mudif.ui.home.HomeFragment
 import com.bolm.mudif.ui.placeholder.PlaceholderFragment
+import com.bolm.mudif.ui.profile.ProfileFragment
 import com.bolm.mudif.ui.store.StoreFragment
 
 class MainActivity : AppCompatActivity() {
@@ -28,7 +29,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_store -> StoreFragment()
                 R.id.nav_apps -> AppsFragment()
                 R.id.nav_games -> GamesFragment()
-                R.id.nav_profile -> PlaceholderFragment.newInstance(getString(R.string.tab_profile))
+                R.id.nav_profile -> ProfileFragment()
                 else -> HomeFragment()
             }
             show(frag)
