@@ -6,6 +6,11 @@
     <string name="tab_apps">التطبيقات</string>
     <string name="tab_games">الألعاب</string>
     <string name="tab_profile">حسابي</string>
+    <string name="tab_terminal">الطرفية</string>
+    <string name="terminal_subtitle">أوامر نظام Alpine مباشرة</string>
+    <string name="terminal_hint">اكتب أمرا…</string>
+    <string name="terminal_send">تنفيذ</string>
+    <string name="terminal_clear">مسح</string>
     <string name="home_subtitle">عالمك الجديد يبدأ من هنا</string>
     <string name="welcome_title">مرحباً بك في مضيف</string>
     <string name="welcome_text">كل شيء جاهز. اختر وجهتك من الأسفل، وستصل باقي الأقسام قريباً واحداً واحداً.</string>
