@@ -13,4 +13,8 @@
     <string name="version_title">الإصدار 0.1.0</string>
     <string name="version_text">المرحلة 1 — الهيكل الأساسي يعمل</string>
     <string name="coming_soon">قريباً</string>
+    <string name="coming_soon_long">هذا القسم قيد البناء — سيصل قريباً</string>
+    <string name="store_subtitle">اختر نظاماً وثبّته بضغطة واحدة</string>
+    <string name="install">تثبيت</string>
+    <string name="install_soon">التثبيت الحقيقي سيتوفر قريباً</string>
 </resources>
