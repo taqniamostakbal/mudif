@@ -17,6 +17,10 @@
         android:icon="@drawable/ic_games"
         android:title="@string/tab_games" />
     <item
+        android:id="@+id/nav_terminal"
+        android:icon="@drawable/ic_terminal"
+        android:title="@string/tab_terminal" />
+    <item
         android:id="@+id/nav_profile"
         android:icon="@drawable/ic_person"
         android:title="@string/tab_profile" />
