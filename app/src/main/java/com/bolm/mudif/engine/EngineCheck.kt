@@ -5,21 +5,33 @@ import java.io.File
 
 /**
  * P3: engine bootstrap proof.
- * The proot binary is smuggled as libtiny_proot.so in jniLibs (useLegacyPackaging
- * keeps it extractable). The installer extracts it to nativeLibraryDir with
- * exec permissions, so we run it straight from there (Tiny Container pattern).
- * Copying it to our private dir breaks exec on some devices (EACCES).
+ * proot is smuggled as libtiny_proot.so in jniLibs and runs straight from
+ * nativeLibraryDir (installer gives it exec perms). Its dependency
+ * libtalloc.so.2 ships in assets and is extracted to our private bin dir;
+ * LD_LIBRARY_PATH points the linker at it.
  */
 object EngineCheck {
+
+    private fun binDir(context: Context): File =
+        File(context.filesDir, "bin").apply { mkdirs() }
+
+    private fun ensureTalloc(context: Context): File {
+        val dir = binDir(context)
+        val lib = File(dir, "libtalloc.so.2")
+        if (!lib.exists()) {
+            context.assets.open("talloc/libtalloc.so.2").use { input ->
+                lib.outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+        return lib
+    }
 
     fun prootPath(context: Context): File? {
         val src = File(context.applicationInfo.nativeLibraryDir, "libtiny_proot.so")
         if (!src.exists()) return null
         if (src.canExecute()) return src
-        // Fallback: private copy with explicit 0755
         return try {
-            val binDir = File(context.filesDir, "bin").apply { mkdirs() }
-            val bin = File(binDir, "proot")
+            val bin = File(binDir(context), "proot")
             src.copyTo(bin, overwrite = true)
             try {
                 android.system.Os.chmod(bin.absolutePath, 493) // 0755
@@ -36,13 +48,21 @@ object EngineCheck {
         return try {
             val bin = prootPath(context)
                 ?: return "غير موجود: libtiny_proot.so ماشي فالمكتبة الأصلية"
-            val proc = ProcessBuilder(bin.absolutePath, "--version")
+            ensureTalloc(context)
+            val pb = ProcessBuilder(bin.absolutePath, "--version")
                 .redirectErrorStream(true)
-                .start()
+            pb.environment()["LD_LIBRARY_PATH"] = binDir(context).absolutePath
+            val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
-            val code = proc.waitFor()
-            if (out.isEmpty()) "خرج بالكود $code بلا مخرجات (${bin.absolutePath})"
-            else "proot خدام ✓\n$out"
+            proc.waitFor()
+            when {
+                out.contains("CANNOT LINK", ignoreCase = true) ->
+                    "مكتبة ناقصة:\n$out"
+                out.isEmpty() ->
+                    "خرج بلا مخرجات (${bin.absolutePath})"
+                else ->
+                    "proot خدام ✓\n$out"
+            }
         } catch (e: Exception) {
             "خطأ: ${e.message}"
         }
