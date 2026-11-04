@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Mudif" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/mudif_purple</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">@color/mudif_teal</item>
+        <item name="android:statusBarColor">@color/mudif_purple</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+    </style>
+</resources>
