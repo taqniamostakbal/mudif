@@ -10,6 +10,7 @@ import com.bolm.mudif.ui.home.HomeFragment
 import com.bolm.mudif.ui.placeholder.PlaceholderFragment
 import com.bolm.mudif.ui.profile.ProfileFragment
 import com.bolm.mudif.ui.store.StoreFragment
+import com.bolm.mudif.ui.terminal.TerminalFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_store -> StoreFragment()
                 R.id.nav_apps -> AppsFragment()
                 R.id.nav_games -> GamesFragment()
+                R.id.nav_terminal -> TerminalFragment()
                 R.id.nav_profile -> ProfileFragment()
                 else -> HomeFragment()
             }
