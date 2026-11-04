@@ -23,6 +23,7 @@
         <activity
             android:name=".ui.terminal.TerminalActivity"
             android:exported="false"
-            android:label="@string/tab_terminal" />
+            android:label="@string/tab_terminal"
+            android:windowSoftInputMode="adjustPan" />
     </application>
 </manifest>
