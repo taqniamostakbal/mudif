@@ -4,9 +4,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentProfileBinding
+import com.bolm.mudif.engine.EngineCheck
 import com.google.android.material.snackbar.Snackbar
 
 class ProfileFragment : Fragment() {
@@ -30,6 +32,19 @@ class ProfileFragment : Fragment() {
         binding.rowAbout.setOnClickListener(soon)
         binding.cardSystems.setOnClickListener(soon)
         binding.cardApps.setOnClickListener(soon)
+        binding.rowEngine.setOnClickListener {
+            Snackbar.make(binding.root, getString(R.string.engine_running), Snackbar.LENGTH_SHORT).show()
+            Thread {
+                val result = EngineCheck.runProotVersion(requireContext())
+                activity?.runOnUiThread {
+                    AlertDialog.Builder(requireContext())
+                        .setTitle(getString(R.string.engine_check))
+                        .setMessage(result)
+                        .setPositiveButton(getString(R.string.ok), null)
+                        .show()
+                }
+            }.start()
+        }
     }
 
     override fun onDestroyView() {
