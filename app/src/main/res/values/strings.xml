@@ -29,4 +29,8 @@
     <string name="language_value">العربية</string>
     <string name="about">حول مضيف</string>
     <string name="about_value">الإصدار 0.1.0</string>
+    <string name="engine_check">فحص المحرك</string>
+    <string name="engine_check_desc">تشغيل proot والتأكد أن المحرك حي</string>
+    <string name="engine_running">جاري الفحص…</string>
+    <string name="ok">حسناً</string>
 </resources>
