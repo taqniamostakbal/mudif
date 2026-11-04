@@ -10,6 +10,7 @@ import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentProfileBinding
 import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.ui.terminal.TerminalActivity
 import com.google.android.material.snackbar.Snackbar
 
 class ProfileFragment : Fragment() {
@@ -47,6 +48,9 @@ class ProfileFragment : Fragment() {
             }.start()
         }
         binding.rowBoot.setOnClickListener { runBootTest() }
+        binding.rowTerminal.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), TerminalActivity::class.java))
+        }
     }
 
     private fun runBootTest() {
