@@ -19,4 +19,14 @@
     <string name="install_soon">التثبيت الحقيقي سيتوفر قريباً</string>
     <string name="apps_subtitle">ثبّت تطبيقاتك المفضلة بضغطة واحدة</string>
     <string name="games_subtitle">ألعاب الكمبيوتر على هاتفك</string>
+    <string name="profile_subtitle">معلوماتك وإعداداتك</string>
+    <string name="profile_guest_name">مستخدم مضيف</string>
+    <string name="profile_guest_mode">وضع الضيف — بلا حساب</string>
+    <string name="my_systems">أنظمتي</string>
+    <string name="my_apps">تطبيقاتي</string>
+    <string name="settings_title">الإعدادات</string>
+    <string name="language">اللغة</string>
+    <string name="language_value">العربية</string>
+    <string name="about">حول مضيف</string>
+    <string name="about_value">الإصدار 0.1.0</string>
 </resources>
