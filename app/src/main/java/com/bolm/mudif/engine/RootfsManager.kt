@@ -219,6 +219,8 @@ object RootfsManager {
         ensureDns(rootfs)
         // /tmp must be writable for X servers (lock files, sockets).
         ensureWritableTmp(rootfs)
+        // libfakelink.so for X servers (SELinux blocks link()).
+        ensureFakelink(context, rootfs)
         // X servers (Xvfb) need a writable /tmp for lock files and sockets
         // (/tmp/.X0-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
         // and the app runs as a normal UID, so bind-mount the app's
@@ -280,6 +282,24 @@ object RootfsManager {
             val tmp = File(rootfs, "tmp")
             tmp.mkdirs()
             android.system.Os.chmod(tmp.absolutePath, 1777)
+        } catch (_: Exception) { /* non-fatal */ }
+    }
+
+    /**
+     * Installs libfakelink.so into the guest's /usr/lib so X servers can
+     * use LD_PRELOAD=/usr/lib/libfakelink.so to work around Android
+     * SELinux blocking the link() syscall (X lock files).
+     */
+    private fun ensureFakelink(context: Context, rootfs: File) {
+        try {
+            val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+            val sub = if (abi.contains("x86_64")) "x86_64" else "arm64"
+            val dest = File(rootfs, "usr/lib/libfakelink.so")
+            if (dest.exists()) return
+            dest.parentFile?.mkdirs()
+            context.assets.open("fakelink/$sub/libfakelink.so").use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
         } catch (_: Exception) { /* non-fatal */ }
     }
 
