@@ -10,15 +10,27 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * P3 step 2: Alpine minirootfs bootstrap.
+ * P3: Alpine minirootfs bootstrap.
  * Downloads the Alpine minirootfs matching the device ABI (~4MB),
  * extracts it into our private files dir, then runs the first real
  * command inside it: proot -r rootfs /bin/cat /etc/alpine-release.
+ *
+ * Robustness contract (hardened 2026-11-04 after two field failures):
+ * - extract() ALWAYS starts from a wiped dest dir: no stale partial
+ *   state can ever survive a failed run.
+ * - Symlinks are removed unconditionally before creation: File.exists()
+ *   returns false for DANGLING symlinks, so a stale dangling link would
+ *   otherwise trip EEXIST on retry.
+ * - Completion is atomic: a .ready marker is written ONLY after the full
+ *   archive extracted cleanly. isReady() checks the marker, so a partial
+ *   extraction can never look "installed".
+ * - download() verifies the received size against Content-Length.
  */
 object RootfsManager {
 
     private const val ALPINE_VERSION = "3.24.0"
     private const val BASE = "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases"
+    private const val READY_MARKER = ".mudif_ready"
 
     private fun abi(): String {
         val a = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
@@ -36,8 +48,9 @@ object RootfsManager {
     private fun tarball(context: Context): File =
         File(context.filesDir, "alpine-minirootfs.tar.gz")
 
+    /** True only after a COMPLETE verified extraction (marker file). */
     fun isReady(context: Context): Boolean =
-        File(rootfsDir(context), "bin/echo").exists()
+        File(rootfsDir(context), READY_MARKER).exists()
 
     fun download(context: Context, onProgress: (done: Long, total: Long) -> Unit) {
         val out = tarball(context)
@@ -64,45 +77,73 @@ object RootfsManager {
                 }
             }
         }
+        if (total > 0 && out.length() != total)
+            throw RuntimeException("التحميل ناقص: وصل ${out.length()} من $total بايت — أعد المحاولة")
+        if (out.length() < 1024 * 1024)
+            throw RuntimeException("ملف التحميل صغير بشكل مشبوه (${out.length()} بايت)")
     }
 
     fun extract(context: Context) {
         val dest = rootfsDir(context)
+        // Radical: start from zero. Any partial state from a failed run dies here.
+        if (dest.exists()) dest.deleteRecursively()
+        dest.mkdirs()
         val destPath = dest.canonicalPath + File.separator
-        TarArchiveInputStream(
-            GzipCompressorInputStream(BufferedInputStream(tarball(context).inputStream()))
-        ).use { tar ->
-            var entry = tar.nextEntry
-            while (entry != null) {
-                val f = File(dest, entry.name)
-                val canon = f.canonicalPath
-                // "./" (the archive root itself) canonicalizes to dest: allow it
-                if (canon != dest.canonicalPath && !canon.startsWith(destPath))
-                    throw RuntimeException("مسار مشبوه في الأرشيف: ${entry.name}")
-                when {
-                    entry.isDirectory -> f.mkdirs()
-                    entry.isSymbolicLink -> {
-                        f.parentFile?.mkdirs()
-                        if (f.exists()) f.delete()
-                        try {
-                            android.system.Os.symlink(entry.linkName, f.absolutePath)
-                        } catch (e: Exception) {
-                            throw RuntimeException("تعذر إنشاء الرابط ${entry.name}: ${e.message}")
+        var count = 0
+        try {
+            TarArchiveInputStream(
+                GzipCompressorInputStream(BufferedInputStream(tarball(context).inputStream()))
+            ).use { tar ->
+                var entry = tar.nextEntry
+                while (entry != null) {
+                    val f = File(dest, entry.name)
+                    val canon = f.canonicalPath
+                    // "./" (the archive root itself) canonicalizes to dest: allow it
+                    if (canon != dest.canonicalPath && !canon.startsWith(destPath))
+                        throw RuntimeException("مسار مشبوه في الأرشيف: ${entry.name}")
+                    when {
+                        entry.isDirectory -> f.mkdirs()
+                        entry.isSymbolicLink -> {
+                            f.parentFile?.mkdirs()
+                            // Unconditional: exists() is false for DANGLING symlinks,
+                            // and a stale one would cause EEXIST on retry.
+                            try {
+                                android.system.Os.remove(f.absolutePath)
+                            } catch (e: Exception) {
+                                // didn't exist: the normal case
+                            }
+                            try {
+                                android.system.Os.symlink(entry.linkName, f.absolutePath)
+                            } catch (e: Exception) {
+                                throw RuntimeException("تعذر إنشاء الرابط ${entry.name}: ${e.message}")
+                            }
+                        }
+                        else -> {
+                            f.parentFile?.mkdirs()
+                            tar.copyTo(f.outputStream())
+                            try {
+                                android.system.Os.chmod(f.absolutePath, entry.mode and 4095)
+                            } catch (e: Exception) {
+                                // non-fatal: worst case a binary loses +x
+                            }
                         }
                     }
-                    else -> {
-                        f.parentFile?.mkdirs()
-                        tar.copyTo(f.outputStream())
-                        try {
-                            android.system.Os.chmod(f.absolutePath, entry.mode and 4095)
-                        } catch (e: Exception) {
-                            // non-fatal: worst case a binary loses +x
-                        }
-                    }
+                    count++
+                    entry = tar.nextEntry
                 }
-                entry = tar.nextEntry
             }
+        } catch (e: Exception) {
+            // Leave no half-system behind: the next run wipes and retries clean.
+            try {
+                dest.deleteRecursively()
+            } catch (ignored: Exception) {
+            }
+            throw e
         }
+        if (count < 100)
+            throw RuntimeException("الأرشيف ناقص بشكل مشبوه ($count مدخل فقط)")
+        // Atomic completion: marker written ONLY after everything succeeded.
+        File(dest, READY_MARKER).writeText(ALPINE_VERSION)
         tarball(context).delete()
     }
 
@@ -116,8 +157,8 @@ object RootfsManager {
                 ?: return "المحرك غير موجود: libtiny_proot.so"
             EngineCheck.ensureLibs(context)
             val rootfs = rootfsDir(context)
-            if (!File(rootfs, "bin/cat").exists())
-                return "النظام غير مكتمل: أعد التحميل"
+            if (!isReady(context))
+                return "النظام غير مكتمل: أعد التثبيت"
             val pb = ProcessBuilder(
                 bin.absolutePath,
                 "-r", rootfs.absolutePath,
