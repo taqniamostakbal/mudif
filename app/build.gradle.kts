@@ -18,7 +18,23 @@ android {
         }
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            // Pinned debug keystore (app/debug.keystore): every CI build signs
+            // with the SAME key so updates install in-place instead of
+            // failing with "signature does not match". Fingerprint recorded in
+            // app/debug.keystore.fingerprint.txt.
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
