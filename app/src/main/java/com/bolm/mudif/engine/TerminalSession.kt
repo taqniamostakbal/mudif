@@ -40,12 +40,12 @@ object TerminalSession {
             // command produces more than the 64KB pipe buffer. Also tracks
             // the last time the command produced output (liveness signal).
             val output = StringBuilder()
-            @Volatile var lastOutputAt = System.currentTimeMillis()
+            val lastOutputAt = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
             val drain = Thread {
                 try {
                     proc.inputStream.bufferedReader().forEachLine { line ->
                         synchronized(output) { output.appendLine(line) }
-                        lastOutputAt = System.currentTimeMillis()
+                        lastOutputAt.set(System.currentTimeMillis())
                     }
                 } catch (_: Exception) {
                     // Stream closed (timeout kill) — partial output is kept.
@@ -64,7 +64,7 @@ object TerminalSession {
                 if (exited) break
 
                 val now = System.currentTimeMillis()
-                val idleSec = (now - lastOutputAt) / 1000
+                val idleSec = (now - lastOutputAt.get()) / 1000
                 val totalSec = (now - startAt) / 1000
                 if (idleSec >= idleTimeoutSec) {
                     timedOut = true
