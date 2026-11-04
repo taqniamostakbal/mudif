@@ -38,4 +38,6 @@
     <string name="downloading">جاري التحميل…</string>
     <string name="extracting">جاري فك الضغط…</string>
     <string name="booting">جاري تشغيل Alpine…</string>
+    <string name="already_installed">ألباين مثبت مسبقاً ✓</string>
+    <string name="install_done">تم تثبيت ألباين بنجاح ✓</string>
 </resources>
