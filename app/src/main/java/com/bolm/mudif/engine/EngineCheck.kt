@@ -21,12 +21,12 @@ object EngineCheck {
         return if (abi.contains("x86_64")) "x86_64" else "arm64"
     }
 
-    private fun binDir(context: Context): File =
+    fun binDir(context: Context): File =
         File(context.filesDir, "bin").apply { mkdirs() }
 
     private val NEEDED_LIBS = listOf("libtalloc.so.2", "libandroid-shmem.so")
 
-    private fun ensureLibs(context: Context) {
+    fun ensureLibs(context: Context) {
         val dir = binDir(context)
         val sub = abiDir()
         for (name in NEEDED_LIBS) {
