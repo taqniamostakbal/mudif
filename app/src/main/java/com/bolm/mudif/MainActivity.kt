@@ -10,40 +10,30 @@ import com.bolm.mudif.ui.home.HomeFragment
 import com.bolm.mudif.ui.placeholder.PlaceholderFragment
 import com.bolm.mudif.ui.profile.ProfileFragment
 import com.bolm.mudif.ui.store.StoreFragment
-import com.bolm.mudif.ui.terminal.TerminalFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            binding = ActivityMainBinding.inflate(layoutInflater)
-            setContentView(binding.root)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-            if (savedInstanceState == null) {
-                show(HomeFragment())
-            }
+        if (savedInstanceState == null) {
+            show(HomeFragment())
+        }
 
-            binding.bottomNav.setOnItemSelectedListener { item ->
-                val frag: Fragment = when (item.itemId) {
-                    R.id.nav_home -> HomeFragment()
-                    R.id.nav_store -> StoreFragment()
-                    R.id.nav_apps -> AppsFragment()
-                    R.id.nav_games -> GamesFragment()
-                    R.id.nav_terminal -> TerminalFragment()
-                    R.id.nav_profile -> ProfileFragment()
-                    else -> HomeFragment()
-                }
-                show(frag)
-                true
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            val frag: Fragment = when (item.itemId) {
+                R.id.nav_home -> HomeFragment()
+                R.id.nav_store -> StoreFragment()
+                R.id.nav_apps -> AppsFragment()
+                R.id.nav_games -> GamesFragment()
+                R.id.nav_profile -> ProfileFragment()
+                else -> HomeFragment()
             }
-        } catch (e: Exception) {
-            // DIAGNOSTIC: show the crash instead of dying, so we get the stack trace.
-            val tv = android.widget.TextView(this)
-            tv.text = "CRASH:\n$e\n\n${android.util.Log.getStackTraceString(e)}"
-            tv.textSize = 10f
-            setContentView(tv)
+            show(frag)
+            true
         }
     }
 
