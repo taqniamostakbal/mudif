@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">مضيف</string>
+    <string name="tab_home">الرئيسية</string>
+    <string name="tab_store">المتجر</string>
+    <string name="tab_apps">التطبيقات</string>
+    <string name="tab_games">الألعاب</string>
+    <string name="tab_profile">حسابي</string>
+    <string name="home_subtitle">عالمك الجديد يبدأ من هنا</string>
+    <string name="welcome_title">مرحباً بك في مضيف</string>
+    <string name="welcome_text">كل شيء جاهز. اختر وجهتك من الأسفل، وستصل باقي الأقسام قريباً واحداً واحداً.</string>
+    <string name="browse_store">تصفح المتجر</string>
+    <string name="version_title">الإصدار 0.1.0</string>
+    <string name="version_text">المرحلة 1 — الهيكل الأساسي يعمل</string>
+    <string name="coming_soon">قريباً</string>
 </resources>
