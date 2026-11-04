@@ -17,25 +17,33 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        try {
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
 
-        if (savedInstanceState == null) {
-            show(HomeFragment())
-        }
-
-        binding.bottomNav.setOnItemSelectedListener { item ->
-            val frag: Fragment = when (item.itemId) {
-                R.id.nav_home -> HomeFragment()
-                R.id.nav_store -> StoreFragment()
-                R.id.nav_apps -> AppsFragment()
-                R.id.nav_games -> GamesFragment()
-                R.id.nav_terminal -> TerminalFragment()
-                R.id.nav_profile -> ProfileFragment()
-                else -> HomeFragment()
+            if (savedInstanceState == null) {
+                show(HomeFragment())
             }
-            show(frag)
-            true
+
+            binding.bottomNav.setOnItemSelectedListener { item ->
+                val frag: Fragment = when (item.itemId) {
+                    R.id.nav_home -> HomeFragment()
+                    R.id.nav_store -> StoreFragment()
+                    R.id.nav_apps -> AppsFragment()
+                    R.id.nav_games -> GamesFragment()
+                    R.id.nav_terminal -> TerminalFragment()
+                    R.id.nav_profile -> ProfileFragment()
+                    else -> HomeFragment()
+                }
+                show(frag)
+                true
+            }
+        } catch (e: Exception) {
+            // DIAGNOSTIC: show the crash instead of dying, so we get the stack trace.
+            val tv = android.widget.TextView(this)
+            tv.text = "CRASH:\n$e\n\n${android.util.Log.getStackTraceString(e)}"
+            tv.textSize = 10f
+            setContentView(tv)
         }
     }
 
