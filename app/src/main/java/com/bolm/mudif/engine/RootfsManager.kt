@@ -188,6 +188,18 @@ object RootfsManager {
     }
 
     /**
+     * Path to the proot loader binary (required: our proot was built with
+     * PROOT_UNBUNDLE_LOADER pointing at Termux's libexec, which doesn't
+     * exist here; without PROOT_LOADER every execve fails with ENOENT).
+     * Shipped as jniLibs/<abi>/libtiny_loader.so, built from the exact
+     * proot source (termux/proot 5.1.107.102).
+     */
+    private fun loaderPath(context: Context): File? {
+        val f = File(context.applicationInfo.nativeLibraryDir, "libtiny_loader.so")
+        return if (f.exists()) f else null
+    }
+
+    /**
      * First real boot: runs /bin/cat /etc/alpine-release inside the rootfs.
      * Returns "Alpine خدام ✓" + version on success, else the raw output.
      *
@@ -218,6 +230,12 @@ object RootfsManager {
             pb.environment()["TMPDIR"] = tmpDir.absolutePath
             pb.environment()["PROOT_TMP_DIR"] = prootTmp.absolutePath
             pb.environment()["PROOT_NO_SECCOMP"] = "1"
+            // Mandatory: our proot was built with PROOT_UNBUNDLE_LOADER pointing
+            // at Termux's libexec (absent here); without PROOT_LOADER every
+            // execve fails with ENOENT. Loader built from the exact proot source.
+            val loader = loaderPath(context)
+                ?: return "الـloader غير موجود: أعد تثبيت التطبيق"
+            pb.environment()["PROOT_LOADER"] = loader.absolutePath
             val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
             val code = proc.waitFor()
