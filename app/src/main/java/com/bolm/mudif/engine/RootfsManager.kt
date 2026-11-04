@@ -213,6 +213,10 @@ object RootfsManager {
         val loader = loaderPath(context) ?: return null
         val tmpDir = File(context.filesDir, "tmp").apply { mkdirs() }
         val prootTmp = File(context.filesDir, "proot_tmp").apply { mkdirs() }
+        // DNS fix: the minirootfs ships without a working resolv.conf, so
+        // name resolution fails inside proot ("DNS: transient error").
+        // Write public DNS servers into the guest's resolv.conf.
+        ensureDns(rootfs)
         val pb = ProcessBuilder(
             listOf(bin.absolutePath, "-r", rootfs.absolutePath, "-w", "/root") + guestCommand
         ).redirectErrorStream(true)
@@ -230,6 +234,24 @@ object RootfsManager {
         pb.environment()["TERM"] = "xterm-256color"
         pb.environment()["LANG"] = "C.UTF-8"
         return pb
+    }
+
+    /**
+     * Ensures the guest can resolve DNS names. The Alpine minirootfs has no
+     * usable /etc/resolv.conf, and Android's DNS is not reachable via
+     * standard paths, so we write public resolvers into the guest.
+     */
+    private fun ensureDns(rootfs: File) {
+        val resolvConf = File(rootfs, "etc/resolv.conf")
+        val current = try {
+            if (resolvConf.exists()) resolvConf.readText() else ""
+        } catch (_: Exception) { "" }
+        if (!current.contains("nameserver")) {
+            try {
+                resolvConf.parentFile?.mkdirs()
+                resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
+            } catch (_: Exception) { /* non-fatal */ }
+        }
     }
 
     /**
