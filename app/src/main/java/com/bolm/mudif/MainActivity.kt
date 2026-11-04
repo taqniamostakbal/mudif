@@ -2,8 +2,11 @@ package com.bolm.mudif
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import com.bolm.mudif.databinding.ActivityMainBinding
-import com.google.android.material.snackbar.Snackbar
+import com.bolm.mudif.ui.home.HomeFragment
+import com.bolm.mudif.ui.placeholder.PlaceholderFragment
+import com.bolm.mudif.ui.store.StoreFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -13,22 +16,27 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.btnStore.setOnClickListener {
-            binding.bottomNav.selectedItemId = R.id.nav_store
+        if (savedInstanceState == null) {
+            show(HomeFragment())
         }
 
         binding.bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_home -> true
-                else -> {
-                    Snackbar.make(
-                        binding.root,
-                        getString(R.string.coming_soon),
-                        Snackbar.LENGTH_SHORT
-                    ).show()
-                    false
-                }
+            val frag: Fragment = when (item.itemId) {
+                R.id.nav_home -> HomeFragment()
+                R.id.nav_store -> StoreFragment()
+                R.id.nav_apps -> PlaceholderFragment.newInstance(getString(R.string.tab_apps))
+                R.id.nav_games -> PlaceholderFragment.newInstance(getString(R.string.tab_games))
+                R.id.nav_profile -> PlaceholderFragment.newInstance(getString(R.string.tab_profile))
+                else -> HomeFragment()
             }
+            show(frag)
+            true
         }
+    }
+
+    private fun show(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.nav_host, fragment)
+            .commit()
     }
 }
