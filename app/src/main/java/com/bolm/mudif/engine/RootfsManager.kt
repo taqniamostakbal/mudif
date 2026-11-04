@@ -75,7 +75,9 @@ object RootfsManager {
             var entry = tar.nextEntry
             while (entry != null) {
                 val f = File(dest, entry.name)
-                if (!f.canonicalPath.startsWith(destPath))
+                val canon = f.canonicalPath
+                // "./" (the archive root itself) canonicalizes to dest: allow it
+                if (canon != dest.canonicalPath && !canon.startsWith(destPath))
                     throw RuntimeException("مسار مشبوه في الأرشيف: ${entry.name}")
                 when {
                     entry.isDirectory -> f.mkdirs()
