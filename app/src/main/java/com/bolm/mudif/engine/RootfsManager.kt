@@ -221,9 +221,15 @@ object RootfsManager {
         // (/tmp/.X0-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
         // and the app runs as a normal UID, so bind-mount the app's
         // private tmp dir over the guest's /tmp.
+        // The minirootfs ships with an empty /dev; bind the host's basic
+        // device nodes so /dev/null, /dev/zero, /dev/urandom exist.
         val pb = ProcessBuilder(
             listOf(bin.absolutePath, "-r", rootfs.absolutePath,
                 "-b", tmpDir.absolutePath + ":/tmp",
+                "-b", "/dev/null:/dev/null",
+                "-b", "/dev/zero:/dev/zero",
+                "-b", "/dev/urandom:/dev/urandom",
+                "-b", "/dev/random:/dev/random",
                 "-w", "/root") + guestCommand
         ).redirectErrorStream(true)
         pb.environment()["LD_LIBRARY_PATH"] = EngineCheck.binDir(context).absolutePath
