@@ -200,6 +200,39 @@ object RootfsManager {
     }
 
     /**
+     * Builds a proot ProcessBuilder for running [guestCommand] inside the Alpine
+     * rootfs. Returns null if the engine, rootfs, or loader is missing.
+     * Shared by firstBoot() and TerminalSession — single source of truth for
+     * the proot invocation (flags + environment).
+     */
+    fun prootBuilder(context: Context, guestCommand: List<String>): ProcessBuilder? {
+        val bin = EngineCheck.prootPath(context) ?: return null
+        EngineCheck.ensureLibs(context)
+        val rootfs = rootfsDir(context)
+        if (!isReady(context)) return null
+        val loader = loaderPath(context) ?: return null
+        val tmpDir = File(context.filesDir, "tmp").apply { mkdirs() }
+        val prootTmp = File(context.filesDir, "proot_tmp").apply { mkdirs() }
+        val pb = ProcessBuilder(
+            listOf(bin.absolutePath, "-r", rootfs.absolutePath, "-w", "/root") + guestCommand
+        ).redirectErrorStream(true)
+        pb.environment()["LD_LIBRARY_PATH"] = EngineCheck.binDir(context).absolutePath
+        pb.environment()["TMPDIR"] = tmpDir.absolutePath
+        pb.environment()["PROOT_TMP_DIR"] = prootTmp.absolutePath
+        pb.environment()["PROOT_NO_SECCOMP"] = "1"
+        // Mandatory: our proot was built with PROOT_UNBUNDLE_LOADER pointing
+        // at Termux's libexec (absent here); without PROOT_LOADER every
+        // execve fails with ENOENT. Loader built from the exact proot source.
+        pb.environment()["PROOT_LOADER"] = loader.absolutePath
+        // Guest environment
+        pb.environment()["HOME"] = "/root"
+        pb.environment()["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        pb.environment()["TERM"] = "xterm-256color"
+        pb.environment()["LANG"] = "C.UTF-8"
+        return pb
+    }
+
+    /**
      * First real boot: runs /bin/cat /etc/alpine-release inside the rootfs.
      * Returns "Alpine خدام ✓" + version on success, else the raw output.
      *
@@ -213,29 +246,8 @@ object RootfsManager {
      */
     fun firstBoot(context: Context): String {
         return try {
-            val bin = EngineCheck.prootPath(context)
-                ?: return "المحرك غير موجود: libtiny_proot.so"
-            EngineCheck.ensureLibs(context)
-            val rootfs = rootfsDir(context)
-            if (!isReady(context))
-                return "النظام غير مكتمل: أعد التثبيت"
-            val tmpDir = File(context.filesDir, "tmp").apply { mkdirs() }
-            val prootTmp = File(context.filesDir, "proot_tmp").apply { mkdirs() }
-            val pb = ProcessBuilder(
-                bin.absolutePath,
-                "-r", rootfs.absolutePath,
-                "/bin/cat", "/etc/alpine-release"
-            ).redirectErrorStream(true)
-            pb.environment()["LD_LIBRARY_PATH"] = EngineCheck.binDir(context).absolutePath
-            pb.environment()["TMPDIR"] = tmpDir.absolutePath
-            pb.environment()["PROOT_TMP_DIR"] = prootTmp.absolutePath
-            pb.environment()["PROOT_NO_SECCOMP"] = "1"
-            // Mandatory: our proot was built with PROOT_UNBUNDLE_LOADER pointing
-            // at Termux's libexec (absent here); without PROOT_LOADER every
-            // execve fails with ENOENT. Loader built from the exact proot source.
-            val loader = loaderPath(context)
-                ?: return "الـloader غير موجود: أعد تثبيت التطبيق"
-            pb.environment()["PROOT_LOADER"] = loader.absolutePath
+            val pb = prootBuilder(context, listOf("/bin/cat", "/etc/alpine-release"))
+                ?: return "المحرك غير موجود أو النظام غير مكتمل"
             val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
             val code = proc.waitFor()
