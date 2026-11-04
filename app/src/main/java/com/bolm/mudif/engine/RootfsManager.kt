@@ -150,6 +150,14 @@ object RootfsManager {
     /**
      * First real boot: runs /bin/cat /etc/alpine-release inside the rootfs.
      * Returns "Alpine خدام ✓" + version on success, else the raw output.
+     *
+     * Environment (validated against Tiny Container's proot setup):
+     * - PROOT_TMP_DIR + TMPDIR point at our private dirs: the Termux proot
+     *   binary hardcodes /data/data/com.termux/files/usr/tmp which does not
+     *   exist outside Termux (hence the "can't canonicalize" warnings).
+     * - PROOT_NO_SECCOMP=1: proot's own documented workaround for kernels
+     *   where its seccomp accelerator breaks ptrace(TRACEME)
+     *   ("Operation not permitted" on emulators like BlueStacks).
      */
     fun firstBoot(context: Context): String {
         return try {
@@ -159,12 +167,17 @@ object RootfsManager {
             val rootfs = rootfsDir(context)
             if (!isReady(context))
                 return "النظام غير مكتمل: أعد التثبيت"
+            val tmpDir = File(context.filesDir, "tmp").apply { mkdirs() }
+            val prootTmp = File(context.filesDir, "proot_tmp").apply { mkdirs() }
             val pb = ProcessBuilder(
                 bin.absolutePath,
                 "-r", rootfs.absolutePath,
                 "/bin/cat", "/etc/alpine-release"
             ).redirectErrorStream(true)
             pb.environment()["LD_LIBRARY_PATH"] = EngineCheck.binDir(context).absolutePath
+            pb.environment()["TMPDIR"] = tmpDir.absolutePath
+            pb.environment()["PROOT_TMP_DIR"] = prootTmp.absolutePath
+            pb.environment()["PROOT_NO_SECCOMP"] = "1"
             val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
             val code = proc.waitFor()
