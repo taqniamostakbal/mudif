@@ -49,8 +49,17 @@ class VncActivity : AppCompatActivity() {
                     tries++
                 }
                 if (!GuiSession.isVncUp()) {
+                    // Show diagnostic logs instead of generic message
+                    val logs = GuiSession.getDiagnosticLogs(this)
                     runOnUiThread {
                         Toast.makeText(this, "VNC لا يستجيب", Toast.LENGTH_LONG).show()
+                        // Show logs in a dialog
+                        val msg = "xvfb.log:\n${logs.first}\n\nvnc.log:\n${logs.second}"
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("تشخيص")
+                            .setMessage(msg)
+                            .setPositiveButton("حسنا", null)
+                            .show()
                         finish()
                     }
                     return@Thread
