@@ -24,6 +24,9 @@ class VncActivity : AppCompatActivity() {
         supportActionBar?.title = "سطح مكتب لينكس"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
+        // Version indicator - proves which APK is installed
+        Toast.makeText(this, "نسخة: 20261105-0315", Toast.LENGTH_LONG).show()
+
         connect()
     }
 
