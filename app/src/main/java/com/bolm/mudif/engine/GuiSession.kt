@@ -1,0 +1,133 @@
+package com.bolm.mudif.engine
+
+import android.content.Context
+import android.util.Log
+
+/**
+ * P5.2: Persistent GUI session manager.
+ *
+ * Problem: TerminalSession runs each command in a FRESH proot that exits
+ * when the command finishes, killing background processes (Xvfb, x11vnc).
+ * Solution: Start ONE persistent proot that runs the entire GUI stack
+ * (Xvfb + x11vnc + openbox) and stays alive via `sleep infinity`.
+ *
+ * The Process is held in memory; killing it stops the GUI.
+ */
+object GuiSession {
+
+    private const val TAG = "GuiSession"
+
+    @Volatile
+    private var process: Process? = null
+
+    @Volatile
+    var running: Boolean = false
+        private set
+
+    /**
+     * Start the GUI stack. Returns true if started (or already running).
+     * Must be called from a background thread.
+     */
+    @Synchronized
+    fun start(context: Context): Boolean {
+        if (running && process != null) return true
+
+        // Ensure XKB keymap exists (may be missing from apk install)
+        ensureKeymap(context)
+
+        val script = """
+            rm -f /tmp/.X0-lock
+            Xvfb :0 -screen 0 1280x720x24 -nolock > /tmp/xvfb.log 2>&1 &
+            sleep 2
+            x11vnc -display :0 -forever -shared -rfbport 5900 -localhost > /tmp/vnc.log 2>&1 &
+            sleep 2
+            DISPLAY=:0 openbox > /tmp/openbox.log 2>&1 &
+            echo "GUI_STACK_READY"
+            sleep infinity
+        """.trimIndent()
+
+        val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", script))
+            ?: return false
+
+        return try {
+            process = pb.start()
+            // Wait for READY marker (up to 15s)
+            val reader = process!!.inputStream.bufferedReader()
+            val deadline = System.currentTimeMillis() + 15000
+            var ready = false
+            while (System.currentTimeMillis() < deadline) {
+                if (reader.ready()) {
+                    val line = reader.readLine()
+                    if (line != null && line.contains("GUI_STACK_READY")) {
+                        ready = true
+                        break
+                    }
+                } else {
+                    Thread.sleep(200)
+                }
+                // If process died, fail fast
+                try {
+                    process!!.exitValue()
+                    Log.e(TAG, "GUI proot died during startup")
+                    break
+                } catch (_: IllegalThreadStateException) { /* still alive */ }
+            }
+            running = ready
+            if (!ready) {
+                Log.e(TAG, "GUI stack did not become ready in 15s")
+                stop()
+            }
+            ready
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start GUI", e)
+            false
+        }
+    }
+
+    /**
+     * Stop the GUI stack.
+     */
+    @Synchronized
+    fun stop() {
+        running = false
+        try {
+            process?.destroyForcibly()
+        } catch (_: Exception) {}
+        process = null
+    }
+
+    /**
+     * Check if the VNC port is reachable (x11vnc is up).
+     */
+    fun isVncUp(): Boolean {
+        return try {
+            java.net.Socket("127.0.0.1", 5900).use { true }
+        } catch (_: Exception) { false }
+    }
+
+    /**
+     * Ensure the XKB keymap file exists (Alpine's xkeyboard-config
+     * sometimes ships without keymap/).
+     */
+    private fun ensureKeymap(context: Context) {
+        try {
+            val pb = RootfsManager.prootBuilder(
+                context,
+                listOf("/bin/sh", "-c",
+                    "mkdir -p /usr/share/X11/xkb/keymap && " +
+                    "[ -f /usr/share/X11/xkb/keymap/evdev ] || cat > /usr/share/X11/xkb/keymap/evdev << 'EOF'\n" +
+                    "xkb_keymap {\n" +
+                    "    xkb_keycodes \"evdev+aliases(qwerty)\";\n" +
+                    "    xkb_types \"complete\";\n" +
+                    "    xkb_compat \"complete\";\n" +
+                    "    xkb_symbols \"pc+us+inet(evdev)\";\n" +
+                    "    xkb_geometry \"pc(pc105)\";\n" +
+                    "};\n" +
+                    "EOF\n" +
+                    "echo done")
+            )
+            val p = pb?.start()
+            p?.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+        } catch (_: Exception) {}
+    }
+}
