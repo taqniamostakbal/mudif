@@ -25,6 +25,10 @@ object X11Session {
     var xserverRunning = false
         private set
 
+    // Keep the GUI app process alive (prevents GC from killing it)
+    @Volatile
+    private var guiProcess: Process? = null
+
     fun startXServer(context: Context) {
         val app = context.applicationContext
         val tmpDir = File(app.filesDir, "tmp").apply { mkdirs() }
@@ -83,7 +87,16 @@ object X11Session {
         val pb = RootfsManager.prootBuilder(context, command) ?: return null
         pb.environment()["DISPLAY"] = DISPLAY
         return try {
-            pb.start()
+            val proc = pb.start()
+            // Keep reference to prevent GC from killing the process
+            guiProcess = proc
+            // Drain output to prevent pipe buffer deadlock
+            Thread {
+                try {
+                    proc.inputStream.bufferedReader().forEachLine { }
+                } catch (_: Exception) {}
+            }.apply { isDaemon = true }.start()
+            proc
         } catch (e: Exception) {
             Log.e(TAG, "Failed to launch GUI app", e)
             null
