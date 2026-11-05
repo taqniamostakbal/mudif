@@ -295,7 +295,9 @@ object RootfsManager {
             val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
             val sub = if (abi.contains("x86_64")) "x86_64" else "arm64"
             val dest = File(rootfs, "usr/lib/libfakelink.so")
-            if (dest.exists()) return
+            // Always refresh: an older (glibc) build may already exist here.
+            // The nolibc build is self-contained and works everywhere.
+            if (dest.exists()) dest.delete()
             dest.parentFile?.mkdirs()
             context.assets.open("fakelink/$sub/libfakelink.so").use { input ->
                 dest.outputStream().use { output -> input.copyTo(output) }
