@@ -212,7 +212,7 @@ class RfbClient(
             2 -> { // Bell - ignore
             }
             3 -> { // ServerCutText - ignore
-                inp.readBytes(3) // padding
+                inp.skipBytes(3) // padding
                 val len = inp.readInt()
                 inp.skipBytes(len)
             }
