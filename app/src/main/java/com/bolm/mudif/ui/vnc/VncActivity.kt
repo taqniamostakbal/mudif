@@ -36,9 +36,14 @@ class VncActivity : AppCompatActivity() {
             if (!GuiSession.running) {
                 val started = GuiSession.start(this)
                 if (!started) {
+                    val logs = GuiSession.getDiagnosticLogs(this)
                     runOnUiThread {
-                        Toast.makeText(this, "فشل بدء سطح المكتب", Toast.LENGTH_LONG).show()
-                        finish()
+                        val msg = "فشل بدء سطح المكتب\n\nxvfb.log:\n${logs.first}\n\nvnc.log:\n${logs.second}\n\nmarker log:\n${logs.third}"
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("تشخيص")
+                            .setMessage(msg)
+                            .setPositiveButton("حسنا", null)
+                            .show()
                     }
                     return@Thread
                 }
@@ -54,7 +59,7 @@ class VncActivity : AppCompatActivity() {
                     runOnUiThread {
                         Toast.makeText(this, "VNC لا يستجيب", Toast.LENGTH_LONG).show()
                         // Show logs in a dialog
-                        val msg = "xvfb.log:\n${logs.first}\n\nvnc.log:\n${logs.second}"
+                        val msg = "xvfb.log:\n${logs.first}\n\nvnc.log:\n${logs.second}\n\nmarker:\n${logs.third}"
                         androidx.appcompat.app.AlertDialog.Builder(this)
                             .setTitle("تشخيص")
                             .setMessage(msg)
