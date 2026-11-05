@@ -102,9 +102,9 @@ object GuiSession {
     @Synchronized
     /**
      * Get diagnostic logs for troubleshooting.
-     * Returns Pair(xvfb.log tail, vnc.log tail).
+     * Returns Triple(xvfb.log tail, vnc.log tail, marker log).
      */
-    fun getDiagnosticLogs(context: Context): Pair<String, String> {
+    fun getDiagnosticLogs(context: Context): Triple<String, String, String> {
         val rootfs = RootfsManager.rootfsDir(context)
         fun readTail(name: String): String {
             return try {
@@ -116,7 +116,7 @@ object GuiSession {
                 "(error: ${e.message})"
             }
         }
-        return Pair(readTail("xvfb.log"), readTail("vnc.log"))
+        return Triple(readTail("xvfb.log"), readTail("vnc.log"), readTail("gui_marker.log"))
     }
 
     fun stop() {
