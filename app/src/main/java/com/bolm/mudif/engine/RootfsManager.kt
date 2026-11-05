@@ -230,7 +230,7 @@ object RootfsManager {
         // The minirootfs ships with an empty /dev; bind the host's basic
         // device nodes so /dev/null, /dev/zero, /dev/urandom exist.
         val pb = ProcessBuilder(
-            listOf(bin.absolutePath, "-r", rootfs.absolutePath,
+            listOf(bin.absolutePath, "-0", "-r", rootfs.absolutePath,
                 "-b", tmpDir.absolutePath + ":/tmp",
                 "-b", "/dev/null:/dev/null",
                 "-b", "/dev/zero:/dev/zero",
