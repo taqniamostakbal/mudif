@@ -40,7 +40,7 @@ object GuiSession {
             rm -f /root/gui_ready.marker
             echo "SCRIPT_STARTED" > /root/gui_marker.log
             rm -f /tmp/.X0-lock
-            Xvfb :0 -screen 0 1280x720x24 -nolock -listen tcp > /root/xvfb.log 2>&1 &
+            Xvfb :0 -screen 0 1280x720x24 -nolock > /root/xvfb.log 2>&1 &
             # Wait for X socket (up to 15s) - FIXES race condition
             for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
                 if [ -S /tmp/.X11-unix/X0 ]; then break; fi
