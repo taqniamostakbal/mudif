@@ -36,6 +36,7 @@ object GuiSession {
         ensureKeymap(context)
 
         val script = """
+            rm -f /root/gui_ready.marker
             echo "SCRIPT_STARTED" > /root/gui_marker.log
             rm -f /tmp/.X0-lock
             Xvfb :0 -screen 0 1280x720x24 -nolock -listen tcp > /root/xvfb.log 2>&1 &
@@ -43,7 +44,7 @@ object GuiSession {
             x11vnc -display :0 -forever -shared -rfbport 5900 -listen 127.0.0.1 > /root/vnc.log 2>&1 &
             sleep 3
             DISPLAY=:0 openbox > /root/openbox.log 2>&1 &
-            echo "GUI_STACK_READY"
+            touch /root/gui_ready.marker
             while true; do sleep 3600; done
         """.trimIndent()
 
@@ -52,19 +53,16 @@ object GuiSession {
 
         return try {
             process = pb.start()
-            // Wait for READY marker (up to 15s)
-            val reader = process!!.inputStream.bufferedReader()
-            val deadline = System.currentTimeMillis() + 15000
+            // Wait for marker file (bulletproof, no stdout buffering issues)
+            val marker = File(RootfsManager.rootfsDir(context), "root/gui_ready.marker")
+            // Delete stale marker first
+            try { marker.delete() } catch (_: Exception) {}
+            val deadline = System.currentTimeMillis() + 20000
             var ready = false
             while (System.currentTimeMillis() < deadline) {
-                if (reader.ready()) {
-                    val line = reader.readLine()
-                    if (line != null && line.contains("GUI_STACK_READY")) {
-                        ready = true
-                        break
-                    }
-                } else {
-                    Thread.sleep(200)
+                if (marker.exists()) {
+                    ready = true
+                    break
                 }
                 // If process died, fail fast
                 try {
@@ -72,10 +70,11 @@ object GuiSession {
                     Log.e(TAG, "GUI proot died during startup")
                     break
                 } catch (_: IllegalThreadStateException) { /* still alive */ }
+                Thread.sleep(300)
             }
             running = ready
             if (!ready) {
-                Log.e(TAG, "GUI stack did not become ready in 15s")
+                Log.e(TAG, "GUI marker not found in 20s")
                 stop()
             }
             ready
