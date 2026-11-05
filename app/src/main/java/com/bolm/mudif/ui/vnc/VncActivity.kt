@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
+import com.bolm.mudif.engine.GuiSession
 import com.bolm.mudif.engine.vnc.RfbClient
 
 /**
@@ -28,6 +29,30 @@ class VncActivity : AppCompatActivity() {
 
     private fun connect() {
         Thread {
+            // Auto-start GUI stack if not running
+            runOnUiThread {
+                Toast.makeText(this, "بدء تشغيل سطح المكتب...", Toast.LENGTH_SHORT).show()
+            }
+            if (!GuiSession.running) {
+                val started = GuiSession.start(this)
+                if (!started) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this,
+                            "فشل بدء سطح المكتب",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    return@Thread
+                }
+                // Wait for VNC to be reachable
+                var tries = 0
+                while (tries < 20 && !GuiSession.isVncUp()) {
+                    Thread.sleep(500)
+                    tries++
+                }
+            }
+
             val client = RfbClient("127.0.0.1", 5900)
             client.onError = { msg ->
                 runOnUiThread {
