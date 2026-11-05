@@ -49,17 +49,16 @@ class VncActivity : AppCompatActivity() {
             }
 
             // Launch openbox in proot (connects via DISPLAY=:0 to native X server)
-            Thread {
-                X11Session.launchGuiApp(this, listOf("/bin/sh", "-c",
-                    "DISPLAY=:0 openbox > /root/openbox.log 2>&1"))
-            }.start()
+            // X11Session keeps the Process reference alive
+            X11Session.launchGuiApp(this, listOf("/bin/sh", "-c",
+                "DISPLAY=:0 openbox > /root/openbox.log 2>&1"))
 
-            Thread.sleep(2000)
+            // Give openbox time to connect
+            Thread.sleep(3000)
 
             runOnUiThread {
                 Toast.makeText(this, "فتح سطح المكتب...", Toast.LENGTH_SHORT).show()
                 X11Session.openViewer(this)
-                finish()
             }
         }.start()
     }
