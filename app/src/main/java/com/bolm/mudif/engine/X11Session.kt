@@ -69,18 +69,51 @@ object X11Session {
         xserverRunning = false
     }
 
+    /**
+     * Wait for X server to ACCEPT connections (not just socket file exists).
+     * Uses LocalSocket to test the actual Unix domain socket connection.
+     * Professional fix for "X connection to :0 broken".
+     */
     fun waitForXSocket(context: Context, timeoutMs: Long = 15000): Boolean {
         val socket = File(context.filesDir, "tmp/.X11-unix/X0")
         val deadline = System.currentTimeMillis() + timeoutMs
+
+        // Phase 1: Wait for socket file
         while (System.currentTimeMillis() < deadline) {
-            if (socket.exists()) {
-                Log.d(TAG, "X socket ready")
-                return true
-            }
+            if (socket.exists()) break
             Thread.sleep(200)
         }
-        Log.e(TAG, "X socket not ready after ${timeoutMs}ms")
+        if (!socket.exists()) {
+            Log.e(TAG, "X socket not ready after ${timeoutMs}ms")
+            return false
+        }
+
+        // Phase 2: Wait for server to ACCEPT connections (test via LocalSocket)
+        val connectDeadline = System.currentTimeMillis() + 15000
+        while (System.currentTimeMillis() < connectDeadline) {
+            if (testXConnection(socket)) {
+                Log.d(TAG, "X server accepting connections")
+                Thread.sleep(2000) // Extra for full init
+                return true
+            }
+            Thread.sleep(500)
+        }
+        Log.e(TAG, "X socket exists but server not accepting connections")
         return false
+    }
+
+    private fun testXConnection(socketFile: File): Boolean {
+        return try {
+            val sock = android.net.LocalSocket()
+            sock.connect(android.net.LocalSocketAddress(
+                socketFile.absolutePath,
+                android.net.LocalSocketAddress.Namespace.FILESYSTEM
+            ))
+            sock.close()
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /**
