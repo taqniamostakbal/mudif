@@ -24,8 +24,8 @@ class VncActivity : AppCompatActivity() {
 
         binding.vncView.visibility = android.view.View.GONE
 
-        // Version indicator
-        Toast.makeText(this, "نسخة: 20261105-0320-X11", Toast.LENGTH_LONG).show()
+        // Version indicator - P5.4 professional rebuild
+        Toast.makeText(this, "نسخة: P5.4-ProotSession", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
