@@ -10,6 +10,7 @@ import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentProfileBinding
 import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.terminal.TerminalActivity
 import com.bolm.mudif.ui.vnc.VncActivity
 import com.google.android.material.snackbar.Snackbar
@@ -54,6 +55,9 @@ class ProfileFragment : Fragment() {
         }
         binding.rowVnc.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), VncActivity::class.java))
+        }
+        binding.rowLogs.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), LogViewerActivity::class.java))
         }
     }
 

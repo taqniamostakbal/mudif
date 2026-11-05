@@ -40,6 +40,8 @@
     <string name="ok">حسناً</string>
     <string name="boot_test">تجربة إقلاع Alpine</string>
     <string name="boot_test_desc">تحميل النظام ثم تشغيل أول أمر داخله</string>
+    <string name="log_title">سجلات سطح المكتب</string>
+    <string name="log_desc">تشخيص مفصل: خادم X وopenbox واللوجات</string>
     <string name="downloading">جاري التحميل…</string>
     <string name="extracting">جاري فك الضغط…</string>
     <string name="booting">جاري تشغيل Alpine…</string>

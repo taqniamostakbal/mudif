@@ -75,4 +75,8 @@ dependencies {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
+    // NetHunter PTY terminal (Tiny Container's Global.terminalSession).
+    // P5.8: the persistent PTY session that owns the container and takes
+    // the GUI commands. Same JitPack repo, same tiny-computer org.
+    implementation(libs.terminal.lib)
 }

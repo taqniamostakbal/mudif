@@ -4,9 +4,29 @@
     android:layout_height="match_parent"
     android:background="#1A1A2E">
 
-    <com.bolm.mudif.ui.vnc.VncView
-        android:id="@+id/vncView"
+    <!-- P5.8: status + detailed-log button on the desktop screen. -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/status_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="جاري بدء سطح المكتب…"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btn_show_logs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="عرض اللوجات المفصلة" />
+    </LinearLayout>
 
 </FrameLayout>

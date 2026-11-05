@@ -200,12 +200,14 @@ object RootfsManager {
     }
 
     /**
-     * Builds a proot ProcessBuilder for running [guestCommand] inside the Alpine
-     * rootfs. Returns null if the engine, rootfs, or loader is missing.
-     * Shared by firstBoot() and TerminalSession — single source of truth for
-     * the proot invocation (flags + environment).
+     * P5.8 (Tiny Container rebuild): single source of truth for the proot
+     * invocation, usable BOTH as a ProcessBuilder (terminal / firstBoot)
+     * and as a shell command string (PTY boot script in ContainerSession).
+     *
+     * Returns argv + environment. All preparation side effects are the
+     * same as prootBuilder() used to do inline (DNS, /tmp, XKB, fakelink).
      */
-    fun prootBuilder(context: Context, guestCommand: List<String>): ProcessBuilder? {
+    fun prootCommandLine(context: Context, guestCommand: List<String>): Pair<List<String>, Map<String, String>>? {
         val bin = EngineCheck.prootPath(context) ?: return null
         EngineCheck.ensureLibs(context)
         val rootfs = rootfsDir(context)
@@ -223,34 +225,51 @@ object RootfsManager {
         ensureWritableXkb(rootfs)
         // libfakelink.so for X servers (SELinux blocks link()).
         ensureFakelink(context, rootfs)
-        // X servers (Xvfb) need a writable /tmp for lock files and sockets
+        // X servers need a writable /tmp for lock files and sockets
         // (/tmp/.X0-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
         // and the app runs as a normal UID, so bind-mount the app's
         // private tmp dir over the guest's /tmp.
         // The minirootfs ships with an empty /dev; bind the host's basic
         // device nodes so /dev/null, /dev/zero, /dev/urandom exist.
-        val pb = ProcessBuilder(
-            listOf(bin.absolutePath, "-0", "-r", rootfs.absolutePath,
-                "-b", tmpDir.absolutePath + ":/tmp",
-                "-b", "/dev/null:/dev/null",
-                "-b", "/dev/zero:/dev/zero",
-                "-b", "/dev/urandom:/dev/urandom",
-                "-b", "/dev/random:/dev/random",
-                "-w", "/root") + guestCommand
-        ).redirectErrorStream(true)
-        pb.environment()["LD_LIBRARY_PATH"] = EngineCheck.binDir(context).absolutePath
-        pb.environment()["TMPDIR"] = tmpDir.absolutePath
-        pb.environment()["PROOT_TMP_DIR"] = prootTmp.absolutePath
-        pb.environment()["PROOT_NO_SECCOMP"] = "1"
-        // Mandatory: our proot was built with PROOT_UNBUNDLE_LOADER pointing
-        // at Termux's libexec (absent here); without PROOT_LOADER every
-        // execve fails with ENOENT. Loader built from the exact proot source.
-        pb.environment()["PROOT_LOADER"] = loader.absolutePath
-        // Guest environment
-        pb.environment()["HOME"] = "/root"
-        pb.environment()["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-        pb.environment()["TERM"] = "xterm-256color"
-        pb.environment()["LANG"] = "C.UTF-8"
+        val argv = listOf(bin.absolutePath, "-0", "-r", rootfs.absolutePath,
+            "-b", tmpDir.absolutePath + ":/tmp",
+            "-b", "/dev/null:/dev/null",
+            "-b", "/dev/zero:/dev/zero",
+            "-b", "/dev/urandom:/dev/urandom",
+            "-b", "/dev/random:/dev/random",
+            "-w", "/root") + guestCommand
+        val env = mapOf(
+            "LD_LIBRARY_PATH" to EngineCheck.binDir(context).absolutePath,
+            "TMPDIR" to tmpDir.absolutePath,
+            "PROOT_TMP_DIR" to prootTmp.absolutePath,
+            "PROOT_NO_SECCOMP" to "1",
+            // Mandatory: our proot was built with PROOT_UNBUNDLE_LOADER
+            // pointing at Termux's libexec (absent here); without
+            // PROOT_LOADER every execve fails with ENOENT. Loader built
+            // from the exact proot source.
+            "PROOT_LOADER" to loader.absolutePath,
+            "HOME" to "/root",
+            "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "TERM" to "xterm-256color",
+            "LANG" to "C.UTF-8"
+        )
+        return argv to env
+    }
+
+    /** Shell-quote one argv element for the PTY boot script. */
+    fun shellQuote(arg: String): String =
+        "'" + arg.replace("'", "'\\''") + "'"
+
+    /**
+     * Builds a proot ProcessBuilder for running [guestCommand] inside the Alpine
+     * rootfs. Returns null if the engine, rootfs, or loader is missing.
+     * Shared by firstBoot() and TerminalSession — single source of truth for
+     * the proot invocation (flags + environment).
+     */
+    fun prootBuilder(context: Context, guestCommand: List<String>): ProcessBuilder? {
+        val (argv, env) = prootCommandLine(context, guestCommand) ?: return null
+        val pb = ProcessBuilder(argv).redirectErrorStream(true)
+        pb.environment().putAll(env)
         return pb
     }
 

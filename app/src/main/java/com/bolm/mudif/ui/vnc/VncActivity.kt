@@ -1,18 +1,39 @@
 package com.bolm.mudif.ui.vnc
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
+import com.bolm.mudif.engine.ContainerSession
+import com.bolm.mudif.engine.DesktopDiagnostics
 import com.bolm.mudif.engine.X11Session
+import com.bolm.mudif.ui.logs.LogViewerActivity
 
 /**
- * P5.3: X11 desktop via Termux:X11 (native Android X server).
- * EXACT Tiny Container approach - no VNC, no Xvfb.
+ * P5.8 REBUILD — X11 desktop via Termux:X11, Tiny Container's flow exactly.
+ *
+ * Tiny (`ContainerMainViewModel`, x11 feature):
+ *  1. Boot the container in the persistent PTY session.
+ *  2. `launchXServer(args)` (CmdEntryPointService ACTION_START).
+ *  3. `waitForFile(.../.X11-unix/X0)` — 15 s, exists() only.
+ *  4. `Global.sendCommand(command)` — the GUI command into the PTY.
+ *  5. Open `com.termux.x11.MainActivity`.
+ *
+ * No direct-Process openbox anymore (P5.5), no pipe shell anymore (P5.4),
+ * no LocalSocket test (P5.6 — Tiny does not do it).
+ *
+ * The activity also shows a live status line and a "عرض اللوجات" button
+ * (the detailed-log button the user ordered), and on X failure it opens
+ * the log viewer instead of dying silently.
  */
 class VncActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityVncBinding
+
+    @Volatile
+    private var destroyed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,124 +43,117 @@ class VncActivity : AppCompatActivity() {
         supportActionBar?.title = "سطح مكتب لينكس"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        binding.vncView.visibility = android.view.View.GONE
+        binding.btnShowLogs.setOnClickListener {
+            startActivity(Intent(this, LogViewerActivity::class.java))
+        }
 
-        // Version indicator - P5.7 diagnostic (H1 test)
-        Toast.makeText(this, "نسخة: P5.7-Diag", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.8 rebuild (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.8-Rebuild", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
 
+    private fun setStatus(text: String) {
+        if (destroyed) return
+        runOnUiThread { binding.statusText.text = text }
+    }
+
     private fun startDesktop() {
         Thread {
-            runOnUiThread {
-                Toast.makeText(this, "بدء تشغيل سطح المكتب...", Toast.LENGTH_SHORT).show()
-            }
-
-            if (!X11Session.xserverRunning) {
-                X11Session.startXServer(this)
-            }
-
-            if (!X11Session.waitForXSocket(this, 20000)) {
+            // 1. Boot the container in the persistent PTY session (Tiny).
+            setStatus("جاري تشغيل الحاوية…")
+            if (!ContainerSession.bootContainer(this)) {
+                if (destroyed) return@Thread
                 runOnUiThread {
-                    Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
-                    finish()
+                    Toast.makeText(this, "فشل تشغيل الحاوية", Toast.LENGTH_LONG).show()
+                    showFailureDialog("تعذّر تشغيل حاوية Alpine داخل جلسة PTY.")
                 }
                 return@Thread
             }
 
-            // Launch openbox DIRECTLY (no shell wrapper) - X11Session keeps Process alive
+            // 2. Start the X server (Tiny launchXServer).
+            setStatus("جاري تشغيل خادم X…")
+            if (!X11Session.xserverRunning) {
+                X11Session.startXServer(this)
+            }
+
+            // 3. Wait ONLY for the socket file (Tiny waitForFile).
+            if (!X11Session.waitForXSocket(this, 15000)) {
+                if (destroyed) return@Thread
+                runOnUiThread {
+                    Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
+                    showFailureDialog("خادم X ما قلعش: سوكيت X0 ما تخلقش خلال 15 ثانية.")
+                }
+                return@Thread
+            }
+
+            // 4. Send the GUI command through the PTY session (Tiny).
+            setStatus("جاري تشغيل openbox…")
             X11Session.launchGuiApp(this)
-
-            // Give openbox time to connect
-            Thread.sleep(3000)
-
-            // DIAGNOSTIC: Check if openbox is running and show log + H1 test
+            Thread.sleep(2000)
             val isRunning = X11Session.isOpenboxRunning(this)
             val log = X11Session.getOpenboxLog(this)
-            val h1Result = testHypothesis1()
+
+            // 5. Diagnostic dialog (H1 result + openbox state + log).
+            if (destroyed) return@Thread
             runOnUiThread {
-                androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.7")
-                    .setMessage("openbox يشتغل: $isRunning\n\nاللوگ:\n$log\n\n--- الفرضية 1 (Phantom Killer) ---\n$h1Result")
-                    .setPositiveButton("فتح العارض", { _, _ ->
+                setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
+                AlertDialog.Builder(this)
+                    .setTitle("تشخيص P5.8")
+                    .setMessage(
+                        "openbox يشتغل: $isRunning\n\nاللوگ:\n$log\n\n" +
+                            "--- الفرضية 1 (Phantom Killer) ---\n" +
+                            DesktopDiagnostics.hypothesis1()
+                    )
+                    .setPositiveButton("فتح العارض") { _, _ ->
                         X11Session.openViewer(this)
-                    })
-                    .setNeutralButton("جمع لوگات", { _, _ ->
-                        collectAndShowLogs()
-                    })
+                    }
+                    .setNeutralButton("اللوجات المفصلة") { _, _ ->
+                        startActivity(Intent(this, LogViewerActivity::class.java))
+                    }
                     .setNegativeButton("إلغاء", null)
                     .show()
             }
         }.start()
     }
 
-    /**
-     * Hypothesis 1: Android 12+ Phantom Process Killer
-     * Returns diagnostic info about phantom process status
-     */
-    private fun testHypothesis1(): String {
-        val sb = StringBuilder()
-        sb.append("Android API: ${android.os.Build.VERSION.SDK_INT}\n")
-        sb.append("Android: ${android.os.Build.VERSION.RELEASE}\n")
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            sb.append("⚠ Android 12+ : Phantom Killer محتمل\n")
-        } else {
-            sb.append("✓ Android < 12: Phantom Killer غير موجود\n")
-        }
-        // Try to read phantom settings (likely fails without permission)
-        try {
-            val proc = Runtime.getRuntime().exec(arrayOf("settings", "get", "global", "settings_enable_monitor_phantom_procs"))
-            val out = proc.inputStream.bufferedReader().readText().trim()
-            proc.waitFor()
-            sb.append("monitor_phantom_procs: $out\n")
-        } catch (e: Exception) {
-            sb.append("لا يمكن قراءة الإعدادات: ${e.message}\n")
-        }
-        return sb.toString()
+    /** Shown when the container or the X server fails to start. */
+    private fun showFailureDialog(reason: String) {
+        if (destroyed) return
+        AlertDialog.Builder(this)
+            .setTitle("فشل بدء سطح المكتب")
+            .setMessage(
+                "$reason\n\nالسبب الحقيقي كاين في اللوجات " +
+                    "(logcat ديال أندرويد + حالة الخادم)."
+            )
+            .setPositiveButton("عرض اللوجات") { _, _ ->
+                startActivity(Intent(this, LogViewerActivity::class.java))
+            }
+            .setNeutralButton("إعادة المحاولة") { _, _ ->
+                startDesktop()
+            }
+            .setNegativeButton("إغلاق") { _, _ -> finish() }
+            .show()
     }
 
-    /**
-     * Collect logcat and X server related logs
-     */
-    private fun collectAndShowLogs() {
-        Thread {
-            val logs = StringBuilder()
-            logs.append("=== Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}) ===\n\n")
+    override fun onDestroy() {
+        destroyed = true
+        // Tiny's onCleared/exitContainer: stop the X server + container
+        // session only when this screen is really going away (not when the
+        // X11 viewer just moved to the front — then we are only stopped).
+        if (isFinishing) {
             try {
-                // Get logcat for relevant tags
-                val proc = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "brief",
-                    "ActivityManager:I", "DEBUG:I", "*:S"))
-                val out = proc.inputStream.bufferedReader().readText()
-                proc.waitFor()
-                // Filter for phantom, kill, X11, xserver
-                val relevant = out.lines().filter {
-                    it.contains("phantom", ignoreCase = true) ||
-                    it.contains("Phantom", ignoreCase = true) ||
-                    it.contains("kill", ignoreCase = true) ||
-                    it.contains("x11", ignoreCase = true) ||
-                    it.contains("X11", ignoreCase = true) ||
-                    it.contains("CmdEntry", ignoreCase = true)
-                }.takeLast(50)
-                logs.append("=== Logcat (relevant) ===\n")
-                if (relevant.isEmpty()) {
-                    logs.append("(no relevant entries)\n")
-                } else {
-                    relevant.forEach { logs.append("$it\n") }
-                }
-            } catch (e: Exception) {
-                logs.append("logcat failed: ${e.message}\n")
+                X11Session.stopXServer(this)
+            } catch (_: Exception) {
             }
-            val logText = logs.toString()
-            runOnUiThread {
-                androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("اللوگات المجمعة")
-                    .setMessage(logText.take(3000))
-                    .setPositiveButton("حسنا", null)
-                    .show()
+            try {
+                ContainerSession.stop()
+            } catch (_: Exception) {
             }
-        }.start()
+        }
+        super.onDestroy()
     }
+
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true

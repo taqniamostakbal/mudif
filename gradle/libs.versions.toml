@@ -7,6 +7,7 @@ material = "1.12.0"
 lifecycle = "2.8.6"
 snakeyaml = "2.3"
 commonsCompress = "1.26.1"
+terminalLib = "e7a15b7877"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -16,6 +17,11 @@ androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecyc
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commonsCompress" }
+# NetHunter PTY terminal (Tiny Container's Global.terminalSession).
+# Same JitPack repo as termux-x11 (settings.gradle.kts). Pure Java, no
+# Kotlin stdlib dependency expected; if CI reports stdlib metadata
+# conflicts, apply the same exclude pattern as termux-x11 below.
+terminal-lib = { group = "com.github.tiny-computer", name = "terminal-lib", version.ref = "terminalLib" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

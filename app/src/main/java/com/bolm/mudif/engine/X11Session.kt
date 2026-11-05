@@ -2,38 +2,57 @@ package com.bolm.mudif.engine
 
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.util.Log
 import com.termux.x11.CmdEntryPointService
 import java.io.File
 
 /**
- * P5.3: Native X11 via Termux:X11 (EXACT Tiny Container approach).
+ * P5.8 REBUILD — native X11 via Termux:X11, Tiny Container's flow exactly.
  *
- * Tiny Container's launchXServer replicated exactly:
- * - CmdEntryPointService with args [":0"]
- * - Env: TMPDIR, XKB_CONFIG_ROOT, TERMUX_X11_DEBUG=1, TERMUX_X11_OVERRIDE_PACKAGE
- * - Wait for filesDir/tmp/.X11-unix/X0
- * - proot guest connects via DISPLAY=:0 (tmp bind-mount in prootBuilder)
- * - Open com.termux.x11.MainActivity to display
+ * Tiny Container (`ContainerMainViewModel.kt`):
+ * - `launchXServer(args)`: CmdEntryPointService ACTION_START, args [":0"],
+ *   env TMPDIR / XKB_CONFIG_ROOT / TERMUX_X11_DEBUG=1 /
+ *   TERMUX_X11_OVERRIDE_PACKAGE. `xserverStarted` flag guards the stop.
+ * - x11 feature: launch X in a coroutine, `waitForFile(...X0)` (15 s,
+ *   500 ms poll, `exists()` ONLY), then `Global.sendCommand(command)`
+ *   into the persistent PTY session, then open the viewer.
+ * - `killXServer()`: ACTION_STOP only if started; called from
+ *   `exitContainer()` and `onCleared()`.
+ *
+ * What changed vs P5.5/P5.7 (the patch loop):
+ * - openbox is NO LONGER launched as a direct `ProcessBuilder` proot
+ *   invocation. It is sent through the persistent PTY container session
+ *   (`ContainerSession.sendCommand`), exactly like Tiny — one session
+ *   owns the container, and the GUI app runs inside it.
+ * - `waitForXSocket()` no longer sleeps 2 s after the socket appears
+ *   (Tiny does not do that).
+ * - `stopXServer()` is guarded by the started flag (Tiny's killXServer).
+ * - `isOpenboxRunning()` no longer reads a `Process` handle (there is
+ *   none anymore). It asks the guest shell via the PTY and reads the
+ *   answer from a marker file on the shared /tmp bind-mount.
  */
 object X11Session {
 
     private const val TAG = "X11Session"
     private const val DISPLAY = ":0"
+    private const val OPENBOX_PID_FILE = ".mudif_openbox_pid"
+    private const val OPENBOX_STATE_FILE = ".mudif_openbox_state"
 
     @Volatile
     var xserverRunning = false
         private set
 
-    // Keep the openbox Process alive (prevents GC)
-    @Volatile
-    private var guiProcess: Process? = null
-
+    /**
+     * Tiny `launchXServer`: start CmdEntryPointService with ACTION_START.
+     * Sets the started flag FIRST (Tiny does the same) so a later stop
+     * always pairs with a start.
+     */
     fun startXServer(context: Context) {
         val app = context.applicationContext
         val tmpDir = File(app.filesDir, "tmp").apply { mkdirs() }
 
-        // EXACT match to Tiny Container's launchXServer
+        // EXACT match to Tiny Container's launchXServer.
         val xkbRoot = File(RootfsManager.rootfsDir(context), "usr/share/X11/xkb")
             .takeIf { it.exists() }?.absolutePath ?: ""
 
@@ -61,7 +80,13 @@ object X11Session {
         Log.d(TAG, "X server start requested for $DISPLAY")
     }
 
+    /**
+     * Tiny `killXServer`: ACTION_STOP only if the server was started.
+     * Sending ACTION_STOP without a start would spawn a stray :xserver
+     * process — that is why the guard exists.
+     */
     fun stopXServer(context: Context) {
+        if (!xserverRunning) return
         val app = context.applicationContext
         app.startService(Intent(app, CmdEntryPointService::class.java).apply {
             action = CmdEntryPointService.ACTION_STOP
@@ -70,58 +95,77 @@ object X11Session {
     }
 
     /**
-     * Wait for X socket file (Tiny Container approach - no connection test).
-     * Tiny Container only waits for the file, does NOT test the connection.
+     * Tiny `waitForFile`: poll `exists()` every 500 ms, 15 s timeout.
+     * No connection test, no extra sleep — Tiny waits ONLY for the file.
      */
     fun waitForXSocket(context: Context, timeoutMs: Long = 15000): Boolean {
         val socket = File(context.filesDir, "tmp/.X11-unix/X0")
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
             if (socket.exists()) {
                 Log.d(TAG, "X socket ready")
-                // Small delay for server init (like Tiny Container's implicit delay)
-                Thread.sleep(2000)
                 return true
             }
-            Thread.sleep(200)
+            Thread.sleep(500)
         }
         Log.e(TAG, "X socket not ready after ${timeoutMs}ms")
         return false
     }
 
+    /** True if the X socket file exists right now (diagnostics). */
+    fun isXSocketPresent(context: Context): Boolean =
+        File(context.filesDir, "tmp/.X11-unix/X0").exists()
+
     /**
-     * Launch openbox DIRECTLY as the proot process (no shell, no pipe).
-     * The Process IS openbox. Kept alive via static reference.
-     * Output drained by daemon thread to prevent deadlock.
+     * Tiny's GUI step: send the GUI command into the persistent PTY
+     * container session. openbox runs backgrounded (`&`) with its output
+     * redirected to /root/openbox.log, and its pid recorded so the
+     * running-state check below can test it.
      */
     fun launchGuiApp(context: Context): Boolean {
-        val pb = RootfsManager.prootBuilder(context, listOf("/usr/bin/openbox"))
-            ?: return false
-        pb.environment()["DISPLAY"] = DISPLAY
-        // Don't merge streams; drain separately
-        return try {
-            val proc = pb.start()
-            // Keep reference to prevent GC
-            guiProcess = proc
-            // Drain stdout/stderr to prevent pipe deadlock
-            Thread {
-                try {
-                    val buf = ByteArray(8192)
-                    val input = proc.inputStream
-                    while (true) {
-                        val n = input.read(buf)
-                        if (n < 0) break
-                    }
-                } catch (_: Exception) {}
-            }.apply { isDaemon = true; name = "openbox-drain" }.start()
-            Log.d(TAG, "openbox launched directly, pid kept alive")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to launch openbox", e)
-            false
-        }
+        val ok = ContainerSession.sendCommand(
+            "DISPLAY=:0 openbox > /root/openbox.log 2>&1 & echo \$! > /tmp/$OPENBOX_PID_FILE"
+        )
+        if (ok) Log.d(TAG, "openbox command sent through PTY session")
+        else Log.e(TAG, "PTY session not available for openbox")
+        return ok
     }
 
+    /**
+     * Is openbox alive? Asks the guest shell (through the PTY) to test
+     * the recorded pid with `kill -0` and write RUNNING/DEAD to a marker
+     * file on the shared /tmp bind-mount, then reads that file from the
+     * Android side. Returns false on any doubt.
+     */
+    fun isOpenboxRunning(context: Context, timeoutMs: Long = 5000): Boolean {
+        val app = context.applicationContext
+        val stateFile = File(app.filesDir, "tmp/$OPENBOX_STATE_FILE")
+        try {
+            stateFile.delete()
+        } catch (_: Exception) {
+        }
+        if (!ContainerSession.sendCommand(
+                "kill -0 \$(cat /tmp/$OPENBOX_PID_FILE 2>/dev/null) 2>/dev/null" +
+                    " && echo RUNNING > /tmp/$OPENBOX_STATE_FILE" +
+                    " || echo DEAD > /tmp/$OPENBOX_STATE_FILE"
+            )
+        ) {
+            return false
+        }
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            try {
+                if (stateFile.exists()) {
+                    return stateFile.readText().trim() == "RUNNING"
+                }
+            } catch (_: Exception) {
+            }
+            Thread.sleep(200)
+        }
+        return false
+    }
+
+    /** Open the Termux:X11 viewer (Tiny: OpenX11 navigation event). */
     fun openViewer(context: Context) {
         val intent = Intent(context, com.termux.x11.MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
@@ -138,16 +182,6 @@ object X11Session {
             lines.takeLast(30).joinToString("\n")
         } catch (e: Exception) {
             "(error: ${e.message})"
-        }
-    }
-
-    fun isOpenboxRunning(context: Context): Boolean {
-        val proc = guiProcess ?: return false
-        return try {
-            proc.exitValue()
-            false // Exited
-        } catch (_: IllegalThreadStateException) {
-            true // Still alive
         }
     }
 }
