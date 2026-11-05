@@ -41,11 +41,22 @@ object GuiSession {
             echo "SCRIPT_STARTED" > /root/gui_marker.log
             rm -f /tmp/.X0-lock
             Xvfb :0 -screen 0 1280x720x24 -nolock -listen tcp > /root/xvfb.log 2>&1 &
-            sleep 3
+            # Wait for X socket (up to 15s) - FIXES race condition
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                if [ -S /tmp/.X11-unix/X0 ]; then break; fi
+                sleep 1
+            done
             x11vnc -display :0 -forever -shared -rfbport 5900 -listen 127.0.0.1 > /root/vnc.log 2>&1 &
             sleep 3
             DISPLAY=:0 openbox > /root/openbox.log 2>&1 &
-            touch /root/gui_ready.marker
+            # Only mark ready if x11vnc is actually alive
+            sleep 2
+            if ps | grep -q "[x]11vnc"; then
+                touch /root/gui_ready.marker
+                echo "MARKER_CREATED" >> /root/gui_marker.log
+            else
+                echo "X11VNC_NOT_RUNNING" >> /root/gui_marker.log
+            fi
             while true; do sleep 3600; done
         """.trimIndent()
 
@@ -89,6 +100,25 @@ object GuiSession {
      * Stop the GUI stack.
      */
     @Synchronized
+    /**
+     * Get diagnostic logs for troubleshooting.
+     * Returns Pair(xvfb.log tail, vnc.log tail).
+     */
+    fun getDiagnosticLogs(context: Context): Pair<String, String> {
+        val rootfs = RootfsManager.rootfsDir(context)
+        fun readTail(name: String): String {
+            return try {
+                val file = File(rootfs, "root/$name")
+                if (!file.exists()) return "(file not found)"
+                val lines = file.readLines()
+                lines.takeLast(20).joinToString("\n")
+            } catch (e: Exception) {
+                "(error: ${e.message})"
+            }
+        }
+        return Pair(readTail("xvfb.log"), readTail("vnc.log"))
+    }
+
     fun stop() {
         running = false
         try {
