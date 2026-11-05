@@ -70,4 +70,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.snakeyaml)
     implementation(libs.commons.compress)
+    // Termux:X11 as local module (pure Java, prebuilt native .so)
+    implementation(project(":termux-x11"))
 }
