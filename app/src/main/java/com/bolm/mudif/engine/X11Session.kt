@@ -25,6 +25,10 @@ object X11Session {
     var xserverRunning = false
         private set
 
+    // Keep the openbox Process alive (prevents GC)
+    @Volatile
+    private var guiProcess: Process? = null
+
     fun startXServer(context: Context) {
         val app = context.applicationContext
         val tmpDir = File(app.filesDir, "tmp").apply { mkdirs() }
@@ -80,18 +84,36 @@ object X11Session {
     }
 
     /**
-     * Launch openbox in the PERSISTENT proot session (Tiny Container architecture).
-     * The session stays alive, so openbox stays alive.
+     * Launch openbox DIRECTLY as the proot process (no shell, no pipe).
+     * The Process IS openbox. Kept alive via static reference.
+     * Output drained by daemon thread to prevent deadlock.
      */
     fun launchGuiApp(context: Context): Boolean {
-        // Ensure persistent session is running
-        if (!ProotSession.start(context)) {
-            Log.e(TAG, "Failed to start persistent proot session")
-            return false
+        val pb = RootfsManager.prootBuilder(context, listOf("/usr/bin/openbox"))
+            ?: return false
+        pb.environment()["DISPLAY"] = DISPLAY
+        // Don't merge streams; drain separately
+        return try {
+            val proc = pb.start()
+            // Keep reference to prevent GC
+            guiProcess = proc
+            // Drain stdout/stderr to prevent pipe deadlock
+            Thread {
+                try {
+                    val buf = ByteArray(8192)
+                    val input = proc.inputStream
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                    }
+                } catch (_: Exception) {}
+            }.apply { isDaemon = true; name = "openbox-drain" }.start()
+            Log.d(TAG, "openbox launched directly, pid kept alive")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch openbox", e)
+            false
         }
-        // Launch openbox in background (&) with DISPLAY set
-        // Output to log file for diagnostics
-        return ProotSession.sendCommand("DISPLAY=:0 openbox > /root/openbox.log 2>&1 &")
     }
 
     fun openViewer(context: Context) {
@@ -114,16 +136,12 @@ object X11Session {
     }
 
     fun isOpenboxRunning(context: Context): Boolean {
-        // Use persistent session to check
-        if (!ProotSession.running) return false
-        // Send check command via a one-shot (doesn't affect persistent session)
+        val proc = guiProcess ?: return false
         return try {
-            val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", "ps | grep -q '[o]penbox' && echo YES || echo NO"))
-                ?: return false
-            val proc = pb.start()
-            val out = proc.inputStream.bufferedReader().readText()
-            proc.waitFor()
-            out.contains("YES")
-        } catch (_: Exception) { false }
+            proc.exitValue()
+            false // Exited
+        } catch (_: IllegalThreadStateException) {
+            true // Still alive
+        }
     }
 }
