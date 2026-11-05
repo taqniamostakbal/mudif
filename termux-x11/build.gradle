@@ -21,4 +21,6 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'androidx.annotation:annotation:1.7.0'
+    // Required by MainActivity (Reflection.unseal)
+    implementation 'com.github.tiann:FreeReflection:3.2.2'
 }
