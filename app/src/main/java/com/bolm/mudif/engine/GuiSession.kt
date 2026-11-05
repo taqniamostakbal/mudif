@@ -2,6 +2,7 @@ package com.bolm.mudif.engine
 
 import android.content.Context
 import android.util.Log
+import java.io.File
 
 /**
  * P5.2: Persistent GUI session manager.
