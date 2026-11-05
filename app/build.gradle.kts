@@ -70,4 +70,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.snakeyaml)
     implementation(libs.commons.compress)
+    // Termux:X11 - native Android X server (from Tiny Container's approach)
+    implementation("com.github.tiny-computer:termux-x11:21159a1405")
 }
