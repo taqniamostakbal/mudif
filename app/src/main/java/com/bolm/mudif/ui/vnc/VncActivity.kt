@@ -56,9 +56,18 @@ class VncActivity : AppCompatActivity() {
             // Give openbox time to connect
             Thread.sleep(3000)
 
+            // DIAGNOSTIC: Check if openbox is running and show log
+            val isRunning = X11Session.isOpenboxRunning(this)
+            val log = X11Session.getOpenboxLog(this)
             runOnUiThread {
-                Toast.makeText(this, "فتح سطح المكتب...", Toast.LENGTH_SHORT).show()
-                X11Session.openViewer(this)
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("تشخيص openbox")
+                    .setMessage("يشتغل: $isRunning\n\nاللوگ:\n$log")
+                    .setPositiveButton("فتح العارض", { _, _ ->
+                        X11Session.openViewer(this)
+                    })
+                    .setNegativeButton("إلغاء", null)
+                    .show()
             }
         }.start()
     }
