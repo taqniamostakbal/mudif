@@ -70,6 +70,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.snakeyaml)
     implementation(libs.commons.compress)
-    // Termux:X11 as local module (pure Java, prebuilt native .so)
-    implementation(project(":termux-x11"))
+    // Termux:X11 from JitPack (pure Java, exclude Kotlin stdlib to avoid version conflict)
+    implementation("com.github.tiny-computer:termux-x11:21159a1405") {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
+    }
 }
