@@ -109,4 +109,27 @@ object X11Session {
         }
         context.startActivity(intent)
     }
+
+    fun getOpenboxLog(context: Context): String {
+        return try {
+            val file = File(RootfsManager.rootfsDir(context), "root/openbox.log")
+            if (!file.exists()) return "(openbox.log not found - openbox never started)"
+            val lines = file.readLines()
+            if (lines.isEmpty()) return "(openbox.log empty)"
+            lines.takeLast(30).joinToString("\n")
+        } catch (e: Exception) {
+            "(error: ${e.message})"
+        }
+    }
+
+    fun isOpenboxRunning(context: Context): Boolean {
+        return try {
+            val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", "ps | grep -q '[o]penbox' && echo YES || echo NO"))
+                ?: return false
+            val proc = pb.start()
+            val out = proc.inputStream.bufferedReader().readText()
+            proc.waitFor()
+            out.contains("YES")
+        } catch (_: Exception) { false }
+    }
 }
