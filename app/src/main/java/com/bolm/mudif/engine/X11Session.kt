@@ -25,10 +25,6 @@ object X11Session {
     var xserverRunning = false
         private set
 
-    // Keep the GUI app process alive (prevents GC from killing it)
-    @Volatile
-    private var guiProcess: Process? = null
-
     fun startXServer(context: Context) {
         val app = context.applicationContext
         val tmpDir = File(app.filesDir, "tmp").apply { mkdirs() }
@@ -83,29 +79,19 @@ object X11Session {
         return false
     }
 
-    fun launchGuiApp(context: Context): Process? {
-        // Run openbox DIRECTLY (no sh -c wrapper) to avoid shell lifecycle issues.
-        // DISPLAY is set in the environment, output goes to log file via redirect.
-        val pb = RootfsManager.prootBuilder(context, listOf("/usr/bin/openbox"))
-            ?: return null
-        pb.environment()["DISPLAY"] = DISPLAY
-        // Redirect output to log file (replaces shell redirection)
-        val logFile = File(RootfsManager.rootfsDir(context), "root/openbox.log")
-        try {
-            logFile.parentFile?.mkdirs()
-        } catch (_: Exception) {}
-        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
-        pb.redirectError(ProcessBuilder.Redirect.appendTo(logFile))
-        // Don't merge stderr (we're redirecting separately)
-        return try {
-            val proc = pb.start()
-            // Keep reference to prevent GC from killing the process
-            guiProcess = proc
-            proc
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to launch GUI app", e)
-            null
+    /**
+     * Launch openbox in the PERSISTENT proot session (Tiny Container architecture).
+     * The session stays alive, so openbox stays alive.
+     */
+    fun launchGuiApp(context: Context): Boolean {
+        // Ensure persistent session is running
+        if (!ProotSession.start(context)) {
+            Log.e(TAG, "Failed to start persistent proot session")
+            return false
         }
+        // Launch openbox in background (&) with DISPLAY set
+        // Output to log file for diagnostics
+        return ProotSession.sendCommand("DISPLAY=:0 openbox > /root/openbox.log 2>&1 &")
     }
 
     fun openViewer(context: Context) {
@@ -128,6 +114,9 @@ object X11Session {
     }
 
     fun isOpenboxRunning(context: Context): Boolean {
+        // Use persistent session to check
+        if (!ProotSession.running) return false
+        // Send check command via a one-shot (doesn't affect persistent session)
         return try {
             val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", "ps | grep -q '[o]penbox' && echo YES || echo NO"))
                 ?: return false
