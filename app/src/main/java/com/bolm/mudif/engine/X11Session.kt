@@ -83,19 +83,24 @@ object X11Session {
         return false
     }
 
-    fun launchGuiApp(context: Context, command: List<String>): Process? {
-        val pb = RootfsManager.prootBuilder(context, command) ?: return null
+    fun launchGuiApp(context: Context): Process? {
+        // Run openbox DIRECTLY (no sh -c wrapper) to avoid shell lifecycle issues.
+        // DISPLAY is set in the environment, output goes to log file via redirect.
+        val pb = RootfsManager.prootBuilder(context, listOf("/usr/bin/openbox"))
+            ?: return null
         pb.environment()["DISPLAY"] = DISPLAY
+        // Redirect output to log file (replaces shell redirection)
+        val logFile = File(RootfsManager.rootfsDir(context), "root/openbox.log")
+        try {
+            logFile.parentFile?.mkdirs()
+        } catch (_: Exception) {}
+        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
+        pb.redirectError(ProcessBuilder.Redirect.appendTo(logFile))
+        // Don't merge stderr (we're redirecting separately)
         return try {
             val proc = pb.start()
             // Keep reference to prevent GC from killing the process
             guiProcess = proc
-            // Drain output to prevent pipe buffer deadlock
-            Thread {
-                try {
-                    proc.inputStream.bufferedReader().forEachLine { }
-                } catch (_: Exception) {}
-            }.apply { isDaemon = true }.start()
             proc
         } catch (e: Exception) {
             Log.e(TAG, "Failed to launch GUI app", e)
