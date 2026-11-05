@@ -36,12 +36,13 @@ object GuiSession {
         ensureKeymap(context)
 
         val script = """
+            echo "SCRIPT_STARTED" > /root/gui_marker.log
             rm -f /tmp/.X0-lock
-            Xvfb :0 -screen 0 1280x720x24 -nolock > /tmp/xvfb.log 2>&1 &
-            sleep 2
-            x11vnc -display :0 -forever -shared -rfbport 5900 -listen 127.0.0.1 > /tmp/vnc.log 2>&1 &
-            sleep 2
-            DISPLAY=:0 openbox > /tmp/openbox.log 2>&1 &
+            Xvfb :0 -screen 0 1280x720x24 -nolock -listen tcp > /root/xvfb.log 2>&1 &
+            sleep 3
+            x11vnc -display :0 -forever -shared -rfbport 5900 -listen 127.0.0.1 > /root/vnc.log 2>&1 &
+            sleep 3
+            DISPLAY=:0 openbox > /root/openbox.log 2>&1 &
             echo "GUI_STACK_READY"
             while true; do sleep 3600; done
         """.trimIndent()
