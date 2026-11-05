@@ -48,10 +48,8 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // Launch openbox in proot (connects via DISPLAY=:0 to native X server)
-            // X11Session keeps the Process reference alive
-            X11Session.launchGuiApp(this, listOf("/bin/sh", "-c",
-                "DISPLAY=:0 openbox > /root/openbox.log 2>&1"))
+            // Launch openbox DIRECTLY (no shell wrapper) - X11Session keeps Process alive
+            X11Session.launchGuiApp(this)
 
             // Give openbox time to connect
             Thread.sleep(3000)
