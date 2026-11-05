@@ -4,17 +4,20 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
-import com.bolm.mudif.engine.GuiSession
-import com.bolm.mudif.engine.vnc.RfbClient
+import com.bolm.mudif.engine.X11Session
 
 /**
- * P5.2: VNC viewer for the Linux desktop.
- * Connects to x11vnc on localhost:5900.
+ * P5.3: X11 desktop via Termux:X11 (native Android X server).
+ *
+ * Replaces the VNC approach (Xvfb+x11vnc). Flow:
+ * 1. Start Termux:X11 X server (native)
+ * 2. Wait for X socket
+ * 3. Launch openbox in proot with DISPLAY=:0
+ * 4. Open Termux:X11 viewer
  */
 class VncActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityVncBinding
-    private var rfb: RfbClient? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,73 +27,48 @@ class VncActivity : AppCompatActivity() {
         supportActionBar?.title = "سطح مكتب لينكس"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        connect()
+        // Hide the VNC view (not used in X11 mode)
+        binding.vncView.visibility = android.view.View.GONE
+
+        startDesktop()
     }
 
-    private fun connect() {
+    private fun startDesktop() {
         Thread {
-            // Auto-start GUI stack if not running
             runOnUiThread {
                 Toast.makeText(this, "بدء تشغيل سطح المكتب...", Toast.LENGTH_SHORT).show()
             }
-            if (!GuiSession.running) {
-                val started = GuiSession.start(this)
-                if (!started) {
-                    runOnUiThread {
-                        Toast.makeText(
-                            this,
-                            "فشل بدء سطح المكتب",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                    return@Thread
-                }
-                // Wait for VNC to be reachable
-                var tries = 0
-                while (tries < 20 && !GuiSession.isVncUp()) {
-                    Thread.sleep(500)
-                    tries++
-                }
+
+            // 1. Start X server (if not already running)
+            if (!X11Session.xserverRunning) {
+                X11Session.startXServer(this)
             }
 
-            val client = RfbClient("127.0.0.1", 5900)
-            client.onError = { msg ->
+            // 2. Wait for X socket
+            if (!X11Session.waitForXSocket(this, 20000)) {
                 runOnUiThread {
-                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
+                    finish()
                 }
-            }
-            client.onFramebufferUpdate = { bmp ->
-                runOnUiThread {
-                    binding.vncView.updateFramebuffer(bmp)
-                }
+                return@Thread
             }
 
-            if (client.connect()) {
-                rfb = client
-                runOnUiThread {
-                    binding.vncView.rfb = client
-                    Toast.makeText(
-                        this,
-                        "متصل: ${client.desktopName} (${client.width}x${client.height})",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                client.start()
-            } else {
-                runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        "فشل الاتصال. تأكد أن Xvfb و x11vnc يعملان.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+            // 3. Launch openbox in proot (connects via DISPLAY=:0)
+            // Use a persistent process so openbox stays alive
+            Thread {
+                X11Session.launchGuiApp(this, listOf("/bin/sh", "-c",
+                    "DISPLAY=:0 openbox > /root/openbox.log 2>&1"))
+            }.start()
+
+            Thread.sleep(2000)
+
+            // 4. Open the viewer
+            runOnUiThread {
+                Toast.makeText(this, "فتح سطح المكتب...", Toast.LENGTH_SHORT).show()
+                X11Session.openViewer(this)
+                finish() // Close this activity, viewer takes over
             }
         }.start()
-    }
-
-    override fun onDestroy() {
-        rfb?.stop()
-        super.onDestroy()
     }
 
     override fun onSupportNavigateUp(): Boolean {
