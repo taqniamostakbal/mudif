@@ -4,17 +4,15 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
-import com.bolm.mudif.engine.GuiSession
-import com.bolm.mudif.engine.vnc.RfbClient
+import com.bolm.mudif.engine.X11Session
 
 /**
- * P5.2: VNC viewer for the Linux desktop.
- * Uses GuiSession (persistent proot) + RfbClient.
+ * P5.3: X11 desktop via Termux:X11 (native Android X server).
+ * EXACT Tiny Container approach - no VNC, no Xvfb.
  */
 class VncActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityVncBinding
-    private var rfb: RfbClient? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,91 +22,46 @@ class VncActivity : AppCompatActivity() {
         supportActionBar?.title = "سطح مكتب لينكس"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        // Version indicator - proves which APK is installed
-        Toast.makeText(this, "نسخة: 20261105-0315", Toast.LENGTH_LONG).show()
+        binding.vncView.visibility = android.view.View.GONE
 
-        connect()
+        // Version indicator
+        Toast.makeText(this, "نسخة: 20261105-0320-X11", Toast.LENGTH_LONG).show()
+
+        startDesktop()
     }
 
-    private fun connect() {
+    private fun startDesktop() {
         Thread {
             runOnUiThread {
                 Toast.makeText(this, "بدء تشغيل سطح المكتب...", Toast.LENGTH_SHORT).show()
             }
-            // Auto-start GUI stack if not running
-            if (!GuiSession.running) {
-                val started = GuiSession.start(this)
-                if (!started) {
-                    val logs = GuiSession.getDiagnosticLogs(this)
-                    runOnUiThread {
-                        val msg = "فشل بدء سطح المكتب\n\nxvfb.log:\n${logs.first}\n\nvnc.log:\n${logs.second}\n\nmarker log:\n${logs.third}"
-                        androidx.appcompat.app.AlertDialog.Builder(this)
-                            .setTitle("تشخيص")
-                            .setMessage(msg)
-                            .setPositiveButton("حسنا", null)
-                            .show()
-                    }
-                    return@Thread
-                }
-                // Wait for VNC port
-                var tries = 0
-                while (tries < 20 && !GuiSession.isVncUp()) {
-                    Thread.sleep(500)
-                    tries++
-                }
-                if (!GuiSession.isVncUp()) {
-                    // Show diagnostic logs instead of generic message
-                    val logs = GuiSession.getDiagnosticLogs(this)
-                    runOnUiThread {
-                        Toast.makeText(this, "VNC لا يستجيب", Toast.LENGTH_LONG).show()
-                        // Show logs in a dialog
-                        val msg = "xvfb.log:\n${logs.first}\n\nvnc.log:\n${logs.second}\n\nmarker:\n${logs.third}"
-                        androidx.appcompat.app.AlertDialog.Builder(this)
-                            .setTitle("تشخيص")
-                            .setMessage(msg)
-                            .setPositiveButton("حسنا", null)
-                            .show()
-                        finish()
-                    }
-                    return@Thread
-                }
+
+            if (!X11Session.xserverRunning) {
+                X11Session.startXServer(this)
             }
 
-            val client = RfbClient("127.0.0.1", 5900)
-            client.onError = { msg ->
+            if (!X11Session.waitForXSocket(this, 20000)) {
                 runOnUiThread {
-                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-                }
-            }
-            client.onFramebufferUpdate = { bmp ->
-                runOnUiThread {
-                    binding.vncView.updateFramebuffer(bmp)
-                }
-            }
-
-            if (client.connect()) {
-                rfb = client
-                runOnUiThread {
-                    binding.vncView.rfb = client
-                    Toast.makeText(
-                        this,
-                        "متصل: ${client.desktopName} (${client.width}x${client.height})",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                client.start()
-            } else {
-                runOnUiThread {
-                    Toast.makeText(this, "فشل الاتصال", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
                     finish()
                 }
+                return@Thread
+            }
+
+            // Launch openbox in proot (connects via DISPLAY=:0 to native X server)
+            Thread {
+                X11Session.launchGuiApp(this, listOf("/bin/sh", "-c",
+                    "DISPLAY=:0 openbox > /root/openbox.log 2>&1"))
+            }.start()
+
+            Thread.sleep(2000)
+
+            runOnUiThread {
+                Toast.makeText(this, "فتح سطح المكتب...", Toast.LENGTH_SHORT).show()
+                X11Session.openViewer(this)
+                finish()
             }
         }.start()
-    }
-
-    override fun onDestroy() {
-        rfb?.stop()
-        super.onDestroy()
     }
 
     override fun onSupportNavigateUp(): Boolean {
