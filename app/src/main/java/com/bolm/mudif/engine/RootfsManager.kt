@@ -219,6 +219,8 @@ object RootfsManager {
         ensureDns(rootfs)
         // /tmp must be writable for X servers (lock files, sockets).
         ensureWritableTmp(rootfs)
+        // /var/lib/xkb must be writable for XKB keymap compilation.
+        ensureWritableXkb(rootfs)
         // libfakelink.so for X servers (SELinux blocks link()).
         ensureFakelink(context, rootfs)
         // X servers (Xvfb) need a writable /tmp for lock files and sockets
@@ -282,6 +284,19 @@ object RootfsManager {
             val tmp = File(rootfs, "tmp")
             tmp.mkdirs()
             android.system.Os.chmod(tmp.absolutePath, 1777)
+        } catch (_: Exception) { /* non-fatal */ }
+    }
+
+    /**
+     * Makes XKB writable. Xvfb needs to compile keymaps via xkbcomp, which
+     * writes to /var/lib/xkb/ (root-owned in the tarball). The app owns the
+     * extracted files, so chmod works.
+     */
+    private fun ensureWritableXkb(rootfs: File) {
+        try {
+            val xkb = File(rootfs, "var/lib/xkb")
+            xkb.mkdirs()
+            android.system.Os.chmod(xkb.absolutePath, 511) // 0777
         } catch (_: Exception) { /* non-fatal */ }
     }
 
