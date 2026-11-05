@@ -43,7 +43,7 @@ object GuiSession {
             sleep 2
             DISPLAY=:0 openbox > /tmp/openbox.log 2>&1 &
             echo "GUI_STACK_READY"
-            tail -f /dev/null
+            while true; do sleep 3600; done
         """.trimIndent()
 
         val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", script))
