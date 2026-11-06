@@ -60,8 +60,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.24 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.24", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.25 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.25", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -137,6 +137,16 @@ class VncActivity : AppCompatActivity() {
                 X11Session.ensureLxqt(this)
             }
 
+            // 2b. Fix GTK icon loading (P5.25): the guest's gdk-pixbuf
+            // has no native PNG loader — every PNG goes through the
+            // glycin loader under bwrap, which cannot create namespaces
+            // under proot, so xfce4-session/panel/desktop abort. The
+            // installer replaces bwrap with a shim that runs the loader
+            // directly, and installs the Adwaita icon theme. Must run
+            // BEFORE the desktop launch (step 4).
+            setStatus("جاري إصلاح تحميل الأيقونات…")
+            val pixbufOk = X11Session.ensurePixbufLoaders(this)
+
             // 3. Start the X server (Tiny launchXServer) — but ONLY
             // if it is not already up. Judge by the real state
             // (socket + TCP listener), not by the in-memory flag.
@@ -178,6 +188,13 @@ class VncActivity : AppCompatActivity() {
             Thread.sleep(3000)
             val desktopLog = X11Session.getDesktopLog(this, desktop)
 
+            // 4b. TCP value for the dialog, computed HERE on the
+            // background thread (P5.25): isTcpDisplayOpen() does a
+            // Socket.connect, which throws NetworkOnMainThreadException
+            // on the UI thread — that is why the dialog always said
+            // false while the socket was proven LISTEN+ESTABLISHED.
+            val tcpOk = X11Session.isTcpDisplayOpen()
+
             // 5. Status dialog (a report, not a gate): PTY alive,
             // guest booted, X socket + TCP, command sent, log tail.
             if (destroyed) return@Thread
@@ -188,20 +205,21 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.24")
+                    .setTitle("تشخيص P5.25")
                     .setMessage(
                         "سطح المكتب: $desktopName\n" +
                             "PTY حية: ${GuestSession.alive}\n" +
                             "الضيف قلع: ${GuestSession.booted}\n" +
                             "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
-                            "TCP 6006: ${X11Session.isTcpDisplayOpen()}\n" +
+                            "TCP 6006: $tcpOk\n" +
                             "أمر سطح المكتب تبعت: $sent\n" +
+                            "الأيقونات تصلحات: $pixbufOk\n" +
                             "الخطوط تثبتات: $xkbOk\n" +
                             "حزم سطح المكتب تثبتات: $packagesOk\n" +
                             "$desktopName تثبت: $desktopOk\n" +
                             "XFCE + فايرفوكس + ليبر أوفيس: كيتثبتو فالخلفية…\n\n" +
                             "لوگ $desktopName:\n$desktopLog\n\n" +
-                            "--- الفرضية 1 (Phantom Killer) ---\n" +
+                            "--- السبب الحقيقي ---\n" +
                             DesktopDiagnostics.hypothesis1()
                     )
                     .setPositiveButton("فتح العارض") { _, _ ->
