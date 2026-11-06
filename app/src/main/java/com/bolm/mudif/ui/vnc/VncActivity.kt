@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.16 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.16", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.17 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.17", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -71,7 +71,15 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // 2. Start the X server (Tiny launchXServer) — but ONLY if it
+            // 2. P5.17: install xkeyboard-config in the guest BEFORE
+            // starting the X server — the P5.16 test proved the fresh
+            // rootfs has no xkb dir, and startXServer reads
+            // XKB_CONFIG_ROOT at launch. Best-effort: the server is
+            // still attempted, the diagnostics show the result.
+            setStatus("جاري تثبيت بيانات لوحة المفاتيح…")
+            val xkbOk = X11Session.ensureXkb(this)
+
+            // 3. Start the X server (Tiny launchXServer) — but ONLY if it
             // is not already up. P5.11: the server now SURVIVES leaving
             // this screen (onDestroy no longer stops it), so re-entering
             // must reuse the running server instead of starting a second
@@ -145,11 +153,12 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.16")
+                    .setTitle("تشخيص P5.17")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n" +
                             "xterm يشتغل: $xtermRunning\n" +
-                            "الخطوط تثبتات: $fontsOk\n\n" +
+                            "الخطوط تثبتات: $fontsOk\n" +
+                            "لوحة المفاتيح (xkb) تثبتات: $xkbOk\n\n" +
                             "لوگ xterm:\n$xtermLog\n\n" +
                             "اللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
