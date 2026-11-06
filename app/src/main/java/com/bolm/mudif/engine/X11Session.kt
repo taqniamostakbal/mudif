@@ -297,6 +297,26 @@ object X11Session {
         return result.exitCode == 0
     }
 
+    /**
+     * P5.17 — install xkeyboard-config in the guest so the X server
+     * can find its keyboard data (XKB_CONFIG_ROOT =
+     * <rootfs>/usr/share/X11/xkb). The P5.16 test proved the fresh
+     * rootfs has NO xkb dir and XKB_CONFIG_ROOT was blank at launch;
+     * the X server cannot start without it. Same one-shot pattern as
+     * ensureXtermFonts (TerminalSession, best-effort, idempotent).
+     * Called BEFORE startXServer so the env var picks it up.
+     */
+    fun ensureXkb(context: Context): Boolean {
+        val result = TerminalSession.runCommand(
+            context,
+            "apk add --no-cache xkeyboard-config",
+            idleTimeoutSec = 60,
+            maxTimeoutSec = 300
+        )
+        Log.d(TAG, "ensureXkb exit=${result.exitCode} out=${result.output}")
+        return result.exitCode == 0
+    }
+
     /** Is xterm alive? Same marker-file pattern as isOpenboxRunning. */
     fun isXtermRunning(context: Context, timeoutMs: Long = 5000): Boolean {
         val app = context.applicationContext
