@@ -183,9 +183,9 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, openboxRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.19 — سجل مفصل ===\n")
+            append("=== مضيف P5.20 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.19\n\n")
+            append("نسخة: P5.20\n\n")
             append("--- الفرضية 1 (Phantom Killer) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")
