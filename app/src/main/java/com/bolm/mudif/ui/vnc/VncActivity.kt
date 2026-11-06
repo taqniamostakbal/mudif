@@ -2,6 +2,7 @@ package com.bolm.mudif.ui.vnc
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -47,8 +48,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.19 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.19", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.20 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.20", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -71,7 +72,7 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // 2. P5.19: install xkeyboard-config in the guest BEFORE
+            // 2. P5.20: install xkeyboard-config in the guest BEFORE
             // starting the X server — the P5.16 test proved the fresh
             // rootfs has no xkb dir, and startXServer reads
             // XKB_CONFIG_ROOT at launch. Best-effort: the server is
@@ -79,16 +80,16 @@ class VncActivity : AppCompatActivity() {
             setStatus("جاري تثبيت بيانات لوحة المفاتيح…")
             val xkbOk = X11Session.ensureXkb(this)
 
-            // 2b. P5.19: install openbox + xterm + firefox + libreoffice
-            // in the guest. The P5.18 test proved the X server LIVES,
-            // but the desktop fails because the guest has NO openbox and
-            // NO xterm installed ("xterm: not found", "openbox: not
-            // found"). Best-effort, idempotent: a second run is a fast
-            // no-op if already installed. The diagnostics show the result.
+            // 2b. P5.20 (smart): install ONLY the essential desktop
+            // packages here (openbox + xterm) — fast, and the desktop
+            // cannot work without them. The P5.18 test proved the X
+            // server LIVES, but the guest has NO openbox and NO xterm
+            // ("xterm: not found", "openbox: not found"). Firefox +
+            // LibreOffice are LARGE downloads: they are installed in the
+            // BACKGROUND after the desktop is up (step 6), so a slow
+            // download never blocks the desktop. Best-effort, idempotent.
             setStatus("جاري تثبيت حزم سطح المكتب…")
             val packagesOk = X11Session.ensureDesktopPackages(this)
-            setStatus("جاري تثبيت فايرفوكس وليبر أوفيس…")
-            val appsOk = X11Session.ensureDesktopApps(this)
 
             // 3. Start the X server (Tiny launchXServer) — but ONLY if it
             // is not already up. P5.11: the server now SURVIVES leaving
@@ -160,18 +161,27 @@ class VncActivity : AppCompatActivity() {
             val xtermLog = X11Session.getXtermLog(this)
 
             // 5. Diagnostic dialog (H1 result + openbox state + log).
+            // P5.20 (smart): the desktop counts as WORKING if EITHER
+            // openbox OR xterm is running — a terminal on X is a usable
+            // desktop even without a window manager (fallback). Firefox +
+            // LibreOffice install in the background (step 6) and do not
+            // block this dialog.
             if (destroyed) return@Thread
             runOnUiThread {
-                setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
+                val desktopOk = isRunning || xtermRunning
+                setStatus(
+                    if (desktopOk) "سطح المكتب خدام ✓"
+                    else "سطح المكتب ما خدمش — شوف اللوجات"
+                )
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.19")
+                    .setTitle("تشخيص P5.20")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n" +
                             "xterm يشتغل: $xtermRunning\n" +
                             "الخطوط تثبتات: $fontsOk\n" +
                             "لوحة المفاتيح (xkb) تثبتات: $xkbOk\n" +
                             "حزم سطح المكتب (openbox+xterm) تثبتات: $packagesOk\n" +
-                            "فايرفوكس وليبر أوفيس تثبتو: $appsOk\n\n" +
+                            "فايرفوكس وليبر أوفيس: كيتثبتو فالخلفية…\n\n" +
                             "لوگ xterm:\n$xtermLog\n\n" +
                             "اللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
@@ -186,6 +196,24 @@ class VncActivity : AppCompatActivity() {
                     .setNegativeButton("إلغاء", null)
                     .show()
             }
+
+            // 6. P5.20 (smart): install firefox + libreoffice in the
+            // BACKGROUND, after the desktop is already up. A slow
+            // download must never block the desktop. Best-effort,
+            // idempotent. The result is logged; the apps are available
+            // from the terminal / next desktop start.
+            Thread {
+                val ok = X11Session.ensureDesktopApps(this)
+                Log.d("VncActivity", "ensureDesktopApps (background) ok=$ok")
+                runOnUiThread {
+                    if (!destroyed) {
+                        setStatus(
+                            if (ok) "فايرفوكس وليبر أوفيس تثبتو ✓"
+                            else "فايرفوكس وليبر أوفيس ما تثبتوش — جرب مرة أخرى"
+                        )
+                    }
+                }
+            }.start()
         }.start()
     }
 
