@@ -42,6 +42,25 @@ object DesktopDiagnostics {
     }
 
     /**
+     * P6 — نظام مضيف (Debian 13.1): the P5.25 pixbuf failure mode
+     * does not exist here. Debian's gdk-pixbuf ships native PNG/JPEG
+     * loaders; glycin is not in the XFCE install closure and bwrap
+     * is never invoked. The desktop installs with apt
+     * (--no-install-recommends) and launches host-side, never nested
+     * (nested proot fails: the Android linker is missing inside the
+     * guest). Proven live 2026-11-06 (diagnostic Q3/Q4).
+     */
+    fun hypothesisDebian(): String {
+        val sb = StringBuilder()
+        sb.append("Android API: ${Build.VERSION.SDK_INT}\n")
+        sb.append("Android: ${Build.VERSION.RELEASE}\n")
+        sb.append("نظام مضيف (مثبت 2026-11-06 من التشخيص):\n")
+        sb.append("دبيان 13.1، XFCE كيقلع، الأيقونات أصلية، بلا glycin وبلا bwrap.\n")
+        sb.append("التثبيت بـ apt (--no-install-recommends)، والإقلاع من جهة المضيف، ماشي متداخل.\n")
+        return sb.toString()
+    }
+
+    /**
      * P5.9: the old filter (`ActivityManager:I DEBUG:I *:S`) SILENCED every
      * tag except ActivityManager/DEBUG — the X server's own log
      * (Termux:X11 / CmdEntryPointService / Xlorie tags) never reached the
@@ -176,9 +195,9 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.25 — سجل مفصل ===\n")
+            append("=== مضيف P6 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.25\n\n")
+            append("نسخة: P6\n\n")
             append("--- السبب الحقيقي (تشخيص P5.22) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")

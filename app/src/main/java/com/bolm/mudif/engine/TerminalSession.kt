@@ -30,11 +30,41 @@ object TerminalSession {
         idleTimeoutSec: Long = 60,
         maxTimeoutSec: Long = 600
     ): TerminalResult {
-        return try {
-            val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", command))
-                ?: return TerminalResult("النظام غير جاهز: ثبت Alpine من المتجر أولا", -1, false)
+        val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", command))
+        return runWithBuilder(
+            pb, "النظام غير جاهز: ثبت Alpine من المتجر أولا",
+            idleTimeoutSec, maxTimeoutSec
+        )
+    }
 
-            val proc = pb.start()
+    /** P6: one-shot command inside the DEBIAN rootfs (apt installers). */
+    fun runCommandDebian(
+        context: Context,
+        command: String,
+        idleTimeoutSec: Long = 60,
+        maxTimeoutSec: Long = 600
+    ): TerminalResult {
+        val pb = DebianSystem.prootBuilder(context, listOf("/bin/sh", "-c", command))
+        return runWithBuilder(
+            pb, "النظام غير جاهز: ثبت نظام مضيف أولا",
+            idleTimeoutSec, maxTimeoutSec
+        )
+    }
+
+    /**
+     * Shared one-shot runner: [pb] already built for the target
+     * rootfs (Alpine or Debian). Same smart-timeout contract as
+     * before — a command is killed only if it is TRULY stuck.
+     */
+    private fun runWithBuilder(
+        pb: ProcessBuilder?,
+        notReadyMessage: String,
+        idleTimeoutSec: Long,
+        maxTimeoutSec: Long
+    ): TerminalResult {
+        return try {
+            val builder = pb ?: return TerminalResult(notReadyMessage, -1, false)
+            val proc = builder.start()
 
             // Drain stdout on a daemon thread: avoids pipe deadlock when the
             // command produces more than the 64KB pipe buffer. Also tracks

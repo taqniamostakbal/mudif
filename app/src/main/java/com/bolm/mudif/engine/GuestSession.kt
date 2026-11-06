@@ -65,6 +65,14 @@ object GuestSession {
     var booted = false
         private set
 
+    /** P6 — which system the PTY session is booting (one system: Debian). */
+    enum class GuestSystem { ALPINE, DEBIAN }
+
+    /** The system of the current (or last) boot. The Terminal tab re-boots this one. */
+    @Volatile
+    var currentSystem = GuestSystem.ALPINE
+        private set
+
     /** Exit code of the last finished session (-1 = never ran / still running). */
     @Volatile
     var lastExitCode = -1
@@ -289,18 +297,27 @@ object GuestSession {
     }
 
     /**
-     * Boot the Alpine container INSIDE the PTY session (Tiny
+     * Boot the container INSIDE the PTY session (Tiny
      * Container's launchContainer). Clean slate: finishes any old
      * session, creates a fresh host shell, exports the environment,
-     * writes boot_mudif.sh (`exec <proot ...>`) and sources it. The
+     * writes the boot script (`exec <proot ...>`) and sources it. The
      * `exec` replaces the host shell with proot running the guest
      * login shell — the session IS the container from then on.
      * Proof: a marker echo sent right after the source, written by
      * the GUEST shell into the shared /tmp bind. Returns true only
      * if that marker appears.
+     *
+     * P6: [system] selects the guest — ALPINE (the old system) or
+     * DEBIAN (نظام مضيف). The fast-path only applies when the live
+     * session is already the requested system; switching systems
+     * always reboots fresh.
      */
-    fun bootContainer(context: Context, timeoutMs: Long = 20000): Boolean {
-        if (booted && alive) return true
+    fun bootContainer(
+        context: Context,
+        system: GuestSystem = GuestSystem.ALPINE,
+        timeoutMs: Long = 20000
+    ): Boolean {
+        if (booted && alive && currentSystem == system) return true
         val app = context.applicationContext
         // Clean slate: kill the old session, start a fresh host shell.
         try {
@@ -313,7 +330,11 @@ object GuestSession {
         if (!ensure(context)) return false
         setupEnvironment(context)
 
-        val script = RootfsManager.writeBootScript(context) ?: run {
+        val script = if (system == GuestSystem.DEBIAN) {
+            DebianSystem.writeBootScript(context)
+        } else {
+            RootfsManager.writeBootScript(context)
+        } ?: run {
             lastError = "boot script: proot/rootfs/loader missing"
             Log.e(TAG, lastError!!)
             return false
@@ -341,7 +362,8 @@ object GuestSession {
         while (SystemClock.uptimeMillis() < deadline) {
             if (marker.exists()) {
                 booted = true
-                Log.d(TAG, "Guest shell alive (marker seen)")
+                currentSystem = system
+                Log.d(TAG, "Guest shell alive (marker seen, system=$system)")
                 return true
             }
             if (!alive) {
