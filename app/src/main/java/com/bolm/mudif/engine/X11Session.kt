@@ -235,6 +235,59 @@ object X11Session {
     }
 
     /**
+     * P5.25 — fix GTK icon loading under proot (the XFCE killer,
+     * proven by the 2026-11-06 guest diagnostic, NOT a guess):
+     * Alpine 3.24's gdk-pixbuf ships ONLY libpixbufloader-xpm.so,
+     * so every PNG/JPEG/SVG icon goes through the glycin loader
+     * (/usr/libexec/glycin-loaders/2+/glycin-image-rs) spawned under
+     * `bwrap --unshare-all`, which cannot create namespaces under
+     * proot. The NULL pixbuf trips the libwnck/Gtk assertions that
+     * abort xfce4-session, xfce4-panel and xfdesktop. Deleting
+     * glycin would leave NO PNG loader at all, so instead this
+     * replaces /usr/bin/bwrap with a shim that skips the sandbox
+     * options and execs the loader directly (unsandboxed), keeps the
+     * real binary as /usr/bin/bwrap.real (reversible), and installs
+     * the Adwaita icon theme (the guest has only hicolor).
+     * One-shot, best-effort, idempotent. Must run BEFORE the
+     * desktop launch (VncActivity step 2b).
+     */
+    fun ensurePixbufLoaders(context: Context): Boolean {
+        val command = """
+            apk add --no-cache adwaita-icon-theme
+            if [ -x /usr/bin/bwrap ] && [ ! -e /usr/bin/bwrap.real ]; then mv /usr/bin/bwrap /usr/bin/bwrap.real; fi
+            cat > /usr/bin/bwrap <<'BWRAP_SHIM'
+            #!/bin/sh
+            # P5.25 bwrap shim: bwrap cannot create namespaces under proot,
+            # so run the sandboxed program directly (unsandboxed) instead.
+            # gdk-pixbuf calls: bwrap <opts...> <program> <args...>
+            # Skip every known bwrap option (with its values); exec the rest.
+            while [ $# -gt 0 ]; do
+              case "$1" in
+                --unshare-all|--unshare-user|--unshare-ipc|--unshare-pid|--unshare-net|--unshare-uts|--unshare-cgroup|--unshare-user-try|--unshare-cgroup-try|--die-with-parent|--clearenv|--new-session|--as-pid-1|--userns|--userns2) shift ;;
+                --chdir|--tmpfs|--dev|--proc|--mqueue|--dir|--seccomp|--add-seccomp-fd|--unsetenv|--hostname|--domainname|--uid|--gid|--remount-ro|--cap-add|--cap-drop|--args|--lock-file|--info-fd|--json-status-fd|--userns-fd|--seccomp-fd) shift 2 ;;
+                --setenv|--ro-bind|--bind|--dev-bind|--ro-bind-try|--bind-try|--symlink|--file|--bind-data|--ro-bind-data) shift 3 ;;
+                --) shift; break ;;
+                --*) shift ;;
+                *) break ;;
+              esac
+            done
+            exec "$@"
+            BWRAP_SHIM
+            chmod +x /usr/bin/bwrap
+            gtk-update-icon-cache -f /usr/share/icons/hicolor /usr/share/icons/Adwaita 2>/dev/null
+            grep -q "P5.25 bwrap shim" /usr/bin/bwrap && echo PIXBUF_OK
+        """.trimIndent()
+        val result = TerminalSession.runCommand(
+            context,
+            command,
+            idleTimeoutSec = 60,
+            maxTimeoutSec = 300
+        )
+        Log.d(TAG, "ensurePixbufLoaders exit=${result.exitCode} out=${result.output}")
+        return result.output.contains("PIXBUF_OK")
+    }
+
+    /**
      * Install xkeyboard-config in the guest so the X server can find
      * its keyboard data (XKB_CONFIG_ROOT = <rootfs>/usr/share/X11/xkb).
      * One-shot command (TerminalSession, best-effort, idempotent).
