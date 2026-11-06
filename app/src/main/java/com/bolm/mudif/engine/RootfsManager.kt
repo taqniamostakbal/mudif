@@ -200,21 +200,44 @@ object RootfsManager {
     }
 
     /**
-     * P5.8 (Tiny Container rebuild): single source of truth for the proot
-     * invocation, usable BOTH as a ProcessBuilder (terminal / firstBoot)
-     * and as a shell command string (PTY boot script in ContainerSession).
+     * P5.22 (RADICAL REBUILD — Tiny Container's boot_command, adapted).
+     * Single source of truth for the proot invocation, usable BOTH as a
+     * ProcessBuilder (one-shot installs via TerminalSession) and as a
+     * shell command string (PTY boot script in GuestSession).
      *
-     * Returns argv + environment. All preparation side effects are the
-     * same as prootBuilder() used to do inline (DNS, /tmp, XKB, fakelink).
+     * Tiny Container's boot_command (sample proot-distro.tiny.yaml),
+     * adapted to Mudif's Alpine guest:
+     * - Whole-filesystem binds: --bind=/dev --bind=/proc --bind=/sys
+     *   --bind=/data (Mudif used to bind single nodes only, and had no
+     *   /dev, /sys, /data, /dev/fd, /dev/stdin/stdout/stderr at all).
+     * - fd binds: --bind=/proc/self/fd:/dev/fd + stdio binds, so the
+     *   guest's /dev/fd and stdio symlinks resolve through the host
+     *   proc fd table (load-bearing for pty allocation paths).
+     * - --bind=/dev/urandom:/dev/random; --bind=<tmp>:/dev/shm +
+     *   :/tmp; --bind=<run>:/run; --bind=<rootfs>/sys/.empty:/sys/fs/selinux
+     *   (hides SELinux from the guest).
+     * - --kill-on-exit (cleanup), --link2symlink, --sysvipc,
+     *   --kernel-release (fakes uname, TC's exact string).
+     * - -H / -L are DROPPED: TC-fork-only extensions, Mudif's
+     *   termux/proot 5.1.107.102 rejects them ("unknown option").
+     * - -0 (fake root) kept: TC runs as uid 1000 with a `tiny` user
+     *   that does not exist in Mudif's Alpine guest.
+     * - /proc stub binds DEFERRED (phase 2): the stub files do not
+     *   exist in Mudif's rootfs.
+     *
+     * All preparation side effects are the same as before (DNS, /tmp,
+     * XKB, fakelink, /dev/pts) plus the new bind targets
+     * (/data, /dev/fd, /sys/.empty, filesDir/run).
      */
-    fun prootCommandLine(context: Context, guestCommand: List<String>): Pair<List<String>, Map<String, String>>? {
+    private fun prootArgvBase(context: Context): List<String>? {
         val bin = EngineCheck.prootPath(context) ?: return null
         EngineCheck.ensureLibs(context)
         val rootfs = rootfsDir(context)
         if (!isReady(context)) return null
         val loader = loaderPath(context) ?: return null
         val tmpDir = File(context.filesDir, "tmp").apply { mkdirs() }
-        val prootTmp = File(context.filesDir, "proot_tmp").apply { mkdirs() }
+        val runDir = File(context.filesDir, "run").apply { mkdirs() }
+        File(context.filesDir, "proot_tmp").apply { mkdirs() }
         // DNS fix: the minirootfs ships without a working resolv.conf, so
         // name resolution fails inside proot ("DNS: transient error").
         // Write public DNS servers into the guest's resolv.conf.
@@ -225,43 +248,47 @@ object RootfsManager {
         ensureWritableXkb(rootfs)
         // libfakelink.so for X servers (SELinux blocks link()).
         ensureFakelink(context, rootfs)
-        // P5.12: xterm needs a pty (open /dev/ptmx, slave /dev/pts/N).
-        // The minirootfs /dev is empty and we only bound null/zero/
-        // urandom/random, so get_pty failed with ENOENT ("not enough
-        // ptys") AFTER xterm had already opened the display.
+        // P5.12: pty devices for terminal emulators. The minirootfs
+        // /dev is empty; the whole-/dev bind below covers it, but the
+        // targets must exist for proot to accept the binds.
         ensureDevPty(rootfs)
+        // P5.22: bind targets for TC's whole-filesystem binds.
+        ensureBootBindTargets(rootfs)
         // X servers need a writable /tmp for lock files and sockets
-        // (/tmp/.X0-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
+        // (/tmp/.X6-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
         // and the app runs as a normal UID, so bind-mount the app's
         // private tmp dir over the guest's /tmp.
-        // The minirootfs ships with an empty /dev; bind the host's basic
-        // device nodes so /dev/null, /dev/zero, /dev/urandom exist.
-        val argv = listOf(bin.absolutePath, "-0", "-r", rootfs.absolutePath,
-            "-b", tmpDir.absolutePath + ":/tmp",
-            "-b", "/dev/null:/dev/null",
-            "-b", "/dev/zero:/dev/zero",
-            "-b", "/dev/urandom:/dev/urandom",
-            "-b", "/dev/random:/dev/random",
-            // P5.12: pty devices for terminal emulators (xterm, screen,
-            // tmux). The host's /dev/pts is a devpts mount; binding it
-            // plus /dev/ptmx lets the guest allocate ptys.
-            "-b", "/dev/ptmx:/dev/ptmx",
-            "-b", "/dev/pts:/dev/pts",
-            // P5.21 (ROOT CAUSE FIX): bind the host's /proc into the
-            // guest. The P5.20 diagnosis PROVED /proc is not mounted in
-            // the guest (ls /proc/ empty; /proc/mounts missing), and
-            // that breaks slave-pty NAME resolution (musl ttyname()
-            // reads /proc/self/fd -> FileNotFoundError) which is why
-            // xterm fails with `open ttydev` and Firefox fails with
-            // "Couldn't find the application directory" (it locates
-            // itself via /proc/self/exe). pty ALLOCATION works (script
-            // prints PTTY_OK); only the /proc-dependent resolution is
-            // broken. A mount from inside the guest is blocked by
-            // proot, so it must be a bind here at proot startup. The
-            // guest's /proc is an empty dir (it exists), so the bind
-            // target is valid.
-            "-b", "/proc:/proc",
-            "-w", "/root") + guestCommand
+        return listOf(
+            bin.absolutePath,
+            "-0",
+            "-r", rootfs.absolutePath,
+            "--kill-on-exit",
+            "--link2symlink",
+            "--sysvipc",
+            "--kernel-release=Linux localhost 6.17.0-PRoot-Distro #1 SMP PREEMPT_DYNAMIC Fri, 10 Oct 2025 00:00:00 +0000 aarch64 localdomain -1",
+            "--bind=/dev",
+            "--bind=/proc",
+            "--bind=/sys",
+            "--bind=/data",
+            "--bind=/proc/self/fd:/dev/fd",
+            "--bind=/proc/self/fd/0:/dev/stdin",
+            "--bind=/proc/self/fd/1:/dev/stdout",
+            "--bind=/proc/self/fd/2:/dev/stderr",
+            "--bind=/dev/urandom:/dev/random",
+            "--bind=" + rootfs.absolutePath + "/sys/.empty:/sys/fs/selinux",
+            "--bind=" + tmpDir.absolutePath + ":/dev/shm",
+            "--bind=" + tmpDir.absolutePath + ":/tmp",
+            "--bind=" + runDir.absolutePath + ":/run",
+            "-w", "/root"
+        )
+    }
+
+    fun prootCommandLine(context: Context, guestCommand: List<String>): Pair<List<String>, Map<String, String>>? {
+        val base = prootArgvBase(context) ?: return null
+        val loader = loaderPath(context) ?: return null
+        val tmpDir = File(context.filesDir, "tmp")
+        val prootTmp = File(context.filesDir, "proot_tmp")
+        val argv = base + guestCommand
         val env = mapOf(
             "LD_LIBRARY_PATH" to EngineCheck.binDir(context).absolutePath,
             // P5.10: TMPDIR for the GUEST must be the guest path "/tmp".
@@ -283,6 +310,50 @@ object RootfsManager {
             "LANG" to "C.UTF-8"
         )
         return argv to env
+    }
+
+    /**
+     * P5.22 — the BOOT argv: the TC boot command. The guest command is
+     * `/usr/bin/env -i` with an explicit clean environment + the guest
+     * login shell. DISPLAY is set here (127.0.0.1:6, TCP — Mudif's
+     * proven InstaBox workaround for the broken Unix-socket connect),
+     * so every guest command inherits it and no per-command DISPLAY
+     * prefix is needed anywhere. TC runs /bin/bash -l as user `tiny`;
+     * Mudif runs /bin/sh -l (BusyBox ash, Alpine has no bash) as root.
+     */
+    fun bootArgv(context: Context): List<String>? {
+        val base = prootArgvBase(context) ?: return null
+        return base + listOf(
+            "/usr/bin/env", "-i",
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "LD_LIBRARY_PATH=",
+            "LD_PRELOAD=",
+            "DISPLAY=127.0.0.1:6",
+            "LANG=C.UTF-8",
+            "MOZ_FAKE_NO_SANDBOX=1",
+            "QTWEBENGINE_DISABLE_SANDBOX=1",
+            "ELECTRON_DISABLE_SANDBOX=1",
+            "HOME=/root",
+            "USER=root",
+            "TERM=xterm-256color",
+            "COLORTERM=truecolor",
+            "/bin/sh", "-l"
+        )
+    }
+
+    /**
+     * P5.22 — Tiny Container's PTY 4096-byte line-limit workaround:
+     * the resolved boot command is written to a file as `exec <proot
+     * ...>` and the PTY session `source`s it. The `exec` replaces the
+     * host shell with proot. Returns the script file, or null if the
+     * engine/rootfs/loader is missing.
+     */
+    fun writeBootScript(context: Context): File? {
+        val argv = bootArgv(context) ?: return null
+        val script = File(context.filesDir, "boot_mudif.sh")
+        val line = "exec " + argv.joinToString(" ") { shellQuote(it) }
+        script.writeText(line + "\n")
+        return script
     }
 
     /** Shell-quote one argv element for the PTY boot script. */
@@ -323,7 +394,7 @@ object RootfsManager {
     /**
      * Makes the guest's /tmp writable (1777). The tarball's /tmp has
      * restrictive modes; X servers need to create lock files and sockets
-     * there (/tmp/.X0-lock, /tmp/.X11-unix/). The app owns the extracted
+     * there (/tmp/.X6-lock, /tmp/.X11-unix/). The app owns the extracted
      * files, so chmod always succeeds. Belt-and-suspenders alongside the
      * /tmp bind-mount in prootBuilder.
      */
@@ -358,6 +429,23 @@ object RootfsManager {
             File(rootfs, "dev/pts").mkdirs()
             val ptmx = File(rootfs, "dev/ptmx")
             if (!ptmx.exists()) ptmx.createNewFile()
+        } catch (_: Exception) { /* non-fatal */ }
+    }
+
+    /**
+     * P5.22: creates the guest-side targets for Tiny Container's
+     * whole-filesystem binds. proot refuses a bind whose target does
+     * not exist in the rootfs; the Alpine minirootfs ships without
+     * /data and without /dev/fd, and sys/.empty (the SELinux-hiding
+     * stub) does not exist either. Non-fatal if it fails.
+     */
+    private fun ensureBootBindTargets(rootfs: File) {
+        try {
+            File(rootfs, "data").mkdirs()
+            File(rootfs, "dev/fd").mkdirs()
+            File(rootfs, "sys").mkdirs()
+            File(rootfs, "sys/.empty").mkdirs()
+            File(rootfs, "proc").mkdirs()
         } catch (_: Exception) { /* non-fatal */ }
     }
 

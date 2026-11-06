@@ -8,9 +8,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * P5.8 — shared desktop diagnostics. One place that assembles the FULL
- * detailed log the user ordered: Hypothesis-1, X server state, container
- * session state, openbox state + log, and filtered logcat.
+ * P5.22 — shared desktop diagnostics. One place that assembles the FULL
+ * detailed log the user ordered: Hypothesis-1, X server state, PTY
+ * container session state, desktop state + log, and filtered logcat.
  *
  * Used by both the VncActivity dialog and the LogViewerActivity, so the
  * two never drift apart.
@@ -108,7 +108,7 @@ object DesktopDiagnostics {
 
     /**
      * P5.9: what exactly was handed to the X server at launch?
-     * A blank XKB_CONFIG_ROOT or a stale .X0-lock would both stop the
+     * A blank XKB_CONFIG_ROOT or a stale .X6-lock would both stop the
      * server before it creates its socket.
      */
     fun xServerInputs(context: Context): String {
@@ -121,8 +121,8 @@ object DesktopDiagnostics {
             if (!xkb.exists()) {
                 sb.append("XKB_CONFIG_ROOT was blank at launch\n")
             }
-            val lock = File(tmpDir, ".X0-lock")
-            sb.append("stale .X0-lock: ${lock.exists()}\n")
+            val lock = File(tmpDir, ".X6-lock")
+            sb.append("stale .X6-lock: ${lock.exists()}\n")
             sb.append("package: ${context.applicationContext.packageName}\n")
             sb.append("waitForXSocket result: ${X11Session.lastWaitResult}\n")
         } catch (e: Exception) {
@@ -135,8 +135,8 @@ object DesktopDiagnostics {
     fun xServerState(context: Context): String {
         val sb = StringBuilder()
         sb.append("xserverStarted: ${X11Session.xserverRunning}\n")
-        sb.append("socket X0 exists: ${X11Session.isXSocketPresent(context)}\n")
-        sb.append("tcp 6000 open: ${X11Session.isTcpDisplayOpen()}\n")
+        sb.append("socket X6 exists: ${X11Session.isXSocketPresent(context)}\n")
+        sb.append("tcp 6006 open: ${X11Session.isTcpDisplayOpen()}\n")
         try {
             val unixDir = File(context.filesDir, "tmp/.X11-unix")
             sb.append(".X11-unix: ")
@@ -156,17 +156,18 @@ object DesktopDiagnostics {
         return sb.toString()
     }
 
-    /** Container session state (P5.16: persistent proot shell, no PTY). */
+    /** Container session state (P5.22: single PTY session, Tiny Container). */
     fun containerState(): String {
         val sb = StringBuilder()
-        sb.append("session alive: ${ContainerSession.alive}\n")
-        sb.append("guest booted: ${ContainerSession.booted}\n")
-        sb.append("lastExitCode: ${ContainerSession.lastExitCode}")
-        if (ContainerSession.lastExitCode == -9) {
+        sb.append("PTY session alive: ${GuestSession.alive}\n")
+        sb.append("guest booted: ${GuestSession.booted}\n")
+        sb.append("PTY probe: ${GuestSession.ptyProbeOk}\n")
+        sb.append("lastExitCode: ${GuestSession.lastExitCode}")
+        if (GuestSession.lastExitCode == -9) {
             sb.append(" (SIGKILL — killed by the system)")
         }
         sb.append("\n")
-        val err = ContainerSession.lastError
+        val err = GuestSession.lastError
         if (err != null) {
             sb.append("lastError: $err\n")
         }
@@ -176,16 +177,15 @@ object DesktopDiagnostics {
     /**
      * Full snapshot: everything in one text, in a fixed order, with a
      * timestamp. This is what the log viewer shows and what "نسخ" copies.
-     * The openbox running-check is done by the CALLER (it needs a few
-     * seconds and the PTY) and passed in as [openboxRunning] — null means
-     * "not checked".
+     * The desktop running-check is done by the CALLER and passed in as
+     * [desktopRunning] — null means "not checked".
      */
-    fun fullSnapshot(context: Context, openboxRunning: Boolean?): String {
+    fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.21 — سجل مفصل ===\n")
+            append("=== مضيف P5.22 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.21\n\n")
+            append("نسخة: P5.22\n\n")
             append("--- الفرضية 1 (Phantom Killer) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")
@@ -194,17 +194,17 @@ object DesktopDiagnostics {
             append(xServerInputs(context))
             append("\n--- عملية خادم X (ps) ---\n")
             append(xServerProcess())
-            append("\n--- حالة جلسة الحاوية (proot) ---\n")
+            append("\n--- حالة جلسة الحاوية (PTY) ---\n")
             append(containerState())
-            append("\n--- openbox ---\n")
+            append("\n--- سطح المكتب (LXQt) ---\n")
             append(
-                when (openboxRunning) {
+                when (desktopRunning) {
                     true -> "يشتغل: نعم\n"
                     false -> "يشتغل: لا\n"
                     null -> "يشتغل: (لم يتم الفحص)\n"
                 }
             )
-            append(X11Session.getOpenboxLog(context))
+            append(X11Session.getDesktopLog(context, "lxqt"))
             append("\n\n--- logcat (phantom/kill/X11/CmdEntry) ---\n")
             append(collectLogcat())
         }
