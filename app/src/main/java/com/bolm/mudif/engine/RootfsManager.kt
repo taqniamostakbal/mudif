@@ -229,11 +229,10 @@ object RootfsManager {
      * XKB, fakelink, /dev/pts) plus the new bind targets
      * (/data, /dev/fd, /sys/.empty, filesDir/run).
      */
-    private fun prootArgvBase(context: Context): List<String>? {
+    private fun prootArgvBase(context: Context, rootfs: File, ready: Boolean): List<String>? {
         val bin = EngineCheck.prootPath(context) ?: return null
         EngineCheck.ensureLibs(context)
-        val rootfs = rootfsDir(context)
-        if (!isReady(context)) return null
+        if (!ready) return null
         val loader = loaderPath(context) ?: return null
         val tmpDir = File(context.filesDir, "tmp").apply { mkdirs() }
         val runDir = File(context.filesDir, "run").apply { mkdirs() }
@@ -283,8 +282,15 @@ object RootfsManager {
         )
     }
 
-    fun prootCommandLine(context: Context, guestCommand: List<String>): Pair<List<String>, Map<String, String>>? {
-        val base = prootArgvBase(context) ?: return null
+    /** Alpine convenience: proot argv for the Alpine rootfs. */
+    private fun prootArgvBase(context: Context): List<String>? =
+        prootArgvBase(context, rootfsDir(context), isReady(context))
+
+    fun prootCommandLine(context: Context, guestCommand: List<String>): Pair<List<String>, Map<String, String>>? =
+        prootCommandLineFor(context, rootfsDir(context), isReady(context), guestCommand)
+
+    fun prootCommandLineFor(context: Context, rootfs: File, ready: Boolean, guestCommand: List<String>): Pair<List<String>, Map<String, String>>? {
+        val base = prootArgvBase(context, rootfs, ready) ?: return null
         val loader = loaderPath(context) ?: return null
         val tmpDir = File(context.filesDir, "tmp")
         val prootTmp = File(context.filesDir, "proot_tmp")
@@ -321,8 +327,11 @@ object RootfsManager {
      * prefix is needed anywhere. TC runs /bin/bash -l as user `tiny`;
      * Mudif runs /bin/sh -l (BusyBox ash, Alpine has no bash) as root.
      */
-    fun bootArgv(context: Context): List<String>? {
-        val base = prootArgvBase(context) ?: return null
+    fun bootArgv(context: Context): List<String>? =
+        bootArgvFor(context, rootfsDir(context), isReady(context))
+
+    fun bootArgvFor(context: Context, rootfs: File, ready: Boolean): List<String>? {
+        val base = prootArgvBase(context, rootfs, ready) ?: return null
         return base + listOf(
             "/usr/bin/env", "-i",
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -349,9 +358,13 @@ object RootfsManager {
      * host shell with proot. Returns the script file, or null if the
      * engine/rootfs/loader is missing.
      */
-    fun writeBootScript(context: Context): File? {
-        val argv = bootArgv(context) ?: return null
-        val script = File(context.filesDir, "boot_mudif.sh")
+    fun writeBootScript(context: Context): File? =
+        writeBootScriptFor(context, rootfsDir(context), isReady(context), "boot_mudif.sh")
+
+    /** P6: boot script for any rootfs (Debian uses "boot_debian.sh"). */
+    fun writeBootScriptFor(context: Context, rootfs: File, ready: Boolean, scriptName: String): File? {
+        val argv = bootArgvFor(context, rootfs, ready) ?: return null
+        val script = File(context.filesDir, scriptName)
         val line = "exec " + argv.joinToString(" ") { shellQuote(it) }
         script.writeText(line + "\n")
         return script
@@ -367,8 +380,12 @@ object RootfsManager {
      * Shared by firstBoot() and TerminalSession — single source of truth for
      * the proot invocation (flags + environment).
      */
-    fun prootBuilder(context: Context, guestCommand: List<String>): ProcessBuilder? {
-        val (argv, env) = prootCommandLine(context, guestCommand) ?: return null
+    fun prootBuilder(context: Context, guestCommand: List<String>): ProcessBuilder? =
+        prootBuilderFor(context, rootfsDir(context), isReady(context), guestCommand)
+
+    /** P6: proot ProcessBuilder for any rootfs (Debian one-shots). */
+    fun prootBuilderFor(context: Context, rootfs: File, ready: Boolean, guestCommand: List<String>): ProcessBuilder? {
+        val (argv, env) = prootCommandLineFor(context, rootfs, ready, guestCommand) ?: return null
         val pb = ProcessBuilder(argv).redirectErrorStream(true)
         pb.environment().putAll(env)
         return pb

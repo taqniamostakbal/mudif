@@ -70,6 +70,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.snakeyaml)
     implementation(libs.commons.compress)
+    // P6: XZ support for commons-compress (Debian .tar.xz extraction).
+    // XZCompressorInputStream needs the XZ for Java runtime library.
+    implementation("org.tukaani:xz:1.9")
     // Termux:X11 from JitPack (pure Java, exclude Kotlin stdlib to avoid version conflict)
     implementation("com.github.tiny-computer:termux-x11:21159a1405") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")

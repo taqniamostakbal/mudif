@@ -56,13 +56,13 @@ object X11Session {
      * Sets the started flag FIRST (Tiny does the same) so a later stop
      * always pairs with a start.
      */
-    fun startXServer(context: Context) {
+    fun startXServer(context: Context, rootfs: File = RootfsManager.rootfsDir(context)) {
         val app = context.applicationContext
         val tmpDir = File(app.filesDir, "tmp").apply { mkdirs() }
 
         // EXACT match to Tiny Container's launchXServer (plus Mudif's
         // proven -listen tcp flag).
-        val xkbRoot = File(RootfsManager.rootfsDir(context), "usr/share/X11/xkb")
+        val xkbRoot = File(rootfs, "usr/share/X11/xkb")
             .takeIf { it.exists() }?.absolutePath ?: ""
 
         val envKeys = arrayOf(
@@ -195,9 +195,9 @@ object X11Session {
     }
 
     /** Last 30 lines of the desktop session log (diagnostics only). */
-    fun getDesktopLog(context: Context, desktop: String): String {
+    fun getDesktopLog(context: Context, desktop: String, rootfs: File = RootfsManager.rootfsDir(context)): String {
         return try {
-            val file = File(RootfsManager.rootfsDir(context), "root/$desktop.log")
+            val file = File(rootfs, "root/$desktop.log")
             if (!file.exists()) return "($desktop.log not found - $desktop never started)"
             val lines = file.readLines()
             if (lines.isEmpty()) return "($desktop.log empty)"
@@ -231,6 +231,25 @@ object X11Session {
             maxTimeoutSec = 30
         )
         Log.d(TAG, "killDesktopProcesses exit=${result.exitCode} out=${result.output}")
+        return result.output.contains("DESKTOP_CLEANED")
+    }
+
+    /**
+     * P6 — same desktop cleanup as killDesktopProcesses, but inside
+     * the DEBIAN guest (the previous نظام مضيف session's orphans).
+     * Best-effort; a failure here is not fatal — the fresh boot
+     * proceeds anyway.
+     */
+    fun killDebianDesktopProcesses(context: Context): Boolean {
+        val pattern = "[x]fwm4|[x]fce4-session|[x]fce4-panel|[x]fdesktop|[x]fce4-terminal|" +
+            "[f]irefox-esr|[s]tartxfce4|[d]bus-daemon"
+        val result = TerminalSession.runCommandDebian(
+            context,
+            "pkill -f '$pattern'; echo DESKTOP_CLEANED",
+            idleTimeoutSec = 15,
+            maxTimeoutSec = 30
+        )
+        Log.d(TAG, "killDebianDesktopProcesses exit=${result.exitCode} out=${result.output}")
         return result.output.contains("DESKTOP_CLEANED")
     }
 
@@ -372,5 +391,33 @@ object X11Session {
         )
         Log.d(TAG, "ensureXfce exit=${result.exitCode} out=${result.output}")
         return result.exitCode == 0
+    }
+
+    /**
+     * P6 — install the نظام مضيف desktop set in the DEBIAN guest
+     * (proven live by the 2026-11-06 diagnostic, Q4): apt update,
+     * then ONE apt install with --no-install-recommends (208 pkgs):
+     * xfce4 + whisker + xfce4-terminal + thunar + firefox-esr +
+     * deepin-icon-theme + papirus + adwaita + dbus-x11 +
+     * xkeyboard-config (the X server's XKB data). DEBIAN_FRONTEND
+     * noninteractive so nothing ever prompts. NO bwrap shim here:
+     * Debian's gdk-pixbuf has native PNG/JPEG loaders and glycin is
+     * not in the closure — the P5.25 failure mode does not exist.
+     * One-shot, best-effort, idempotent. Call from a background thread.
+     */
+    fun ensureDebianDesktop(context: Context): Boolean {
+        val command = "export DEBIAN_FRONTEND=noninteractive; " +
+            "apt-get update && apt-get install -y --no-install-recommends " +
+            "xkeyboard-config xfce4 xfce4-whiskermenu-plugin xfce4-terminal thunar " +
+            "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
+            "&& echo DEBIAN_DESKTOP_OK"
+        val result = TerminalSession.runCommandDebian(
+            context,
+            command,
+            idleTimeoutSec = 120,
+            maxTimeoutSec = 1800
+        )
+        Log.d(TAG, "ensureDebianDesktop exit=${result.exitCode} out=${result.output.takeLast(500)}")
+        return result.output.contains("DEBIAN_DESKTOP_OK")
     }
 }
