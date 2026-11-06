@@ -38,6 +38,8 @@ object X11Session {
     private const val DISPLAY = ":0"
     private const val OPENBOX_PID_FILE = ".mudif_openbox_pid"
     private const val OPENBOX_STATE_FILE = ".mudif_openbox_state"
+    private const val XTERM_PID_FILE = ".mudif_xterm_pid"
+    private const val XTERM_STATE_FILE = ".mudif_xterm_state"
 
     @Volatile
     var xserverRunning = false
@@ -233,6 +235,67 @@ object X11Session {
             if (!file.exists()) return "(openbox.log not found - openbox never started)"
             val lines = file.readLines()
             if (lines.isEmpty()) return "(openbox.log empty)"
+            lines.takeLast(30).joinToString("\n")
+        } catch (e: Exception) {
+            "(error: ${e.message})"
+        }
+    }
+
+    /**
+     * P5.13 — xterm MUST be launched through the persistent PTY
+     * container session, exactly like openbox. The Terminal tab
+     * (`TerminalSession.runCommand`) is a one-shot proot per command:
+     * xterm starts there with no error, but it DIES the moment the
+     * command returns (proven 2026-11-06 04:04: `ps | grep xterm`
+     * in the terminal returned "(لا مخرجات)" — no xterm process).
+     * The persistent session is a real terminal where `&` jobs
+     * survive, so xterm launched here stays alive and its window
+     * can appear in the viewer.
+     */
+    fun launchXterm(context: Context): Boolean {
+        val ok = ContainerSession.sendCommand(
+            "DISPLAY=127.0.0.1:0 xterm > /root/xterm.log 2>&1 & echo \$! > /tmp/$XTERM_PID_FILE"
+        )
+        if (ok) Log.d(TAG, "xterm command sent through PTY session")
+        else Log.e(TAG, "PTY session not available for xterm")
+        return ok
+    }
+
+    /** Is xterm alive? Same marker-file pattern as isOpenboxRunning. */
+    fun isXtermRunning(context: Context, timeoutMs: Long = 5000): Boolean {
+        val app = context.applicationContext
+        val stateFile = File(app.filesDir, "tmp/$XTERM_STATE_FILE")
+        try {
+            stateFile.delete()
+        } catch (_: Exception) {
+        }
+        if (!ContainerSession.sendCommand(
+                "kill -0 \$(cat /tmp/$XTERM_PID_FILE 2>/dev/null) 2>/dev/null" +
+                    " && echo RUNNING > /tmp/$XTERM_STATE_FILE" +
+                    " || echo DEAD > /tmp/$XTERM_STATE_FILE"
+            )
+        ) {
+            return false
+        }
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            try {
+                if (stateFile.exists()) {
+                    return stateFile.readText().trim() == "RUNNING"
+                }
+            } catch (_: Exception) {
+            }
+            Thread.sleep(200)
+        }
+        return false
+    }
+
+    fun getXtermLog(context: Context): String {
+        return try {
+            val file = File(RootfsManager.rootfsDir(context), "root/xterm.log")
+            if (!file.exists()) return "(xterm.log not found - xterm never started)"
+            val lines = file.readLines()
+            if (lines.isEmpty()) return "(xterm.log empty)"
             lines.takeLast(30).joinToString("\n")
         } catch (e: Exception) {
             "(error: ${e.message})"
