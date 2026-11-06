@@ -9,6 +9,7 @@ import com.bolm.mudif.databinding.FragmentTerminalBinding
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.RootfsManager
 import com.google.android.material.snackbar.Snackbar
+import com.offsec.nhterm.frontend.session.terminal.BasicViewClient
 
 /**
  * P5.22 RADICAL REBUILD — real terminal (Tiny Container's
@@ -76,6 +77,12 @@ class TerminalFragment : Fragment() {
         val session = GuestSession.session ?: return
         binding.terminalView.setTextSize(36)
         binding.terminalView.attachSession(session)
+        // P5.24 FIX: the view's key handler (TerminalView.onKeyDown)
+        // calls terminalViewClient — without a client, ANY keypress
+        // NPE-crashes the whole app (P5.23 test, logcat). Tiny
+        // Container always sets BasicViewClient. Skipped as
+        // "optional" in P5.22; the test proved it is required.
+        binding.terminalView.setTerminalViewClient(BasicViewClient(binding.terminalView))
         binding.terminalView.setBackgroundColor(0xFF141428.toInt())
         binding.terminalView.onScreenUpdated()
         GuestSession.onScreenUpdate = {
