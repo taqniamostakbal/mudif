@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.9 diagnostics (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.9-Diag", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.10 TCP (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.10-TCP", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -87,6 +87,20 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
+            // 3b. P5.10: wait until the server accepts TCP on 127.0.0.1:6000.
+            // The socket file can exist before the server is ready, and the
+            // Unix socket connect from inside proot is broken on this phone,
+            // so the guest uses TCP — prove the listener is there first.
+            setStatus("جاري انتظار منفذ TCP…")
+            if (!X11Session.waitForTcpDisplay(10000)) {
+                if (destroyed) return@Thread
+                runOnUiThread {
+                    Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
+                    showFailureDialog("خادم X ما فتحش منفذ TCP 6000 خلال 10 ثواني (السوكيت موجود ولكن TCP مسدود).")
+                }
+                return@Thread
+            }
+
             // 4. Send the GUI command through the PTY session (Tiny).
             setStatus("جاري تشغيل openbox…")
             X11Session.launchGuiApp(this)
@@ -99,7 +113,7 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.9")
+                    .setTitle("تشخيص P5.10")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n\nاللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
