@@ -136,6 +136,7 @@ object DesktopDiagnostics {
         val sb = StringBuilder()
         sb.append("xserverStarted: ${X11Session.xserverRunning}\n")
         sb.append("socket X0 exists: ${X11Session.isXSocketPresent(context)}\n")
+        sb.append("tcp 6000 open: ${X11Session.isTcpDisplayOpen()}\n")
         try {
             val unixDir = File(context.filesDir, "tmp/.X11-unix")
             sb.append(".X11-unix: ")
@@ -178,9 +179,9 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, openboxRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.9 — سجل مفصل ===\n")
+            append("=== مضيف P5.10 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.9-Diag\n\n")
+            append("نسخة: P5.10-TCP\n\n")
             append("--- الفرضية 1 (Phantom Killer) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")

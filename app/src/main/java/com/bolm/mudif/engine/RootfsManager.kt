@@ -240,7 +240,12 @@ object RootfsManager {
             "-w", "/root") + guestCommand
         val env = mapOf(
             "LD_LIBRARY_PATH" to EngineCheck.binDir(context).absolutePath,
-            "TMPDIR" to tmpDir.absolutePath,
+            // P5.10: TMPDIR for the GUEST must be the guest path "/tmp".
+            // The host path (filesDir/tmp) does not exist inside the guest
+            // namespace; any guest program using $TMPDIR would look in a
+            // nonexistent directory. (The X server itself gets its own
+            // TMPDIR from the start-service intent, unaffected.)
+            "TMPDIR" to "/tmp",
             "PROOT_TMP_DIR" to prootTmp.absolutePath,
             "PROOT_NO_SECCOMP" to "1",
             // Mandatory: our proot was built with PROOT_UNBUNDLE_LOADER

@@ -52,6 +52,16 @@ object X11Session {
      * Tiny `launchXServer`: start CmdEntryPointService with ACTION_START.
      * Sets the started flag FIRST (Tiny does the same) so a later stop
      * always pairs with a start.
+     *
+     * P5.10: the Unix socket connect from inside proot is broken on this
+     * device (guest sees X0, lock is live, server is up, yet every X
+     * client fails XOpenDisplay — proven by the TMPDIR test and the
+     * xterm test). So the server ALSO listens on TCP (`-listen tcp`,
+     * additive: the Unix socket stays) and the guest uses TCP
+     * (DISPLAY=127.0.0.1:0), which proot does not translate at all.
+     * NOTE: TCP :6000 is unauthenticated and bound on all interfaces;
+     * on a home WiFi this is acceptable for a debug desktop, but it is
+     * not a setup to run on a public network.
      */
     fun startXServer(context: Context) {
         val app = context.applicationContext
@@ -76,13 +86,13 @@ object X11Session {
 
         val intent = Intent(app, CmdEntryPointService::class.java).apply {
             action = CmdEntryPointService.ACTION_START
-            putExtra(CmdEntryPointService.EXTRA_ARGS, arrayOf(DISPLAY))
+            putExtra(CmdEntryPointService.EXTRA_ARGS, arrayOf(DISPLAY, "-listen", "tcp"))
             putExtra(CmdEntryPointService.EXTRA_ENV_KEYS, envKeys)
             putExtra(CmdEntryPointService.EXTRA_ENV_VALUES, envVals)
         }
         app.startService(intent)
         xserverRunning = true
-        Log.d(TAG, "X server start requested for $DISPLAY")
+        Log.d(TAG, "X server start requested for $DISPLAY (+TCP)")
     }
 
     /**
@@ -123,15 +133,52 @@ object X11Session {
     fun isXSocketPresent(context: Context): Boolean =
         File(context.filesDir, "tmp/.X11-unix/X0").exists()
 
+    /** P5.10: TCP port of display :0 (6000 + display number). */
+    const val TCP_PORT = 6000
+
+    /** P5.10: single TCP probe — is anything accepting on 127.0.0.1:6000? */
+    fun isTcpDisplayOpen(): Boolean {
+        return try {
+            java.net.Socket().use { s ->
+                s.connect(java.net.InetSocketAddress("127.0.0.1", TCP_PORT), 800)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * P5.10: wait until the X server accepts TCP connections on
+     * 127.0.0.1:6000. The Unix socket file can exist before the server
+     * is ready to accept, so the socket check alone is not enough.
+     * A connect+immediate-close is harmless to the server.
+     */
+    fun waitForTcpDisplay(timeoutMs: Long = 10000): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (isTcpDisplayOpen()) {
+                Log.d(TAG, "TCP display ready")
+                return true
+            }
+            Thread.sleep(500)
+        }
+        Log.e(TAG, "TCP display not ready after ${timeoutMs}ms")
+        return false
+    }
+
     /**
      * Tiny's GUI step: send the GUI command into the persistent PTY
      * container session. openbox runs backgrounded (`&`) with its output
      * redirected to /root/openbox.log, and its pid recorded so the
      * running-state check below can test it.
+     *
+     * P5.10: DISPLAY=127.0.0.1:0 (TCP) instead of :0 (Unix socket) —
+     * the Unix socket connect from inside proot fails on this device.
      */
     fun launchGuiApp(context: Context): Boolean {
         val ok = ContainerSession.sendCommand(
-            "DISPLAY=:0 openbox > /root/openbox.log 2>&1 & echo \$! > /tmp/$OPENBOX_PID_FILE"
+            "DISPLAY=127.0.0.1:0 openbox > /root/openbox.log 2>&1 & echo \$! > /tmp/$OPENBOX_PID_FILE"
         )
         if (ok) Log.d(TAG, "openbox command sent through PTY session")
         else Log.e(TAG, "PTY session not available for openbox")
