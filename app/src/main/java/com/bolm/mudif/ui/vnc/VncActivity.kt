@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
 import com.bolm.mudif.engine.DesktopDiagnostics
 import com.bolm.mudif.engine.GuestSession
+import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.logs.LogViewerActivity
 
@@ -59,8 +60,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.23 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.23", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.24 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.24", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -94,6 +95,17 @@ class VncActivity : AppCompatActivity() {
                     )
                 }
                 return@Thread
+            }
+
+            // 1a. Kill the previous desktop's processes FIRST
+            // (P5.24): the old PTY session's death leaves its desktop
+            // processes as orphans owning the display, and the new
+            // desktop's window manager then refuses to start. Only
+            // when the guest is installed; a failure here is not
+            // fatal — the fresh boot proceeds anyway.
+            if (RootfsManager.isReady(this)) {
+                setStatus("جاري تنظيف سطح المكتب السابق…")
+                X11Session.killDesktopProcesses(this)
             }
 
             // 1. Boot the container in the PTY session (Tiny:
@@ -176,7 +188,7 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.23")
+                    .setTitle("تشخيص P5.24")
                     .setMessage(
                         "سطح المكتب: $desktopName\n" +
                             "PTY حية: ${GuestSession.alive}\n" +
