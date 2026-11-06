@@ -247,6 +247,20 @@ object RootfsManager {
             // plus /dev/ptmx lets the guest allocate ptys.
             "-b", "/dev/ptmx:/dev/ptmx",
             "-b", "/dev/pts:/dev/pts",
+            // P5.21 (ROOT CAUSE FIX): bind the host's /proc into the
+            // guest. The P5.20 diagnosis PROVED /proc is not mounted in
+            // the guest (ls /proc/ empty; /proc/mounts missing), and
+            // that breaks slave-pty NAME resolution (musl ttyname()
+            // reads /proc/self/fd -> FileNotFoundError) which is why
+            // xterm fails with `open ttydev` and Firefox fails with
+            // "Couldn't find the application directory" (it locates
+            // itself via /proc/self/exe). pty ALLOCATION works (script
+            // prints PTTY_OK); only the /proc-dependent resolution is
+            // broken. A mount from inside the guest is blocked by
+            // proot, so it must be a bind here at proot startup. The
+            // guest's /proc is an empty dir (it exists), so the bind
+            // target is valid.
+            "-b", "/proc:/proc",
             "-w", "/root") + guestCommand
         val env = mapOf(
             "LD_LIBRARY_PATH" to EngineCheck.binDir(context).absolutePath,

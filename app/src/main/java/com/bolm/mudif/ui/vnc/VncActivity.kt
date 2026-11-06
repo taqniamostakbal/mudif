@@ -48,8 +48,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.20 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.20", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.21 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.21", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -72,7 +72,7 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // 2. P5.20: install xkeyboard-config in the guest BEFORE
+            // 2. P5.21: install xkeyboard-config in the guest BEFORE
             // starting the X server — the P5.16 test proved the fresh
             // rootfs has no xkb dir, and startXServer reads
             // XKB_CONFIG_ROOT at launch. Best-effort: the server is
@@ -80,16 +80,20 @@ class VncActivity : AppCompatActivity() {
             setStatus("جاري تثبيت بيانات لوحة المفاتيح…")
             val xkbOk = X11Session.ensureXkb(this)
 
-            // 2b. P5.20 (smart): install ONLY the essential desktop
-            // packages here (openbox + xterm) — fast, and the desktop
-            // cannot work without them. The P5.18 test proved the X
-            // server LIVES, but the guest has NO openbox and NO xterm
-            // ("xterm: not found", "openbox: not found"). Firefox +
-            // LibreOffice are LARGE downloads: they are installed in the
-            // BACKGROUND after the desktop is up (step 6), so a slow
-            // download never blocks the desktop. Best-effort, idempotent.
+            // 2b. P5.21: install the essential desktop packages here
+            // (openbox + xterm) AND the LXQt desktop core — fast, and
+            // the desktop cannot work without them. LXQt is the WORKING
+            // desktop (proven 2026-11-06: complete session, visually
+            // confirmed, panel + pcmanfm-desktop mapped). It uses the
+            // already-running openbox as its window manager. XFCE +
+            // Firefox + LibreOffice are LARGE downloads: they install
+            // in the BACKGROUND after the desktop is up (step 6), so a
+            // slow download never blocks the desktop. Best-effort,
+            // idempotent.
             setStatus("جاري تثبيت حزم سطح المكتب…")
             val packagesOk = X11Session.ensureDesktopPackages(this)
+            setStatus("جاري تثبيت LXQt…")
+            val lxqtOk = X11Session.ensureLxqt(this)
 
             // 3. Start the X server (Tiny launchXServer) — but ONLY if it
             // is not already up. P5.11: the server now SURVIVES leaving
@@ -160,28 +164,46 @@ class VncActivity : AppCompatActivity() {
             val xtermRunning = X11Session.isXtermRunning(this)
             val xtermLog = X11Session.getXtermLog(this)
 
-            // 5. Diagnostic dialog (H1 result + openbox state + log).
-            // P5.20 (smart): the desktop counts as WORKING if EITHER
-            // openbox OR xterm is running — a terminal on X is a usable
-            // desktop even without a window manager (fallback). Firefox +
-            // LibreOffice install in the background (step 6) and do not
-            // block this dialog.
+            // 4c. P5.21: launch the LXQt desktop session (startlxqt).
+            // LXQt is the WORKING desktop (proven 2026-11-06: complete
+            // session, panel + desktop mapped, visually confirmed). It
+            // uses the already-running openbox as its window manager.
+            // Only if the LXQt session is not already running.
+            // P5.21 root-cause fix (/proc bind in proot) means xterm
+            // above should now work too (its pty naming resolves via
+            // /proc/self/fd), and Firefox as well (/proc/self/exe).
+            setStatus("جاري تشغيل LXQt…")
+            if (!X11Session.isLxqtRunning(this)) {
+                X11Session.launchLxqt(this)
+                Thread.sleep(4000)
+            }
+            val lxqtRunning = X11Session.isLxqtRunning(this)
+            val lxqtLog = X11Session.getLxqtLog(this)
+
+            // 5. Diagnostic dialog (H1 result + desktop state + log).
+            // P5.21: the desktop counts as WORKING if LXQt is running
+            // (the full desktop: session + panel + desktop icons). XFCE
+            // + Firefox + LibreOffice install in the background
+            // (step 6) and do not block this dialog.
             if (destroyed) return@Thread
             runOnUiThread {
-                val desktopOk = isRunning || xtermRunning
+                val desktopOk = lxqtRunning
                 setStatus(
                     if (desktopOk) "سطح المكتب خدام ✓"
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.20")
+                    .setTitle("تشخيص P5.21")
                     .setMessage(
-                        "openbox يشتغل: $isRunning\n" +
+                        "LXQt يشتغل: $lxqtRunning\n" +
+                            "openbox يشتغل: $isRunning\n" +
                             "xterm يشتغل: $xtermRunning\n" +
                             "الخطوط تثبتات: $fontsOk\n" +
                             "لوحة المفاتيح (xkb) تثبتات: $xkbOk\n" +
                             "حزم سطح المكتب (openbox+xterm) تثبتات: $packagesOk\n" +
-                            "فايرفوكس وليبر أوفيس: كيتثبتو فالخلفية…\n\n" +
+                            "LXQt تثبت: $lxqtOk\n" +
+                            "XFCE + فايرفوكس + ليبر أوفيس: كيتثبتو فالخلفية…\n\n" +
+                            "لوگ LXQt:\n$lxqtLog\n\n" +
                             "لوگ xterm:\n$xtermLog\n\n" +
                             "اللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
@@ -197,19 +219,21 @@ class VncActivity : AppCompatActivity() {
                     .show()
             }
 
-            // 6. P5.20 (smart): install firefox + libreoffice in the
-            // BACKGROUND, after the desktop is already up. A slow
-            // download must never block the desktop. Best-effort,
-            // idempotent. The result is logged; the apps are available
-            // from the terminal / next desktop start.
+            // 6. P5.21 (smart): install XFCE + firefox + libreoffice in
+            // the BACKGROUND, after the desktop is already up. These are
+            // LARGE downloads; a slow download must never block the
+            // desktop. Best-effort, idempotent. The result is logged;
+            // the apps are available from the desktop / next start.
             Thread {
+                val xfceOk = X11Session.ensureXfce(this)
+                Log.d("VncActivity", "ensureXfce (background) ok=$xfceOk")
                 val ok = X11Session.ensureDesktopApps(this)
                 Log.d("VncActivity", "ensureDesktopApps (background) ok=$ok")
                 runOnUiThread {
                     if (!destroyed) {
                         setStatus(
-                            if (ok) "فايرفوكس وليبر أوفيس تثبتو ✓"
-                            else "فايرفوكس وليبر أوفيس ما تثبتوش — جرب مرة أخرى"
+                            if (xfceOk && ok) "XFCE + فايرفوكس + ليبر أوفيس تثبتو ✓"
+                            else "بعض التثبيتات فالخلفية ما كملاتش — جرب مرة أخرى"
                         )
                     }
                 }
