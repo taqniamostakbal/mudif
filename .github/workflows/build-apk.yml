@@ -18,7 +18,9 @@ jobs:
           java-version: 17
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        # v4: v3 fails on the removed legacy "tools" package ("Failed to find package 'tools'");
+        # v4 drops it from the default packages and skips it if requested explicitly.
+        uses: android-actions/setup-android@v4
 
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
