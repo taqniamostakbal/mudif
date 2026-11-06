@@ -298,7 +298,7 @@ object X11Session {
     }
 
     /**
-     * P5.17 — install xkeyboard-config in the guest so the X server
+     * P5.18 — install xkeyboard-config in the guest so the X server
      * can find its keyboard data (XKB_CONFIG_ROOT =
      * <rootfs>/usr/share/X11/xkb). The P5.16 test proved the fresh
      * rootfs has NO xkb dir and XKB_CONFIG_ROOT was blank at launch;
