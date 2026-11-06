@@ -46,62 +46,13 @@
             app:cardElevation="4dp"
             app:cardBackgroundColor="#141428">
 
-            <ScrollView
-                android:id="@+id/terminalScroll"
+            <com.offsec.nhterm.frontend.session.view.TerminalView
+                android:id="@+id/terminalView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:padding="12dp"
-                android:clipToPadding="false">
-
-                <TextView
-                    android:id="@+id/terminalOutput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#E8E8F0"
-                    android:textSize="13sp"
-                    android:fontFamily="monospace"
-                    android:textIsSelectable="true" />
-            </ScrollView>
+                android:focusable="true"
+                android:focusableInTouchMode="true" />
         </com.google.android.material.card.MaterialCardView>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnClear"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/terminal_clear"
-                android:fontFamily="@font/cairo"
-                app:cornerRadius="12dp"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-            <EditText
-                android:id="@+id/inputCommand"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:hint="@string/terminal_hint"
-                android:fontFamily="@font/cairo"
-                android:inputType="text"
-                android:imeOptions="actionSend"
-                android:singleLine="true"
-                android:background="@android:drawable/edit_text"
-                android:padding="12dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSend"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/terminal_send"
-                android:fontFamily="@font/cairo"
-                app:cornerRadius="12dp"
-                app:backgroundTint="@color/mudif_purple" />
-        </LinearLayout>
     </LinearLayout>
 </LinearLayout>
