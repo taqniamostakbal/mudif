@@ -156,16 +156,20 @@ object DesktopDiagnostics {
         return sb.toString()
     }
 
-    /** PTY container session state. */
+    /** Container session state (P5.16: persistent proot shell, no PTY). */
     fun containerState(): String {
         val sb = StringBuilder()
-        sb.append("PTY alive: ${ContainerSession.alive}\n")
+        sb.append("session alive: ${ContainerSession.alive}\n")
         sb.append("guest booted: ${ContainerSession.booted}\n")
         sb.append("lastExitCode: ${ContainerSession.lastExitCode}")
         if (ContainerSession.lastExitCode == -9) {
             sb.append(" (SIGKILL — killed by the system)")
         }
         sb.append("\n")
+        val err = ContainerSession.lastError
+        if (err != null) {
+            sb.append("lastError: $err\n")
+        }
         return sb.toString()
     }
 
@@ -179,9 +183,9 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, openboxRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.12 — سجل مفصل ===\n")
+            append("=== مضيف P5.16 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.12\n\n")
+            append("نسخة: P5.16\n\n")
             append("--- الفرضية 1 (Phantom Killer) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")
@@ -190,7 +194,7 @@ object DesktopDiagnostics {
             append(xServerInputs(context))
             append("\n--- عملية خادم X (ps) ---\n")
             append(xServerProcess())
-            append("\n--- حالة جلسة الحاوية (PTY) ---\n")
+            append("\n--- حالة جلسة الحاوية (proot) ---\n")
             append(containerState())
             append("\n--- openbox ---\n")
             append(

@@ -2,56 +2,60 @@ package com.bolm.mudif.engine
 
 import android.content.Context
 import android.os.SystemClock
-import android.system.Os
-import android.system.OsConstants
 import android.util.Log
-import com.offsec.nhterm.backend.TerminalSession
+import java.io.BufferedWriter
 import java.io.File
+import java.io.InputStream
 
 /**
- * P5.8 REBUILD — persistent PTY container session, Tiny Container's
- * architecture, exactly.
+ * P5.16 REBUILD — persistent proot shell via ProcessBuilder.
  *
- * Tiny Container (`Global.kt`) runs the WHOLE container inside ONE real
- * PTY terminal session (`com.offsec.nhterm.backend.TerminalSession`,
- * terminal-lib) and types commands into it with `sendCommand()`. That is
- * why `&` job control, background GUI apps and shell buffering all work
- * there — and why Mudif's pipe-fed shell (P5.4 `ProotSession`) and
- * one-shot ProcessBuilder launches (P5.5) kept failing.
+ * Replaces the P5.8 terminal-lib PTY session (NetHunter TerminalSession).
+ * The PTY session is PROVEN broken on x86_64 Android 14 (InstaBox):
+ * `ensure()` either throws or the session dies at once (PTY alive:
+ * false, lastExitCode: -1, guest never boots), while the one-shot
+ * ProcessBuilder proot path works (Alpine boot test: 3.24.0, "Alpine
+ * خدام"). The native lib (libneoterm.so) exists for x86_64 with
+ * standard deps, /system/bin/sh works, /dev/ptmx and /dev/pts exist —
+ * the terminal-lib PTY creation itself fails on this platform.
  *
- * This session is HEADLESS: no terminal UI is attached to it. It exists
- * only so the desktop flow has a real shell to talk to, exactly like
- * Tiny's `Global.terminalSession` before any TerminalView attaches.
+ * This session uses the PROVEN path: RootfsManager.prootBuilder
+ * (ProcessBuilder) running a persistent `/bin/sh` inside proot.
+ * Commands go to the shell's stdin; stdout/stderr are drained on
+ * daemon threads so the pipe can never fill and stall the shell.
  *
- * Lifecycle (mirrors Tiny `ContainerMainViewModel.setupEnvironment` +
- * `launchContainer` + `exitContainer`):
- *  1. `ensure()` creates the PTY shell (`/system/bin/sh`).
- *  2. `bootContainer()` writes a boot script (bypasses the PTY 4096-byte
- *     single-line limit, like Tiny's `boot_${code}.sh`) containing the
- *     exports + `exec proot ... /bin/sh -c '<marker>; exec /bin/sh'`,
- *     sources it, and waits for the guest marker file.
- *  3. `sendCommand()` types into the guest shell (openbox, etc.).
- *  4. `stop()` finishes the session and SIGQUITs the process group
- *     (Tiny: `Os.kill(-pid, SIGQUIT)`).
- *  5. Death is observed: `onSessionFinished` records the exit code
- *     (exit code -9 = killed by signal 9, Tiny's Signal9 case).
+ * Why this does not repeat the P5.4 pipe failure (R2: "& job control
+ * unreliable, stdout block-buffers"): the desktop flow is
+ * fire-and-forget. GUI apps are launched with `&` and their stdout
+ * redirected to log files, and every status check goes through a
+ * marker file on the shared /tmp bind-mount (isOpenboxRunning,
+ * isXtermRunning), never by reading this shell's stdout. The shell
+ * only has to stay alive and execute commands, which a pipe shell
+ * does. Background jobs are detached from the shell's terminal
+ * (stdin from /dev/null is not needed: openbox/xterm never read the
+ * shell's stdin; xterm opens its own pty).
  *
- * The one-shot `TerminalSession.runCommand()` (terminal tab) is untouched
- * and independent; this session is dedicated to the desktop/container.
+ * Lifecycle:
+ *  1. `ensure()` starts the persistent proot shell (once).
+ *  2. `bootContainer()` waits for the guest marker file (written by
+ *     the guest shell itself, so it can only appear if proot started).
+ *  3. `sendCommand()` writes a command + newline to the shell stdin.
+ *  4. `stop()` closes stdin and destroys the process.
+ *  5. Death is observed: a watcher thread records the exit code and
+ *     the reason in `lastError`, which the diagnostics show.
  */
 object ContainerSession {
 
     private const val TAG = "ContainerSession"
-    private const val BOOT_SCRIPT = "mudif_boot.sh"
     private const val GUEST_READY_MARKER = ".mudif_guest_ready"
 
     @Volatile
-    private var session: TerminalSession? = null
+    private var process: Process? = null
 
     @Volatile
-    private var resourcesSet = false
+    private var stdinWriter: BufferedWriter? = null
 
-    /** True while the PTY session exists and has not finished. */
+    /** True while the proot shell process exists and has not exited. */
     @Volatile
     var alive = false
         private set
@@ -61,112 +65,86 @@ object ContainerSession {
     var booted = false
         private set
 
-    /** Exit code of the last finished session (-1 = never ran, -9 = SIGKILL). */
+    /** Exit code of the last finished shell (-1 = never ran). */
     @Volatile
     var lastExitCode = -1
         private set
 
-    private val callback = object : TerminalSession.SessionChangedCallback {
-        override fun onTextChanged(changedSession: TerminalSession?) {}
-        override fun onColorsChanged(session: TerminalSession?) {}
-        override fun onTitleChanged(changedSession: TerminalSession?) {}
-        override fun onSessionFinished(finishedSession: TerminalSession?) {
-            alive = false
-            booted = false
-            lastExitCode = try {
-                finishedSession?.exitStatus ?: -1
-            } catch (_: Exception) {
-                -1
-            }
-            Log.w(TAG, "PTY session finished, exit=$lastExitCode")
-        }
-
-        override fun onClipboardText(session: TerminalSession?, text: String?) {}
-        override fun onBell(session: TerminalSession?) {}
-    }
+    /** Human-readable reason for the last failure, if any. */
+    @Volatile
+    var lastError: String? = null
+        private set
 
     /**
-     * Create the PTY shell if there is none alive. Idempotent.
-     * Must be called from a background thread (constructor spawns a process).
+     * Start the persistent proot shell if there is none alive.
+     * Idempotent. Must be called from a background thread.
      */
     @Synchronized
     fun ensure(context: Context): Boolean {
-        if (alive && session != null) return true
-        val app = context.applicationContext
+        if (alive && process != null) return true
+        val pb = RootfsManager.prootBuilder(
+            context,
+            listOf("/bin/sh", "-c", "echo READY > /tmp/$GUEST_READY_MARKER; exec /bin/sh")
+        ) ?: run {
+            lastError = "prootBuilder null (engine/rootfs/loader missing)"
+            Log.e(TAG, lastError!!)
+            return false
+        }
         return try {
-            if (!resourcesSet) {
-                TerminalSession.setResources(app.resources)
-                resourcesSet = true
-            }
-            val s = TerminalSession(
-                "/system/bin/sh",
-                app.dataDir.absolutePath,
-                null,
-                null,
-                callback
-            )
-            s.updateSize(80, 24)
-            session = s
+            val proc = pb.start()
+            process = proc
+            stdinWriter = proc.outputStream.bufferedWriter(Charsets.UTF_8)
+            // Drain stdout/stderr on daemon threads: a pipe that fills
+            // (64 KiB) stalls the shell forever. Output is discarded;
+            // status is read from marker files, never from this stream.
+            Thread { drainStream(proc.inputStream) }.apply { isDaemon = true; start() }
+            Thread { drainStream(proc.errorStream) }.apply { isDaemon = true; start() }
+            // Watch for the process exiting on its own.
+            Thread {
+                val code = try {
+                    proc.waitFor()
+                } catch (_: Exception) {
+                    -1
+                }
+                alive = false
+                booted = false
+                lastExitCode = code
+                if (lastError == null) {
+                    lastError = "proot shell exited, code=$code"
+                }
+                Log.w(TAG, "proot shell finished, exit=$code")
+            }.apply { isDaemon = true; start() }
             alive = true
             lastExitCode = -1
-            Log.d(TAG, "PTY session created")
+            lastError = null
+            Log.d(TAG, "proot shell started")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create PTY session", e)
+            lastError = "Failed to start proot shell: ${e.message}"
+            Log.e(TAG, lastError!!, e)
             alive = false
-            session = null
+            process = null
+            stdinWriter = null
             false
         }
     }
 
     /**
-     * Boot the Alpine container INSIDE the PTY session (Tiny's
-     * `launchContainer` flow). Idempotent: returns true immediately if the
-     * guest shell already proved it is alive.
-     *
-     * The marker is written by the GUEST shell itself (`-c` wrapper), so
-     * it can only appear if proot actually started — no false positive
-     * from the host shell racing ahead.
+     * Boot the Alpine container INSIDE the persistent shell. Idempotent:
+     * returns true immediately if the guest shell already proved it is
+     * alive. The marker is written by the GUEST shell itself, so it can
+     * only appear if proot actually started.
      */
     fun bootContainer(context: Context, timeoutMs: Long = 20000): Boolean {
         if (booted && alive) return true
-        if (!ensure(context)) return false
         val app = context.applicationContext
-
-        val (argv, env) = RootfsManager.prootCommandLine(
-            context, listOf("/bin/sh", "-c", "echo READY > /tmp/$GUEST_READY_MARKER; exec /bin/sh")
-        ) ?: return false
-
         // Stale marker from a previous run must not fake success.
+        // Delete BEFORE starting, so the new shell is the only writer.
         try {
             File(app.filesDir, "tmp/$GUEST_READY_MARKER").delete()
         } catch (_: Exception) {
         }
-
-        // Boot script: exports + exec proot. Written to a file because a
-        // PTY line is limited to 4096 bytes (Tiny: boot_${code}.sh).
-        val script = buildString {
-            for ((k, v) in env) {
-                append("export ")
-                append(k)
-                append("=")
-                append(RootfsManager.shellQuote(v))
-                append("\n")
-            }
-            append("exec ")
-            append(argv.joinToString(" ") { RootfsManager.shellQuote(it) })
-            append("\n")
-        }
-        try {
-            File(app.filesDir, BOOT_SCRIPT).writeText(script)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to write boot script", e)
-            return false
-        }
-
-        if (!sendCommand("source ${File(app.filesDir, BOOT_SCRIPT).absolutePath}")) {
-            return false
-        }
+        if (!ensure(context)) return false
 
         // Wait for the guest marker (host side of the /tmp bind-mount).
         val marker = File(app.filesDir, "tmp/$GUEST_READY_MARKER")
@@ -178,55 +156,66 @@ object ContainerSession {
                 return true
             }
             if (!alive) {
-                Log.e(TAG, "PTY session died while booting (exit=$lastExitCode)")
+                if (lastError == null) {
+                    lastError = "proot shell died while booting (exit=$lastExitCode)"
+                }
+                Log.e(TAG, lastError!!)
                 return false
             }
             Thread.sleep(200)
         }
-        Log.e(TAG, "Guest shell did not become ready in ${timeoutMs}ms")
+        lastError = "Guest marker timeout after ${timeoutMs}ms (shell alive, marker never appeared)"
+        Log.e(TAG, lastError!!)
         return false
     }
 
     /**
-     * Type a command into the guest shell, exactly like Tiny's
-     * `Global.sendCommand()`: the command plus a newline, as UTF-8 bytes.
-     * Background `&` works here — this is a real terminal, not a pipe.
+     * Write a command to the guest shell's stdin (command + newline).
+     * Background `&` works: the shell backgrounds the job. Output is
+     * discarded by the drain threads; status is checked via marker
+     * files, never by reading this stream.
      */
     @Synchronized
     fun sendCommand(command: String): Boolean {
-        val s = session ?: return false
+        val w = stdinWriter ?: return false
         if (!alive) return false
         return try {
-            val bytes = (command + "\n").toByteArray(Charsets.UTF_8)
-            s.write(bytes, 0, bytes.size)
+            w.write(command + "\n")
+            w.flush()
             true
         } catch (e: Exception) {
-            Log.e(TAG, "sendCommand failed", e)
+            lastError = "sendCommand failed: ${e.message}"
+            Log.e(TAG, lastError!!, e)
             false
         }
     }
 
     /**
-     * Stop the container: finish the PTY session, then SIGQUIT the whole
-     * process group so proot and its children die too (Tiny
-     * `exitContainer`: `Os.kill(-pid, SIGQUIT)`).
+     * Stop the container: close stdin (EOF makes the shell exit) and
+     * destroy the proot process.
      */
     @Synchronized
     fun stop() {
-        val s = session
-        session = null
+        try {
+            stdinWriter?.close()
+        } catch (_: Exception) {
+        }
+        stdinWriter = null
+        try {
+            process?.destroyForcibly()
+        } catch (_: Exception) {
+        }
+        process = null
         alive = false
         booted = false
-        if (s == null) return
+        Log.d(TAG, "proot shell stopped")
+    }
+
+    private fun drainStream(stream: InputStream) {
         try {
-            s.finishIfRunning()
+            stream.bufferedReader().forEachLine { }
         } catch (_: Exception) {
+            // Stream closed (process ended) — nothing to drain.
         }
-        try {
-            val pid = s.pid
-            if (pid > 0) Os.kill(-pid, OsConstants.SIGQUIT)
-        } catch (_: Exception) {
-        }
-        Log.d(TAG, "PTY session stopped")
     }
 }
