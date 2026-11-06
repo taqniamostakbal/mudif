@@ -8,6 +8,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentProfileBinding
+import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.InstallFlow
 import com.bolm.mudif.ui.logs.LogViewerActivity
@@ -66,6 +67,34 @@ class ProfileFragment : Fragment() {
                     putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_XFCE)
                 }
             )
+        }
+        // P6 — نظام مضيف: the ONE system (Debian 13.1 + XFCE). First
+        // tap downloads + extracts Debian (35 MB, hash-verified),
+        // later taps go straight to the desktop.
+        binding.rowVncMudif.setOnClickListener {
+            if (!DebianSystem.isReady(requireContext())) {
+                InstallFlow.runDebianInstall(this) { ok, message ->
+                    if (ok) {
+                        startActivity(
+                            android.content.Intent(requireContext(), VncActivity::class.java).apply {
+                                putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_MUDIF)
+                            }
+                        )
+                    } else {
+                        AlertDialog.Builder(requireContext())
+                            .setTitle(getString(R.string.boot_test))
+                            .setMessage(message)
+                            .setPositiveButton(getString(R.string.ok), null)
+                            .show()
+                    }
+                }
+            } else {
+                startActivity(
+                    android.content.Intent(requireContext(), VncActivity::class.java).apply {
+                        putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_MUDIF)
+                    }
+                )
+            }
         }
         binding.rowLogs.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), LogViewerActivity::class.java))
