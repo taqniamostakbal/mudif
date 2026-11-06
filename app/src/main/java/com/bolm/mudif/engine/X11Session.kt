@@ -317,6 +317,44 @@ object X11Session {
         return result.exitCode == 0
     }
 
+    /**
+     * P5.19 — install openbox + xterm in the guest. The P5.18 test
+     * proved the X server now LIVES (socket X0 + TCP 6000 + EGL 1.5),
+     * but the desktop still fails because the guest has NO openbox and
+     * NO xterm installed ("sh: exec: line 0: xterm: not found",
+     * "/bin/sh: openbox: not found"). Same one-shot pattern as
+     * ensureXkb (TerminalSession, best-effort, idempotent). Called
+     * after bootContainer and BEFORE launching openbox/xterm.
+     */
+    fun ensureDesktopPackages(context: Context): Boolean {
+        val result = TerminalSession.runCommand(
+            context,
+            "apk add --no-cache openbox xterm",
+            idleTimeoutSec = 60,
+            maxTimeoutSec = 300
+        )
+        Log.d(TAG, "ensureDesktopPackages exit=${result.exitCode} out=${result.output}")
+        return result.exitCode == 0
+    }
+
+    /**
+     * P5.19 — install firefox + libreoffice in the guest (full
+     * acceptance: xterm + Firefox + LibreOffice). These are LARGE
+     * downloads, so the timeouts are generous; the first run downloads
+     * them once, later runs are a fast no-op (already installed).
+     * Same one-shot pattern as ensureDesktopPackages.
+     */
+    fun ensureDesktopApps(context: Context): Boolean {
+        val result = TerminalSession.runCommand(
+            context,
+            "apk add --no-cache firefox libreoffice",
+            idleTimeoutSec = 120,
+            maxTimeoutSec = 1200
+        )
+        Log.d(TAG, "ensureDesktopApps exit=${result.exitCode} out=${result.output}")
+        return result.exitCode == 0
+    }
+
     /** Is xterm alive? Same marker-file pattern as isOpenboxRunning. */
     fun isXtermRunning(context: Context, timeoutMs: Long = 5000): Boolean {
         val app = context.applicationContext
