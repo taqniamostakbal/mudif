@@ -251,14 +251,44 @@ object X11Session {
      * The persistent session is a real terminal where `&` jobs
      * survive, so xterm launched here stays alive and its window
      * can appear in the viewer.
+     *
+     * P5.14 — two failures revealed by the P5.13 xterm.log:
+     *  1. `cannot load font "-misc-fixed-..."`: Termux:X11 has no
+     *     misc-fixed core font. Fix: fontconfig (`-fa`) with a TTF
+     *     font installed in the guest (DejaVu Sans Mono) — rendered
+     *     client-side, bypasses the X server's core fonts entirely.
+     *  2. `open ttydev: No such file or directory`: xterm cannot
+     *     open its pty slave when launched from the PTY session's
+     *     shell (controlling terminal). Fix: `setsid -w` gives it a
+     *     fresh session with no controlling terminal, so it can
+     *     allocate its own pty cleanly.
      */
     fun launchXterm(context: Context): Boolean {
         val ok = ContainerSession.sendCommand(
-            "DISPLAY=127.0.0.1:0 xterm > /root/xterm.log 2>&1 & echo \$! > /tmp/$XTERM_PID_FILE"
+            "DISPLAY=127.0.0.1:0 setsid -w xterm -fa \"DejaVu Sans Mono\" -fs 12 > /root/xterm.log 2>&1 & echo \$! > /tmp/$XTERM_PID_FILE"
         )
         if (ok) Log.d(TAG, "xterm command sent through PTY session")
         else Log.e(TAG, "PTY session not available for xterm")
         return ok
+    }
+
+    /**
+     * P5.14 — install fontconfig + a TTF font in the guest so the
+     * `-fa` (fontconfig) xterm launch works. One-shot command, so
+     * the TerminalSession is the right tool (it does not need to
+     * survive). Best-effort: returns false on failure, and the
+     * caller still tries to launch xterm (the log will show why).
+     * Idempotent — a second run is a fast no-op if installed.
+     */
+    fun ensureXtermFonts(context: Context): Boolean {
+        val result = TerminalSession.runCommand(
+            context,
+            "apk add --no-cache fontconfig ttf-dejavu",
+            idleTimeoutSec = 60,
+            maxTimeoutSec = 300
+        )
+        Log.d(TAG, "ensureXtermFonts exit=${result.exitCode} out=${result.output}")
+        return result.exitCode == 0
     }
 
     /** Is xterm alive? Same marker-file pattern as isOpenboxRunning. */
