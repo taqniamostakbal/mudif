@@ -40,6 +40,8 @@ object X11Session {
     private const val OPENBOX_STATE_FILE = ".mudif_openbox_state"
     private const val XTERM_PID_FILE = ".mudif_xterm_pid"
     private const val XTERM_STATE_FILE = ".mudif_xterm_state"
+    private const val LXQT_PID_FILE = ".mudif_lxqt_pid"
+    private const val LXQT_STATE_FILE = ".mudif_lxqt_state"
 
     @Volatile
     var xserverRunning = false
@@ -353,6 +355,108 @@ object X11Session {
         )
         Log.d(TAG, "ensureDesktopApps exit=${result.exitCode} out=${result.output}")
         return result.exitCode == 0
+    }
+
+    /**
+     * P5.21 — install the LXQt desktop core in the guest. LXQt is the
+     * WORKING desktop (proven 2026-11-06: complete session, visually
+     * confirmed, panel + pcmanfm-desktop mapped windows). NOTE: there
+     * is NO `lxqt` meta-package in Alpine 3.24 (`apk add lxqt` fails
+     * "no such package"), so the core components are listed
+     * explicitly (29 packages, LXQt 2.4.0). LXQt uses Openbox as its
+     * window manager by default, so the already-running openbox serves
+     * as its WM. Same one-shot pattern as ensureDesktopPackages.
+     * Best-effort, idempotent.
+     */
+    fun ensureLxqt(context: Context): Boolean {
+        val result = TerminalSession.runCommand(
+            context,
+            "apk add --no-cache lxqt-session lxqt-panel pcmanfm-qt lxqt-config lxqt-runner lxqt-notificationd lxqt-themes",
+            idleTimeoutSec = 120,
+            maxTimeoutSec = 900
+        )
+        Log.d(TAG, "ensureLxqt exit=${result.exitCode} out=${result.output}")
+        return result.exitCode == 0
+    }
+
+    /**
+     * P5.21 — install the XFCE desktop in the guest (xfce4 4.20-r0,
+     * 83 packages). XFCE is the second desktop the user wants (Tiny
+     * Container offers XFCE + LXQt). The P5.20 diagnosis showed XFCE
+     * partially starts (xfwm4 + xfdesktop up, session + panel died),
+     * so it is installed for the user to choose, while LXQt is the
+     * default working desktop. LARGE download: call from a background
+     * thread, never blocking the desktop. Best-effort, idempotent.
+     */
+    fun ensureXfce(context: Context): Boolean {
+        val result = TerminalSession.runCommand(
+            context,
+            "apk add --no-cache xfce4",
+            idleTimeoutSec = 120,
+            maxTimeoutSec = 1200
+        )
+        Log.d(TAG, "ensureXfce exit=${result.exitCode} out=${result.output}")
+        return result.exitCode == 0
+    }
+
+    /**
+     * P5.21 — launch the LXQt desktop session. LXQt is the working
+     * desktop (proven 2026-11-06). Launched through the persistent
+     * PTY container session, exactly like openbox/xterm, so it
+     * survives. `setsid` gives it a fresh session with no controlling
+     * terminal. The pid is recorded by an inner shell (same trick as
+     * launchXterm) because `$!` would be the setsid parent, which
+     * exits immediately. LXQt uses the already-running openbox as its
+     * window manager, so openbox must be up first.
+     */
+    fun launchLxqt(context: Context): Boolean {
+        val ok = ContainerSession.sendCommand(
+            "DISPLAY=127.0.0.1:0 setsid sh -c 'echo \\$\\$ > /tmp/$LXQT_PID_FILE; exec startlxqt' > /root/lxqt.log 2>&1 &"
+        )
+        if (ok) Log.d(TAG, "lxqt command sent through PTY session")
+        else Log.e(TAG, "PTY session not available for lxqt")
+        return ok
+    }
+
+    /** Is the LXQt session alive? Same marker-file pattern as isOpenboxRunning. */
+    fun isLxqtRunning(context: Context, timeoutMs: Long = 5000): Boolean {
+        val app = context.applicationContext
+        val stateFile = File(app.filesDir, "tmp/$LXQT_STATE_FILE")
+        try {
+            stateFile.delete()
+        } catch (_: Exception) {
+        }
+        if (!ContainerSession.sendCommand(
+                "kill -0 \\$(cat /tmp/$LXQT_PID_FILE 2>/dev/null) 2>/dev/null" +
+                    " && echo RUNNING > /tmp/$LXQT_STATE_FILE" +
+                    " || echo DEAD > /tmp/$LXQT_STATE_FILE"
+            )
+        ) {
+            return false
+        }
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            try {
+                if (stateFile.exists()) {
+                    return stateFile.readText().trim() == "RUNNING"
+                }
+            } catch (_: Exception) {
+            }
+            Thread.sleep(200)
+        }
+        return false
+    }
+
+    fun getLxqtLog(context: Context): String {
+        return try {
+            val file = File(RootfsManager.rootfsDir(context), "root/lxqt.log")
+            if (!file.exists()) return "(lxqt.log not found - lxqt never started)"
+            val lines = file.readLines()
+            if (lines.isEmpty()) return "(lxqt.log empty)"
+            lines.takeLast(30).joinToString("\n")
+        } catch (e: Exception) {
+            "(error: ${e.message})"
+        }
     }
 
     /** Is xterm alive? Same marker-file pattern as isOpenboxRunning. */
