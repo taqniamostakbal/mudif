@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.14 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.14", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.15 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.15", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -145,7 +145,7 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.14")
+                    .setTitle("تشخيص P5.15")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n" +
                             "xterm يشتغل: $xtermRunning\n" +
