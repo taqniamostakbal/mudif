@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.17 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.17", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.18 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.18", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -71,7 +71,7 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // 2. P5.17: install xkeyboard-config in the guest BEFORE
+            // 2. P5.18: install xkeyboard-config in the guest BEFORE
             // starting the X server — the P5.16 test proved the fresh
             // rootfs has no xkb dir, and startXServer reads
             // XKB_CONFIG_ROOT at launch. Best-effort: the server is
@@ -153,7 +153,7 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.17")
+                    .setTitle("تشخيص P5.18")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n" +
                             "xterm يشتغل: $xtermRunning\n" +
