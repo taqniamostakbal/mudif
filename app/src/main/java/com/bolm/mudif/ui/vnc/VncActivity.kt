@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.12 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.12", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.13 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.13", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -120,14 +120,29 @@ class VncActivity : AppCompatActivity() {
             val isRunning = X11Session.isOpenboxRunning(this)
             val log = X11Session.getOpenboxLog(this)
 
+            // 4b. P5.13: launch xterm through the SAME persistent PTY
+            // session (not the Terminal tab — its one-shot proot kills
+            // any backgrounded GUI app the moment the command returns).
+            // Only if xterm is not already running.
+            setStatus("جاري تشغيل xterm…")
+            if (!X11Session.isXtermRunning(this)) {
+                X11Session.launchXterm(this)
+                Thread.sleep(2000)
+            }
+            val xtermRunning = X11Session.isXtermRunning(this)
+            val xtermLog = X11Session.getXtermLog(this)
+
             // 5. Diagnostic dialog (H1 result + openbox state + log).
             if (destroyed) return@Thread
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.12")
+                    .setTitle("تشخيص P5.13")
                     .setMessage(
-                        "openbox يشتغل: $isRunning\n\nاللوگ:\n$log\n\n" +
+                        "openbox يشتغل: $isRunning\n" +
+                            "xterm يشتغل: $xtermRunning\n\n" +
+                            "لوگ xterm:\n$xtermLog\n\n" +
+                            "اللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
                             DesktopDiagnostics.hypothesis1()
                     )
