@@ -43,6 +43,11 @@ object X11Session {
     var xserverRunning = false
         private set
 
+    /** P5.9: result of the last waitForXSocket call (true/false/null = never waited). */
+    @Volatile
+    var lastWaitResult: Boolean? = null
+        private set
+
     /**
      * Tiny `launchXServer`: start CmdEntryPointService with ACTION_START.
      * Sets the started flag FIRST (Tiny does the same) so a later stop
@@ -104,11 +109,13 @@ object X11Session {
         while (SystemClock.uptimeMillis() < deadline) {
             if (socket.exists()) {
                 Log.d(TAG, "X socket ready")
+                lastWaitResult = true
                 return true
             }
             Thread.sleep(500)
         }
         Log.e(TAG, "X socket not ready after ${timeoutMs}ms")
+        lastWaitResult = false
         return false
     }
 

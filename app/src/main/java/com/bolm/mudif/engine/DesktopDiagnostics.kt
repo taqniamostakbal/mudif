@@ -48,14 +48,17 @@ object DesktopDiagnostics {
         return sb.toString()
     }
 
-    /** logcat, filtered to what can kill an X server / GUI process. */
+    /**
+     * P5.9: the old filter (`ActivityManager:I DEBUG:I *:S`) SILENCED every
+     * tag except ActivityManager/DEBUG — the X server's own log
+     * (Termux:X11 / CmdEntryPointService / Xlorie tags) never reached the
+     * output, which is why P5.8 showed "(no relevant entries)" while the
+     * server silently failed. Now: last 800 lines, ALL tags, then filter.
+     */
     fun collectLogcat(maxLines: Int = 100): String {
         return try {
             val proc = Runtime.getRuntime().exec(
-                arrayOf(
-                    "logcat", "-d", "-v", "brief",
-                    "ActivityManager:I", "DEBUG:I", "*:S"
-                )
+                arrayOf("logcat", "-d", "-t", "800", "-v", "brief")
             )
             val out = proc.inputStream.bufferedReader().readText()
             proc.waitFor()
@@ -65,13 +68,67 @@ object DesktopDiagnostics {
                     it.contains("x11", ignoreCase = true) ||
                     it.contains("CmdEntry", ignoreCase = true) ||
                     it.contains("xserver", ignoreCase = true) ||
-                    it.contains("signal", ignoreCase = true)
+                    it.contains("signal", ignoreCase = true) ||
+                    it.contains("xlorie", ignoreCase = true) ||
+                    it.contains("lorie", ignoreCase = true) ||
+                    it.contains("termux", ignoreCase = true) ||
+                    it.contains("FATAL", ignoreCase = true) ||
+                    it.contains("crash", ignoreCase = true)
             }.takeLast(maxLines)
             if (relevant.isEmpty()) "(no relevant entries)\n"
             else relevant.joinToString("\n") + "\n"
         } catch (e: Exception) {
             "logcat failed: ${e.message}\n"
         }
+    }
+
+    /**
+     * P5.9: is the X server process alive on the Android side?
+     * `ps` shows the app's own processes (the X server is a child of
+     * this app's process, forked by CmdEntryPointService), so it should
+     * be visible here if it exists at all.
+     */
+    fun xServerProcess(): String {
+        return try {
+            val proc = Runtime.getRuntime().exec(arrayOf("ps", "-A"))
+            val out = proc.inputStream.bufferedReader().readText()
+            proc.waitFor()
+            val hits = out.lines().filter {
+                it.contains("xserver", ignoreCase = true) ||
+                    it.contains("xlorie", ignoreCase = true) ||
+                    it.contains("lorie", ignoreCase = true) ||
+                    it.contains("CmdEntry", ignoreCase = true)
+            }
+            if (hits.isEmpty()) "(no X server process found in ps output)\n"
+            else hits.joinToString("\n") + "\n"
+        } catch (e: Exception) {
+            "ps failed: ${e.message}\n"
+        }
+    }
+
+    /**
+     * P5.9: what exactly was handed to the X server at launch?
+     * A blank XKB_CONFIG_ROOT or a stale .X0-lock would both stop the
+     * server before it creates its socket.
+     */
+    fun xServerInputs(context: Context): String {
+        val sb = StringBuilder()
+        try {
+            val tmpDir = File(context.filesDir, "tmp")
+            sb.append("TMPDIR: ${tmpDir.absolutePath}\n")
+            val xkb = File(RootfsManager.rootfsDir(context), "usr/share/X11/xkb")
+            sb.append("xkb dir exists: ${xkb.exists()}\n")
+            if (!xkb.exists()) {
+                sb.append("XKB_CONFIG_ROOT was blank at launch\n")
+            }
+            val lock = File(tmpDir, ".X0-lock")
+            sb.append("stale .X0-lock: ${lock.exists()}\n")
+            sb.append("package: ${context.applicationContext.packageName}\n")
+            sb.append("waitForXSocket result: ${X11Session.lastWaitResult}\n")
+        } catch (e: Exception) {
+            sb.append("inputs check failed: ${e.message}\n")
+        }
+        return sb.toString()
     }
 
     /** X server state: started flag + socket file + /tmp listing. */
@@ -121,13 +178,17 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, openboxRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.8 — سجل مفصل ===\n")
+            append("=== مضيف P5.9 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.8-Rebuild\n\n")
+            append("نسخة: P5.9-Diag\n\n")
             append("--- الفرضية 1 (Phantom Killer) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")
             append(xServerState(context))
+            append("\n--- مدخلات خادم X ---\n")
+            append(xServerInputs(context))
+            append("\n--- عملية خادم X (ps) ---\n")
+            append(xServerProcess())
             append("\n--- حالة جلسة الحاوية (PTY) ---\n")
             append(containerState())
             append("\n--- openbox ---\n")
