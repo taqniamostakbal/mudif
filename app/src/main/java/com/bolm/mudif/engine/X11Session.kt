@@ -259,13 +259,19 @@ object X11Session {
      *     client-side, bypasses the X server's core fonts entirely.
      *  2. `open ttydev: No such file or directory`: xterm cannot
      *     open its pty slave when launched from the PTY session's
-     *     shell (controlling terminal). Fix: `setsid -w` gives it a
+     *     shell (controlling terminal). Fix: `setsid` gives it a
      *     fresh session with no controlling terminal, so it can
      *     allocate its own pty cleanly.
+     * P5.15 — BusyBox setsid has NO `-w` option (P5.14 xterm.log:
+     * `setsid: unrecognized option: w`, BusyBox v1.37.0). So plain
+     * `setsid` only, and the pid is recorded by an inner shell
+     * (`sh -c 'echo $$ > pid; exec xterm ...'`) because `$!`
+     * would be the setsid parent, which exits immediately — the
+     * inner shell's pid BECOMES xterm's pid after exec.
      */
     fun launchXterm(context: Context): Boolean {
         val ok = ContainerSession.sendCommand(
-            "DISPLAY=127.0.0.1:0 setsid -w xterm -fa \"DejaVu Sans Mono\" -fs 12 > /root/xterm.log 2>&1 & echo \$! > /tmp/$XTERM_PID_FILE"
+            "DISPLAY=127.0.0.1:0 setsid sh -c 'echo \$\$ > /tmp/$XTERM_PID_FILE; exec xterm -fa \"DejaVu Sans Mono\" -fs 12' > /root/xterm.log 2>&1 &"
         )
         if (ok) Log.d(TAG, "xterm command sent through PTY session")
         else Log.e(TAG, "PTY session not available for xterm")
