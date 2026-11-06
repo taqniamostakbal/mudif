@@ -2,10 +2,14 @@ package com.bolm.mudif.engine
 
 import android.app.Application
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import com.offsec.nhterm.backend.TerminalSession
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * P5.22 RADICAL REBUILD — Tiny Container's mechanism, exactly.
@@ -115,13 +119,23 @@ object GuestSession {
 
     /**
      * Create the PTY session if there is none alive. Idempotent.
-     * Must be called from a background thread. Returns false (with
-     * lastError set) if the session cannot be created — the P5.16
-     * claim that the PTY fails on x86_64 is tested here, not assumed.
+     * Safe from ANY thread.
+     *
+     * P5.23 FIX (proven by the P5.22 test, logcat): the NetHunter
+     * TerminalSession constructor creates a Handler, which needs a
+     * Looper thread. VncActivity and TerminalFragment call ensure()
+     * from a plain background Thread (no Looper), so the constructor
+     * threw before any PTY was opened. Tiny Container creates its
+     * session on the main thread. This function now does the same:
+     * if the caller has no Looper, the construction runs on the main
+     * thread and the caller waits for it (10s max). Only the
+     * construction moves — sendCommand/write from worker threads
+     * stays as it is (TC sends commands from coroutines too).
      */
-    @Synchronized
     fun ensure(context: Context): Boolean {
-        if (alive && session != null) return true
+        synchronized(this) {
+            if (alive && session != null) return true
+        }
         val app = context.applicationContext
         // Tiny Container's guard: the :xserver process never touches
         // the session or the bootstrap.
@@ -130,6 +144,34 @@ object GuestSession {
             Log.e(TAG, lastError!!)
             return false
         }
+        if (Looper.myLooper() != null) {
+            return createSession(app)
+        }
+        // No Looper on this thread: construct on the main thread.
+        val latch = CountDownLatch(1)
+        var ok = false
+        Handler(Looper.getMainLooper()).post {
+            ok = createSession(app)
+            latch.countDown()
+        }
+        val done = try {
+            latch.await(10, TimeUnit.SECONDS)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+        if (!done) {
+            lastError = "PTY session creation timed out (main thread busy)"
+            Log.e(TAG, lastError!!)
+            return false
+        }
+        return ok
+    }
+
+    /** The actual construction — always runs on a Looper thread. */
+    @Synchronized
+    private fun createSession(app: Context): Boolean {
+        if (alive && session != null) return true
         return try {
             if (!resourcesSet) {
                 TerminalSession.setResources(app.resources)

@@ -23,28 +23,21 @@ object DesktopDiagnostics {
      * (usually unreadable without a privileged shell — the attempt itself
      * is reported, never hidden).
      */
+    /**
+     * P5.23: the "Phantom Killer" hypothesis is DEAD. The real cause
+     * was proven 2026-11-06 from the P5.21 APK's dex strings: the
+     * isLxqtRunning check sent `kill -0 \$(cat ...)` — a literal
+     * backslash before $( — a shell syntax error that killed the
+     * guest shell and wedged the session. Phantom Killer was never
+     * the cause. This section now states the proven finding.
+     */
     fun hypothesis1(): String {
         val sb = StringBuilder()
         sb.append("Android API: ${Build.VERSION.SDK_INT}\n")
         sb.append("Android: ${Build.VERSION.RELEASE}\n")
-        if (Build.VERSION.SDK_INT >= 31) {
-            sb.append("Android 12+ : Phantom Killer محتمل\n")
-        } else {
-            sb.append("Android < 12: Phantom Killer غير موجود\n")
-        }
-        try {
-            val proc = Runtime.getRuntime().exec(
-                arrayOf(
-                    "settings", "get", "global",
-                    "settings_enable_monitor_phantom_procs"
-                )
-            )
-            val out = proc.inputStream.bufferedReader().readText().trim()
-            proc.waitFor()
-            sb.append("monitor_phantom_procs: $out\n")
-        } catch (e: Exception) {
-            sb.append("لا يمكن قراءة الإعدادات: ${e.message}\n")
-        }
+        sb.append("السبب الحقيقي (مثبت 2026-11-06 من dex ديال P5.21):\n")
+        sb.append("فحص isLxqtRunning كان فيه \\$( بدل $(، خطأ نحوي قتل الجلسة.\n")
+        sb.append("Phantom Killer ماشي هو السبب — الفرضية ملغاة.\n")
         return sb.toString()
     }
 
@@ -183,10 +176,10 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.22 — سجل مفصل ===\n")
+            append("=== مضيف P5.23 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.22\n\n")
-            append("--- الفرضية 1 (Phantom Killer) ---\n")
+            append("نسخة: P5.23\n\n")
+            append("--- السبب الحقيقي (تشخيص P5.22) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")
             append(xServerState(context))

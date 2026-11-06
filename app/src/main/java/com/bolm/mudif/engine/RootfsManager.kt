@@ -331,6 +331,7 @@ object RootfsManager {
             "DISPLAY=127.0.0.1:6",
             "LANG=C.UTF-8",
             "MOZ_FAKE_NO_SANDBOX=1",
+            "MOZ_DISABLE_CONTENT_SANDBOX=1",
             "QTWEBENGINE_DISABLE_SANDBOX=1",
             "ELECTRON_DISABLE_SANDBOX=1",
             "HOME=/root",

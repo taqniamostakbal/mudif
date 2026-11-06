@@ -59,8 +59,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.22 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.22", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.23 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.23", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -176,7 +176,7 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.22")
+                    .setTitle("تشخيص P5.23")
                     .setMessage(
                         "سطح المكتب: $desktopName\n" +
                             "PTY حية: ${GuestSession.alive}\n" +
