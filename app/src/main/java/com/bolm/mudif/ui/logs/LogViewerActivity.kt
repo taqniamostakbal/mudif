@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityLogViewerBinding
 import com.bolm.mudif.engine.DesktopDiagnostics
-import com.bolm.mudif.engine.X11Session
 
 /**
  * P5.8 — detailed log viewer (the "very detailed log" button the user
@@ -42,13 +41,10 @@ class LogViewerActivity : AppCompatActivity() {
     private fun loadLogs() {
         binding.logText.text = "جاري جمع اللوجات…"
         Thread {
-            // The openbox check needs a few seconds (PTY round-trip).
-            val openboxRunning = try {
-                X11Session.isOpenboxRunning(this)
-            } catch (_: Exception) {
-                null
-            }
-            val snapshot = DesktopDiagnostics.fullSnapshot(this, openboxRunning)
+            // P5.22: no launch-gate checks anymore (the pipe-session
+            // isOpenboxRunning round trip is deleted). The snapshot
+            // reports the session state directly.
+            val snapshot = DesktopDiagnostics.fullSnapshot(this, null)
             if (destroyed) return@Thread
             runOnUiThread { binding.logText.text = snapshot }
         }.start()
