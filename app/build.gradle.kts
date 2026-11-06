@@ -78,5 +78,13 @@ dependencies {
     // NetHunter PTY terminal (Tiny Container's Global.terminalSession).
     // P5.8: the persistent PTY session that owns the container and takes
     // the GUI commands. Same JitPack repo, same tiny-computer org.
-    implementation(libs.terminal.lib)
+    // P5.8-fix: terminal-lib's pom pulls kotlin-stdlib 2.1.20, which
+    // conflicts with the project's Kotlin 2.0.20 (same conflict that
+    // forced the excludes on termux-x11 above). Exclude it: the lib's
+    // classes are pure Java and never reference Kotlin at runtime
+    // (verified against the real AAR classes.jar).
+    implementation(libs.terminal.lib) {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
+    }
 }
