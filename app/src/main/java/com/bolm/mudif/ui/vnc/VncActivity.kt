@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.10 TCP (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.10-TCP", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.11 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.11", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -71,40 +71,52 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // 2. Start the X server (Tiny launchXServer).
-            setStatus("جاري تشغيل خادم X…")
-            if (!X11Session.xserverRunning) {
+            // 2. Start the X server (Tiny launchXServer) — but ONLY if it
+            // is not already up. P5.11: the server now SURVIVES leaving
+            // this screen (onDestroy no longer stops it), so re-entering
+            // must reuse the running server instead of starting a second
+            // one. Judge by the real state (socket + TCP listener), not
+            // by the in-memory flag, which can go stale if the server
+            // died on its own.
+            val serverUp = X11Session.isXSocketPresent(this) && X11Session.isTcpDisplayOpen()
+            if (!serverUp) {
+                setStatus("جاري تشغيل خادم X…")
                 X11Session.startXServer(this)
-            }
 
-            // 3. Wait ONLY for the socket file (Tiny waitForFile).
-            if (!X11Session.waitForXSocket(this, 15000)) {
-                if (destroyed) return@Thread
-                runOnUiThread {
-                    Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
-                    showFailureDialog("خادم X ما قلعش: سوكيت X0 ما تخلقش خلال 15 ثانية.")
+                // 3. Wait ONLY for the socket file (Tiny waitForFile).
+                if (!X11Session.waitForXSocket(this, 15000)) {
+                    if (destroyed) return@Thread
+                    runOnUiThread {
+                        Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
+                        showFailureDialog("خادم X ما قلعش: سوكيت X0 ما تخلقش خلال 15 ثانية.")
+                    }
+                    return@Thread
                 }
-                return@Thread
-            }
 
-            // 3b. P5.10: wait until the server accepts TCP on 127.0.0.1:6000.
-            // The socket file can exist before the server is ready, and the
-            // Unix socket connect from inside proot is broken on this phone,
-            // so the guest uses TCP — prove the listener is there first.
-            setStatus("جاري انتظار منفذ TCP…")
-            if (!X11Session.waitForTcpDisplay(10000)) {
-                if (destroyed) return@Thread
-                runOnUiThread {
-                    Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
-                    showFailureDialog("خادم X ما فتحش منفذ TCP 6000 خلال 10 ثواني (السوكيت موجود ولكن TCP مسدود).")
+                // 3b. P5.10: wait until the server accepts TCP on 127.0.0.1:6000.
+                // The socket file can exist before the server is ready, and the
+                // Unix socket connect from inside proot is broken on this phone,
+                // so the guest uses TCP — prove the listener is there first.
+                setStatus("جاري انتظار منفذ TCP…")
+                if (!X11Session.waitForTcpDisplay(10000)) {
+                    if (destroyed) return@Thread
+                    runOnUiThread {
+                        Toast.makeText(this, "فشل بدء سيرفر X", Toast.LENGTH_LONG).show()
+                        showFailureDialog("خادم X ما فتحش منفذ TCP 6000 خلال 10 ثواني (السوكيت موجود ولكن TCP مسدود).")
+                    }
+                    return@Thread
                 }
-                return@Thread
             }
 
-            // 4. Send the GUI command through the PTY session (Tiny).
+            // 4. Send the GUI command through the PTY session (Tiny) —
+            // only if openbox is not already running. Re-entering this
+            // screen must not start a second window manager on the same
+            // display.
             setStatus("جاري تشغيل openbox…")
-            X11Session.launchGuiApp(this)
-            Thread.sleep(2000)
+            if (!X11Session.isOpenboxRunning(this)) {
+                X11Session.launchGuiApp(this)
+                Thread.sleep(2000)
+            }
             val isRunning = X11Session.isOpenboxRunning(this)
             val log = X11Session.getOpenboxLog(this)
 
@@ -113,7 +125,7 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.10")
+                    .setTitle("تشخيص P5.11")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n\nاللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
@@ -152,19 +164,13 @@ class VncActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         destroyed = true
-        // Tiny's onCleared/exitContainer: stop the X server + container
-        // session only when this screen is really going away (not when the
-        // X11 viewer just moved to the front — then we are only stopped).
-        if (isFinishing) {
-            try {
-                X11Session.stopXServer(this)
-            } catch (_: Exception) {
-            }
-            try {
-                ContainerSession.stop()
-            } catch (_: Exception) {
-            }
-        }
+        // P5.11: do NOT stop the X server or the container session here.
+        // Leaving this screen (back button / switching to the terminal
+        // tab) used to kill the server under the user's feet: at 01:21
+        // openbox was running, the user left the screen, the server was
+        // stopped, and xterm at 01:32 had no server to connect to
+        // ("Can't open display"). The desktop now persists like Tiny
+        // Container's: it lives until the app process dies.
         super.onDestroy()
     }
 
