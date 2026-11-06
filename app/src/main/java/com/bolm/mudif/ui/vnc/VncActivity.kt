@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.13 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.13", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.14 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.14", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -124,6 +124,14 @@ class VncActivity : AppCompatActivity() {
             // session (not the Terminal tab — its one-shot proot kills
             // any backgrounded GUI app the moment the command returns).
             // Only if xterm is not already running.
+            // P5.14: install fontconfig + DejaVu first (best-effort),
+            // because the P5.13 xterm.log proved the core font is
+            // missing and the pty open needs a fresh session.
+            setStatus("جاري تثبيت خطوط xterm…")
+            var fontsOk = true
+            if (!X11Session.isXtermRunning(this)) {
+                fontsOk = X11Session.ensureXtermFonts(this)
+            }
             setStatus("جاري تشغيل xterm…")
             if (!X11Session.isXtermRunning(this)) {
                 X11Session.launchXterm(this)
@@ -137,10 +145,11 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.13")
+                    .setTitle("تشخيص P5.14")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n" +
-                            "xterm يشتغل: $xtermRunning\n\n" +
+                            "xterm يشتغل: $xtermRunning\n" +
+                            "الخطوط تثبتات: $fontsOk\n\n" +
                             "لوگ xterm:\n$xtermLog\n\n" +
                             "اللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
