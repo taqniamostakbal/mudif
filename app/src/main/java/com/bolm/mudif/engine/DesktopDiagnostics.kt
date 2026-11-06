@@ -176,9 +176,9 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P5.23 — سجل مفصل ===\n")
+            append("=== مضيف P5.24 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P5.23\n\n")
+            append("نسخة: P5.24\n\n")
             append("--- السبب الحقيقي (تشخيص P5.22) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")

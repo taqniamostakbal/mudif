@@ -130,16 +130,24 @@ object X11Session {
     /** TCP port of display :6 (6000 + display number). */
     const val TCP_PORT = 6006
 
-    /** Single TCP probe — is anything accepting on 127.0.0.1:6006? */
+    /** Single TCP probe — is anything accepting on 127.0.0.1:6006?
+     * P5.24: one 800ms connect can fail under load right after the
+     * desktop starts (P5.23 test: the dialog said false while
+     * /proc/net/tcp proved LISTEN + ESTABLISHED). Retry 3 times so a
+     * single slow connect does not report a dead socket. */
     fun isTcpDisplayOpen(): Boolean {
-        return try {
-            java.net.Socket().use { s ->
-                s.connect(java.net.InetSocketAddress("127.0.0.1", TCP_PORT), 800)
-                true
+        repeat(3) { attempt ->
+            try {
+                java.net.Socket().use { s ->
+                    s.connect(java.net.InetSocketAddress("127.0.0.1", TCP_PORT), 800)
+                    return true
+                }
+            } catch (_: Exception) {
+                // fall through to the next attempt
             }
-        } catch (_: Exception) {
-            false
+            if (attempt < 2) Thread.sleep(300)
         }
+        return false
     }
 
     /**
@@ -197,6 +205,33 @@ object X11Session {
         } catch (e: Exception) {
             "(error: ${e.message})"
         }
+    }
+
+    /**
+     * P5.24 — kill the previous desktop's processes before a fresh
+     * boot. Tapping a desktop row finishes the old PTY session, but
+     * the desktop's processes (openbox, panel, pcmanfm, qterminal...)
+     * survive as orphans (PPid 1) and keep owning the display, so the
+     * new desktop's window manager refuses to start (xfwm4: "Another
+     * Window Manager is already running" — P5.23 test). This one-shot
+     * pkill runs inside the guest (same PID namespace) before the
+     * fresh boot. The [x] bracket trick keeps pkill from matching its
+     * own shell, whose cmdline contains the pattern text. pkill exits
+     * 1 when nothing matched — that is fine, not a failure.
+     */
+    fun killDesktopProcesses(context: Context): Boolean {
+        val pattern = "[o]penbox|[l]xqt-session|[l]xqt-panel|[l]xqt-runner|" +
+            "[l]xqt-notificationd|[l]xqt-globalkeysd|[p]cmanfm-qt|[q]terminal|" +
+            "[x]fwm4|[x]fce4-session|[x]fce4-panel|[x]fdesktop|[x]fce4-terminal|" +
+            "[f]irefox|[s]tartlxqt|[s]tartxfce4|[d]bus-daemon"
+        val result = TerminalSession.runCommand(
+            context,
+            "pkill -f '$pattern'; echo DESKTOP_CLEANED",
+            idleTimeoutSec = 15,
+            maxTimeoutSec = 30
+        )
+        Log.d(TAG, "killDesktopProcesses exit=${result.exitCode} out=${result.output}")
+        return result.output.contains("DESKTOP_CLEANED")
     }
 
     /**
