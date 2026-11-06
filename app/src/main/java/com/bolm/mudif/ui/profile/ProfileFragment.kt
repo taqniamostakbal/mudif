@@ -54,7 +54,18 @@ class ProfileFragment : Fragment() {
             startActivity(android.content.Intent(requireContext(), TerminalActivity::class.java))
         }
         binding.rowVnc.setOnClickListener {
-            startActivity(android.content.Intent(requireContext(), VncActivity::class.java))
+            startActivity(
+                android.content.Intent(requireContext(), VncActivity::class.java).apply {
+                    putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_LXQT)
+                }
+            )
+        }
+        binding.rowVncXfce.setOnClickListener {
+            startActivity(
+                android.content.Intent(requireContext(), VncActivity::class.java).apply {
+                    putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_XFCE)
+                }
+            )
         }
         binding.rowLogs.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), LogViewerActivity::class.java))
