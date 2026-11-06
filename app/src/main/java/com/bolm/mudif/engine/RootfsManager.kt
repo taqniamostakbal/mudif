@@ -225,6 +225,11 @@ object RootfsManager {
         ensureWritableXkb(rootfs)
         // libfakelink.so for X servers (SELinux blocks link()).
         ensureFakelink(context, rootfs)
+        // P5.12: xterm needs a pty (open /dev/ptmx, slave /dev/pts/N).
+        // The minirootfs /dev is empty and we only bound null/zero/
+        // urandom/random, so get_pty failed with ENOENT ("not enough
+        // ptys") AFTER xterm had already opened the display.
+        ensureDevPty(rootfs)
         // X servers need a writable /tmp for lock files and sockets
         // (/tmp/.X0-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
         // and the app runs as a normal UID, so bind-mount the app's
@@ -237,6 +242,11 @@ object RootfsManager {
             "-b", "/dev/zero:/dev/zero",
             "-b", "/dev/urandom:/dev/urandom",
             "-b", "/dev/random:/dev/random",
+            // P5.12: pty devices for terminal emulators (xterm, screen,
+            // tmux). The host's /dev/pts is a devpts mount; binding it
+            // plus /dev/ptmx lets the guest allocate ptys.
+            "-b", "/dev/ptmx:/dev/ptmx",
+            "-b", "/dev/pts:/dev/pts",
             "-w", "/root") + guestCommand
         val env = mapOf(
             "LD_LIBRARY_PATH" to EngineCheck.binDir(context).absolutePath,
@@ -321,6 +331,19 @@ object RootfsManager {
             val xkb = File(rootfs, "var/lib/xkb")
             xkb.mkdirs()
             android.system.Os.chmod(xkb.absolutePath, 511) // 0777
+        } catch (_: Exception) { /* non-fatal */ }
+    }
+
+    /**
+     * P5.12: creates the guest-side bind targets for the pty devices
+     * (/dev/pts dir + /dev/ptmx file). proot binds need the target to
+     * exist; the minirootfs /dev is empty. Non-fatal if it fails.
+     */
+    private fun ensureDevPty(rootfs: File) {
+        try {
+            File(rootfs, "dev/pts").mkdirs()
+            val ptmx = File(rootfs, "dev/ptmx")
+            if (!ptmx.exists()) ptmx.createNewFile()
         } catch (_: Exception) { /* non-fatal */ }
     }
 
