@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.databinding.FragmentTerminalBinding
+import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.RootfsManager
 import com.google.android.material.snackbar.Snackbar
@@ -38,8 +39,16 @@ class TerminalFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (!RootfsManager.isReady(requireContext())) {
-            Snackbar.make(binding.root, "النظام غير مثبت — ثبّت Alpine من المتجر أولا", Snackbar.LENGTH_LONG).show()
+        // P6: the terminal boots the ACTIVE system (the last one the
+        // user opened — Debian after نظام مضيف, Alpine otherwise).
+        val system = GuestSession.currentSystem
+        val ready = if (system == GuestSession.GuestSystem.DEBIAN) {
+            DebianSystem.isReady(requireContext())
+        } else {
+            RootfsManager.isReady(requireContext())
+        }
+        if (!ready) {
+            Snackbar.make(binding.root, "النظام غير مثبت — ثبّت نظام مضيف من حسابي أولا", Snackbar.LENGTH_LONG).show()
             binding.terminalView.visibility = View.INVISIBLE
             return
         }
@@ -47,7 +56,7 @@ class TerminalFragment : Fragment() {
         // desktop): boot the container in the background, then attach.
         val appContext = requireContext().applicationContext
         Thread {
-            val ok = GuestSession.bootContainer(appContext)
+            val ok = GuestSession.bootContainer(appContext, system)
             activity?.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 if (!ok || GuestSession.session == null) {
