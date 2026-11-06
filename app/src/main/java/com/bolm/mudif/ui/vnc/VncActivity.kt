@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.18 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.18", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.19 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.19", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -71,13 +71,24 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // 2. P5.18: install xkeyboard-config in the guest BEFORE
+            // 2. P5.19: install xkeyboard-config in the guest BEFORE
             // starting the X server — the P5.16 test proved the fresh
             // rootfs has no xkb dir, and startXServer reads
             // XKB_CONFIG_ROOT at launch. Best-effort: the server is
             // still attempted, the diagnostics show the result.
             setStatus("جاري تثبيت بيانات لوحة المفاتيح…")
             val xkbOk = X11Session.ensureXkb(this)
+
+            // 2b. P5.19: install openbox + xterm + firefox + libreoffice
+            // in the guest. The P5.18 test proved the X server LIVES,
+            // but the desktop fails because the guest has NO openbox and
+            // NO xterm installed ("xterm: not found", "openbox: not
+            // found"). Best-effort, idempotent: a second run is a fast
+            // no-op if already installed. The diagnostics show the result.
+            setStatus("جاري تثبيت حزم سطح المكتب…")
+            val packagesOk = X11Session.ensureDesktopPackages(this)
+            setStatus("جاري تثبيت فايرفوكس وليبر أوفيس…")
+            val appsOk = X11Session.ensureDesktopApps(this)
 
             // 3. Start the X server (Tiny launchXServer) — but ONLY if it
             // is not already up. P5.11: the server now SURVIVES leaving
@@ -153,12 +164,14 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.18")
+                    .setTitle("تشخيص P5.19")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n" +
                             "xterm يشتغل: $xtermRunning\n" +
                             "الخطوط تثبتات: $fontsOk\n" +
-                            "لوحة المفاتيح (xkb) تثبتات: $xkbOk\n\n" +
+                            "لوحة المفاتيح (xkb) تثبتات: $xkbOk\n" +
+                            "حزم سطح المكتب (openbox+xterm) تثبتات: $packagesOk\n" +
+                            "فايرفوكس وليبر أوفيس تثبتو: $appsOk\n\n" +
                             "لوگ xterm:\n$xtermLog\n\n" +
                             "اللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
