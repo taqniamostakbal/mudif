@@ -47,8 +47,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P5.8 rebuild (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P5.8-Rebuild", Toast.LENGTH_LONG).show()
+        // Version indicator — P5.9 diagnostics (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P5.9-Diag", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -99,7 +99,7 @@ class VncActivity : AppCompatActivity() {
             runOnUiThread {
                 setStatus(if (isRunning) "سطح المكتب خدام ✓" else "openbox ما خدامش — شوف اللوجات")
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P5.8")
+                    .setTitle("تشخيص P5.9")
                     .setMessage(
                         "openbox يشتغل: $isRunning\n\nاللوگ:\n$log\n\n" +
                             "--- الفرضية 1 (Phantom Killer) ---\n" +
