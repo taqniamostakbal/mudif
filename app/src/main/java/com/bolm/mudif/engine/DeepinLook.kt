@@ -131,7 +131,7 @@ object DeepinLook {
             File(xfconfDir, "xsettings.xml").writeText(XSETTINGS_XML)
             File(xfconfDir, "xfwm4.xml").writeText(XFWM4_XML)
             File(xfconfDir, "xfce4-desktop.xml").writeText(DESKTOP_XML)
-            File(rootfs, "root/$MARKER").writeText("p6.3.3\n")
+            File(rootfs, "root/$MARKER").writeText("p6.3.4\n")
         } catch (e: Exception) {
             Log.d(TAG, "look config write failed: ${e.message}")
             return false
@@ -177,8 +177,9 @@ object DeepinLook {
   <property name="configver" type="int" value="2"/>
   <property name="panels" type="array">
     <value type="int" value="1"/>
-    <property name="dark-mode" type="bool" value="true"/>
-    <property name="panel-1" type="empty">
+  </property>
+  <property name="dark-mode" type="bool" value="true"/>
+  <property name="panel-1" type="empty">
       <property name="position" type="string" value="p=10;x=0;y=0"/>
       <property name="length" type="uint" value="100"/>
       <property name="position-locked" type="bool" value="true"/>
@@ -205,7 +206,6 @@ object DeepinLook {
         <value type="int" value="12"/>
       </property>
     </property>
-  </property>
   <property name="plugins" type="empty">
     <property name="plugin-1" type="string" value="whiskermenu"/>
     <property name="plugin-2" type="string" value="launcher">

@@ -197,7 +197,7 @@ object DesktopDiagnostics {
         return buildString {
             append("=== مضيف P6 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P6.3.3\n\n")
+            append("نسخة: P6.3.4\n\n")
             append("--- السبب الحقيقي (تشخيص P5.22) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")
