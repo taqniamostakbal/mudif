@@ -68,8 +68,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P6.6 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P6.6", Toast.LENGTH_LONG).show()
+        // Version indicator — P6.7 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P6.7", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -261,7 +261,7 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P6.6 — نظام مضيف")
+                    .setTitle("تشخيص P6.7 — نظام مضيف")
                     .setMessage(
                         "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
                             "PTY حية: ${GuestSession.alive}\n" +
@@ -291,7 +291,7 @@ class VncActivity : AppCompatActivity() {
                             Thread.sleep(3000)
                             val running = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
                             val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
-                            Log.d("VncActivity", "P6.6 post-viewer launch: sent=$sent running=$running\n$log")
+                            Log.d("VncActivity", "P6.7 post-viewer launch: sent=$sent running=$running\n$log")
                             if (!destroyed) {
                                 runOnUiThread {
                                     Toast.makeText(

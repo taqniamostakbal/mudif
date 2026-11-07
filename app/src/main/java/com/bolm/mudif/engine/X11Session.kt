@@ -566,7 +566,10 @@ object X11Session {
      * terminal) + lxqt-qtplugin (the Qt platform theme plugin — with
      * QT_QPA_PLATFORMTHEME=lxqt it is what applies icon_theme to Qt
      * apps; proven missing-and-fixed on Alpine in the 2026-11-07
-     * LXQt test) + adwaita-qt6 (dark Qt style Adwaita-dark) +
+     * LXQt test) + adwaita-qt6 (dark Qt style for Qt6 apps) +
+     * adwaita-qt (the Qt5 port — qlipper is Qt5-only and its factory
+     * looks in qt5/plugins/styles; without it qlipper rejects the
+     * override, STYLE-PROBE-P66) +
      * gnome-themes-extra (Adwaita GTK theme for GTK_THEME) +
      * firefox-esr + deepin-icon-theme (ships bloom/bloom-dark) +
      * papirus + adwaita icons + dbus-x11 +
@@ -600,7 +603,7 @@ object X11Session {
             "apt-get update && apt-get install -y --no-install-recommends " +
             "xkb-data procps lxqt lxqt-session lxqt-panel lxqt-config lxqt-runner " +
             "lxqt-notificationd lxqt-globalkeys lxqt-themes lxqt-qtplugin pcmanfm-qt " +
-            "openbox qterminal adwaita-qt6 gnome-themes-extra " +
+            "openbox qterminal adwaita-qt adwaita-qt6 gnome-themes-extra " +
             "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
             "libgl1 libglx-mesa0 x11-utils " +
             "&& echo DEBIAN_DESKTOP_OK"

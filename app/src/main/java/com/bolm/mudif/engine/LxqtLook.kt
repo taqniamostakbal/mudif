@@ -15,7 +15,7 @@ import java.io.File
  *  - Deepin icons: bloom-dark (deepin-icon-theme ships bloom /
  *    bloom-dark on Debian; no copying needed, unlike Alpine).
  *  - Dark panel: LXQt theme=dark in lxqt.conf.
- *  - Dark Qt windows: Adwaita-dark via QT_STYLE_OVERRIDE.
+ *  - Dark Qt windows: Adwaita-Dark via QT_STYLE_OVERRIDE.
  *  - Dark GTK apps: Adwaita:dark via GTK_THEME.
  *  - The lxqt-qtplugin platform theme (QT_QPA_PLATFORMTHEME=lxqt)
  *    is what applies icon_theme to Qt apps at all.
@@ -50,11 +50,11 @@ object LxqtLook {
     // marker at "p6.4" and isApplied() only checked existence, so the
     // rewrite was skipped on every existing rootfs and the Adwaita-dark
     // fix never reached the guest (TEST-REPORT-P65 §6). The version
-    // is bumped again for P6.6 because the look content changes again
-    // (pcmanfm-qt settings.conf [Desktop] fix + powermanagement
-    // autostart disable, PAINT-PROBE2-P65): bumping the version is
-    // what makes an existing rootfs receive the new configs.
-    private const val MARKER_VERSION = "p6.6"
+    // is bumped again for P6.7 because the look content changes again
+    // (QT_STYLE_OVERRIDE canonical spelling Adwaita-Dark,
+    // STYLE-PROBE-P66): bumping the version is what makes an
+    // existing rootfs receive the new configs.
+    private const val MARKER_VERSION = "p6.7"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
 
@@ -132,17 +132,18 @@ theme=dark
 """
 
     // Openbox is LXQt's window manager. The Environment section is
-    // what the session exports to every Qt/GTK app: Adwaita-dark is
-    // the dark Qt widget style (capital A — Qt style names are
-    // case-sensitive; lowercase adwaita-dark was rejected as invalid,
-    // PROBE-P65), Adwaita:dark the dark GTK theme, and
-    // the lxqt platform theme is what applies icon_theme at all.
+    // what the session exports to every Qt/GTK app: Adwaita-Dark is
+    // the dark Qt widget style (the registered key, capital A capital
+    // D; Qt6's factory lookup is case-insensitive so both spellings
+    // resolve there, but Qt5's qlipper needs the adwaita-qt plugin
+    // installed, STYLE-PROBE-P66), Adwaita:dark the dark GTK theme,
+    // and the lxqt platform theme is what applies icon_theme at all.
     private const val SESSION_CONF = """[General]
 __userfile__=true
 window_manager=openbox
 
 [Environment]
-QT_STYLE_OVERRIDE=Adwaita-dark
+QT_STYLE_OVERRIDE=Adwaita-Dark
 GTK_THEME=Adwaita:dark
 QT_QPA_PLATFORMTHEME=lxqt
 """
