@@ -40,6 +40,16 @@ import java.io.File
  * The user vetoed a separate dock ("الدوك، لا"): there is NO Plank
  * and NO floating dock — the single full-width bottom lxqt-panel IS
  * the taskbar.
+ *
+ * P8 — Arabic layer: LANG ar_MA.UTF-8 + LANGUAGE=ar (session env,
+ * RootfsManager one-shot env and boot argv), Cairo variable font
+ * bundled as an asset (fonts-cairo, no apt package exists), Noto
+ * Arabic fallback from apt, purple wallpaper (the user's pick),
+ * and the Arabic CLI (48 Fusha commands + Mudif qterminal scheme).
+ * The LXQt shell (panel, pcmanfm-qt menus) stays English: no Arabic
+ * .qm ships in Debian trixie (upstream .qm follow-up is P8.1).
+ * Lifta is NOT bundled (EULA forbids App Product embedding); it is
+ * pixels in the wallpaper only.
  */
 object LxqtLook {
     private const val TAG = "LxqtLook"
@@ -50,13 +60,17 @@ object LxqtLook {
     // marker at "p6.4" and isApplied() only checked existence, so the
     // rewrite was skipped on every existing rootfs and the Adwaita-dark
     // fix never reached the guest (TEST-REPORT-P65 §6). The version
-    // is bumped again for P6.7 because the look content changes again
-    // (QT_STYLE_OVERRIDE canonical spelling Adwaita-Dark,
-    // STYLE-PROBE-P66): bumping the version is what makes an
+    // is bumped again for P8 because the look content changes again
+    // (Arabic: LANG ar_MA.UTF-8, Cairo font, purple wallpaper,
+    // Arabic CLI): bumping the version is what makes an
     // existing rootfs receive the new configs.
-    private const val MARKER_VERSION = "p6.7"
+    private const val MARKER_VERSION = "p8"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
+    private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
+    private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
+    private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
+    private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
 
     fun isApplied(context: Context): Boolean {
         val marker = File(DebianSystem.debianRootfsDir(context), "root/$MARKER")
@@ -106,6 +120,53 @@ object LxqtLook {
             val pcmanfmDir = File(rootfs, "root/.config/pcmanfm-qt/lxqt")
             pcmanfmDir.mkdirs()
             File(pcmanfmDir, "settings.conf").writeText(PCMANFM_SETTINGS_CONF)
+            // P8 — Arabic: Cairo font + fontconfig + Arabic CLI.
+            // Cairo cannot come from apt (no fonts-cairo in trixie,
+            // P8-READINESS §1.1): bundle the variable TTF as an app
+            // asset and copy it into the rootfs. Lifta is NOT bundled
+            // (EULA forbids App Product embedding); it lives only as
+            // pixels inside the wallpaper PNG.
+            val cairoDir = File(rootfs, "usr/share/fonts/truetype/cairo")
+            cairoDir.mkdirs()
+            context.assets.open(CAIRO_TTF_ASSET).use { input ->
+                File(cairoDir, "Cairo[slnt,wght].ttf").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            context.assets.open(CAIRO_OFL_ASSET).use { input ->
+                File(cairoDir, "OFL.txt").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            val fontsConfDir = File(rootfs, "etc/fonts")
+            fontsConfDir.mkdirs()
+            File(fontsConfDir, "local.conf").writeText(LOCAL_CONF)
+            // P8 — Arabic CLI: the catalog file, the qterminal colour
+            // scheme, the qterminal.ini keys (merged, never overwritten),
+            // and the .bashrc block (appended once, idempotent).
+            val mudifConfDir = File(rootfs, "root/.config/mudif")
+            mudifConfDir.mkdirs()
+            context.assets.open(CLI_ASSET).use { input ->
+                File(mudifConfDir, "arabic-cli.sh").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            val schemeDir = File(rootfs, "root/.local/share/qtermwidget6/color-schemes")
+            schemeDir.mkdirs()
+            context.assets.open(COLORSCHEME_ASSET).use { input ->
+                File(schemeDir, "Mudif.colorscheme").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
+            qterminalIni.parentFile?.mkdirs()
+            val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
+            qterminalIni.writeText(mergeQterminalIni(existingIni))
+            val bashrc = File(rootfs, "root/.bashrc")
+            val bashrcText = if (bashrc.exists()) bashrc.readText() else ""
+            if (!bashrcText.contains("# mudif-arabic-cli")) {
+                bashrc.appendText(BASHRC_BLOCK)
+            }
             // P6.6: lxqt-powermanagement crashes on every login in the
             // emulator ("Unsupported extension", TEST-REPORT-P65) and is
             // dead in ps. Disable it with the standard XDG autostart
@@ -138,6 +199,8 @@ theme=dark
     // resolve there, but Qt5's qlipper needs the adwaita-qt plugin
     // installed, STYLE-PROBE-P66), Adwaita:dark the dark GTK theme,
     // and the lxqt platform theme is what applies icon_theme at all.
+    // P8: LANG ar_MA.UTF-8 + LANGUAGE=ar make the session Arabic
+    // (the locale itself is generated by ensureDebianDesktop).
     private const val SESSION_CONF = """[General]
 __userfile__=true
 window_manager=openbox
@@ -146,6 +209,8 @@ window_manager=openbox
 QT_STYLE_OVERRIDE=Adwaita-Dark
 GTK_THEME=Adwaita:dark
 QT_QPA_PLATFORMTHEME=lxqt
+LANG=ar_MA.UTF-8
+LANGUAGE=ar
 """
 
     // pcmanfm-qt draws the desktop wallpaper. It reads Wallpaper /
@@ -163,6 +228,101 @@ QT_QPA_PLATFORMTHEME=lxqt
 Wallpaper=/usr/share/backgrounds/mudif-wallpaper.png
 WallpaperMode=stretch
 """
+
+    // P8 — fontconfig: Cairo is the preferred sans-serif and serif
+    // font, and Arabic text prefers Cairo (Noto Sans Arabic is the
+    // next fallback, installed from apt). Monospace is NOT aliased:
+    // Cairo has no monospace, and the terminal keeps DejaVu Sans Mono
+    // (its Arabic glyphs fall back to Cairo through fontconfig).
+    private const val LOCAL_CONF = """<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <alias>
+    <family>sans-serif</family>
+    <prefer><family>Cairo</family></prefer>
+  </alias>
+  <alias>
+    <family>serif</family>
+    <prefer><family>Cairo</family></prefer>
+  </alias>
+  <match target="pattern">
+    <test name="lang" compare="contains">
+      <string>ar</string>
+    </test>
+    <edit name="family" mode="prepend">
+      <string>Cairo</string>
+    </edit>
+  </match>
+</fontconfig>
+"""
+
+    // P8 — the .bashrc block that loads the Arabic CLI. Appended
+    // once (the "# mudif-arabic-cli" marker guards re-runs). The PS1
+    // shows "نظام مضيف" in purple, the current directory in cyan,
+    // then the ❯ prompt mark (ARABIC-CLI-DESIGN §3.3).
+    private const val BASHRC_BLOCK = """
+# mudif-arabic-cli
+if [ -f /root/.config/mudif/arabic-cli.sh ]; then
+  . /root/.config/mudif/arabic-cli.sh
+fi
+PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
+"""
+
+    // P8 — merge the four qterminal keys into [General], preserving
+    // every key already present (HideTabBarWithOneTab, version,
+    // [MainWindow], [Shortcuts]) and any key the user changed.
+    // If the file does not exist yet, a [General] section is created.
+    // A key already present is replaced in place (one copy only).
+    private fun mergeQterminalIni(existing: String?): String {
+        val keys = linkedMapOf(
+            "colorScheme" to "Mudif",
+            "fontFamily" to "DejaVu Sans Mono",
+            "fontSize" to "13",
+            "enabledBidiSupport" to "true"
+        )
+        val out = StringBuilder()
+        val seen = mutableSetOf<String>()
+        var inGeneral = false
+        var generalSeen = false
+        fun appendMissingKeys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in keys) if (k !in seen) out.append("$k=$v\n")
+        }
+        // trimEnd on the input drops the trailing empty lines the
+        // file's final newline produces, so no blank line lands
+        // inside [General] when it is the last section.
+        for (line in (existing?.trimEnd()?.lines() ?: emptyList())) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                if (inGeneral) appendMissingKeys()
+                inGeneral = trimmed == "[General]"
+                if (inGeneral) generalSeen = true
+                out.append(line).append("\n")
+                continue
+            }
+            if (inGeneral) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key in keys) {
+                    if (key !in seen) {
+                        out.append("$key=${keys[key]}\n")
+                        seen.add(key)
+                    }
+                    continue
+                }
+            }
+            out.append(line).append("\n")
+        }
+        if (inGeneral) appendMissingKeys()
+        if (!generalSeen) {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[General]\n")
+            for ((k, v) in keys) out.append("$k=$v\n")
+        }
+        // Normalize the ending: exactly one trailing newline, so a
+        // re-merge of an already-merged file is byte-identical
+        // (without this, each merge would add one more blank line).
+        return out.toString().trimEnd() + "\n"
+    }
 
     // XDG autostart override that disables lxqt-powermanagement
     // (see ensureLxqtLook). Hidden=true in ~/.config/autostart

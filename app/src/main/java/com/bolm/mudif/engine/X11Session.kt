@@ -597,6 +597,12 @@ object X11Session {
      * P6.3.1 test) and with no window manager the panel stays alive
      * but never shows. x11-utils (xwininfo) is diagnostic tooling
      * for reading the panel window state.
+     * P8: fonts-noto-core + fonts-noto-ui-core (Noto Sans Arabic
+     * fallback), qttranslations5-l10n (Qt5 Arabic for qlipper),
+     * locales (insurance for locale-gen); the chain then enables
+     * ar_MA.UTF-8 in /etc/locale.gen, runs locale-gen, and rebuilds
+     * the font cache (fc-cache -f runs again on the next launch,
+     * after LxqtLook has copied the Cairo files in).
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
@@ -606,6 +612,9 @@ object X11Session {
             "openbox qterminal adwaita-qt adwaita-qt6 gnome-themes-extra " +
             "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
             "libgl1 libglx-mesa0 x11-utils " +
+            "fonts-noto-core fonts-noto-ui-core qttranslations5-l10n locales " +
+            "&& sed -i 's/^# *ar_MA.UTF-8 UTF-8/ar_MA.UTF-8 UTF-8/' /etc/locale.gen " +
+            "&& locale-gen && fc-cache -f " +
             "&& echo DEBIAN_DESKTOP_OK"
         val result = TerminalSession.runCommandDebian(
             context,
