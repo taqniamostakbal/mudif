@@ -131,7 +131,7 @@ object DeepinLook {
             File(xfconfDir, "xsettings.xml").writeText(XSETTINGS_XML)
             File(xfconfDir, "xfwm4.xml").writeText(XFWM4_XML)
             File(xfconfDir, "xfce4-desktop.xml").writeText(DESKTOP_XML)
-            File(rootfs, "root/$MARKER").writeText("p6.3.2\n")
+            File(rootfs, "root/$MARKER").writeText("p6.3.3\n")
         } catch (e: Exception) {
             Log.d(TAG, "look config write failed: ${e.message}")
             return false
