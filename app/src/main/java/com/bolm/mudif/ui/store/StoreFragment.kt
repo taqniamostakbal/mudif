@@ -11,7 +11,6 @@ import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentStoreBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
-import com.bolm.mudif.engine.RootfsManager
 import com.google.android.material.snackbar.Snackbar
 
 class StoreFragment : Fragment() {
@@ -31,11 +30,11 @@ class StoreFragment : Fragment() {
         binding.recycler.layoutManager = LinearLayoutManager(requireContext())
         binding.recycler.adapter = DistroAdapter(
             DISTROS,
-            // P6.1: the Debian card now reflects the real Debian install
-            // (it was a permanent no-op before: "install_soon" toast).
+            // P6.4: the store lists Debian only (نظام مضيف is the
+            // ONE system). The Alpine card and the install_soon
+            // placeholders are gone.
             isInstalled = { d ->
-                (d.name == "ألباين" && RootfsManager.isReady(requireContext())) ||
-                    (d.name == "دبيان" && DebianSystem.isReady(requireContext()))
+                d.name == "دبيان" && DebianSystem.isReady(requireContext())
             },
             onInstall = { d -> onInstallClicked(d) }
         )
@@ -49,40 +48,12 @@ class StoreFragment : Fragment() {
 
     private fun onInstallClicked(d: Distro) {
         when (d.name) {
-            "ألباين" -> installAlpine()
             "دبيان" -> installDebian()
             else -> Snackbar.make(
                 binding.root,
                 getString(R.string.install_soon),
                 Snackbar.LENGTH_SHORT
             ).show()
-        }
-    }
-
-    private fun installAlpine() {
-        if (RootfsManager.isReady(requireContext())) {
-            Snackbar.make(
-                binding.root,
-                getString(R.string.already_installed),
-                Snackbar.LENGTH_SHORT
-            ).show()
-            return
-        }
-        InstallFlow.runAlpineInstall(this) { ok, message ->
-            if (ok) {
-                (binding.recycler.adapter as? DistroAdapter)?.refresh()
-                Snackbar.make(
-                    binding.root,
-                    getString(R.string.install_done),
-                    Snackbar.LENGTH_LONG
-                ).show()
-            } else {
-                AlertDialog.Builder(requireContext())
-                    .setTitle(getString(R.string.boot_test))
-                    .setMessage(message)
-                    .setPositiveButton(getString(R.string.ok), null)
-                    .show()
-            }
         }
     }
 
