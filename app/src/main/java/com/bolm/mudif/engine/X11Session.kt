@@ -209,21 +209,31 @@ object X11Session {
      */
     fun launchDesktop(context: Context, desktop: String): Boolean {
         val cmd = if (desktop == "xfce") "startxfce4" else "startlxqt"
-        // P6.3.3: the session log goes to a distinct file the Terminal
-        // re-run never touches (it re-runs startxfce4 into
-        // /root/xfce.log and overwrote the real startup log in the
-        // P6.3.2 test, destroying the evidence for the childless
-        // session). getDesktopLog reads this file.
-        val ok = GuestSession.sendCommand("$cmd > /root/$desktop-session.log 2>&1 &")
+        // P6.3.5: unique timestamped log per run. The P6.3.2/P6.3.4
+        // tests believed the Terminal re-ran startxfce4 and overwrote
+        // the log — a grep proves NO code re-runs it (only VncActivity
+        // references startxfce4; what the Terminal shows is the PTY
+        // echo of this command). A timestamped file ends the
+        // ambiguity: the startup stderr is provably this run's.
+        val stamp = System.currentTimeMillis() / 1000
+        val ok = GuestSession.sendCommand("$cmd > /root/$desktop-session-$stamp.log 2>&1 &")
         if (ok) Log.d(TAG, "$desktop command sent through PTY session")
         else Log.e(TAG, "PTY session not available for $desktop")
         return ok
     }
 
-    /** Last 30 lines of the desktop session log (diagnostics only). */
+    /** Last 30 lines of the desktop session log (diagnostics only).
+     * P6.3.5: reads the NEWEST timestamped log
+     * ($desktop-session-<epoch>.log), falling back to the pre-P6.3.5
+     * fixed name ($desktop-session.log) from older builds. */
     fun getDesktopLog(context: Context, desktop: String, rootfs: File = RootfsManager.rootfsDir(context)): String {
         return try {
-            val file = File(rootfs, "root/$desktop-session.log")
+            val dir = File(rootfs, "root")
+            val logs = dir.listFiles { f ->
+                f.name.startsWith("$desktop-session-") && f.name.endsWith(".log")
+            }?.sortedByDescending { it.lastModified() }
+            // Fall back to the pre-P6.3.5 name (runs from older builds).
+            val file = logs?.firstOrNull() ?: File(rootfs, "root/$desktop-session.log")
             if (!file.exists()) return "($desktop-session.log not found - $desktop never started)"
             val lines = file.readLines()
             if (lines.isEmpty()) return "($desktop.log empty)"
