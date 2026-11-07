@@ -11,6 +11,7 @@ import com.bolm.mudif.databinding.FragmentProfileBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.terminal.TerminalActivity
 import com.bolm.mudif.ui.vnc.VncActivity
