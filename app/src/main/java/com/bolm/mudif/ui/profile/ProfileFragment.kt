@@ -51,6 +51,7 @@ class ProfileFragment : Fragment() {
             }.start()
         }
         binding.rowBoot.setOnClickListener { runBootTest() }
+        refreshCounters()
         binding.rowTerminal.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), TerminalActivity::class.java))
         }
@@ -82,7 +83,7 @@ class ProfileFragment : Fragment() {
                         )
                     } else {
                         AlertDialog.Builder(requireContext())
-                            .setTitle(getString(R.string.boot_test))
+                            .setTitle(getString(R.string.system_install_title))
                             .setMessage(message)
                             .setPositiveButton(getString(R.string.ok), null)
                             .show()
@@ -99,6 +100,35 @@ class ProfileFragment : Fragment() {
         binding.rowLogs.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), LogViewerActivity::class.java))
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // e.g. Debian installed from the Store tab -> counters must move
+        refreshCounters()
+    }
+
+    /**
+     * P6.1 — the counters were hardcoded "0" in the layout while
+     * Alpine + Firefox + LibreOffice were already installed (the tabs
+     * test proved it). They now read real state: systems = installed
+     * rootfses (Alpine + Debian), apps = desktop apps actually
+     * present on disk (firefox/firefox-esr + soffice, checked by
+     * plain File.exists — no guest execution needed).
+     */
+    private fun refreshCounters() {
+        val ctx = requireContext()
+        val systems = (if (RootfsManager.isReady(ctx)) 1 else 0) +
+            (if (DebianSystem.isReady(ctx)) 1 else 0)
+        val alpineRoot = RootfsManager.rootfsDir(ctx)
+        val debianRoot = DebianSystem.debianRootfsDir(ctx)
+        val hasFirefox = java.io.File(alpineRoot, "usr/bin/firefox").exists() ||
+            java.io.File(debianRoot, "usr/bin/firefox-esr").exists()
+        val hasOffice = java.io.File(alpineRoot, "usr/bin/soffice").exists() ||
+            java.io.File(debianRoot, "usr/bin/soffice").exists()
+        val apps = (if (hasFirefox) 1 else 0) + (if (hasOffice) 1 else 0)
+        binding.textSystemsCount.text = systems.toString()
+        binding.textAppsCount.text = apps.toString()
     }
 
     private fun runBootTest() {
