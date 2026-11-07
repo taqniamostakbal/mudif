@@ -68,7 +68,7 @@ class VncActivity : AppCompatActivity() {
         }
 
         // Version indicator — P6 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P6.3.4", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "نسخة: P6.3.5", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -290,7 +290,7 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle(if (isMudif) "تشخيص P6.3.4 — نظام مضيف" else "تشخيص P5.25")
+                    .setTitle(if (isMudif) "تشخيص P6.3.5 — نظام مضيف" else "تشخيص P5.25")
                     .setMessage(
                         if (isMudif) {
                             "النظام: نظام مضيف (دبيان 13.1 + XFCE)\n" +
