@@ -129,6 +129,14 @@ object X11Session {
      * gone) before starting a new server. Best-effort: returns false
      * on timeout and the caller proceeds with the surviving server
      * (the old behaviour) rather than blocking the flow.
+     * P6.3.6 — SUPERSEDED for the restart path, kept for
+     * diagnostics: a SIGKILLed server NEVER deletes its socket file,
+     * so this always times out (10 s wasted) even when the server
+     * died instantly (proven by the P6.3.5 resume run: the stale X6
+     * survived the stop and this call logged its timeout AFTER two
+     * fresh servers had already started and died). The restart path
+     * now waits for TCP to CLOSE instead (waitForTcpDisplayClosed)
+     * and deletes the stale files itself.
      */
     fun waitForXSocketGone(context: Context, timeoutMs: Long = 10000): Boolean {
         val socket = File(context.filesDir, "tmp/.X11-unix/X6")
@@ -150,6 +158,34 @@ object X11Session {
 
     /** TCP port of display :6 (6000 + display number). */
     const val TCP_PORT = 6006
+
+    /**
+     * P6.3.6 — delete the STALE X server socket files. A SIGKILLed
+     * server never cleans up: after the stop, `tmp/.X11-unix/X6`
+     * and `tmp/.X6-lock` survive as garbage (proven by the P6.3.5
+     * resume run — the stale X6 from the LXQt run fooled
+     * waitForXSocket into reporting a dead server as up, and
+     * waitForXSocketGone into a 10 s timeout). ONLY call this when
+     * TCP 6006 is CLOSED, i.e. no live server holds the display:
+     * deleting the files while a server lives would corrupt its
+     * Unix socket path. After the delete, waitForXSocket can only
+     * succeed on a file the NEW server created.
+     */
+    fun deleteStaleXSocketFiles(context: Context): Boolean {
+        val tmpDir = File(context.filesDir, "tmp")
+        val socket = File(tmpDir, ".X11-unix/X6")
+        val lock = File(tmpDir, ".X6-lock")
+        var deleted = false
+        if (socket.exists() && socket.delete()) {
+            Log.d(TAG, "Deleted stale X6 socket file")
+            deleted = true
+        }
+        if (lock.exists() && lock.delete()) {
+            Log.d(TAG, "Deleted stale .X6-lock file")
+            deleted = true
+        }
+        return deleted
+    }
 
     /** Single TCP probe — is anything accepting on 127.0.0.1:6006?
      * P5.24: one 800ms connect can fail under load right after the
@@ -187,6 +223,28 @@ object X11Session {
             Thread.sleep(500)
         }
         Log.e(TAG, "TCP display not ready after ${timeoutMs}ms")
+        return false
+    }
+
+    /**
+     * P6.3.6 — mirror of waitForTcpDisplay for the restart path:
+     * poll until NOTHING accepts on 127.0.0.1:6006, i.e. the old
+     * server process is really dead. A listening socket closes the
+     * instant its process dies, so TCP closing is the true death
+     * signal — unlike the socket FILE, which a SIGKILLed server
+     * never deletes (see waitForXSocketGone). Returns false on
+     * timeout: the old server survived the stop.
+     */
+    fun waitForTcpDisplayClosed(timeoutMs: Long = 10000): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (!isTcpDisplayOpen()) {
+                Log.d(TAG, "TCP display closed — old server dead")
+                return true
+            }
+            Thread.sleep(500)
+        }
+        Log.e(TAG, "TCP display still open after ${timeoutMs}ms — old server survived the stop")
         return false
     }
 
