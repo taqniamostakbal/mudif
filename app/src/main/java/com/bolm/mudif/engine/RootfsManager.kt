@@ -332,7 +332,8 @@ object RootfsManager {
             "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TERM" to "xterm-256color",
             "LANG" to "ar_MA.UTF-8",
-            "LANGUAGE" to "ar"
+            "LANGUAGE" to "ar",
+            "SHELL" to "/bin/bash"
         )
         return argv to env
     }
@@ -344,7 +345,10 @@ object RootfsManager {
      * proven InstaBox workaround for the broken Unix-socket connect),
      * so every guest command inherits it and no per-command DISPLAY
      * prefix is needed anywhere. TC runs /bin/bash -l as user `tiny`;
-     * Mudif runs /bin/sh -l (BusyBox ash, Alpine has no bash) as root.
+     * Mudif runs /bin/sh -l as root (Debian has bash, but the boot
+     * shell only launches the desktop). SHELL=/bin/bash is set here
+     * so GUI terminals (qterminal) run bash and source .bashrc
+     * (P8FIX2: qterminal ran /bin/sh because SHELL was unset).
      */
     fun bootArgv(context: Context): List<String>? =
         bootArgvFor(context, rootfsDir(context), isReady(context))
@@ -359,6 +363,7 @@ object RootfsManager {
             "DISPLAY=127.0.0.1:6",
             "LANG=ar_MA.UTF-8",
             "LANGUAGE=ar",
+            "SHELL=/bin/bash",
             "MOZ_FAKE_NO_SANDBOX=1",
             "MOZ_DISABLE_CONTENT_SANDBOX=1",
             "QTWEBENGINE_DISABLE_SANDBOX=1",
