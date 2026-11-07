@@ -66,6 +66,7 @@ object DesktopDiagnostics {
         sb.append("دبيان 13.1، LXQt كيقلع، الأيقونات أصلية، بلا glycin وبلا bwrap.\n")
         sb.append("التثبيت بـ apt (--no-install-recommends)، والإقلاع من جهة المضيف، ماشي متداخل.\n")
         sb.append("P6.7: التجميد تصلح بإزالة --sysvipc؛ الحجم كيتثبت 1280x720؛ خلفية سطح المكتب تصاوبات (Wallpaper تحت [Desktop] + WallpaperMode=stretch)؛ إدارة الطاقة مطفية؛ النمط الداكن تصاوب بإضافة adwaita-qt (qlipper هو التطبيق الوحيد Qt5).\n")
+        sb.append("P8: العربية فالعربية (خط Cairo + لغة ar_MA.UTF-8)؛ خلفية بنفسجية؛ الطرفية العربية فيها 48 أمر بالفصحى؛ قائمة LXQt بقات بالإنجليزية (الترجمة .qm جاية من بعد).\n")
         return sb.toString()
     }
 
@@ -204,9 +205,9 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P6.4 — سجل مفصل ===\n")
+            append("=== مضيف P8 — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P6.4\n\n")
+            append("نسخة: P8\n\n")
             append("--- السبب الحقيقي (تشخيص P5.22) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")
