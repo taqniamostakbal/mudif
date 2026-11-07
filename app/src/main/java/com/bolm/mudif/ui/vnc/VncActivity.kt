@@ -8,6 +8,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
 import com.bolm.mudif.engine.DebianSystem
+import com.bolm.mudif.engine.DeepinLook
 import com.bolm.mudif.engine.DesktopDiagnostics
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.RootfsManager
@@ -67,7 +68,7 @@ class VncActivity : AppCompatActivity() {
         }
 
         // Version indicator — P6 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P6", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "نسخة: P6.3", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -143,20 +144,34 @@ class VncActivity : AppCompatActivity() {
             // P6: نظام مضيف installs the Debian desktop set in ONE
             // apt call (xfce4 + whisker + terminal + thunar +
             // firefox-esr + deepin/papirus/adwaita icons + dbus +
-            // xkeyboard-config). No bwrap shim: Debian's gdk-pixbuf
+            // xkb-data). No bwrap shim: Debian's gdk-pixbuf
             // has native loaders and glycin is not in the closure.
             val desktopName = if (isMudif) "نظام مضيف" else if (desktop == DESKTOP_XFCE) "XFCE" else "LXQt"
             val xkbOk: Boolean
             val packagesOk: Boolean
             val desktopOk: Boolean
             val pixbufOk: Boolean
+            val lookOk: Boolean
+            val lookJustInstalled: Boolean
             if (isMudif) {
                 setStatus("جاري تثبيت نظام مضيف (XFCE + فايرفوكس)…")
                 desktopOk = X11Session.ensureDebianDesktop(this)
                 xkbOk = desktopOk
                 packagesOk = desktopOk
                 pixbufOk = true
+                // P6.3 — the Deepin look (no separate dock): WhiteSur
+                // + panel/launcher/theme/icons/wallpaper config. Runs
+                // once per rootfs (marker); skipped when already applied.
+                lookJustInstalled = !DeepinLook.isApplied(this)
+                if (desktopOk) {
+                    setStatus("جاري تثبيت الشكل ديال Deepin…")
+                    lookOk = DeepinLook.ensureDeepinLook(this)
+                } else {
+                    lookOk = false
+                }
             } else {
+                lookOk = false
+                lookJustInstalled = false
                 setStatus("جاري تثبيت بيانات لوحة المفاتيح…")
                 xkbOk = X11Session.ensureXkb(this)
                 setStatus("جاري تثبيت حزم سطح المكتب…")
@@ -239,6 +254,15 @@ class VncActivity : AppCompatActivity() {
                 this, if (isMudif) DESKTOP_XFCE else desktop, isMudif
             )
 
+            // 4d. P6.3 — set the wallpaper live on the real monitor
+            // (only when the look was just installed in this run;
+            // on later runs it is already persisted in xfconf).
+            val wallpaperOk = if (isMudif && lookJustInstalled && lookOk) {
+                DeepinLook.applyWallpaperLive(this)
+            } else {
+                true
+            }
+
             // 5. Status dialog (a report, not a gate): PTY alive,
             // guest booted, X socket + TCP, command sent, log tail.
             if (destroyed) return@Thread
@@ -249,7 +273,7 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle(if (isMudif) "تشخيص P6 — نظام مضيف" else "تشخيص P5.25")
+                    .setTitle(if (isMudif) "تشخيص P6.3 — نظام مضيف" else "تشخيص P5.25")
                     .setMessage(
                         if (isMudif) {
                             "النظام: نظام مضيف (دبيان 13.1 + XFCE)\n" +
@@ -260,7 +284,8 @@ class VncActivity : AppCompatActivity() {
                                 "أمر سطح المكتب تبعت: $sent\n" +
                                 "سطح المكتب خدام فعلا: $desktopRunning\n" +
                                 "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
-                                "نظام مضيف تثبت: $desktopOk\n\n" +
+                                "نظام مضيف تثبت: $desktopOk\n" +
+                                "الشكل ديال Deepin تثبت: ${lookOk && wallpaperOk}\n\n" +
                                 "لوگ XFCE:\n$desktopLog\n\n" +
                                 "--- السبب الحقيقي ---\n" +
                                 DesktopDiagnostics.hypothesisDebian()
