@@ -68,7 +68,7 @@ class VncActivity : AppCompatActivity() {
         }
 
         // Version indicator — P6 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P6.3.5", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "نسخة: P6.3.6", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -213,7 +213,22 @@ class VncActivity : AppCompatActivity() {
             if (isMudif && serverUp) {
                 setStatus("جاري إعادة تشغيل خادم X من جديد…")
                 X11Session.stopXServer(this)
-                if (X11Session.waitForXSocketGone(this, 10000)) serverUp = false
+                // P6.3.6: the old waitForXSocketGone veto is GONE.
+                // The P6.3.5 resume run proved it: a SIGKILLed server
+                // never deletes its socket file, so the wait always
+                // timed out (10 s), serverUp stayed true, startXServer
+                // was SKIPPED, and startxfce4 was sent to a dead
+                // server. TCP closing is the true death signal, and
+                // the stale files are deleted by hand — but ONLY when
+                // TCP proves no live server holds the display.
+                X11Session.waitForTcpDisplayClosed(this, 10000)
+                if (X11Session.isTcpDisplayOpen()) {
+                    // Old server survived the stop — fall back to it
+                    // (never start a second server on :6).
+                } else {
+                    X11Session.deleteStaleXSocketFiles(this)
+                    serverUp = false
+                }
             }
             if (!serverUp) {
                 setStatus("جاري تشغيل خادم X…")
@@ -248,6 +263,18 @@ class VncActivity : AppCompatActivity() {
             // `startlxqt > /root/lxqt.log 2>&1 &` — no setsid, no pid
             // file, no gate. A short settle so the log has content
             // before the dialog reads it.
+            // P6.3.6: NEVER send the desktop command to a dead
+            // server. The P6.3.5 run logged xserverStarted:false
+            // and sent startxfce4 anyway, because serverUp was
+            // wrongly true (stale socket file). Re-prove TCP here,
+            // on EVERY path, before the command goes out.
+            if (!X11Session.isTcpDisplayOpen()) {
+                if (destroyed) return@Thread
+                runOnUiThread {
+                    showFailureDialog("خادم X ما خدامش: منفذ TCP 6006 مسدود. سطح المكتب ما تبعتش.")
+                }
+                return@Thread
+            }
             setStatus("جاري تشغيل $desktopName…")
             val sent = X11Session.launchDesktop(this, if (isMudif) DESKTOP_XFCE else desktop)
             Thread.sleep(3000)
@@ -290,7 +317,7 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle(if (isMudif) "تشخيص P6.3.5 — نظام مضيف" else "تشخيص P5.25")
+                    .setTitle(if (isMudif) "تشخيص P6.3.6 — نظام مضيف" else "تشخيص P5.25")
                     .setMessage(
                         if (isMudif) {
                             "النظام: نظام مضيف (دبيان 13.1 + XFCE)\n" +
