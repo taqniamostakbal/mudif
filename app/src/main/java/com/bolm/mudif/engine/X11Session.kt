@@ -331,11 +331,17 @@ object X11Session {
     /**
      * P6 — same desktop cleanup as killDesktopProcesses, but inside
      * the DEBIAN guest (the previous نظام مضيف session's orphans).
+     * P6.4: the pattern covers LXQt (the system now) AND the old
+     * XFCE names — the box may still hold a childless XFCE session
+     * from the fresh-rootfs tap, and pkill matches nothing when a
+     * name is absent, so keeping both costs nothing.
      * Best-effort; a failure here is not fatal — the fresh boot
      * proceeds anyway.
      */
     fun killDebianDesktopProcesses(context: Context): Boolean {
-        val pattern = "[x]fwm4|[x]fce4-session|[x]fce4-panel|[x]fdesktop|[x]fce4-terminal|" +
+        val pattern = "[l]xqt-session|[l]xqt-panel|[l]xqt-runner|[l]xqt-notificationd|" +
+            "[l]xqt-globalkeysd|[p]cmanfm-qt|[q]terminal|[o]penbox|[s]tartlxqt|" +
+            "[x]fwm4|[x]fce4-session|[x]fce4-panel|[x]fdesktop|[x]fce4-terminal|" +
             "[f]irefox-esr|[s]tartxfce4|[d]bus-daemon"
         val result = TerminalSession.runCommandDebian(
             context,
@@ -534,11 +540,28 @@ object X11Session {
     /**
      * P6 — install the نظام مضيف desktop set in the DEBIAN guest
      * (proven live by the 2026-11-06 diagnostic, Q4): apt update,
-     * then ONE apt install with --no-install-recommends (208 pkgs):
-     * xfce4 + whisker + xfce4-terminal + thunar + firefox-esr +
-     * deepin-icon-theme + papirus + adwaita + dbus-x11 +
+     * then ONE apt install with --no-install-recommends.
+     * P6.4 — the set is LXQt now (XFCE stopped by the user's order
+     * 2026-11-07; B2 was environmental, but the decision is final):
+     * lxqt metapackage + the core components listed explicitly
+     * (belt and braces — --no-install-recommends skips Recommends,
+     * so nothing is left to Depends-vs-Recommends guessing) +
+     * openbox (LXQt's window manager) + qterminal (LXQt's own
+     * terminal) + lxqt-qtplugin (the Qt platform theme plugin — with
+     * QT_QPA_PLATFORMTHEME=lxqt it is what applies icon_theme to Qt
+     * apps; proven missing-and-fixed on Alpine in the 2026-11-07
+     * LXQt test) + adwaita-qt6 (dark Qt style Adwaita-dark) +
+     * gnome-themes-extra (Adwaita GTK theme for GTK_THEME) +
+     * firefox-esr + deepin-icon-theme (ships bloom/bloom-dark) +
+     * papirus + adwaita icons + dbus-x11 +
      * xkb-data (the X server's XKB data) + procps (pgrep/ps/pkill,
      * needed by isDesktopRunning and killDebianDesktopProcesses).
+     * Kvantum is DELIBERATELY ABSENT: there is NO kvantum or
+     * kvantum-themes package in Debian trixie (verified
+     * packages.debian.org 2026-11-07: "No such package") — the
+     * Alpine recipe (kvantum + KvArcDark) does not transfer. The
+     * dark Qt style is Adwaita-dark instead (upstream FedoraQt
+     * README lists Adwaita / Adwaita-dark / HighContrast).
      * P6.2 FIX (P6.1 test, 2026-11-07): the list used
      * `xkeyboard-config`, which does NOT exist on Debian — the
      * package is named xkb-data (the upstream project name is
@@ -559,7 +582,9 @@ object X11Session {
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
             "apt-get update && apt-get install -y --no-install-recommends " +
-            "xkb-data procps xfce4 xfce4-whiskermenu-plugin xfce4-terminal thunar " +
+            "xkb-data procps lxqt lxqt-session lxqt-panel lxqt-config lxqt-runner " +
+            "lxqt-notificationd lxqt-globalkeys lxqt-themes lxqt-qtplugin pcmanfm-qt " +
+            "openbox qterminal adwaita-qt6 gnome-themes-extra " +
             "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
             "libgl1 libglx-mesa0 x11-utils " +
             "&& echo DEBIAN_DESKTOP_OK"
