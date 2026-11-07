@@ -603,6 +603,8 @@ object X11Session {
      * ar_MA.UTF-8 in /etc/locale.gen, runs locale-gen, and rebuilds
      * the font cache (fc-cache -f runs again on the next launch,
      * after LxqtLook has copied the Cairo files in).
+     * P8 fix: less + nano + curl are the Arabic CLI's primary tools
+     * (the P8 test found them missing in the guest).
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
@@ -613,6 +615,7 @@ object X11Session {
             "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
             "libgl1 libglx-mesa0 x11-utils " +
             "fonts-noto-core fonts-noto-ui-core qttranslations5-l10n locales " +
+            "less nano curl " +
             "&& sed -i 's/^# *ar_MA.UTF-8 UTF-8/ar_MA.UTF-8 UTF-8/' /etc/locale.gen " +
             "&& locale-gen && fc-cache -f " +
             "&& echo DEBIAN_DESKTOP_OK"
