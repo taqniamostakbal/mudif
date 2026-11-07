@@ -221,7 +221,7 @@ class VncActivity : AppCompatActivity() {
                 // server. TCP closing is the true death signal, and
                 // the stale files are deleted by hand — but ONLY when
                 // TCP proves no live server holds the display.
-                X11Session.waitForTcpDisplayClosed(this, 10000)
+                X11Session.waitForTcpDisplayClosed(10000)
                 if (X11Session.isTcpDisplayOpen()) {
                     // Old server survived the stop — fall back to it
                     // (never start a second server on :6).
