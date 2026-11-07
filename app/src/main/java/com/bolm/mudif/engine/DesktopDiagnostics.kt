@@ -65,7 +65,7 @@ object DesktopDiagnostics {
         sb.append("نظام مضيف (مثبت 2026-11-07 من التشخيص):\n")
         sb.append("دبيان 13.1، LXQt كيقلع، الأيقونات أصلية، بلا glycin وبلا bwrap.\n")
         sb.append("التثبيت بـ apt (--no-install-recommends)، والإقلاع من جهة المضيف، ماشي متداخل.\n")
-        sb.append("P6.5: التجميد ديال proot --shm-helper تصلح بإزالة --sysvipc؛ الحجم كيتثبت 1280x720 قبل ما يقلع سطح المكتب.\n")
+        sb.append("P6.6: التجميد تصلح بإزالة --sysvipc؛ الحجم كيتثبت 1280x720؛ خلفية سطح المكتب تصاوبات (Wallpaper تحت [Desktop] + WallpaperMode=stretch)؛ إدارة الطاقة مطفية.\n")
         return sb.toString()
     }
 
