@@ -431,16 +431,24 @@ object X11Session {
      * then ONE apt install with --no-install-recommends (208 pkgs):
      * xfce4 + whisker + xfce4-terminal + thunar + firefox-esr +
      * deepin-icon-theme + papirus + adwaita + dbus-x11 +
-     * xkeyboard-config (the X server's XKB data). DEBIAN_FRONTEND
-     * noninteractive so nothing ever prompts. NO bwrap shim here:
-     * Debian's gdk-pixbuf has native PNG/JPEG loaders and glycin is
-     * not in the closure — the P5.25 failure mode does not exist.
-     * One-shot, best-effort, idempotent. Call from a background thread.
+     * xkb-data (the X server's XKB data) + procps (pgrep/ps/pkill,
+     * needed by isDesktopRunning and killDebianDesktopProcesses).
+     * P6.2 FIX (P6.1 test, 2026-11-07): the list used
+     * `xkeyboard-config`, which does NOT exist on Debian — the
+     * package is named xkb-data (the upstream project name is
+     * xkeyboard-config, the Debian binary package is xkb-data).
+     * apt aborted the whole && chain on it, so ZERO packages
+     * installed (live logcat: "E: Unable to locate package
+     * xkeyboard-config"). DEBIAN_FRONTEND noninteractive so nothing
+     * ever prompts. NO bwrap shim here: Debian's gdk-pixbuf has
+     * native PNG/JPEG loaders and glycin is not in the closure —
+     * the P5.25 failure mode does not exist. One-shot, best-effort,
+     * idempotent. Call from a background thread.
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
             "apt-get update && apt-get install -y --no-install-recommends " +
-            "xkeyboard-config xfce4 xfce4-whiskermenu-plugin xfce4-terminal thunar " +
+            "xkb-data procps xfce4 xfce4-whiskermenu-plugin xfce4-terminal thunar " +
             "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
             "&& echo DEBIAN_DESKTOP_OK"
         val result = TerminalSession.runCommandDebian(
