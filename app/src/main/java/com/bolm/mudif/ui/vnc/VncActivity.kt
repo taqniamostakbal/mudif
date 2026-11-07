@@ -232,11 +232,18 @@ class VncActivity : AppCompatActivity() {
             // false while the socket was proven LISTEN+ESTABLISHED.
             val tcpOk = X11Session.isTcpDisplayOpen()
 
+            // 4c. Ground truth for the dialog (P6.1): is the desktop
+            // REALLY running? The P6 test proved "sent" is not enough
+            // (run 3: TCP true + sent true, no desktop at all).
+            val desktopRunning = X11Session.isDesktopRunning(
+                this, if (isMudif) DESKTOP_XFCE else desktop, isMudif
+            )
+
             // 5. Status dialog (a report, not a gate): PTY alive,
             // guest booted, X socket + TCP, command sent, log tail.
             if (destroyed) return@Thread
             runOnUiThread {
-                val ok = sent && GuestSession.alive && GuestSession.booted
+                val ok = sent && GuestSession.alive && GuestSession.booted && desktopRunning
                 setStatus(
                     if (ok) "سطح المكتب خدام ✓"
                     else "سطح المكتب ما خدمش — شوف اللوجات"
@@ -251,6 +258,7 @@ class VncActivity : AppCompatActivity() {
                                 "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
                                 "TCP 6006: $tcpOk\n" +
                                 "أمر سطح المكتب تبعت: $sent\n" +
+                                "سطح المكتب خدام فعلا: $desktopRunning\n" +
                                 "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
                                 "نظام مضيف تثبت: $desktopOk\n\n" +
                                 "لوگ XFCE:\n$desktopLog\n\n" +
@@ -263,6 +271,7 @@ class VncActivity : AppCompatActivity() {
                                 "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
                                 "TCP 6006: $tcpOk\n" +
                                 "أمر سطح المكتب تبعت: $sent\n" +
+                                "سطح المكتب خدام فعلا: $desktopRunning\n" +
                                 "الأيقونات تصلحات: $pixbufOk\n" +
                                 "الخطوط تثبتات: $xkbOk\n" +
                                 "حزم سطح المكتب تثبتات: $packagesOk\n" +
