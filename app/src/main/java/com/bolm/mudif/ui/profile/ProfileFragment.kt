@@ -11,7 +11,6 @@ import com.bolm.mudif.databinding.FragmentProfileBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.InstallFlow
-import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.terminal.TerminalActivity
 import com.bolm.mudif.ui.vnc.VncActivity
@@ -51,26 +50,16 @@ class ProfileFragment : Fragment() {
                 }
             }.start()
         }
-        binding.rowBoot.setOnClickListener { runBootTest() }
         refreshCounters()
         binding.rowTerminal.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), TerminalActivity::class.java))
         }
-        binding.rowVnc.setOnClickListener {
-            startActivity(
-                android.content.Intent(requireContext(), VncActivity::class.java).apply {
-                    putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_LXQT)
-                }
-            )
-        }
-        binding.rowVncXfce.setOnClickListener {
-            startActivity(
-                android.content.Intent(requireContext(), VncActivity::class.java).apply {
-                    putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_XFCE)
-                }
-            )
-        }
-        // P6 — نظام مضيف: the ONE system (Debian 13.1 + XFCE). First
+        // P6.4 — نظام مضيف is the ONLY system in this app (the
+        // user's order 2026-11-07). The Alpine desktop rows
+        // (row_vnc LXQt, row_vnc_xfce XFCE) and the Alpine boot
+        // test (row_boot) are GONE — nothing else launches a
+        // desktop from this tab.
+        // P6 — نظام مضيف: the ONE system (Debian 13.1 + LXQt). First
         // tap downloads + extracts Debian (35 MB, hash-verified),
         // later taps go straight to the desktop.
         binding.rowVncMudif.setOnClickListener {
@@ -112,42 +101,26 @@ class ProfileFragment : Fragment() {
     /**
      * P6.1 — the counters were hardcoded "0" in the layout while
      * Alpine + Firefox + LibreOffice were already installed (the tabs
-     * test proved it). They now read real state: systems = installed
-     * rootfses (Alpine + Debian), apps = desktop apps actually
-     * present on disk (firefox/firefox-esr + soffice, checked by
-     * plain File.exists — no guest execution needed).
+     * test proved it). They now read real state.
      * P6.2 FIX (P6.1 test): /usr/bin/soffice is an ABSOLUTE symlink
      * to /usr/lib/libreoffice/program/soffice, which does NOT resolve
      * on the Android host (File.exists follows the link against the
      * host's /usr/lib) — so the apps counter read 1 instead of 2
      * while LibreOffice IS installed. Check the real target path
      * inside each rootfs as well.
+     * P6.4 — نظام مضيف is the ONLY system: the counters read the
+     * Debian rootfs only (Alpine is gone from the app).
      */
     private fun refreshCounters() {
         val ctx = requireContext()
-        val systems = (if (RootfsManager.isReady(ctx)) 1 else 0) +
-            (if (DebianSystem.isReady(ctx)) 1 else 0)
-        val alpineRoot = RootfsManager.rootfsDir(ctx)
+        val systems = if (DebianSystem.isReady(ctx)) 1 else 0
         val debianRoot = DebianSystem.debianRootfsDir(ctx)
-        val hasFirefox = java.io.File(alpineRoot, "usr/bin/firefox").exists() ||
-            java.io.File(debianRoot, "usr/bin/firefox-esr").exists()
-        val hasOffice = java.io.File(alpineRoot, "usr/bin/soffice").exists() ||
-            java.io.File(debianRoot, "usr/bin/soffice").exists() ||
-            java.io.File(alpineRoot, "usr/lib/libreoffice/program/soffice").exists() ||
+        val hasFirefox = java.io.File(debianRoot, "usr/bin/firefox-esr").exists()
+        val hasOffice = java.io.File(debianRoot, "usr/bin/soffice").exists() ||
             java.io.File(debianRoot, "usr/lib/libreoffice/program/soffice").exists()
         val apps = (if (hasFirefox) 1 else 0) + (if (hasOffice) 1 else 0)
         binding.textSystemsCount.text = systems.toString()
         binding.textAppsCount.text = apps.toString()
-    }
-
-    private fun runBootTest() {
-        InstallFlow.runAlpineInstall(this) { _, message ->
-            AlertDialog.Builder(requireContext())
-                .setTitle(getString(R.string.boot_test))
-                .setMessage(message)
-                .setPositiveButton(getString(R.string.ok), null)
-                .show()
-        }
     }
 
     override fun onDestroyView() {

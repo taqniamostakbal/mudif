@@ -68,9 +68,11 @@ object GuestSession {
     /** P6 — which system the PTY session is booting (one system: Debian). */
     enum class GuestSystem { ALPINE, DEBIAN }
 
-    /** The system of the current (or last) boot. The Terminal tab re-boots this one. */
+    /** The system of the current (or last) boot. The Terminal tab re-boots this one.
+     * P6.4 — the default is DEBIAN: نظام مضيف is the ONLY system in
+     * this app, so a fresh start must never boot Alpine. */
     @Volatile
-    var currentSystem = GuestSystem.ALPINE
+    var currentSystem = GuestSystem.DEBIAN
         private set
 
     /** Exit code of the last finished session (-1 = never ran / still running). */
@@ -314,7 +316,7 @@ object GuestSession {
      */
     fun bootContainer(
         context: Context,
-        system: GuestSystem = GuestSystem.ALPINE,
+        system: GuestSystem = GuestSystem.DEBIAN,
         timeoutMs: Long = 20000
     ): Boolean {
         if (booted && alive && currentSystem == system) return true
