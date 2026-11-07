@@ -217,7 +217,10 @@ object RootfsManager {
      *   :/tmp; --bind=<run>:/run; --bind=<rootfs>/sys/.empty:/sys/fs/selinux
      *   (hides SELinux from the guest).
      * - --kill-on-exit (cleanup), --link2symlink,
-     *   --kernel-release (fakes uname, TC's exact string).
+     *   --kernel-release (fakes uname; P8 fix 2026-11-07: TC's exact
+     *   string "Linux localhost 6.17.0-..." broke Debian's libc6
+     *   preinst kernel arithmetic, aborting the P8 apt chain, so a
+     *   clean numeric version "6.17.0").
      * - P6.5: --sysvipc REMOVED. It enables Termux proot's SysV IPC
      *   extension, which spawns a `proot --shm-helper` on the first
      *   shm request; the helper in this build spins forever on a
@@ -270,7 +273,7 @@ object RootfsManager {
             "-r", rootfs.absolutePath,
             "--kill-on-exit",
             "--link2symlink",
-            "--kernel-release=Linux localhost 6.17.0-PRoot-Distro #1 SMP PREEMPT_DYNAMIC Fri, 10 Oct 2025 00:00:00 +0000 aarch64 localdomain -1",
+            "--kernel-release=6.17.0",
             "--bind=/dev",
             "--bind=/proc",
             "--bind=/sys",
