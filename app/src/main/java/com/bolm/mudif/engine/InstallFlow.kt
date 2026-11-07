@@ -40,7 +40,7 @@ object InstallFlow {
             addView(bar)
         }
         val dialog = AlertDialog.Builder(ctx)
-            .setTitle(ctx.getString(R.string.boot_test))
+            .setTitle(ctx.getString(R.string.system_install_title))
             .setView(layout)
             .setCancelable(false)
             .create()

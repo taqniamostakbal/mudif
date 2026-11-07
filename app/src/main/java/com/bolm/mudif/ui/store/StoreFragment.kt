@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentStoreBinding
+import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
 import com.bolm.mudif.engine.RootfsManager
 import com.google.android.material.snackbar.Snackbar
@@ -30,7 +31,12 @@ class StoreFragment : Fragment() {
         binding.recycler.layoutManager = LinearLayoutManager(requireContext())
         binding.recycler.adapter = DistroAdapter(
             DISTROS,
-            isInstalled = { d -> d.name == "ألباين" && RootfsManager.isReady(requireContext()) },
+            // P6.1: the Debian card now reflects the real Debian install
+            // (it was a permanent no-op before: "install_soon" toast).
+            isInstalled = { d ->
+                (d.name == "ألباين" && RootfsManager.isReady(requireContext())) ||
+                    (d.name == "دبيان" && DebianSystem.isReady(requireContext()))
+            },
             onInstall = { d -> onInstallClicked(d) }
         )
     }
@@ -42,14 +48,18 @@ class StoreFragment : Fragment() {
     }
 
     private fun onInstallClicked(d: Distro) {
-        if (d.name != "ألباين") {
-            Snackbar.make(
+        when (d.name) {
+            "ألباين" -> installAlpine()
+            "دبيان" -> installDebian()
+            else -> Snackbar.make(
                 binding.root,
                 getString(R.string.install_soon),
                 Snackbar.LENGTH_SHORT
             ).show()
-            return
         }
+    }
+
+    private fun installAlpine() {
         if (RootfsManager.isReady(requireContext())) {
             Snackbar.make(
                 binding.root,
@@ -69,6 +79,33 @@ class StoreFragment : Fragment() {
             } else {
                 AlertDialog.Builder(requireContext())
                     .setTitle(getString(R.string.boot_test))
+                    .setMessage(message)
+                    .setPositiveButton(getString(R.string.ok), null)
+                    .show()
+            }
+        }
+    }
+
+    private fun installDebian() {
+        if (DebianSystem.isReady(requireContext())) {
+            Snackbar.make(
+                binding.root,
+                getString(R.string.debian_already_installed),
+                Snackbar.LENGTH_SHORT
+            ).show()
+            return
+        }
+        InstallFlow.runDebianInstall(this) { ok, message ->
+            if (ok) {
+                (binding.recycler.adapter as? DistroAdapter)?.refresh()
+                Snackbar.make(
+                    binding.root,
+                    getString(R.string.debian_install_done),
+                    Snackbar.LENGTH_LONG
+                ).show()
+            } else {
+                AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.system_install_title))
                     .setMessage(message)
                     .setPositiveButton(getString(R.string.ok), null)
                     .show()
