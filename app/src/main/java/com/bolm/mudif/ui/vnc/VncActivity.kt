@@ -2,15 +2,14 @@ package com.bolm.mudif.ui.vnc
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
 import com.bolm.mudif.engine.DebianSystem
-import com.bolm.mudif.engine.DeepinLook
 import com.bolm.mudif.engine.DesktopDiagnostics
 import com.bolm.mudif.engine.GuestSession
+import com.bolm.mudif.engine.LxqtLook
 import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.logs.LogViewerActivity
@@ -32,8 +31,13 @@ import com.bolm.mudif.ui.logs.LogViewerActivity
  * from a broken pipe: success = PTY alive + guest booted + X socket
  * up + desktop command sent. The viewer shows the truth.
  *
- * Desktop choice: intent extra EXTRA_DESKTOP ("lxqt" default,
- * "xfce"). One desktop per session — never both together.
+ * P6.4 — نظام مضيف is the ONLY system in this app (the user's
+ * order 2026-11-07: "خاص يبقى في التطبيق نظامي فقط اما باقي
+ * الانظمة لا"). Debian 13.1 + LXQt, Deepin-style look baked into
+ * the install flow. The Alpine rows are gone from the profile tab,
+ * the store lists Debian only, and this activity no longer has an
+ * Alpine path at all. The intent extra is ignored: every launch
+ * opens نظام مضيف.
  * Lifecycle: entering this screen ALWAYS reboots the container
  * fresh (Tiny Container's clean slate). Leaving the screen does NOT
  * kill the session or the X server (P5.11 kept): the desktop stays
@@ -46,29 +50,20 @@ class VncActivity : AppCompatActivity() {
     @Volatile
     private var destroyed = false
 
-    private var desktop: String = DESKTOP_LXQT
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityVncBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        desktop = intent.getStringExtra(EXTRA_DESKTOP)
-            ?.takeIf { it == DESKTOP_XFCE || it == DESKTOP_MUDIF } ?: DESKTOP_LXQT
-
-        supportActionBar?.title = when (desktop) {
-            DESKTOP_MUDIF -> "نظام مضيف"
-            DESKTOP_XFCE -> "سطح مكتب XFCE"
-            else -> "سطح مكتب LXQt"
-        }
+        supportActionBar?.title = "نظام مضيف"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         binding.btnShowLogs.setOnClickListener {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P6 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P6.3.6", Toast.LENGTH_LONG).show()
+        // Version indicator — P6.4 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P6.4", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -104,113 +99,75 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // P6: نظام مضيف is the ONE system (Debian + XFCE).
-            val isMudif = desktop == DESKTOP_MUDIF
-
             // 1a. Kill the previous desktop's processes FIRST
             // (P5.24): the old PTY session's death leaves its desktop
             // processes as orphans owning the display, and the new
             // desktop's window manager then refuses to start. Only
             // when the guest is installed; a failure here is not
             // fatal — the fresh boot proceeds anyway.
-            // P6: the orphans live in whichever guest owned the last
-            // desktop — clean both guests (best-effort, fast no-ops).
+            // P6.4: also clean the Alpine guest — the box may still
+            // hold the live Alpine LXQt session from the 2026-11-07
+            // test owning :6, and a surviving window manager blocks
+            // the new desktop (P5.24).
             setStatus("جاري تنظيف سطح المكتب السابق…")
-            if (isMudif) {
-                if (DebianSystem.isReady(this)) X11Session.killDebianDesktopProcesses(this)
-                if (RootfsManager.isReady(this)) X11Session.killDesktopProcesses(this)
-            } else if (RootfsManager.isReady(this)) {
-                X11Session.killDesktopProcesses(this)
-            }
+            if (DebianSystem.isReady(this)) X11Session.killDebianDesktopProcesses(this)
+            if (RootfsManager.isReady(this)) X11Session.killDesktopProcesses(this)
 
             // 1. Boot the container in the PTY session (Tiny:
             // clean slate, fresh boot on every entry).
-            // P6: نظام مضيف boots DEBIAN in the PTY; the old rows
-            // still boot Alpine.
-            setStatus(if (isMudif) "جاري تشغيل نظام مضيف…" else "جاري تشغيل الحاوية…")
-            val system = if (isMudif) GuestSession.GuestSystem.DEBIAN else GuestSession.GuestSystem.ALPINE
-            if (!GuestSession.bootContainer(this, system)) {
+            // P6: نظام مضيف boots DEBIAN in the PTY.
+            setStatus("جاري تشغيل نظام مضيف…")
+            if (!GuestSession.bootContainer(this, GuestSession.GuestSystem.DEBIAN)) {
                 if (destroyed) return@Thread
                 runOnUiThread {
                     showFailureDialog(
-                        (if (isMudif) "تعذّر تشغيل نظام مضيف.\n" else "تعذّر تشغيل حاوية Alpine.\n") +
-                            (GuestSession.lastError ?: "")
+                        "تعذّر تشغيل نظام مضيف.\n" + (GuestSession.lastError ?: "")
                     )
                 }
                 return@Thread
             }
 
             // 2. One-shot installers FIRST (proven path).
-            // P6: نظام مضيف installs the Debian desktop set in ONE
-            // apt call (xfce4 + whisker + terminal + thunar +
-            // firefox-esr + deepin/papirus/adwaita icons + dbus +
-            // xkb-data). No bwrap shim: Debian's gdk-pixbuf
-            // has native loaders and glycin is not in the closure.
-            val desktopName = if (isMudif) "نظام مضيف" else if (desktop == DESKTOP_XFCE) "XFCE" else "LXQt"
-            val xkbOk: Boolean
-            val packagesOk: Boolean
-            val desktopOk: Boolean
-            val pixbufOk: Boolean
-            val lookOk: Boolean
-            val lookJustInstalled: Boolean
-            if (isMudif) {
-                setStatus("جاري تثبيت نظام مضيف (XFCE + فايرفوكس)…")
-                desktopOk = X11Session.ensureDebianDesktop(this)
-                xkbOk = desktopOk
-                packagesOk = desktopOk
-                pixbufOk = true
-                // P6.3 — the Deepin look (no separate dock): WhiteSur
-                // + panel/launcher/theme/icons/wallpaper config. Runs
-                // once per rootfs (marker); skipped when already applied.
-                lookJustInstalled = !DeepinLook.isApplied(this)
-                if (desktopOk) {
-                    setStatus("جاري تثبيت الشكل ديال Deepin…")
-                    lookOk = DeepinLook.ensureDeepinLook(this)
-                } else {
-                    lookOk = false
-                }
+            // P6.4: نظام مضيف installs the Debian LXQt set in ONE
+            // apt call (lxqt + openbox + qterminal + lxqt-qtplugin +
+            // adwaita-qt6 + firefox-esr + deepin/papirus/adwaita
+            // icons + dbus + xkb-data). No bwrap shim: Debian's
+            // gdk-pixbuf has native loaders and glycin is not in
+            // the closure. Kvantum is NOT in the set: there is no
+            // kvantum package in Debian trixie (verified
+            // packages.debian.org 2026-11-07) — the dark Qt style
+            // is Adwaita-dark instead.
+            val desktopName = "نظام مضيف"
+            setStatus("جاري تثبيت نظام مضيف (LXQt + فايرفوكس)…")
+            val desktopOk = X11Session.ensureDebianDesktop(this)
+            // P6.4 — the Deepin-style look for LXQt (navy wallpaper,
+            // bloom-dark icons, dark panel, dark Qt/GTK): written
+            // into the rootfs BEFORE the first launch, once per
+            // rootfs (marker); skipped when already applied.
+            val lookOk = if (desktopOk) {
+                setStatus("جاري تثبيت الشكل ديال Deepin…")
+                LxqtLook.ensureLxqtLook(this)
             } else {
-                lookOk = false
-                lookJustInstalled = false
-                setStatus("جاري تثبيت بيانات لوحة المفاتيح…")
-                xkbOk = X11Session.ensureXkb(this)
-                setStatus("جاري تثبيت حزم سطح المكتب…")
-                packagesOk = X11Session.ensureDesktopPackages(this)
-                setStatus("جاري تثبيت $desktopName…")
-                desktopOk = if (desktop == DESKTOP_XFCE) {
-                    X11Session.ensureXfce(this)
-                } else {
-                    X11Session.ensureLxqt(this)
-                }
-
-                // 2b. Fix GTK icon loading (P5.25): the guest's gdk-pixbuf
-                // has no native PNG loader — every PNG goes through the
-                // glycin loader under bwrap, which cannot create namespaces
-                // under proot, so xfce4-session/panel/desktop abort. The
-                // installer replaces bwrap with a shim that runs the loader
-                // directly, and installs the Adwaita icon theme. Must run
-                // BEFORE the desktop launch (step 4).
-                setStatus("جاري إصلاح تحميل الأيقونات…")
-                pixbufOk = X11Session.ensurePixbufLoaders(this)
+                false
             }
 
             // 3. Start the X server (Tiny launchXServer) — but ONLY
             // if it is not already up. Judge by the real state
             // (socket + TCP listener), not by the in-memory flag.
-            // P6.3.3 — نظام مضيف ALWAYS restarts the X server fresh:
-            // the P6.3.2 test proved the desktop works on a FRESH
-            // server (P6.2: all children alive) and launches with NO
-            // children on a SURVIVING server (P6.3–P6.3.2: session
-            // alive, no WM/panel/desktop). The correlation is not a
-            // proven cause, but the fresh-server condition is the one
-            // proven to work, so restore it on every entry. The stop
-            // is best-effort (guarded by the in-memory flag; if this
-            // process never started the server, the stop is a no-op
-            // and the flow falls back to the surviving server).
-            // LXQt/XFCE rows keep the old skip-if-up behaviour (they
-            // pass as-is; do not touch what works).
+            // P6.3.3 — نظام مضيف ALWAYS restarts the X server fresh.
+            // P6.3.6 proved the cold-start restart sequence works
+            // end to end (the old server dies, the fresh server
+            // survives, the TCP gate holds) — that sequence, not
+            // the old "fresh server" correlation, is why the
+            // restart is kept on every entry. (The P6.3.3 comment
+            // used to claim the fresh-server condition was "the one
+            // proven to work" — P6.3.4 disproved that correlation.)
+            // The stop is best-effort (guarded by the in-memory
+            // flag; if this process never started the server, the
+            // stop is a no-op and the flow falls back to the
+            // surviving server).
             var serverUp = X11Session.isXSocketPresent(this) && X11Session.isTcpDisplayOpen()
-            if (isMudif && serverUp) {
+            if (serverUp) {
                 setStatus("جاري إعادة تشغيل خادم X من جديد…")
                 X11Session.stopXServer(this)
                 // P6.3.6: the old waitForXSocketGone veto is GONE.
@@ -232,7 +189,7 @@ class VncActivity : AppCompatActivity() {
             }
             if (!serverUp) {
                 setStatus("جاري تشغيل خادم X…")
-                val xkbRootfs = if (isMudif) DebianSystem.debianRootfsDir(this) else RootfsManager.rootfsDir(this)
+                val xkbRootfs = DebianSystem.debianRootfsDir(this)
                 X11Session.startXServer(this, xkbRootfs)
 
                 // 3. Wait ONLY for the socket file (Tiny waitForFile).
@@ -260,9 +217,9 @@ class VncActivity : AppCompatActivity() {
             }
 
             // 4. ONE desktop command into the PTY session (Tiny):
-            // `startlxqt > /root/lxqt.log 2>&1 &` — no setsid, no pid
-            // file, no gate. A short settle so the log has content
-            // before the dialog reads it.
+            // `startlxqt > /root/lxqt-session-<epoch>.log 2>&1 &` —
+            // no setsid, no pid file, no launch gate. A short settle
+            // so the log has content before the dialog reads it.
             // P6.3.6: NEVER send the desktop command to a dead
             // server. The P6.3.5 run logged xserverStarted:false
             // and sent startxfce4 anyway, because serverUp was
@@ -276,13 +233,9 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
             setStatus("جاري تشغيل $desktopName…")
-            val sent = X11Session.launchDesktop(this, if (isMudif) DESKTOP_XFCE else desktop)
+            val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
             Thread.sleep(3000)
-            val desktopLog = if (isMudif) {
-                X11Session.getDesktopLog(this, DESKTOP_XFCE, DebianSystem.debianRootfsDir(this))
-            } else {
-                X11Session.getDesktopLog(this, desktop)
-            }
+            val desktopLog = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
 
             // 4b. TCP value for the dialog, computed HERE on the
             // background thread (P5.25): isTcpDisplayOpen() does a
@@ -294,18 +247,11 @@ class VncActivity : AppCompatActivity() {
             // 4c. Ground truth for the dialog (P6.1): is the desktop
             // REALLY running? The P6 test proved "sent" is not enough
             // (run 3: TCP true + sent true, no desktop at all).
-            val desktopRunning = X11Session.isDesktopRunning(
-                this, if (isMudif) DESKTOP_XFCE else desktop, isMudif
-            )
+            val desktopRunning = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
 
-            // 4d. P6.3 — set the wallpaper live on the real monitor
-            // (only when the look was just installed in this run;
-            // on later runs it is already persisted in xfconf).
-            val wallpaperOk = if (isMudif && lookJustInstalled && lookOk) {
-                DeepinLook.applyWallpaperLive(this)
-            } else {
-                true
-            }
+            // 4d. P6.4: no live wallpaper step exists for LXQt —
+            // the wallpaper is baked into the look configs before
+            // launch (pcmanfm-qt reads settings.conf at startup).
 
             // 5. Status dialog (a report, not a gate): PTY alive,
             // guest booted, X socket + TCP, command sent, log tail.
@@ -317,39 +263,21 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle(if (isMudif) "تشخيص P6.3.6 — نظام مضيف" else "تشخيص P5.25")
+                    .setTitle("تشخيص P6.4 — نظام مضيف")
                     .setMessage(
-                        if (isMudif) {
-                            "النظام: نظام مضيف (دبيان 13.1 + XFCE)\n" +
-                                "PTY حية: ${GuestSession.alive}\n" +
-                                "الضيف قلع: ${GuestSession.booted}\n" +
-                                "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
-                                "TCP 6006: $tcpOk\n" +
-                                "أمر سطح المكتب تبعت: $sent\n" +
-                                "سطح المكتب خدام فعلا: $desktopRunning\n" +
-                                "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
-                                "نظام مضيف تثبت: $desktopOk\n" +
-                                "الشكل ديال Deepin تثبت: ${lookOk && wallpaperOk}\n\n" +
-                                "لوگ XFCE:\n$desktopLog\n\n" +
-                                "--- السبب الحقيقي ---\n" +
-                                DesktopDiagnostics.hypothesisDebian()
-                        } else {
-                            "سطح المكتب: $desktopName\n" +
-                                "PTY حية: ${GuestSession.alive}\n" +
-                                "الضيف قلع: ${GuestSession.booted}\n" +
-                                "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
-                                "TCP 6006: $tcpOk\n" +
-                                "أمر سطح المكتب تبعت: $sent\n" +
-                                "سطح المكتب خدام فعلا: $desktopRunning\n" +
-                                "الأيقونات تصلحات: $pixbufOk\n" +
-                                "الخطوط تثبتات: $xkbOk\n" +
-                                "حزم سطح المكتب تثبتات: $packagesOk\n" +
-                                "$desktopName تثبت: $desktopOk\n" +
-                                "XFCE + فايرفوكس + ليبر أوفيس: كيتثبتو فالخلفية…\n\n" +
-                                "لوگ $desktopName:\n$desktopLog\n\n" +
-                                "--- السبب الحقيقي ---\n" +
-                                DesktopDiagnostics.hypothesis1()
-                        }
+                        "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
+                            "PTY حية: ${GuestSession.alive}\n" +
+                            "الضيف قلع: ${GuestSession.booted}\n" +
+                            "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
+                            "TCP 6006: $tcpOk\n" +
+                            "أمر سطح المكتب تبعت: $sent\n" +
+                            "سطح المكتب خدام فعلا: $desktopRunning\n" +
+                            "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
+                            "نظام مضيف تثبت: $desktopOk\n" +
+                            "الشكل ديال Deepin تثبت: $lookOk\n\n" +
+                            "لوگ LXQt:\n$desktopLog\n\n" +
+                            "--- السبب الحقيقي ---\n" +
+                            DesktopDiagnostics.hypothesisDebian()
                     )
                     .setPositiveButton("فتح العارض") { _, _ ->
                         X11Session.openViewer(this)
@@ -360,31 +288,6 @@ class VncActivity : AppCompatActivity() {
                     .setNegativeButton("إلغاء", null)
                     .show()
             }
-
-            // 6. Install the OTHER desktop + firefox + libreoffice in
-            // the BACKGROUND, after the desktop is already up. These
-            // are LARGE downloads; a slow download must never block
-            // the desktop. Best-effort, idempotent.
-            // P6: نظام مضيف skips this — firefox-esr is already in
-            // the Debian set; the program set comes in the next slice.
-            if (!isMudif) Thread {
-                val otherOk = if (desktop == DESKTOP_XFCE) {
-                    X11Session.ensureLxqt(this)
-                } else {
-                    X11Session.ensureXfce(this)
-                }
-                Log.d("VncActivity", "ensureOtherDesktop (background) ok=$otherOk")
-                val ok = X11Session.ensureDesktopApps(this)
-                Log.d("VncActivity", "ensureDesktopApps (background) ok=$ok")
-                runOnUiThread {
-                    if (!destroyed) {
-                        setStatus(
-                            if (otherOk && ok) "سطح المكتب التاني + فايرفوكس + ليبر أوفيس تثبتو ✓"
-                            else "بعض التثبيتات فالخلفية ما كملاتش — جرب مرة أخرى"
-                        )
-                    }
-                }
-            }.start()
         }.start()
     }
 
@@ -425,8 +328,7 @@ class VncActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_DESKTOP = "desktop"
         const val DESKTOP_LXQT = "lxqt"
-        const val DESKTOP_XFCE = "xfce"
-        /** P6 — نظام مضيف: Debian 13.1 + XFCE, the ONE system. */
+        /** P6 — نظام مضيف: Debian 13.1 + LXQt, the ONE system. */
         const val DESKTOP_MUDIF = "mudif"
     }
 }
