@@ -116,6 +116,12 @@ class ProfileFragment : Fragment() {
      * rootfses (Alpine + Debian), apps = desktop apps actually
      * present on disk (firefox/firefox-esr + soffice, checked by
      * plain File.exists — no guest execution needed).
+     * P6.2 FIX (P6.1 test): /usr/bin/soffice is an ABSOLUTE symlink
+     * to /usr/lib/libreoffice/program/soffice, which does NOT resolve
+     * on the Android host (File.exists follows the link against the
+     * host's /usr/lib) — so the apps counter read 1 instead of 2
+     * while LibreOffice IS installed. Check the real target path
+     * inside each rootfs as well.
      */
     private fun refreshCounters() {
         val ctx = requireContext()
@@ -126,7 +132,9 @@ class ProfileFragment : Fragment() {
         val hasFirefox = java.io.File(alpineRoot, "usr/bin/firefox").exists() ||
             java.io.File(debianRoot, "usr/bin/firefox-esr").exists()
         val hasOffice = java.io.File(alpineRoot, "usr/bin/soffice").exists() ||
-            java.io.File(debianRoot, "usr/bin/soffice").exists()
+            java.io.File(debianRoot, "usr/bin/soffice").exists() ||
+            java.io.File(alpineRoot, "usr/lib/libreoffice/program/soffice").exists() ||
+            java.io.File(debianRoot, "usr/lib/libreoffice/program/soffice").exists()
         val apps = (if (hasFirefox) 1 else 0) + (if (hasOffice) 1 else 0)
         binding.textSystemsCount.text = systems.toString()
         binding.textAppsCount.text = apps.toString()
