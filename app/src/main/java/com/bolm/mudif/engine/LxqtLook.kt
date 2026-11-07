@@ -49,6 +49,9 @@ import java.io.File
  * P8.1 — the LXQt shell itself is Arabic too: the upstream Arabic
  * .qm files (47, 100% translated) are bundled as assets and copied
  * into the rootfs (Debian trixie ships no LXQt .qm at all).
+ * P9 — the `mudif` theme: dark purple LXQt theme + purple icon
+ * theme (inherits bloom-dark) + purple Openbox theme (Onyx base),
+ * bundled as one zip asset and extracted into the rootfs.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -72,7 +75,10 @@ object LxqtLook {
     // P8.1: bumped again because the look content changes again
     // (the upstream Arabic .qm files are copied into the rootfs,
     // so the LXQt shell itself becomes Arabic).
-    private const val MARKER_VERSION = "p8.1"
+    // P9: bumped again because the look content changes again
+    // (the `mudif` theme + icons + Openbox theme are installed,
+    // and lxqt.conf switches to theme=mudif, icon_theme=mudif).
+    private const val MARKER_VERSION = "p9"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
@@ -80,6 +86,7 @@ object LxqtLook {
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
     private const val TRANSLATIONS_ZIP_ASSET = "translations.zip"
+    private const val THEME_ZIP_ASSET = "mudif-theme.zip"
 
     fun isApplied(context: Context): Boolean {
         val marker = File(DebianSystem.debianRootfsDir(context), "root/$MARKER")
@@ -191,7 +198,18 @@ object LxqtLook {
             // zip, not 47 loose asset files: the repo push goes
             // through the GitHub web UI, where 47 nested uploads are
             // error-prone; the zip keeps the tree intact as one file.
-            extractTranslationsZip(context, rootfs)
+            extractZipAsset(context, TRANSLATIONS_ZIP_ASSET, File(rootfs, "usr/share"))
+            // P9 — the `mudif` theme: extract mudif-theme.zip into the
+            // rootfs. Its entries are guest-relative paths, so each
+            // lands at File(rootfs, entry.name): the LXQt theme to
+            // usr/share/lxqt/themes/mudif/, the palette to
+            // usr/share/lxqt/palettes/Mudif, the icons to
+            // usr/share/icons/mudif/, the Openbox theme to
+            // usr/share/themes/mudif/openbox-3/themerc, and rc.xml to
+            // root/.config/openbox/rc.xml. lxqt.conf (below) switches
+            // to theme=mudif + icon_theme=mudif; the Openbox theme
+            // name is set inside rc.xml itself.
+            extractZipAsset(context, THEME_ZIP_ASSET, rootfs)
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
@@ -219,14 +237,13 @@ object LxqtLook {
         return true
     }
 
-    // Extract the translations zip into the rootfs. Each entry lands
-    // at usr/share/<entry.name>. Any failure throws and is caught by
+    // Extract a zip asset into the rootfs. Each entry lands at
+    // File(destRoot, entry.name). Any failure throws and is caught by
     // ensureLxqtLook, which then reports false honestly. The ".."
-    // guard is zip-slip defence (our zip is built by us, but the
+    // guard is zip-slip defence (our zips are built by us, but the
     // check costs one line).
-    private fun extractTranslationsZip(context: Context, rootfs: File) {
-        val destRoot = File(rootfs, "usr/share")
-        java.util.zip.ZipInputStream(context.assets.open(TRANSLATIONS_ZIP_ASSET)).use { zip ->
+    private fun extractZipAsset(context: Context, assetName: String, destRoot: File) {
+        java.util.zip.ZipInputStream(context.assets.open(assetName)).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
                 if (!entry.isDirectory && ".." !in entry.name) {
@@ -241,10 +258,13 @@ object LxqtLook {
     }
 
     // LXQt theme: dark panel + bloom-dark (Deepin) icons.
+    // P9: theme=mudif + icon_theme=mudif (the `mudif` theme and icon
+    // theme installed by extractZipAsset above). Before P9 this was
+    // theme=dark + icon_theme=bloom-dark.
     private const val LXQT_CONF = """[General]
 __userfile__=true
-icon_theme=bloom-dark
-theme=dark
+icon_theme=mudif
+theme=mudif
 """
 
     // Openbox is LXQt's window manager. The Environment section is
