@@ -62,17 +62,24 @@ object DeepinLook {
         val rootfs = DebianSystem.debianRootfsDir(context)
 
         // 1. Look packages (one apt transaction, --no-install-recommends).
+        // `sudo` MUST be in this list: WhiteSur's install.sh sources
+        // libs/lib-core.sh, which runs `set -Eeo pipefail` and then the
+        // unguarded `SUDO_BIN="$(which sudo)"` — with no sudo in the
+        // guest, `which` exits 1, errexit fires, and install.sh dies
+        // during sourcing (proven by the P6.3 test). Installing sudo
+        // first also covers install.sh's own auto-dep-installer, which
+        // calls `sudo apt install`.
         val pkgs = TerminalSession.runCommandDebian(
             context,
             "export DEBIAN_FRONTEND=noninteractive; " +
                 "apt-get update && apt-get install -y --no-install-recommends " +
-                "git gtk2-engines-murrine sassc optipng libxml2-utils " +
+                "sudo git gtk2-engines-murrine sassc optipng libxml2-utils " +
                 "libglib2.0-dev-bin breeze-gtk-theme libreoffice " +
                 "&& echo LOOK_PKGS_OK",
             idleTimeoutSec = 120,
             maxTimeoutSec = 1800
         )
-        Log.d(TAG, "look pkgs exit=${pkgs.exitCode} out=${pkgs.output.takeLast(300)}")
+        Log.d(TAG, "look pkgs exit=${pkgs.exitCode} out=${pkgs.output.takeLast(2000)}")
         if (!pkgs.output.contains("LOOK_PKGS_OK")) return false
 
         // 2. WhiteSur-Dark from upstream source, pinned commit. Deps are
@@ -89,7 +96,7 @@ object DeepinLook {
             idleTimeoutSec = 120,
             maxTimeoutSec = 1800
         )
-        Log.d(TAG, "whitesur exit=${ws.exitCode} out=${ws.output.takeLast(300)}")
+        Log.d(TAG, "whitesur exit=${ws.exitCode} out=${ws.output.takeLast(2000)}")
         if (!ws.output.contains("WHITESUR_OK")) return false
 
         // 3. Config + wallpaper, written directly into the rootfs
@@ -110,7 +117,7 @@ object DeepinLook {
             File(xfconfDir, "xsettings.xml").writeText(XSETTINGS_XML)
             File(xfconfDir, "xfwm4.xml").writeText(XFWM4_XML)
             File(xfconfDir, "xfce4-desktop.xml").writeText(DESKTOP_XML)
-            File(rootfs, "root/$MARKER").writeText("p6.3\n")
+            File(rootfs, "root/$MARKER").writeText("p6.3.1\n")
         } catch (e: Exception) {
             Log.d(TAG, "look config write failed: ${e.message}")
             return false
