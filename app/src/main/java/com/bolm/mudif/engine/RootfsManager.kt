@@ -216,8 +216,15 @@ object RootfsManager {
      * - --bind=/dev/urandom:/dev/random; --bind=<tmp>:/dev/shm +
      *   :/tmp; --bind=<run>:/run; --bind=<rootfs>/sys/.empty:/sys/fs/selinux
      *   (hides SELinux from the guest).
-     * - --kill-on-exit (cleanup), --link2symlink, --sysvipc,
+     * - --kill-on-exit (cleanup), --link2symlink,
      *   --kernel-release (fakes uname, TC's exact string).
+     * - P6.5: --sysvipc REMOVED. It enables Termux proot's SysV IPC
+     *   extension, which spawns a `proot --shm-helper` on the first
+     *   shm request; the helper in this build spins forever on a
+     *   missing Termux tmp path (/data/data/com.termux/files/usr/tmp)
+     *   and freezes the whole session (STRACE-P65, 2026-11-07).
+     *   Without the flag no helper spawns; guest shmget falls
+     *   through to the kernel (Qt falls back to non-SHM rendering).
      * - -H / -L are DROPPED: TC-fork-only extensions, Mudif's
      *   termux/proot 5.1.107.102 rejects them ("unknown option").
      * - -0 (fake root) kept: TC runs as uid 1000 with a `tiny` user
@@ -263,7 +270,6 @@ object RootfsManager {
             "-r", rootfs.absolutePath,
             "--kill-on-exit",
             "--link2symlink",
-            "--sysvipc",
             "--kernel-release=Linux localhost 6.17.0-PRoot-Distro #1 SMP PREEMPT_DYNAMIC Fri, 10 Oct 2025 00:00:00 +0000 aarch64 localdomain -1",
             "--bind=/dev",
             "--bind=/proc",

@@ -53,14 +53,19 @@ object DesktopDiagnostics {
      * order 2026-11-07), Deepin-style: navy wallpaper, bloom-dark
      * icons, dark panel, Adwaita-dark Qt style. Kvantum is NOT
      * installed: no kvantum package exists in Debian trixie.
+     * P6.5 — the 2026-11-07 freeze is proven: proot's --shm-helper
+     * spins forever on a missing Termux tmp path (STRACE-P65); the
+     * fix is removing --sysvipc, and the desktop now launches after
+     * the viewer attaches at the settled 1280x720.
      */
     fun hypothesisDebian(): String {
         val sb = StringBuilder()
         sb.append("Android API: ${Build.VERSION.SDK_INT}\n")
         sb.append("Android: ${Build.VERSION.RELEASE}\n")
-        sb.append("نظام مضيف (مثبت 2026-11-06 من التشخيص):\n")
+        sb.append("نظام مضيف (مثبت 2026-11-07 من التشخيص):\n")
         sb.append("دبيان 13.1، LXQt كيقلع، الأيقونات أصلية، بلا glycin وبلا bwrap.\n")
         sb.append("التثبيت بـ apt (--no-install-recommends)، والإقلاع من جهة المضيف، ماشي متداخل.\n")
+        sb.append("P6.5: التجميد ديال proot --shm-helper تصلح بإزالة --sysvipc؛ الحجم كيتثبت 1280x720 قبل ما يقلع سطح المكتب.\n")
         return sb.toString()
     }
 

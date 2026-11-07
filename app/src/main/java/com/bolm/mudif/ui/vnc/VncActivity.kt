@@ -2,6 +2,7 @@ package com.bolm.mudif.ui.vnc
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -38,6 +39,11 @@ import com.bolm.mudif.ui.logs.LogViewerActivity
  * the store lists Debian only, and this activity no longer has an
  * Alpine path at all. The intent extra is ignored: every launch
  * opens نظام مضيف.
+ * P6.5 — the desktop launches AFTER the viewer opens (from the
+ * dialog button): the viewer resizes the server on attach, and a
+ * desktop launched before attach lays out at 1280x1024 with its
+ * panel off-screen. The viewer is pinned to exact 1280x720
+ * (openViewer) so the size settles there before the launch.
  * Lifecycle: entering this screen ALWAYS reboots the container
  * fresh (Tiny Container's clean slate). Leaving the screen does NOT
  * kill the session or the X server (P5.11 kept): the desktop stays
@@ -62,8 +68,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P6.4 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P6.4", Toast.LENGTH_LONG).show()
+        // Version indicator — P6.5 (verifiable by evidence).
+        Toast.makeText(this, "نسخة: P6.5", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -137,7 +143,6 @@ class VncActivity : AppCompatActivity() {
             // kvantum package in Debian trixie (verified
             // packages.debian.org 2026-11-07) — the dark Qt style
             // is Adwaita-dark instead.
-            val desktopName = "نظام مضيف"
             setStatus("جاري تثبيت نظام مضيف (LXQt + فايرفوكس)…")
             val desktopOk = X11Session.ensureDebianDesktop(this)
             // P6.4 — the Deepin-style look for LXQt (navy wallpaper,
@@ -216,15 +221,9 @@ class VncActivity : AppCompatActivity() {
                 }
             }
 
-            // 4. ONE desktop command into the PTY session (Tiny):
-            // `startlxqt > /root/lxqt-session-<epoch>.log 2>&1 &` —
-            // no setsid, no pid file, no launch gate. A short settle
-            // so the log has content before the dialog reads it.
-            // P6.3.6: NEVER send the desktop command to a dead
-            // server. The P6.3.5 run logged xserverStarted:false
-            // and sent startxfce4 anyway, because serverUp was
-            // wrongly true (stale socket file). Re-prove TCP here,
-            // on EVERY path, before the command goes out.
+            // 4. TCP gate (P6.3.6): NEVER send the desktop command to
+            // a dead server. Re-prove TCP here, on EVERY path, before
+            // the dialog goes out.
             if (!X11Session.isTcpDisplayOpen()) {
                 if (destroyed) return@Thread
                 runOnUiThread {
@@ -232,10 +231,6 @@ class VncActivity : AppCompatActivity() {
                 }
                 return@Thread
             }
-            setStatus("جاري تشغيل $desktopName…")
-            val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
-            Thread.sleep(3000)
-            val desktopLog = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
 
             // 4b. TCP value for the dialog, computed HERE on the
             // background thread (P5.25): isTcpDisplayOpen() does a
@@ -244,43 +239,70 @@ class VncActivity : AppCompatActivity() {
             // false while the socket was proven LISTEN+ESTABLISHED.
             val tcpOk = X11Session.isTcpDisplayOpen()
 
-            // 4c. Ground truth for the dialog (P6.1): is the desktop
-            // REALLY running? The P6 test proved "sent" is not enough
-            // (run 3: TCP true + sent true, no desktop at all).
-            val desktopRunning = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
-
-            // 4d. P6.4: no live wallpaper step exists for LXQt —
-            // the wallpaper is baked into the look configs before
-            // launch (pcmanfm-qt reads settings.conf at startup).
+            // 4c. P6.5: the desktop does NOT launch here anymore. The
+            // viewer resizes the server on attach (RandR); a desktop
+            // launched before attach lays out at the server's 1280x1024
+            // birth size and its panel lands off-screen (PROBE-P65).
+            // It launches after the viewer opens, from the dialog
+            // button below, once the size has settled at 1280x720
+            // (exact mode, set by openViewer). No live wallpaper step
+            // exists for LXQt — the wallpaper is baked into the look
+            // configs before launch (pcmanfm-qt reads settings.conf
+            // at startup).
 
             // 5. Status dialog (a report, not a gate): PTY alive,
-            // guest booted, X socket + TCP, command sent, log tail.
+            // guest booted, X socket + TCP, install + look. The
+            // desktop itself starts after the viewer opens.
             if (destroyed) return@Thread
             runOnUiThread {
-                val ok = sent && GuestSession.alive && GuestSession.booted && desktopRunning
+                val ok = GuestSession.alive && GuestSession.booted && tcpOk
                 setStatus(
-                    if (ok) "سطح المكتب خدام ✓"
+                    if (ok) "جاهز — افتح العارض لبدء سطح المكتب"
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle("تشخيص P6.4 — نظام مضيف")
+                    .setTitle("تشخيص P6.5 — نظام مضيف")
                     .setMessage(
                         "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
                             "PTY حية: ${GuestSession.alive}\n" +
                             "الضيف قلع: ${GuestSession.booted}\n" +
                             "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
                             "TCP 6006: $tcpOk\n" +
-                            "أمر سطح المكتب تبعت: $sent\n" +
-                            "سطح المكتب خدام فعلا: $desktopRunning\n" +
                             "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
                             "نظام مضيف تثبت: $desktopOk\n" +
-                            "الشكل ديال Deepin تثبت: $lookOk\n\n" +
-                            "لوگ LXQt:\n$desktopLog\n\n" +
+                            "الشكل ديال Deepin تثبت: $lookOk\n" +
+                            "سطح المكتب: يبدأ بعد فتح العارض (الحجم كيتثبت أولا)\n\n" +
                             "--- السبب الحقيقي ---\n" +
                             DesktopDiagnostics.hypothesisDebian()
                     )
-                    .setPositiveButton("فتح العارض") { _, _ ->
+                    .setPositiveButton("فتح العارض وبدء سطح المكتب") { _, _ ->
                         X11Session.openViewer(this)
+                        // P6.5: launch the desktop AFTER the viewer
+                        // attaches and resizes the server (RandR).
+                        // A plain Thread (not lifecycleScope): this
+                        // activity is only paused by the viewer, not
+                        // destroyed, so the thread survives the
+                        // navigation. The Toast is guarded by
+                        // `destroyed` in case the user pressed Back
+                        // before the launch finished.
+                        Thread {
+                            Thread.sleep(4000)
+                            val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
+                            Thread.sleep(3000)
+                            val running = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
+                            val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
+                            Log.d("VncActivity", "P6.5 post-viewer launch: sent=$sent running=$running\n$log")
+                            if (!destroyed) {
+                                runOnUiThread {
+                                    Toast.makeText(
+                                        this,
+                                        if (sent && running) "سطح المكتب خدام ✓"
+                                        else "سطح المكتب ما خدمش — شوف اللوجات",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        }.start()
                     }
                     .setNeutralButton("اللوجات المفصلة") { _, _ ->
                         startActivity(Intent(this, LogViewerActivity::class.java))

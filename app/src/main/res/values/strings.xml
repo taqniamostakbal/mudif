@@ -7,7 +7,7 @@
     <string name="tab_games">الألعاب</string>
     <string name="tab_profile">حسابي</string>
     <string name="tab_terminal">الطرفية</string>
-    <string name="terminal_subtitle">أوامر نظام Alpine مباشرة</string>
+    <string name="terminal_subtitle">أوامر نظام مضيف (دبيان) مباشرة</string>
     <string name="terminal_hint">اكتب أمرا…</string>
     <string name="terminal_send">تنفيذ</string>
     <string name="terminal_clear">مسح</string>
@@ -48,7 +48,7 @@
     <string name="already_installed">ألباين مثبت مسبقاً ✓</string>
     <string name="install_done">تم تثبيت ألباين بنجاح ✓</string>
     <string name="mudif_system">نظام مضيف</string>
-    <string name="mudif_system_desc">دبيان + XFCE — نظام التطبيق الواحد</string>
+    <string name="mudif_system_desc">دبيان + LXQt — نظام التطبيق الواحد</string>
     <string name="debian_booting">جاري تشغيل نظام مضيف…</string>
     <string name="debian_install_done">تم تثبيت نظام مضيف بنجاح ✓</string>
     <string name="system_install_title">تثبيت النظام</string>
