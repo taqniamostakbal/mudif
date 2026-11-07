@@ -51,4 +51,6 @@
     <string name="mudif_system_desc">دبيان + XFCE — نظام التطبيق الواحد</string>
     <string name="debian_booting">جاري تشغيل نظام مضيف…</string>
     <string name="debian_install_done">تم تثبيت نظام مضيف بنجاح ✓</string>
+    <string name="system_install_title">تثبيت النظام</string>
+    <string name="debian_already_installed">نظام مضيف مثبت مسبقاً ✓</string>
 </resources>
