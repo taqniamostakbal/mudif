@@ -105,15 +105,17 @@ theme=dark
 """
 
     // Openbox is LXQt's window manager. The Environment section is
-    // what the session exports to every Qt/GTK app: adwaita-dark is
-    // the dark Qt widget style, Adwaita:dark the dark GTK theme, and
+    // what the session exports to every Qt/GTK app: Adwaita-dark is
+    // the dark Qt widget style (capital A — Qt style names are
+    // case-sensitive; lowercase adwaita-dark was rejected as invalid,
+    // PROBE-P65), Adwaita:dark the dark GTK theme, and
     // the lxqt platform theme is what applies icon_theme at all.
     private const val SESSION_CONF = """[General]
 __userfile__=true
 window_manager=openbox
 
 [Environment]
-QT_STYLE_OVERRIDE=adwaita-dark
+QT_STYLE_OVERRIDE=Adwaita-dark
 GTK_THEME=Adwaita:dark
 QT_QPA_PLATFORMTHEME=lxqt
 """

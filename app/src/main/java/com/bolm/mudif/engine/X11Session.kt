@@ -248,8 +248,24 @@ object X11Session {
         return false
     }
 
-    /** Open the Termux:X11 viewer (Tiny: OpenX11 navigation event). */
+    /** Open the Termux:X11 viewer (Tiny: OpenX11 navigation event).
+     * P6.5: pin the viewer to the exact resolution 1280x720 BEFORE
+     * it opens. The library reads these keys from the default
+     * SharedPreferences (displayResolutionMode/displayResolutionExact/
+     * adjustResolution, preferences.xml); with "exact" the viewer
+     * resizes the server to 1280x720 on attach instead of halving it
+     * to 640x360 (the default scaled mode at scale 200). The desktop
+     * launches after the viewer opens (VncActivity), so it lays out
+     * at the settled 1280x720. adjustResolution is forced false so a
+     * portrait surface never swaps the dimensions. */
     fun openViewer(context: Context) {
+        context.getSharedPreferences(
+            "${context.packageName}_preferences", Context.MODE_PRIVATE
+        ).edit()
+            .putString("displayResolutionMode", "exact")
+            .putString("displayResolutionExact", "1280x720")
+            .putBoolean("adjustResolution", false)
+            .apply()
         val intent = Intent(context, com.termux.x11.MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
         }
