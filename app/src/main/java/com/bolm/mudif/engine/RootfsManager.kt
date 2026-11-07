@@ -395,15 +395,40 @@ object RootfsManager {
      * Ensures the guest can resolve DNS names. The Alpine minirootfs has no
      * usable /etc/resolv.conf, and Android's DNS is not reachable via
      * standard paths, so we write public resolvers into the guest.
+     *
+     * P6.1 FIX (proven by the P6 test, 2026-11-07): the old check
+     * ("contains nameserver") accepted Debian's shipped stub
+     * `nameserver 127.0.0.53` (systemd-resolved), which resolves
+     * NOTHING under proot — apt then failed on every name and the
+     * whole XFCE install died. Only a REAL (non-loopback) nameserver
+     * counts as working DNS; a stub/loopback-only file is overwritten.
+     * A genuine non-loopback nameserver (e.g. the user's own) is left alone.
      */
     private fun ensureDns(rootfs: File) {
         val resolvConf = File(rootfs, "etc/resolv.conf")
         val current = try {
             if (resolvConf.exists()) resolvConf.readText() else ""
         } catch (_: Exception) { "" }
-        if (!current.contains("nameserver")) {
+        val servers = current.lines()
+            .map { it.trim() }
+            .filter { it.startsWith("nameserver") }
+            .mapNotNull { it.split(Regex("\\s+")).getOrNull(1) }
+        val hasRealDns = servers.any { s ->
+            !s.startsWith("127.") && s != "::1" && s != "localhost"
+        }
+        if (!hasRealDns) {
             try {
                 resolvConf.parentFile?.mkdirs()
+                // Debian ships resolv.conf as a symlink to the systemd
+                // stub; replace the link with a real file, or the write
+                // lands in the stub target instead of the guest's file.
+                try {
+                    if (java.nio.file.Files.isSymbolicLink(resolvConf.toPath())) {
+                        android.system.Os.remove(resolvConf.absolutePath)
+                    }
+                } catch (_: Exception) {
+                    // not a symlink (the normal case for proot-distro)
+                }
                 resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
             } catch (_: Exception) { /* non-fatal */ }
         }

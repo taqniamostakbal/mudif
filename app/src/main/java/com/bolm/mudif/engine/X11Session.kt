@@ -394,6 +394,38 @@ object X11Session {
     }
 
     /**
+     * P6.1 — is the desktop REALLY running? pgrep for the session
+     * process in the target guest (same PID namespace, so a one-shot
+     * sees the PTY session's processes — proven by P5.24's pkill).
+     * The P6 test proved the dialog's "sent" line is NOT enough: run 3
+     * reported TCP true + sent true with no desktop at all (the X
+     * server was borrowed from the surviving LXQt run). This check is
+     * the ground truth. Polls twice (3 s apart) so a slow start is
+     * not a false negative. Falls back to ps if pgrep is absent.
+     * The [x]/[l] bracket trick keeps pgrep/ps from matching the
+     * one-shot's own shell, whose cmdline contains the pattern text.
+     */
+    fun isDesktopRunning(context: Context, desktop: String, debian: Boolean): Boolean {
+        val proc = if (desktop == "xfce") "[x]fce4-session" else "[l]xqt-session"
+        val command = "if pgrep -f '$proc' >/dev/null 2>&1; then echo RUNNING; " +
+            "elif ps -e 2>/dev/null | grep '$proc' >/dev/null 2>&1; then echo RUNNING; fi"
+        repeat(2) { attempt ->
+            val result = if (debian) {
+                TerminalSession.runCommandDebian(
+                    context, command, idleTimeoutSec = 10, maxTimeoutSec = 20
+                )
+            } else {
+                TerminalSession.runCommand(
+                    context, command, idleTimeoutSec = 10, maxTimeoutSec = 20
+                )
+            }
+            if (result.output.contains("RUNNING")) return true
+            if (attempt == 0) Thread.sleep(3000)
+        }
+        return false
+    }
+
+    /**
      * P6 — install the نظام مضيف desktop set in the DEBIAN guest
      * (proven live by the 2026-11-06 diagnostic, Q4): apt update,
      * then ONE apt install with --no-install-recommends (208 pkgs):
