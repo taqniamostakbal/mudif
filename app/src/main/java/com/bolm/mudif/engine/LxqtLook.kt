@@ -45,11 +45,28 @@ object LxqtLook {
     private const val TAG = "LxqtLook"
 
     private const val MARKER = ".mudif_lxqt_look"
+    // P6.6: the marker carries the look VERSION, and isApplied()
+    // compares its content. P6.5 changed SESSION_CONF but left the
+    // marker at "p6.4" and isApplied() only checked existence, so the
+    // rewrite was skipped on every existing rootfs and the Adwaita-dark
+    // fix never reached the guest (TEST-REPORT-P65 §6). The version
+    // is bumped again for P6.6 because the look content changes again
+    // (pcmanfm-qt settings.conf [Desktop] fix + powermanagement
+    // autostart disable, PAINT-PROBE2-P65): bumping the version is
+    // what makes an existing rootfs receive the new configs.
+    private const val MARKER_VERSION = "p6.6"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
 
-    fun isApplied(context: Context): Boolean =
-        File(DebianSystem.debianRootfsDir(context), "root/$MARKER").exists()
+    fun isApplied(context: Context): Boolean {
+        val marker = File(DebianSystem.debianRootfsDir(context), "root/$MARKER")
+        if (!marker.exists()) return false
+        return try {
+            marker.readText().trim() == MARKER_VERSION
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     /**
      * Apply the whole look. Host-side file writes only, best-effort,
@@ -89,7 +106,17 @@ object LxqtLook {
             val pcmanfmDir = File(rootfs, "root/.config/pcmanfm-qt/lxqt")
             pcmanfmDir.mkdirs()
             File(pcmanfmDir, "settings.conf").writeText(PCMANFM_SETTINGS_CONF)
-            File(rootfs, "root/$MARKER").writeText("p6.4\n")
+            // P6.6: lxqt-powermanagement crashes on every login in the
+            // emulator ("Unsupported extension", TEST-REPORT-P65) and is
+            // dead in ps. Disable it with the standard XDG autostart
+            // override: a user-level file with Hidden=true beats
+            // /etc/xdg/autostart/lxqt-powermanagement.desktop
+            // (confirmed filename, PAINT-PROBE-P65 §5). The system
+            // file itself is NOT deleted.
+            val autostartDir = File(rootfs, "root/.config/autostart")
+            autostartDir.mkdirs()
+            File(autostartDir, "lxqt-powermanagement.desktop").writeText(POWERMANAGEMENT_HIDDEN)
+            File(rootfs, "root/$MARKER").writeText("$MARKER_VERSION\n")
         } catch (e: Exception) {
             Log.d(TAG, "look config write failed: ${e.message}")
             return false
@@ -120,9 +147,28 @@ GTK_THEME=Adwaita:dark
 QT_QPA_PLATFORMTHEME=lxqt
 """
 
-    // pcmanfm-qt draws the desktop wallpaper. Only the Wallpaper key
-    // is written — every other key keeps pcmanfm-qt's own default.
-    private const val PCMANFM_SETTINGS_CONF = """[General]
+    // pcmanfm-qt draws the desktop wallpaper. It reads Wallpaper /
+    // WallpaperMode / BgColor from the [Desktop] group ONLY
+    // (Settings::loadFile, beginGroup("Desktop")). Writing Wallpaper
+    // under [General] is invisible to it: mode defaults to
+    // WallpaperNone, updateWallpaper() returns early, and
+    // paintBackground() fills the window solid BgColor (#000000) —
+    // the 0% paint defect, proven live by PAINT-PROBE2-P65 (0.00% ->
+    // 92.16% with the corrected config). WallpaperMode=stretch is
+    // required alongside the path: without it the mode is none and
+    // the desktop stays black. No BgColor key is needed (default
+    // black is invisible under a covering wallpaper).
+    private const val PCMANFM_SETTINGS_CONF = """[Desktop]
 Wallpaper=/usr/share/backgrounds/mudif-wallpaper.png
+WallpaperMode=stretch
+"""
+
+    // XDG autostart override that disables lxqt-powermanagement
+    // (see ensureLxqtLook). Hidden=true in ~/.config/autostart
+    // beats the /etc/xdg/autostart entry of the same name.
+    private const val POWERMANAGEMENT_HIDDEN = """[Desktop Entry]
+Type=Application
+Name=lxqt-powermanagement
+Hidden=true
 """
 }
