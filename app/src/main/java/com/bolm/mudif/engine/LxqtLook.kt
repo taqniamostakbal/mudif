@@ -46,8 +46,9 @@ import java.io.File
  * bundled as an asset (fonts-cairo, no apt package exists), Noto
  * Arabic fallback from apt, purple wallpaper (the user's pick),
  * and the Arabic CLI (48 Fusha commands + Mudif qterminal scheme).
- * The LXQt shell (panel, pcmanfm-qt menus) stays English: no Arabic
- * .qm ships in Debian trixie (upstream .qm follow-up is P8.1).
+ * P8.1 — the LXQt shell itself is Arabic too: the upstream Arabic
+ * .qm files (47, 100% translated) are bundled as assets and copied
+ * into the rootfs (Debian trixie ships no LXQt .qm at all).
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -68,13 +69,17 @@ object LxqtLook {
     // (SHELL=/bin/bash in session.conf so qterminal runs bash, and
     // the Mudif scheme moves to the system color-schemes dir —
     // qtermwidget never scans the user dir).
-    private const val MARKER_VERSION = "p8fix2"
+    // P8.1: bumped again because the look content changes again
+    // (the upstream Arabic .qm files are copied into the rootfs,
+    // so the LXQt shell itself becomes Arabic).
+    private const val MARKER_VERSION = "p8.1"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
     private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
+    private const val TRANSLATIONS_ZIP_ASSET = "translations.zip"
 
     fun isApplied(context: Context): Boolean {
         val marker = File(DebianSystem.debianRootfsDir(context), "root/$MARKER")
@@ -171,6 +176,22 @@ object LxqtLook {
                     input.copyTo(out)
                 }
             }
+            // P8.1 — Arabic translations: extract the translations.zip
+            // asset into the rootfs. The zip's entries mirror the guest
+            // tree under /usr/share/ (lxqt/translations/...,
+            // pcmanfm-qt/translations/..., libfm-qt6/...,
+            // qterminal/...), so each entry lands at
+            // usr/share/<entry>. 47 .qm files, all upstream Arabic,
+            // 100% translated (2,317/2,317 strings, probe-verified
+            // load). qtermwidget_ar.qm is NOT bundled: Debian already
+            // installs it, and overwriting a package-owned file would
+            // be undone by the next apt upgrade. No _ar_MA.qm copies:
+            // the loader asks for *_ar.qm directly under
+            // LANG=ar_MA.UTF-8 + LANGUAGE=ar (probe, t4g). A single
+            // zip, not 47 loose asset files: the repo push goes
+            // through the GitHub web UI, where 47 nested uploads are
+            // error-prone; the zip keeps the tree intact as one file.
+            extractTranslationsZip(context, rootfs)
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
@@ -196,6 +217,27 @@ object LxqtLook {
             return false
         }
         return true
+    }
+
+    // Extract the translations zip into the rootfs. Each entry lands
+    // at usr/share/<entry.name>. Any failure throws and is caught by
+    // ensureLxqtLook, which then reports false honestly. The ".."
+    // guard is zip-slip defence (our zip is built by us, but the
+    // check costs one line).
+    private fun extractTranslationsZip(context: Context, rootfs: File) {
+        val destRoot = File(rootfs, "usr/share")
+        java.util.zip.ZipInputStream(context.assets.open(TRANSLATIONS_ZIP_ASSET)).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory && ".." !in entry.name) {
+                    val dest = File(destRoot, entry.name)
+                    dest.parentFile?.mkdirs()
+                    dest.outputStream().use { out -> zip.copyTo(out) }
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
     }
 
     // LXQt theme: dark panel + bloom-dark (Deepin) icons.
