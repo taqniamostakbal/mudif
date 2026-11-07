@@ -123,6 +123,27 @@ object X11Session {
         return false
     }
 
+    /**
+     * P6.3.3 — mirror of waitForXSocket for a fresh restart: poll
+     * until the X6 socket file DISAPPEARS (the old server is really
+     * gone) before starting a new server. Best-effort: returns false
+     * on timeout and the caller proceeds with the surviving server
+     * (the old behaviour) rather than blocking the flow.
+     */
+    fun waitForXSocketGone(context: Context, timeoutMs: Long = 10000): Boolean {
+        val socket = File(context.filesDir, "tmp/.X11-unix/X6")
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (!socket.exists()) {
+                Log.d(TAG, "X socket gone — old server stopped")
+                return true
+            }
+            Thread.sleep(500)
+        }
+        Log.e(TAG, "X socket still present after ${timeoutMs}ms — old server may survive")
+        return false
+    }
+
     /** True if the X socket file exists right now (diagnostics). */
     fun isXSocketPresent(context: Context): Boolean =
         File(context.filesDir, "tmp/.X11-unix/X6").exists()
@@ -188,7 +209,12 @@ object X11Session {
      */
     fun launchDesktop(context: Context, desktop: String): Boolean {
         val cmd = if (desktop == "xfce") "startxfce4" else "startlxqt"
-        val ok = GuestSession.sendCommand("$cmd > /root/$desktop.log 2>&1 &")
+        // P6.3.3: the session log goes to a distinct file the Terminal
+        // re-run never touches (it re-runs startxfce4 into
+        // /root/xfce.log and overwrote the real startup log in the
+        // P6.3.2 test, destroying the evidence for the childless
+        // session). getDesktopLog reads this file.
+        val ok = GuestSession.sendCommand("$cmd > /root/$desktop-session.log 2>&1 &")
         if (ok) Log.d(TAG, "$desktop command sent through PTY session")
         else Log.e(TAG, "PTY session not available for $desktop")
         return ok
@@ -197,8 +223,8 @@ object X11Session {
     /** Last 30 lines of the desktop session log (diagnostics only). */
     fun getDesktopLog(context: Context, desktop: String, rootfs: File = RootfsManager.rootfsDir(context)): String {
         return try {
-            val file = File(rootfs, "root/$desktop.log")
-            if (!file.exists()) return "($desktop.log not found - $desktop never started)"
+            val file = File(rootfs, "root/$desktop-session.log")
+            if (!file.exists()) return "($desktop-session.log not found - $desktop never started)"
             val lines = file.readLines()
             if (lines.isEmpty()) return "($desktop.log empty)"
             lines.takeLast(30).joinToString("\n")
@@ -406,9 +432,21 @@ object X11Session {
      * one-shot's own shell, whose cmdline contains the pattern text.
      */
     fun isDesktopRunning(context: Context, desktop: String, debian: Boolean): Boolean {
-        val proc = if (desktop == "xfce") "[x]fce4-session" else "[l]xqt-session"
-        val command = "if pgrep -f '$proc' >/dev/null 2>&1; then echo RUNNING; " +
-            "elif ps -e 2>/dev/null | grep '$proc' >/dev/null 2>&1; then echo RUNNING; fi"
+        // P6.3.3: the session alone is NOT a usable desktop — the
+        // P6.3.2 test had xfce4-session alive with NO xfwm4, NO panel,
+        // NO xfdesktop, and the dialog still reported "desktop
+        // running: true". For XFCE require the session AND the window
+        // manager AND the panel. LXQt keeps its session-only check
+        // (it passes as-is; do not touch what works).
+        val command = if (desktop == "xfce") {
+            "if pgrep -f '[x]fce4-session' >/dev/null 2>&1 && " +
+                "pgrep -f '[x]fwm4' >/dev/null 2>&1 && " +
+                "pgrep -f '[x]fce4-panel' >/dev/null 2>&1; then echo RUNNING; fi"
+        } else {
+            val proc = "[l]xqt-session"
+            "if pgrep -f '$proc' >/dev/null 2>&1; then echo RUNNING; " +
+                "elif ps -e 2>/dev/null | grep '$proc' >/dev/null 2>&1; then echo RUNNING; fi"
+        }
         repeat(2) { attempt ->
             val result = if (debian) {
                 TerminalSession.runCommandDebian(

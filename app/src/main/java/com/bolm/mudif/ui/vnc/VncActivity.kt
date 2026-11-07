@@ -68,7 +68,7 @@ class VncActivity : AppCompatActivity() {
         }
 
         // Version indicator — P6 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P6.3.2", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "نسخة: P6.3.3", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -197,7 +197,24 @@ class VncActivity : AppCompatActivity() {
             // 3. Start the X server (Tiny launchXServer) — but ONLY
             // if it is not already up. Judge by the real state
             // (socket + TCP listener), not by the in-memory flag.
-            val serverUp = X11Session.isXSocketPresent(this) && X11Session.isTcpDisplayOpen()
+            // P6.3.3 — نظام مضيف ALWAYS restarts the X server fresh:
+            // the P6.3.2 test proved the desktop works on a FRESH
+            // server (P6.2: all children alive) and launches with NO
+            // children on a SURVIVING server (P6.3–P6.3.2: session
+            // alive, no WM/panel/desktop). The correlation is not a
+            // proven cause, but the fresh-server condition is the one
+            // proven to work, so restore it on every entry. The stop
+            // is best-effort (guarded by the in-memory flag; if this
+            // process never started the server, the stop is a no-op
+            // and the flow falls back to the surviving server).
+            // LXQt/XFCE rows keep the old skip-if-up behaviour (they
+            // pass as-is; do not touch what works).
+            var serverUp = X11Session.isXSocketPresent(this) && X11Session.isTcpDisplayOpen()
+            if (isMudif && serverUp) {
+                setStatus("جاري إعادة تشغيل خادم X من جديد…")
+                X11Session.stopXServer(this)
+                if (X11Session.waitForXSocketGone(this, 10000)) serverUp = false
+            }
             if (!serverUp) {
                 setStatus("جاري تشغيل خادم X…")
                 val xkbRootfs = if (isMudif) DebianSystem.debianRootfsDir(this) else RootfsManager.rootfsDir(this)
@@ -273,7 +290,7 @@ class VncActivity : AppCompatActivity() {
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
                 AlertDialog.Builder(this)
-                    .setTitle(if (isMudif) "تشخيص P6.3.2 — نظام مضيف" else "تشخيص P5.25")
+                    .setTitle(if (isMudif) "تشخيص P6.3.3 — نظام مضيف" else "تشخيص P5.25")
                     .setMessage(
                         if (isMudif) {
                             "النظام: نظام مضيف (دبيان 13.1 + XFCE)\n" +

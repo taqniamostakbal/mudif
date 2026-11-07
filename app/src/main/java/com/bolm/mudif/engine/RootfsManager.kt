@@ -311,6 +311,15 @@ object RootfsManager {
             // from the exact proot source.
             "PROOT_LOADER" to loader.absolutePath,
             "HOME" to "/root",
+            // P6.3.3: USER/LOGNAME were missing from the one-shot env
+            // (the boot argv has USER=root, the one-shot did not), so
+            // WhiteSur's lib-core.sh computed MY_USERNAME="" and
+            // `getent passwd ''` (rc=2) killed install.sh under
+            // errexit (P6.3.2 test, /root/whitesur.log). Every guest
+            // command runs as root, so set them here once for all
+            // one-shots instead of prefixing each command.
+            "USER" to "root",
+            "LOGNAME" to "root",
             "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TERM" to "xterm-256color",
             "LANG" to "C.UTF-8"
