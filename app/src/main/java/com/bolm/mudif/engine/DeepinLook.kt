@@ -84,14 +84,28 @@ object DeepinLook {
 
         // 2. WhiteSur-Dark from upstream source, pinned commit. Deps are
         // already installed (step 1), so install.sh never calls sudo.
-        // Fetch exactly the pinned commit (shallow), then install dark.
+        // --silent-mode: skips start_animation, whose unguarded
+        // `setterm -cursor off` is the last remaining unguarded
+        // command in the pre-install path (everything else — clean,
+        // customize, install_app, install_theme_deps, install_beggy
+        // with the default background — is plain cp/sed/rm on files
+        // the P6.3.1 test proved present) and dies under
+        // `set -Eeo pipefail` in a non-tty one-shot. full_sudo() is
+        // harmless (it only checks that /root is writable).
+        // bash -x + a persistent trace file: the P6.3.1 test proved
+        // the app's Log.d never reaches this box's logcat and
+        // WhiteSur's own error log is deleted by its EXIT/ERR trap,
+        // so the exact failing line is otherwise unrecoverable.
+        // The trace lives at /root/whitesur.log in the guest.
         val ws = TerminalSession.runCommandDebian(
             context,
             "rm -rf /root/WhiteSur-gtk-theme && mkdir -p /root/WhiteSur-gtk-theme && " +
                 "cd /root/WhiteSur-gtk-theme && git init -q && " +
                 "git remote add origin https://github.com/vinceliuice/WhiteSur-gtk-theme.git && " +
                 "git fetch -q --depth 1 origin $WHITESUR_COMMIT && " +
-                "git checkout -q FETCH_HEAD && ./install.sh -c dark && " +
+                "git checkout -q FETCH_HEAD && " +
+                "bash -x ./install.sh -c dark --silent-mode > /root/whitesur.log 2>&1; " +
+                "echo \"whitesur rc=$?\"; tail -30 /root/whitesur.log; " +
                 "test -d /usr/share/themes/WhiteSur-Dark && echo WHITESUR_OK",
             idleTimeoutSec = 120,
             maxTimeoutSec = 1800
@@ -117,7 +131,7 @@ object DeepinLook {
             File(xfconfDir, "xsettings.xml").writeText(XSETTINGS_XML)
             File(xfconfDir, "xfwm4.xml").writeText(XFWM4_XML)
             File(xfconfDir, "xfce4-desktop.xml").writeText(DESKTOP_XML)
-            File(rootfs, "root/$MARKER").writeText("p6.3.1\n")
+            File(rootfs, "root/$MARKER").writeText("p6.3.2\n")
         } catch (e: Exception) {
             Log.d(TAG, "look config write failed: ${e.message}")
             return false

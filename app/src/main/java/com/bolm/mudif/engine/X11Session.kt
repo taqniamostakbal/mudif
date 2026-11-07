@@ -444,12 +444,18 @@ object X11Session {
      * native PNG/JPEG loaders and glycin is not in the closure —
      * the P5.25 failure mode does not exist. One-shot, best-effort,
      * idempotent. Call from a background thread.
+     * P6.3.2: libgl1 + libglx-mesa0 — xfwm4 dies at startup without
+     * them ("Couldn't open libGL.so.1", proven in /root/xfce.log,
+     * P6.3.1 test) and with no window manager the panel stays alive
+     * but never shows. x11-utils (xwininfo) is diagnostic tooling
+     * for reading the panel window state.
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
             "apt-get update && apt-get install -y --no-install-recommends " +
             "xkb-data procps xfce4 xfce4-whiskermenu-plugin xfce4-terminal thunar " +
             "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
+            "libgl1 libglx-mesa0 x11-utils " +
             "&& echo DEBIAN_DESKTOP_OK"
         val result = TerminalSession.runCommandDebian(
             context,
