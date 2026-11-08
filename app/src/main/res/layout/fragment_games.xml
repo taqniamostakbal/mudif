@@ -30,10 +30,33 @@
             android:fontFamily="@font/cairo" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler"
+    <!-- P16: games are NOT now (user's order) — a clean coming-soon
+         screen, no fake installable list. The real gaming container
+         (Box64+Wine) comes later. -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:padding="12dp" />
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/coming_soon"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/mudif_purple"
+            android:fontFamily="@font/cairo" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/coming_soon_long"
+            android:textSize="15sp"
+            android:textColor="#555555"
+            android:fontFamily="@font/cairo"
+            android:gravity="center" />
+    </LinearLayout>
 </LinearLayout>
