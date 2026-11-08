@@ -9,7 +9,6 @@
     android:fontFamily="@font/cairo"
     android:textSize="13sp"
     android:textColor="@color/chip_text"
-    app:checkable="true"
     app:checkedIconVisible="false"
     app:chipBackgroundColor="@color/chip_bg"
     app:chipStrokeWidth="0dp"
