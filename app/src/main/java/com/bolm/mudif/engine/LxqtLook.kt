@@ -108,6 +108,17 @@ import java.io.File
  * plugin in this build (a PNG control renders 7,283 px where
  * the SVG renders 0). The spacer SVGs become PNGs and the
  * QSS urls point at the PNGs.
+ * P9FIX5: the P9FIX4 re-test proved the spacer marks still do not
+ * paint, and the cause is a QSS re-polish TIMING bug, not the PNGs:
+ * lxqt-panel applies the stylesheet BEFORE it sets the spacer's
+ * type/orientation, and setType/setOrientation do not trigger a
+ * re-polish, so #Spacer[type="lined"] and
+ * #Spacer[orientation="horizontal"] never match (timing probe:
+ * real order 0 px, real order + forced re-polish 84 px, control
+ * 84 px). The fix puts the image + repeat-y + margins on the
+ * base #Spacer rule with no condition (the spacer is always
+ * lined and horizontal in our panel.conf). The terminal font
+ * becomes Cairo (his order: "التيرمينال خاصو خط كايرو").
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -157,17 +168,23 @@ object LxqtLook {
     // current layout. The icons and the palette are NOT touched
     // here: the icons need a diagnostic first, the palette is
     // deferred).
-    // P9FIX4: bumped again because the look content changes again
-    // (mergePanelConf now also writes `iconTheme=mudif` into the
-    // [General] section of panel.conf: the panel reads its icon
-    // theme from there, and the user panel.conf has no iconTheme
-    // key, so it falls back to the system default's
-    // Papirus-Dark. The theme zip also changes: 6 MIME folder
-    // SVGs are added (inode-directory et al.) and the spacer
-    // SVGs become PNGs (QPixmap has no SVG plugin, so the
-    // stylesheet SVG marks can never paint). The palette is NOT
-    // touched: it is deferred).
-    private const val MARKER_VERSION = "p9fix4"
+    // P9FIX5: bumped again because the look content changes again.
+    // Two fixes. (A) Theme: the spacer background-image (and
+    // repeat-y + margins) move from the property-conditioned rules
+    // (#Spacer[type="lined"], #Spacer[orientation="horizontal"])
+    // to the base #Spacer rule with no condition. The P9FIX4
+    // re-test proved those rules never match at runtime (the
+    // stylesheet is applied BEFORE the spacer's type/orientation
+    // are set, and setType/setOrientation do not trigger a
+    // re-polish); a first attempt that moved only the image left
+    // the repeat in the orientation rule, and a probe rendered
+    // 12800/12800 non-bg px (the image tiled in both directions).
+    // With image + repeat-y on the base rule the probe renders
+    // 84 px in the real order (the intended thin line). (B) Code:
+    // the terminal font becomes Cairo (his order: "التيرمينال
+    // خاصو خط كايرو"), replacing DejaVu Sans Mono in the
+    // qterminal.ini merge. The palette is NOT touched: deferred.
+    private const val MARKER_VERSION = "p9fix5"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
@@ -470,9 +487,15 @@ WallpaperMode=stretch
 
     // P8 — fontconfig: Cairo is the preferred sans-serif and serif
     // font, and Arabic text prefers Cairo (Noto Sans Arabic is the
-    // next fallback, installed from apt). Monospace is NOT aliased:
-    // Cairo has no monospace, and the terminal keeps DejaVu Sans Mono
-    // (its Arabic glyphs fall back to Cairo through fontconfig).
+    // next fallback, installed from apt). Monospace is NOT aliased
+    // in fontconfig (Cairo has no monospace variant), BUT the
+    // terminal font is set to Cairo directly in mergeQterminalIni
+    // (P9FIX5, his order: "التيرمينال خاصو خط كايرو"). QTermWidget
+    // renders whatever font it is given; Cairo covers Arabic and
+    // Latin. The monospace concern is only about code columns
+    // lining up perfectly; for his Arabic commands Cairo renders
+    // correctly. This is verified on the device (P9FIX5 re-test),
+    // not assumed.
     private const val LOCAL_CONF = """<?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
 <fontconfig>
@@ -512,10 +535,14 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // [MainWindow], [Shortcuts]) and any key the user changed.
     // If the file does not exist yet, a [General] section is created.
     // A key already present is replaced in place (one copy only).
+    // P9FIX5 — fontFamily is "Cairo" (his order: "التيرمينال خاصو
+    // خط كايرو"), not DejaVu Sans Mono. DejaVu Sans Mono has its
+    // own Arabic glyphs, so the Arabic rendered in DejaVu, not
+    // Cairo — that is why his screenshot showed no Cairo.
     private fun mergeQterminalIni(existing: String?): String {
         val keys = linkedMapOf(
             "colorScheme" to "Mudif",
-            "fontFamily" to "DejaVu Sans Mono",
+            "fontFamily" to "Cairo",
             "fontSize" to "13",
             "enabledBidiSupport" to "true"
         )
