@@ -83,6 +83,16 @@ import java.io.File
  * becomes Fusion light, not Mudif), so the override stays and
  * the palette is deferred (its cause is inside libqtlxqt's
  * palette handling).
+ * P9FIX3: the P9FIX2 re-test proved the [spacer] section alone
+ * is NOT enough — the panel loads plugins ONLY from the
+ * `plugins=` list in [panel1] (LXQtPanel::loadPlugins), and the
+ * user panel.conf [panel1] has NO `plugins=` key, so it falls
+ * back to the system default's 12-plugin list (no spacer). The
+ * merge now also writes `plugins=` (the system default's
+ * 12-plugin order + `spacer`) into [panel1]. The icons: the
+ * fresh-panel re-test REFUTED the stale-process explanation
+ * (a fresh panel still shows stock icons), so the cause is
+ * deeper and needs a diagnostic before any code change.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -123,7 +133,16 @@ object LxqtLook {
     // touched: the palette probe proved QT_STYLE_OVERRIDE is NOT
     // the cause of the palette not loading, and removing it would
     // make the desktop light).
-    private const val MARKER_VERSION = "p9fix2"
+    // P9FIX3: bumped again because the look content changes again
+    // (mergePanelConf now also writes a `plugins=` key into the
+    // [panel1] section of panel.conf: the panel loads plugins
+    // ONLY from that list, so the [spacer] section added by P9FIX2
+    // was never loaded. The list is the system default's
+    // 12-plugin order with `spacer` appended, preserving the
+    // current layout. The icons and the palette are NOT touched
+    // here: the icons need a diagnostic first, the palette is
+    // deferred).
+    private const val MARKER_VERSION = "p9fix3"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
@@ -297,16 +316,19 @@ object LxqtLook {
             // plugin, via panel.conf (merged, never overwritten —
             // the panel rewrites panel.conf on exit, so overwriting
             // it would lose the user's plugin layout; the same
-            // clobber race as pcmanfm-qt's settings.conf). The
-            // base is the existing panel.conf if the panel already
-            // created one, else the system default
-            // /etc/xdg/lxqt/panel.conf (lxqt-panel is installed —
-            // startlxqt exists — so the default must exist). The
-            // write happens here, before the first desktop launch
-            // (the same ordering as lxqt.conf / session.conf), so
-            // no running panel can clobber it, and the panel reads
-            // it at startup and preserves both additions when it
-            // rewrites panel.conf on exit.
+            // clobber race as pcmanfm-qt's settings.conf). P9FIX3
+            // adds the `plugins=` key to [panel1] (the [spacer]
+            // section alone is not loaded — the panel reads only
+            // the `plugins=` list). The base is the existing
+            // panel.conf if the panel already created one, else
+            // the system default /etc/xdg/lxqt/panel.conf
+            // (lxqt-panel is installed — startlxqt exists — so
+            // the default must exist). The write happens here,
+            // before the first desktop launch (the same ordering
+            // as lxqt.conf / session.conf), so no running panel
+            // can clobber it, and the panel reads it at startup
+            // and preserves both additions when it rewrites
+            // panel.conf on exit.
             val panelConf = File(lxqtDir, "panel.conf")
             val existingPanelConf = when {
                 panelConf.exists() -> panelConf.readText()
@@ -543,10 +565,20 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // from the lxqt-panel source (plugin-spacer/spacer.cpp
     // settingsChanged, plugin-spacer/spacerconfiguration.cpp
     // msTypes): size (default 8), expandable (default false),
-    // spaceType (lined/dotted/invisible, default lined). The panel
-    // loads plugins by scanning sections with a type= key (the user
-    // panel.conf has no [panel1] plugins= list), so adding a
-    // [spacer] section is sufficient. The panel preserves a loaded
+    // spaceType (lined/dotted/invisible, default lined).
+    // P9FIX3 — the [spacer] section alone is NOT enough (the
+    // P9FIX2 assumption "the panel loads plugins by scanning
+    // sections with a type= key" was REFUTED by the P9FIX2
+    // re-test: the section was present and the panel fresh, yet
+    // no spacer rendered). LXQtPanel::loadPlugins()
+    // (panel/lxqtpanel.cpp:1046-1088) loads plugins ONLY from
+    // the `plugins=` list in [panel1]; the user panel.conf
+    // [panel1] has NO `plugins=` key, so the panel falls back
+    // to the system default's 12-plugin list (no spacer) and
+    // the [spacer] section is never loaded. So the merge also
+    // writes `plugins=` into [panel1]: the system default's
+    // 12-plugin order with `spacer` appended, preserving the
+    // current layout. The panel preserves a loaded
     // plugin when it rewrites panel.conf on exit, so the section
     // persists. expandable=true makes the spacer push the
     // right-aligned plugins to the right edge (the usual layout
@@ -559,6 +591,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             "icon" to "/usr/share/lxqt/themes/mudif/mainmenu.png",
             "ownIcon" to "true"
         )
+        val pluginsList = "mainmenu, showdesktop, desktopswitch, quicklaunch, taskbar, kbindicator, tray, statusnotifier, mount, volume, worldclock, quicklaunch2, spacer"
         val spacerLines = listOf(
             "[spacer]",
             "alignment=Left",
@@ -571,10 +604,20 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         val seenMainmenuKeys = mutableSetOf<String>()
         var inMainmenu = false
         var mainmenuSeen = false
+        var inPanel1 = false
+        var panel1Seen = false
+        var pluginsSeen = false
         var spacerSeen = false
         fun appendMissingMainmenuKeys() {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             for ((k, v) in mainmenuKeys) if (k !in seenMainmenuKeys) out.append("$k=$v\n")
+        }
+        fun appendMissingPanel1Plugins() {
+            if (!pluginsSeen) {
+                if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+                out.append("plugins=$pluginsList\n")
+                pluginsSeen = true
+            }
         }
         // trimEnd on the input drops the trailing empty lines the
         // file's final newline produces, so no blank line lands
@@ -583,8 +626,11 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             val trimmed = line.trim()
             if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
                 if (inMainmenu) appendMissingMainmenuKeys()
+                if (inPanel1) appendMissingPanel1Plugins()
                 inMainmenu = trimmed == "[mainmenu]"
                 if (inMainmenu) mainmenuSeen = true
+                inPanel1 = trimmed == "[panel1]"
+                if (inPanel1) panel1Seen = true
                 if (trimmed == "[spacer]") spacerSeen = true
                 out.append(line).append("\n")
                 continue
@@ -599,15 +645,47 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                     continue
                 }
             }
+            if (inPanel1) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key == "plugins") {
+                    // Duplicate plugins= key: drop it (one was
+                    // already written above).
+                    if (pluginsSeen) continue
+                    val value = trimmed.substringAfter("=", "").trim()
+                    val tokens = value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    if ("spacer" in tokens) {
+                        // Already lists the spacer: keep the line
+                        // exactly as-is (user order preserved).
+                        out.append(line).append("\n")
+                    } else {
+                        // Append the spacer to the existing list,
+                        // preserving the user's plugin order.
+                        val newValue = if (value.isEmpty()) "spacer" else "$value, spacer"
+                        out.append("plugins=$newValue\n")
+                    }
+                    pluginsSeen = true
+                    continue
+                }
+            }
             out.append(line).append("\n")
         }
         if (inMainmenu) appendMissingMainmenuKeys()
+        if (inPanel1) appendMissingPanel1Plugins()
         if (!mainmenuSeen) {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             out.append("[mainmenu]\n")
             out.append("alignment=Left\n")
             out.append("type=fancymenu\n")
             for ((k, v) in mainmenuKeys) out.append("$k=$v\n")
+        }
+        if (!panel1Seen) {
+            // Defensive only: [panel1] is in both the system
+            // default and the user panel.conf, so this should
+            // never trigger. A minimal [panel1] with just the
+            // plugins list is better than no spacer at all.
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[panel1]\n")
+            out.append("plugins=$pluginsList\n")
         }
         if (!spacerSeen) {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
