@@ -138,7 +138,10 @@ object DesktopDiagnostics {
         try {
             val tmpDir = File(context.filesDir, "tmp")
             sb.append("TMPDIR: ${tmpDir.absolutePath}\n")
-            val xkb = File(RootfsManager.rootfsDir(context), "usr/share/X11/xkb")
+            // P16: the X server runs on the DEBIAN rootfs — checking the
+            // old Alpine rootfs here reported "xkb dir exists: true"
+            // while the Debian one had no xkb dir (the Nova 9 miss).
+            val xkb = File(DebianSystem.debianRootfsDir(context), "usr/share/X11/xkb")
             sb.append("xkb dir exists: ${xkb.exists()}\n")
             if (!xkb.exists()) {
                 sb.append("XKB_CONFIG_ROOT was blank at launch\n")
@@ -205,9 +208,9 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف P8 — سجل مفصل ===\n")
+            append("=== مضيف ${LxqtLook.MARKER_VERSION} — سجل مفصل ===\n")
             append("الوقت: $time\n")
-            append("نسخة: P8\n\n")
+            append("نسخة: ${LxqtLook.MARKER_VERSION}\n\n")
             append("--- السبب الحقيقي (تشخيص P5.22) ---\n")
             append(hypothesis1())
             append("\n--- حالة خادم X ---\n")

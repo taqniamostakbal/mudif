@@ -56,14 +56,26 @@ object X11Session {
      * Sets the started flag FIRST (Tiny does the same) so a later stop
      * always pairs with a start.
      */
-    fun startXServer(context: Context, rootfs: File = RootfsManager.rootfsDir(context)) {
+    /**
+     * P16 XKB GUARD (proven 2026-11-08, XKB-PROOF.md): an empty
+     * XKB_CONFIG_ROOT kills Lorie instantly (" is unaccessible", no X6
+     * socket, 15 s timeout — the exact Nova 9 failure). So this function
+     * REFUSES to start the server when the xkb dir is missing and returns
+     * false; the caller shows a clear dialog instead of a cryptic timeout.
+     * Returns true when the server was actually started.
+     */
+    fun startXServer(context: Context, rootfs: File = RootfsManager.rootfsDir(context)): Boolean {
         val app = context.applicationContext
         val tmpDir = File(app.filesDir, "tmp").apply { mkdirs() }
 
         // EXACT match to Tiny Container's launchXServer (plus Mudif's
         // proven -listen tcp flag).
-        val xkbRoot = File(rootfs, "usr/share/X11/xkb")
-            .takeIf { it.exists() }?.absolutePath ?: ""
+        val xkbDir = File(rootfs, "usr/share/X11/xkb")
+        if (!xkbDir.exists()) {
+            Log.e(TAG, "XKB GUARD: ${xkbDir.absolutePath} missing — refusing to start the X server with an empty XKB_CONFIG_ROOT")
+            return false
+        }
+        val xkbRoot = xkbDir.absolutePath
 
         val envKeys = arrayOf(
             "TMPDIR",
@@ -87,6 +99,29 @@ object X11Session {
         app.startService(intent)
         xserverRunning = true
         Log.d(TAG, "X server start requested for $DISPLAY (+TCP)")
+        return true
+    }
+
+    /**
+     * P16 XKB GUARD: make sure the Debian guest has its XKB data before
+     * the X server starts. If /usr/share/X11/xkb is missing, reinstall
+     * xkb-data once (a renamed/deleted dir is NOT restored by the
+     * no-op apt in ensureDebianDesktop — the package is already
+     * "installed") and re-check. Returns true when the dir exists.
+     * Call from a background thread.
+     */
+    fun ensureXkbData(context: Context): Boolean {
+        val xkbDir = File(DebianSystem.debianRootfsDir(context), "usr/share/X11/xkb")
+        if (xkbDir.exists()) return true
+        Log.d(TAG, "XKB GUARD: xkb dir missing — reinstalling xkb-data")
+        val result = TerminalSession.runCommandDebian(
+            context,
+            "export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install --reinstall -y xkb-data",
+            idleTimeoutSec = 120,
+            maxTimeoutSec = 600
+        )
+        Log.d(TAG, "ensureXkbData exit=${result.exitCode} out=${result.output.takeLast(300)}")
+        return xkbDir.exists()
     }
 
     /**
