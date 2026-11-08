@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- P16: branded info dialog content (title + message + up to 3 buttons). -->
+<!-- P16.1: the message lives in a ScrollView (weight=1) so the buttons
+     are ALWAYS reachable, even for a ~25-line diagnostics message in
+     landscape. P16 had no ScrollView: the message pushed the 3 buttons
+     below the window (0 Button nodes in the hierarchy) and the desktop
+     could not be opened at all. The ScrollView takes whatever space is
+     left after the title and buttons; the message scrolls inside it.
+     Root is match_parent so the weight has a definite height to share. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="24dp">
 
@@ -16,14 +22,22 @@
         android:textColor="#1A1A1A"
         android:fontFamily="@font/cairo" />
 
-    <TextView
-        android:id="@+id/dialog_message"
+    <ScrollView
+        android:id="@+id/dialog_message_scroll"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="12dp"
-        android:textSize="14sp"
-        android:textColor="#555555"
-        android:fontFamily="@font/cairo" />
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/dialog_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="#555555"
+            android:fontFamily="@font/cairo" />
+    </ScrollView>
 
     <!-- P16: buttons stack vertically so up to 3 long Arabic labels never
          overflow (a horizontal row would clip "فتح العارض وبدء سطح المكتب"). -->
