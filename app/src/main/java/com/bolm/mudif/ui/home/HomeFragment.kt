@@ -82,9 +82,15 @@ class HomeFragment : Fragment() {
     }
 
     private fun openDesktop() {
+        // P16.2: bring the existing VncActivity forward instead of
+        // stacking a second one (singleTop + CLEAR_TOP). A second
+        // instance would run a second startDesktop thread racing the
+        // first on the PTY and the X server (the P16.1 second-launch
+        // stall). onNewIntent re-runs the flow if nothing is running.
         startActivity(
             Intent(requireContext(), VncActivity::class.java).apply {
                 putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_MUDIF)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
         )
     }
