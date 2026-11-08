@@ -53,11 +53,24 @@ import java.io.File
  * theme (inherits bloom-dark) + purple Openbox theme (Onyx base),
  * bundled as one zip asset and extracted into the rootfs.
  * P9FIX — the theme images did not render (P9 test PARTIAL):
- * the QSS image urls are now absolute guest paths (relative url()
- * fails when the stylesheet is applied as a string), the icon
- * theme gets an icon-theme.cache built inside the guest after
- * extraction (Qt's icon lookup needs the cache to discover the
- * theme), and lxqt.conf selects palette=Mudif explicitly.
+ * the QSS image urls were made absolute guest paths (the P9
+ * diagnosis suspected relative url() fails when the stylesheet
+ * is applied as a string), the icon theme gets an
+ * icon-theme.cache built inside the guest after extraction
+ * (Qt's icon lookup needs the cache to discover the theme),
+ * and lxqt.conf selects palette=Mudif explicitly.
+ * P9FIX6 — the absolute urls were WRONG: the spacer diagnosis
+ * (diagnosis-spacer/DIAGNOSIS-SPACER.md) proved the LXQt theme
+ * loader prepends the theme directory to every QSS url(), so
+ * absolute urls are resolved to a DOUBLED path that does not
+ * exist and QPixmap returns null (the session log catches it:
+ * "Could not create pixmap from .../mudif//usr/share/lxqt/
+ * themes/mudif/spacer-plugin/spacer-line.png"). Stock LXQt
+ * themes all use RELATIVE urls (the convention). The QSS urls
+ * are back to theme-relative (the spacer keeps its original
+ * root-relative /spacer-plugin/... form, as stock themes do).
+ * The P9FIX5 base #Spacer rule is KEPT (the log proves it
+ * matches the live SpacerWidget).
  * P9FIX2 — the P9FIX re-test proved the fix landed but changed
  * nothing on screen, and the diagnosis (diagnosis-p9fix/
  * DIAGNOSIS.md) found the real causes. The logo: the Fancy Menu
@@ -119,6 +132,17 @@ import java.io.File
  * base #Spacer rule with no condition (the spacer is always
  * lined and horizontal in our panel.conf). The terminal font
  * becomes Cairo (his order: "التيرمينال خاصو خط كايرو").
+ * P9FIX6: the P9FIX5 re-test proved the base-rule fix renders
+ * 84 px in every probe but the real panel still shows 0 px,
+ * and the diagnosis (diagnosis-spacer/DIAGNOSIS-SPACER.md)
+ * proved the real cause: the LXQt theme loader prepends the
+ * theme directory to every QSS url(), so the P9FIX ABSOLUTE
+ * urls are resolved to a DOUBLED path that does not exist and
+ * QPixmap returns null (session log: "Could not create pixmap
+ * from .../mudif//usr/share/lxqt/themes/mudif/spacer-plugin/
+ * spacer-line.png"). The fix reverts ALL 17 QSS urls to
+ * theme-relative paths (stock LXQt convention); the P9FIX5 base
+ * #Spacer rule is KEPT.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -168,23 +192,19 @@ object LxqtLook {
     // current layout. The icons and the palette are NOT touched
     // here: the icons need a diagnostic first, the palette is
     // deferred).
-    // P9FIX5: bumped again because the look content changes again.
-    // Two fixes. (A) Theme: the spacer background-image (and
-    // repeat-y + margins) move from the property-conditioned rules
-    // (#Spacer[type="lined"], #Spacer[orientation="horizontal"])
-    // to the base #Spacer rule with no condition. The P9FIX4
-    // re-test proved those rules never match at runtime (the
-    // stylesheet is applied BEFORE the spacer's type/orientation
-    // are set, and setType/setOrientation do not trigger a
-    // re-polish); a first attempt that moved only the image left
-    // the repeat in the orientation rule, and a probe rendered
-    // 12800/12800 non-bg px (the image tiled in both directions).
-    // With image + repeat-y on the base rule the probe renders
-    // 84 px in the real order (the intended thin line). (B) Code:
-    // the terminal font becomes Cairo (his order: "التيرمينال
-    // خاصو خط كايرو"), replacing DejaVu Sans Mono in the
-    // qterminal.ini merge. The palette is NOT touched: deferred.
-    private const val MARKER_VERSION = "p9fix5"
+    // P9FIX6: bumped again because the look content changes again.
+    // Theme only: ALL 17 QSS image urls revert from absolute
+    // guest paths to theme-relative paths (the spacer keeps its
+    // original root-relative /spacer-plugin/... form, as stock
+    // themes do). The spacer diagnosis proved the LXQt theme
+    // loader prepends the theme directory to every QSS url(), so
+    // the P9FIX absolute urls were resolved to a DOUBLED path
+    // that does not exist and QPixmap returned null (session log:
+    // "Could not create pixmap from .../mudif//usr/share/lxqt/
+    // themes/mudif/spacer-plugin/spacer-line.png"). The P9FIX5
+    // base #Spacer rule is KEPT. The palette is NOT touched:
+    // deferred.
+    private const val MARKER_VERSION = "p9fix6"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
@@ -315,11 +335,17 @@ object LxqtLook {
             // root/.config/openbox/rc.xml. lxqt.conf (below) switches
             // to theme=mudif + icon_theme=mudif; the Openbox theme
             // name is set inside rc.xml itself.
-            // P9FIX — the QSS files inside the zip now use ABSOLUTE
-            // image urls (url(/usr/share/lxqt/themes/mudif/...)):
-            // relative url() fails when LXQt applies the stylesheet
-            // as a string, so the start-button logo and the spacer
-            // SVGs never rendered (P9 test items 1 + 3).
+            // P9FIX6 — the QSS files inside the zip use THEME-
+            // RELATIVE image urls (url(mainmenu.png),
+            // url(/spacer-plugin/spacer-line.png), ...). P9FIX made
+            // them ABSOLUTE (url(/usr/share/lxqt/themes/mudif/...)),
+            // but the spacer diagnosis proved the LXQt theme loader
+            // prepends the theme directory to every url(), so
+            // absolute urls are resolved to a DOUBLED path that
+            // does not exist and QPixmap returns null (the spacer
+            // painted 0 px in P9FIX through P9FIX5). Stock LXQt
+            // themes all use relative urls. The P9FIX5 base #Spacer
+            // rule is kept.
             extractZipAsset(context, THEME_ZIP_ASSET, rootfs)
             // P9FIX — build the icon-theme cache for `mudif`.
             // The P9 test proved all 10 mudif icon overrides fall
