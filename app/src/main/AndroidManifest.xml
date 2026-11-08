@@ -29,6 +29,7 @@
             android:name=".ui.vnc.VncActivity"
             android:exported="false"
             android:label="سطح مكتب لينكس"
+            android:launchMode="singleTop"
             android:screenOrientation="landscape" />
         <activity
             android:name=".ui.logs.LogViewerActivity"
