@@ -57,17 +57,6 @@
       "icon": "filezilla.png"
     },
     {
-      "id": "telegram-desktop",
-      "name": "تيليجرام",
-      "nameEn": "Telegram Desktop",
-      "desc": "تطبيق المراسلة السريعة والآمنة، للدردشة والمجموعات والقنوات ومشاركة الملفات.",
-      "category": "internet",
-      "method": "apt",
-      "apt": "telegram-desktop",
-      "binary": "telegram-desktop",
-      "icon": "telegram-desktop.png"
-    },
-    {
       "id": "hexchat",
       "name": "هيكس تشات",
       "nameEn": "HexChat",
@@ -787,17 +776,6 @@
       "apt": "fonts-hack",
       "binary": null,
       "icon": "fonts-hack.png"
-    },
-    {
-      "id": "fonts-ubuntu",
-      "name": "أوبونتو",
-      "nameEn": "Ubuntu",
-      "desc": "خط أوبونتو الأنيق والواضح، للواجهات والمستندات.",
-      "category": "fonts",
-      "method": "apt",
-      "apt": "fonts-ubuntu",
-      "binary": null,
-      "icon": "fonts-ubuntu.png"
     }
   ]
 }
