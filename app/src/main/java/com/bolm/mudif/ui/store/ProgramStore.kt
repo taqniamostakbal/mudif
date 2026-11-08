@@ -122,7 +122,7 @@ object ProgramStore {
         return when (program.method) {
             "apt" -> TerminalSession.runCommandDebian(
                 context,
-                "(DEBIAN_FRONTEND=noninteractive apt-get update && " +
+                "(dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && " +
                     "DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}) 2>&1",
                 180, 1800
             )
@@ -136,7 +136,7 @@ object ProgramStore {
                     dl_pid=$!
                     while kill -0 "${'$'}dl_pid" 2>/dev/null; do echo "جار التحميل..."; sleep 20; done
                     wait "${'$'}dl_pid" || { echo "فشل تحميل الحزمة"; exit 1; }
-                    dpkg -i $STORE_TMP/$file || { DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -f -y; }
+                    dpkg -i $STORE_TMP/$file || { dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -f -y; }
                     dpkg -s ${program.debPackage} >/dev/null 2>&1
                 """.trimIndent()
                 TerminalSession.runCommandDebian(context, "($cmd) 2>&1", 180, 3600)
@@ -164,7 +164,7 @@ object ProgramStore {
                 } else {
                     TerminalSession.runCommandDebian(
                         context,
-                        "(DEBIAN_FRONTEND=noninteractive apt-get update && " +
+                        "(dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && " +
                             "DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}) 2>&1",
                         180, 1800
                     )
@@ -179,12 +179,12 @@ object ProgramStore {
         return when (program.method) {
             "apt" -> TerminalSession.runCommandDebian(
                 context,
-                "(DEBIAN_FRONTEND=noninteractive apt-get remove -y ${program.apt}) 2>&1",
+                "(dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get remove -y ${program.apt}) 2>&1",
                 120, 900
             )
             "deb" -> TerminalSession.runCommandDebian(
                 context,
-                "(dpkg -r ${program.debPackage} || " +
+                "(dpkg --configure -a; dpkg -r ${program.debPackage} || " +
                     "DEBIAN_FRONTEND=noninteractive apt-get remove -y ${program.debPackage}) 2>&1",
                 120, 900
             )
@@ -202,7 +202,7 @@ object ProgramStore {
                 } else {
                     TerminalSession.runCommandDebian(
                         context,
-                        "(DEBIAN_FRONTEND=noninteractive apt-get remove -y ${program.apt}) 2>&1",
+                        "(dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get remove -y ${program.apt}) 2>&1",
                         120, 900
                     )
                 }
