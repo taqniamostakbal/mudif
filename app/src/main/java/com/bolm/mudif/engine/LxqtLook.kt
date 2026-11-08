@@ -223,7 +223,7 @@ object LxqtLook {
     // apps, and the Fancy Menu search + categories are
     // restyled). The palette is NOT touched: deferred. The
     // spacer is NOT touched: P9FIX6-verified.
-    private const val MARKER_VERSION = "p12"
+    private const val MARKER_VERSION = "p13"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -722,22 +722,23 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // iconTheme=mudif here makes the panel use mudif.
         val generalKeys = linkedMapOf("iconTheme" to "mudif")
         // P11: the QuickLaunch plugin shows the 4 mockup apps
-        // (file manager, terminal, browser, settings). The plugin
-        // reads the "apps" key as a QStringList of .desktop file
-        // paths from its [quicklaunch] section. The 4 .desktop
-        // names are verified against the Debian Contents index
-        // (store/work-debian/Contents-main.gz).
-        // P12: the @StringList(...) encoding is PROVEN wrong. The
-        // P11 InstaBox test found the live panel.conf holding
-        // apps=@@StringList(...), i.e. QSettings stored it as a
-        // literal string, so the plugin showed its 3 defaults
-        // instead of the 4 configured apps. The value is now the
-        // plain comma-separated form (the native QSettings INI
-        // representation of a QStringList); the re-test must
-        // confirm the 4 icons actually appear on the panel.
+        // (file manager, terminal, browser, settings). The 4
+        // .desktop names are verified against the Debian Contents
+        // index (store/work-debian/Contents-main.gz).
+        // P13: the plugin reads apps via readArray("apps"), i.e.
+        // QSettings ARRAY keys apps\N\desktop + apps\size=N (the
+        // system /etc/xdg/lxqt/panel.conf uses exactly that). P11
+        // (@StringList) and P12 (comma-separated list) both wrote
+        // a single apps= LIST key, which readArray never reads, so
+        // the plugin fell back to the system defaults. The merge
+        // now writes the array keys and drops any stale apps= key.
         // quicklaunch2 is left alone (empty, invisible).
         val quicklaunchKeys = linkedMapOf(
-            "apps" to "/usr/share/applications/pcmanfm-qt.desktop, /usr/share/applications/qterminal.desktop, /usr/share/applications/firefox-esr.desktop, /usr/share/applications/lxqt-config.desktop"
+            "apps\\1\\desktop" to "/usr/share/applications/pcmanfm-qt.desktop",
+            "apps\\2\\desktop" to "/usr/share/applications/qterminal.desktop",
+            "apps\\3\\desktop" to "/usr/share/applications/firefox-esr.desktop",
+            "apps\\4\\desktop" to "/usr/share/applications/lxqt-config.desktop",
+            "apps\\size" to "4"
         )
         val pluginsList = "mainmenu, showdesktop, desktopswitch, quicklaunch, taskbar, kbindicator, tray, statusnotifier, mount, volume, worldclock, quicklaunch2, spacer"
         val spacerLines = listOf(
@@ -825,6 +826,12 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             }
             if (inQuicklaunch) {
                 val key = trimmed.substringBefore("=").trim()
+                if (key == "apps") {
+                    // P13: drop the stale single apps= LIST key
+                    // (P11/P12). The plugin reads an ARRAY
+                    // (apps\N\desktop + apps\size), never this key.
+                    continue
+                }
                 if (key in quicklaunchKeys) {
                     if (key !in seenQuicklaunchKeys) {
                         out.append("$key=${quicklaunchKeys[key]}\n")
@@ -891,7 +898,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             // Defensive only: [quicklaunch] is in both the system
             // default and the user panel.conf, so this should
             // never trigger. A minimal [quicklaunch] with just
-            // the apps list is better than an empty quicklaunch.
+            // the apps array is better than an empty quicklaunch.
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             out.append("[quicklaunch]\n")
             out.append("alignment=Left\n")
