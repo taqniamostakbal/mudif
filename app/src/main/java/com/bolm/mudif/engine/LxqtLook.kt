@@ -155,6 +155,25 @@ import java.io.File
  * rows become rounded and lighter (launcher mockups). The
  * palette is NOT touched: still deferred. The spacer is NOT
  * touched: P9FIX6-verified.
+ * P14: match the reference mockups exactly (his order 2026-11-08,
+ * after the P13 re-test: the desktop must show the mockup
+ * wallpapers, the mockup panel, and the mockup start menu).
+ * (1) Default wallpaper becomes the pomegranate poster (his pick;
+ * bold stays selectable, purple stays selectable). (2) Panel
+ * plugins become the reference layout: mainmenu, quicklaunch,
+ * taskbar, tray, statusnotifier, mount, volume, worldclock.
+ * Removed: showdesktop, desktopswitch (the 4 3 2 1 pager),
+ * kbindicator (US S N C), quicklaunch2 (dead), spacer (the lone
+ * line). The taskbar is expected to expand and push the clock
+ * group to the far end; if the re-test shows the clock still
+ * floating in the middle, P15 adds back an invisible spacer.
+ * (3) Fancy Menu favorites are set to the 4 real desktop apps
+ * (pcmanfm-qt, qterminal, firefox-esr, lxqt-config) via the
+ * favorites array in [mainmenu]. The store and the calendar are
+ * NOT desktop apps, so they cannot be favorites; no fake
+ * .desktop entries are created. The palette is NOT touched:
+ * still deferred. RTL is kept (correct for Arabic); the mockups
+ * are LTR only because they are AI-generated.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -223,7 +242,13 @@ object LxqtLook {
     // apps, and the Fancy Menu search + categories are
     // restyled). The palette is NOT touched: deferred. The
     // spacer is NOT touched: P9FIX6-verified.
-    private const val MARKER_VERSION = "p13"
+    // P14: bumped again because the look content changes again
+    // (default wallpaper becomes the pomegranate poster; the
+    // panel plugins list becomes the reference layout without
+    // showdesktop, desktopswitch, kbindicator, quicklaunch2,
+    // spacer; the [mainmenu] section gains the Fancy Menu
+    // favorites array). The palette is NOT touched: deferred.
+    private const val MARKER_VERSION = "p14"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -278,8 +303,10 @@ object LxqtLook {
             }
             // P11: the two picked poster wallpapers are installed
             // next to the purple default so they are selectable in
-            // the desktop wallpaper settings. Default stays purple
-            // (PCMANFM_SETTINGS_CONF Wallpaper is unchanged).
+            // the desktop wallpaper settings.
+            // P14: the default is now the pomegranate poster (his
+            // pick 2026-11-08); PCMANFM_SETTINGS_CONF Wallpaper
+            // points at it. Purple and bold stay selectable.
             context.assets.open(WALLPAPER_POMEGRANATE_ASSET).use { input ->
                 File(backgrounds, "mudif-wallpaper-pomegranate.png").outputStream().use { out ->
                     input.copyTo(out)
@@ -542,7 +569,7 @@ SHELL=/bin/bash
     // the desktop stays black. No BgColor key is needed (default
     // black is invisible under a covering wallpaper).
     private const val PCMANFM_SETTINGS_CONF = """[Desktop]
-Wallpaper=/usr/share/backgrounds/mudif-wallpaper.png
+Wallpaper=/usr/share/backgrounds/mudif-wallpaper-pomegranate.png
 WallpaperMode=stretch
 """
 
@@ -708,10 +735,37 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // A key already present is replaced in place (one copy only);
     // a missing key is appended at the end of its section. A
     // re-merge of an already-merged file is byte-identical.
+    // P14 - the reference panel layout (his order 2026-11-08).
+    // The plugins= line is now REPLACED wholesale with the
+    // reference list (mainmenu, quicklaunch, taskbar, tray,
+    // statusnotifier, mount, volume, worldclock). The P9FIX3
+    // keep-as-is/append-spacer logic is gone: it would keep the
+    // removed plugins (showdesktop, desktopswitch, kbindicator,
+    // quicklaunch2, spacer). The [spacer] section is no longer
+    // written (a leftover one in an existing file is harmless:
+    // the panel loads plugins ONLY from plugins=). The [mainmenu]
+    // section also gains the Fancy Menu favorites array (see
+    // mainmenuKeys). The merge still runs once per marker
+    // version, so it does not fight later user edits.
     private fun mergePanelConf(existing: String?): String {
+        // P14: Fancy Menu favorites. The menu reads them via
+        // readArray("favorites") from its own [mainmenu] section:
+        // favorites\N\desktopFile + favorites\size=N (the same
+        // QSettings ARRAY shape as the QuickLaunch apps, proven
+        // by a real user panel.conf: [fancymenu2] with
+        // favorites\1\desktopFile=... + favorites\size=4,
+        // type=fancymenu). The 4 real desktop apps (the same 4 as
+        // QuickLaunch). The store and the calendar are NOT
+        // desktop apps, so they cannot be favorites; no fake
+        // .desktop entries are created.
         val mainmenuKeys = linkedMapOf(
             "icon" to "/usr/share/lxqt/themes/mudif/mainmenu.png",
-            "ownIcon" to "true"
+            "ownIcon" to "true",
+            "favorites\\1\\desktopFile" to "/usr/share/applications/pcmanfm-qt.desktop",
+            "favorites\\2\\desktopFile" to "/usr/share/applications/qterminal.desktop",
+            "favorites\\3\\desktopFile" to "/usr/share/applications/firefox-esr.desktop",
+            "favorites\\4\\desktopFile" to "/usr/share/applications/lxqt-config.desktop",
+            "favorites\\size" to "4"
         )
         // P9FIX4 - the panel reads its icon theme from panel.conf
         // [General] iconTheme, NOT from lxqt.conf icon_theme. The
@@ -732,7 +786,6 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // a single apps= LIST key, which readArray never reads, so
         // the plugin fell back to the system defaults. The merge
         // now writes the array keys and drops any stale apps= key.
-        // quicklaunch2 is left alone (empty, invisible).
         val quicklaunchKeys = linkedMapOf(
             "apps\\1\\desktop" to "/usr/share/applications/pcmanfm-qt.desktop",
             "apps\\2\\desktop" to "/usr/share/applications/qterminal.desktop",
@@ -740,15 +793,17 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             "apps\\4\\desktop" to "/usr/share/applications/lxqt-config.desktop",
             "apps\\size" to "4"
         )
-        val pluginsList = "mainmenu, showdesktop, desktopswitch, quicklaunch, taskbar, kbindicator, tray, statusnotifier, mount, volume, worldclock, quicklaunch2, spacer"
-        val spacerLines = listOf(
-            "[spacer]",
-            "alignment=Left",
-            "type=spacer",
-            "size=8",
-            "expandable=true",
-            "spaceType=lined"
-        )
+        // P14: the reference panel layout (mockups, mirrored for
+        // RTL). Removed from the P13 list: showdesktop,
+        // desktopswitch (the 4 3 2 1 pager), kbindicator (US S N C),
+        // quicklaunch2 (dead, renders nothing), spacer (the lone
+        // line in empty space). The taskbar is expected to expand
+        // and push the clock group to the far end; if the re-test
+        // shows the clock still floating in the middle, P15 adds
+        // back an invisible spacer. A leftover [spacer] section in
+        // an existing panel.conf is harmless (the panel loads
+        // plugins ONLY from this list, so it is never loaded).
+        val pluginsList = "mainmenu, quicklaunch, taskbar, tray, statusnotifier, mount, volume, worldclock"
         val out = StringBuilder()
         val seenMainmenuKeys = mutableSetOf<String>()
         var inMainmenu = false
@@ -759,7 +814,6 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         var inPanel1 = false
         var panel1Seen = false
         var pluginsSeen = false
-        var spacerSeen = false
         val seenQuicklaunchKeys = mutableSetOf<String>()
         var inQuicklaunch = false
         var quicklaunchSeen = false
@@ -800,7 +854,6 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                 if (inPanel1) panel1Seen = true
                 inQuicklaunch = trimmed == "[quicklaunch]"
                 if (inQuicklaunch) quicklaunchSeen = true
-                if (trimmed == "[spacer]") spacerSeen = true
                 out.append(line).append("\n")
                 continue
             }
@@ -846,18 +899,14 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                     // Duplicate plugins= key: drop it (one was
                     // already written above).
                     if (pluginsSeen) continue
-                    val value = trimmed.substringAfter("=", "").trim()
-                    val tokens = value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                    if ("spacer" in tokens) {
-                        // Already lists the spacer: keep the line
-                        // exactly as-is (user order preserved).
-                        out.append(line).append("\n")
-                    } else {
-                        // Append the spacer to the existing list,
-                        // preserving the user's plugin order.
-                        val newValue = if (value.isEmpty()) "spacer" else "$value, spacer"
-                        out.append("plugins=$newValue\n")
-                    }
+                    // P14: replace the whole list with the
+                    // reference layout. The old list carries the
+                    // removed plugins (showdesktop, desktopswitch,
+                    // kbindicator, quicklaunch2, spacer), so
+                    // keeping it as-is would keep them. The merge
+                    // runs once per marker version, so this does
+                    // not fight later user edits.
+                    out.append("plugins=$pluginsList\n")
                     pluginsSeen = true
                     continue
                 }
@@ -889,7 +938,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             // Defensive only: [panel1] is in both the system
             // default and the user panel.conf, so this should
             // never trigger. A minimal [panel1] with just the
-            // plugins list is better than no spacer at all.
+            // plugins list is better than no plugins list at all.
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             out.append("[panel1]\n")
             out.append("plugins=$pluginsList\n")
@@ -904,10 +953,6 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             out.append("alignment=Left\n")
             out.append("type=quicklaunch\n")
             for ((k, v) in quicklaunchKeys) out.append("$k=$v\n")
-        }
-        if (!spacerSeen) {
-            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
-            for (l in spacerLines) out.append(l).append("\n")
         }
         // Normalize the ending: exactly one trailing newline, so a
         // re-merge of an already-merged file is byte-identical.
