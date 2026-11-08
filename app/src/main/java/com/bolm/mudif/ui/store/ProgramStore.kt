@@ -218,7 +218,20 @@ object ProgramStore {
      */
     private fun stageAssetToGuest(context: Context, assetPath: String, guestPath: String): Boolean {
         return try {
-            val dest = File(DebianSystem.debianRootfsDir(context), guestPath.trimStart('/'))
+            // P13: the guest's /tmp is bind-mounted over the app's
+            // files/tmp (RootfsManager), so the rootfs's own /tmp
+            // is shadowed and the guest never sees files staged
+            // there (proven by the P12 Ollama UI failure: the
+            // script existed in the rootfs but the guest reported
+            // "No such file"). A guest /tmp/... path is therefore
+            // staged into the bind target (files/tmp), so the guest
+            // sees it at the same /tmp/... path; any other path is
+            // staged into the rootfs as before.
+            val dest = if (guestPath.startsWith("/tmp/")) {
+                File(File(context.filesDir, "tmp"), guestPath.removePrefix("/tmp/"))
+            } else {
+                File(DebianSystem.debianRootfsDir(context), guestPath.trimStart('/'))
+            }
             dest.parentFile?.mkdirs()
             context.assets.open(assetPath).use { input ->
                 dest.outputStream().use { out -> input.copyTo(out) }
