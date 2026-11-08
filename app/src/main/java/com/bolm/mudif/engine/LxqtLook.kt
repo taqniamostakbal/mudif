@@ -93,6 +93,21 @@ import java.io.File
  * fresh-panel re-test REFUTED the stale-process explanation
  * (a fresh panel still shows stock icons), so the cause is
  * deeper and needs a diagnostic before any code change.
+ * P9FIX4: the icons diagnosis proved two separate causes. (A)
+ * The panel reads its icon theme from panel.conf `[General]
+ * iconTheme`, and the user panel.conf has no iconTheme key, so
+ * it falls back to the system default's Papirus-Dark (its
+ * mapped caches are Papirus-Dark + hicolor only, no mudif).
+ * The merge now writes `iconTheme=mudif` into [General].
+ * (B) libfm-qt requests folders by the MIME name
+ * `inode-directory`, which mudif lacks, so they fall back to
+ * bloom-dark blue. The theme zip gains 6 MIME folder SVGs.
+ * (C) The P9FIX3 re-test proved the spacer IS loaded (layout
+ * shift) but its SVG marks never paint, because Qt stylesheet
+ * `background-image` loads via QPixmap, which has no SVG
+ * plugin in this build (a PNG control renders 7,283 px where
+ * the SVG renders 0). The spacer SVGs become PNGs and the
+ * QSS urls point at the PNGs.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -142,7 +157,17 @@ object LxqtLook {
     // current layout. The icons and the palette are NOT touched
     // here: the icons need a diagnostic first, the palette is
     // deferred).
-    private const val MARKER_VERSION = "p9fix3"
+    // P9FIX4: bumped again because the look content changes again
+    // (mergePanelConf now also writes `iconTheme=mudif` into the
+    // [General] section of panel.conf: the panel reads its icon
+    // theme from there, and the user panel.conf has no iconTheme
+    // key, so it falls back to the system default's
+    // Papirus-Dark. The theme zip also changes: 6 MIME folder
+    // SVGs are added (inode-directory et al.) and the spacer
+    // SVGs become PNGs (QPixmap has no SVG plugin, so the
+    // stylesheet SVG marks can never paint). The palette is NOT
+    // touched: it is deferred).
+    private const val MARKER_VERSION = "p9fix4"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
@@ -319,7 +344,9 @@ object LxqtLook {
             // clobber race as pcmanfm-qt's settings.conf). P9FIX3
             // adds the `plugins=` key to [panel1] (the [spacer]
             // section alone is not loaded — the panel reads only
-            // the `plugins=` list). The base is the existing
+            // the `plugins=` list). P9FIX4 adds `iconTheme=mudif`
+            // to [General] (the panel reads its icon theme from
+            // there, not from lxqt.conf). The base is the existing
             // panel.conf if the panel already created one, else
             // the system default /etc/xdg/lxqt/panel.conf
             // (lxqt-panel is installed — startlxqt exists — so
@@ -583,6 +610,13 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // persists. expandable=true makes the spacer push the
     // right-aligned plugins to the right edge (the usual layout
     // purpose); size is ignored when expandable.
+    // P9FIX4 — the panel reads its icon theme from panel.conf
+    // [General] iconTheme, NOT from lxqt.conf icon_theme. The
+    // user panel.conf [General] has no iconTheme key, so the
+    // panel falls back to the system default's
+    // iconTheme=Papirus-Dark (the icons diagnosis proved it from
+    // the panel's mapped caches: Papirus-Dark + hicolor only).
+    // So the merge also writes `iconTheme=mudif` into [General].
     // A key already present is replaced in place (one copy only);
     // a missing key is appended at the end of its section. A
     // re-merge of an already-merged file is byte-identical.
@@ -591,6 +625,14 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             "icon" to "/usr/share/lxqt/themes/mudif/mainmenu.png",
             "ownIcon" to "true"
         )
+        // P9FIX4 — the panel reads its icon theme from panel.conf
+        // [General] iconTheme, NOT from lxqt.conf icon_theme. The
+        // user panel.conf [General] has no iconTheme key, so the
+        // panel falls back to the system default's
+        // iconTheme=Papirus-Dark (its mapped caches are
+        // Papirus-Dark + hicolor only, no mudif). Writing
+        // iconTheme=mudif here makes the panel use mudif.
+        val generalKeys = linkedMapOf("iconTheme" to "mudif")
         val pluginsList = "mainmenu, showdesktop, desktopswitch, quicklaunch, taskbar, kbindicator, tray, statusnotifier, mount, volume, worldclock, quicklaunch2, spacer"
         val spacerLines = listOf(
             "[spacer]",
@@ -604,6 +646,9 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         val seenMainmenuKeys = mutableSetOf<String>()
         var inMainmenu = false
         var mainmenuSeen = false
+        var inGeneral = false
+        var generalSeen = false
+        val seenGeneralKeys = mutableSetOf<String>()
         var inPanel1 = false
         var panel1Seen = false
         var pluginsSeen = false
@@ -611,6 +656,10 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         fun appendMissingMainmenuKeys() {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             for ((k, v) in mainmenuKeys) if (k !in seenMainmenuKeys) out.append("$k=$v\n")
+        }
+        fun appendMissingGeneralKeys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in generalKeys) if (k !in seenGeneralKeys) out.append("$k=$v\n")
         }
         fun appendMissingPanel1Plugins() {
             if (!pluginsSeen) {
@@ -626,14 +675,27 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             val trimmed = line.trim()
             if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
                 if (inMainmenu) appendMissingMainmenuKeys()
+                if (inGeneral) appendMissingGeneralKeys()
                 if (inPanel1) appendMissingPanel1Plugins()
                 inMainmenu = trimmed == "[mainmenu]"
                 if (inMainmenu) mainmenuSeen = true
+                inGeneral = trimmed == "[General]"
+                if (inGeneral) generalSeen = true
                 inPanel1 = trimmed == "[panel1]"
                 if (inPanel1) panel1Seen = true
                 if (trimmed == "[spacer]") spacerSeen = true
                 out.append(line).append("\n")
                 continue
+            }
+            if (inGeneral) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key in generalKeys) {
+                    if (key !in seenGeneralKeys) {
+                        out.append("$key=${generalKeys[key]}\n")
+                        seenGeneralKeys.add(key)
+                    }
+                    continue
+                }
             }
             if (inMainmenu) {
                 val key = trimmed.substringBefore("=").trim()
@@ -670,7 +732,18 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             out.append(line).append("\n")
         }
         if (inMainmenu) appendMissingMainmenuKeys()
+        if (inGeneral) appendMissingGeneralKeys()
         if (inPanel1) appendMissingPanel1Plugins()
+        if (!generalSeen) {
+            // Defensive only: [General] is in both the system
+            // default and the user panel.conf, so this should
+            // never trigger. A minimal [General] with just the
+            // icon theme is better than the panel falling back
+            // to Papirus-Dark.
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[General]\n")
+            for ((k, v) in generalKeys) out.append("$k=$v\n")
+        }
         if (!mainmenuSeen) {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             out.append("[mainmenu]\n")
