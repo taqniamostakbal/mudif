@@ -250,7 +250,7 @@ object LxqtLook {
     // favorites array). The palette is NOT touched: deferred.
     // P16: public so the version toast + diagnostic report always show
     // the CURRENT marker (never a stale hardcoded "P8" again).
-    const val MARKER_VERSION = "p16.1"
+    const val MARKER_VERSION = "p16.2"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
