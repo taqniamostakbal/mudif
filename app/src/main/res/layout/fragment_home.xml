@@ -41,9 +41,64 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- P16: the system card — the home now opens the real computer
+                 (desktop) instead of only pointing at the store. Status and
+                 button label are set in code (installed vs not installed). -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mudif_system"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="#1A1A1A"
+                        android:fontFamily="@font/cairo" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/mudif_system_desc"
+                        android:textSize="14sp"
+                        android:textColor="#555555"
+                        android:fontFamily="@font/cairo" />
+
+                    <TextView
+                        android:id="@+id/system_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/mudif_purple"
+                        android:fontFamily="@font/cairo" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_open_desktop"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:fontFamily="@font/cairo"
+                        app:backgroundTint="@color/mudif_purple"
+                        app:cornerRadius="12dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp">
 

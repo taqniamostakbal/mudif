@@ -15,7 +15,7 @@ import java.io.File
  *  - Deepin icons: bloom-dark (deepin-icon-theme ships bloom /
  *    bloom-dark on Debian; no copying needed, unlike Alpine).
  *  - Dark panel: LXQt theme=dark in lxqt.conf.
- *  - Dark Qt windows: Adwaita-Dark via QT_STYLE_OVERRIDE.
+ *  - Dark Qt windows: Fusion + the [Palette] group in lxqt.conf.
  *  - Dark GTK apps: Adwaita:dark via GTK_THEME.
  *  - The lxqt-qtplugin platform theme (QT_QPA_PLATFORMTHEME=lxqt)
  *    is what applies icon_theme to Qt apps at all.
@@ -91,11 +91,12 @@ import java.io.File
  * The icons: the lookup works (a fresh Qt process resolves the
  * mudif overrides to purple); the running processes were stale,
  * so no code change - the fresh-panel re-test is the decisive
- * check. The palette: the palette probe proved
- * QT_STYLE_OVERRIDE is NOT the cause (without it the palette
- * becomes Fusion light, not Mudif), so the override stays and
- * the palette is deferred (its cause is inside libqtlxqt's
- * palette handling).
+ * check. P15 (2026-11-08, PALETTE-PROOF.md) SUPERSEDES the old palette
+ * verdict: the cause was the missing [Palette] group in lxqt.conf
+ * (lxqt-qtplugin builds the palette solely from it) AND Adwaita-Dark
+ * masking it with its own palette. The fix is the [Palette] group in
+ * LXQT_CONF + QT_STYLE_OVERRIDE=Fusion, proven live (all ten roles
+ * exact: Window #232323, Highlight #593BFE).
  * P9FIX3: the P9FIX2 re-test proved the [spacer] section alone
  * is NOT enough - the panel loads plugins ONLY from the
  * `plugins=` list in [panel1] (LXQtPanel::loadPlugins), and the
@@ -211,9 +212,8 @@ object LxqtLook {
     // icon=<mudif logo> so the Fancy Menu plugin sets the start
     // button icon itself, and a [spacer] section is added so the
     // panel has a spacer widget to style. The palette is NOT
-    // touched: the palette probe proved QT_STYLE_OVERRIDE is NOT
-    // the cause of the palette not loading, and removing it would
-    // make the desktop light).
+    // touched here (P15 later proved the cause: the missing
+    // [Palette] group in lxqt.conf + Adwaita-Dark masking it).
     // P9FIX3: bumped again because the look content changes again
     // (mergePanelConf now also writes a `plugins=` key into the
     // [panel1] section of panel.conf: the panel loads plugins
@@ -248,7 +248,9 @@ object LxqtLook {
     // showdesktop, desktopswitch, kbindicator, quicklaunch2,
     // spacer; the [mainmenu] section gains the Fancy Menu
     // favorites array). The palette is NOT touched: deferred.
-    private const val MARKER_VERSION = "p14"
+    // P16: public so the version toast + diagnostic report always show
+    // the CURRENT marker (never a stale hardcoded "P8" again).
+    const val MARKER_VERSION = "p16"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -520,26 +522,40 @@ object LxqtLook {
     // P9: theme=mudif + icon_theme=mudif (the `mudif` theme and icon
     // theme installed by extractZipAsset above). Before P9 this was
     // theme=dark + icon_theme=bloom-dark.
-    // P9FIX: palette=Mudif selects the `Mudif` palette explicitly
-    // (usr/share/lxqt/palettes/Mudif, highlight #593BFE). The file
-    // name is capitalized like upstream (theme `dark` -> palette
-    // `Dark`), so it matches the theme-name lookup; the explicit
-    // key covers the case where LXQt reads the palette name from
-    // the config instead. Harmless if unread (an extra key).
+    // P15: the palette lives HERE, in a [Palette] group (lxqt-qtplugin
+    // builds it solely from lxqt.conf [Palette] — proven live,
+    // PALETTE-PROOF.md: Fusion + this group gives Window #232323 /
+    // Highlight #593BFE on all ten roles). The `palette=Mudif` key and
+    // the file /usr/share/lxqt/palettes/Mudif are DEAD (nothing reads
+    // them); kept as harmless presets for lxqt-config-appearance.
     private const val LXQT_CONF = """[General]
 __userfile__=true
 icon_theme=mudif
 theme=mudif
 palette=Mudif
+
+[Palette]
+window_color=#232323
+base_color=#282828
+highlight_color=#593BFE
+window_text_color=#e1e6e6
+text_color=#b8b8b8
+highlighted_text_color=#ebfdff
+link_color=#8B7CF5
+link_visited_color=#C9B8FF
+tooltip_base_color=#232323
+tooltip_text_color=#b8b8b8
 """
 
     // Openbox is LXQt's window manager. The Environment section is
-    // what the session exports to every Qt/GTK app: Adwaita-Dark is
-    // the dark Qt widget style (the registered key, capital A capital
-    // D; Qt6's factory lookup is case-insensitive so both spellings
-    // resolve there, but Qt5's qlipper needs the adwaita-qt plugin
-    // installed, STYLE-PROBE-P66), Adwaita:dark the dark GTK theme,
-    // and the lxqt platform theme is what applies icon_theme at all.
+    // what the session exports to every Qt/GTK app: Fusion is the Qt
+    // widget style (P15: Adwaita-Dark was dropped because it provides
+    // its own palette which MASKS the platform-theme palette — the
+    // leave dialog stayed #353535 under it; Fusion respects the
+    // [Palette] group in lxqt.conf, proven live PALETTE-PROOF.md.
+    // Fusion is built-in, so no P6.6 "invalid style override" risk),
+    // Adwaita:dark the dark GTK theme, and the lxqt platform theme is
+    // what applies icon_theme at all.
     // P8: LANG ar_MA.UTF-8 + LANGUAGE=ar make the session Arabic
     // (the locale itself is generated by ensureDebianDesktop).
     // P8FIX2: SHELL=/bin/bash so qterminal runs bash (not /bin/sh)
@@ -549,7 +565,7 @@ __userfile__=true
 window_manager=openbox
 
 [Environment]
-QT_STYLE_OVERRIDE=Adwaita-Dark
+QT_STYLE_OVERRIDE=Fusion
 GTK_THEME=Adwaita:dark
 QT_QPA_PLATFORMTHEME=lxqt
 LANG=ar_MA.UTF-8

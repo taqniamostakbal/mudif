@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- P16: branded progress dialog content (title + status + purple bar). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/dialog_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="19sp"
+        android:textStyle="bold"
+        android:textColor="#1A1A1A"
+        android:fontFamily="@font/cairo" />
+
+    <TextView
+        android:id="@+id/dialog_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textSize="14sp"
+        android:textColor="#555555"
+        android:fontFamily="@font/cairo" />
+
+    <ProgressBar
+        android:id="@+id/dialog_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:max="1000"
+        android:progress="0"
+        android:progressTint="@color/mudif_purple"
+        android:indeterminateTint="@color/mudif_purple" />
+</LinearLayout>

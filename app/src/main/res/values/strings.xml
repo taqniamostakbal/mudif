@@ -13,10 +13,14 @@
     <string name="terminal_clear">مسح</string>
     <string name="home_subtitle">عالمك الجديد يبدأ من هنا</string>
     <string name="welcome_title">مرحباً بك في مضيف</string>
-    <string name="welcome_text">كل شيء جاهز. اختر وجهتك من الأسفل، وستصل باقي الأقسام قريباً واحداً واحداً.</string>
+    <string name="welcome_text">افتح سطح المكتب واشتغل كأنك على حاسوب حقيقي، وثبّت البرامج من المتجر.</string>
     <string name="browse_store">تصفح المتجر</string>
     <string name="version_title">الإصدار 0.1.0</string>
     <string name="version_text">المرحلة 1 — الهيكل الأساسي يعمل</string>
+    <string name="home_system_installed">مثبت ✓ — جاهز للاستعمال</string>
+    <string name="home_system_not_installed">غير مثبت بعد</string>
+    <string name="home_open_desktop">افتح سطح المكتب</string>
+    <string name="home_install_system">ثبّت النظام</string>
     <string name="coming_soon">قريباً</string>
     <string name="coming_soon_long">هذا القسم قيد البناء — سيصل قريباً</string>
     <string name="store_subtitle">برامج مجانية لنظام مضيف، ثبتها بضغطة واحدة</string>
@@ -48,7 +52,7 @@
     <string name="install">تثبيت</string>
     <string name="install_soon">التثبيت الحقيقي سيتوفر قريباً</string>
     <string name="apps_subtitle">ثبّت تطبيقاتك المفضلة بضغطة واحدة</string>
-    <string name="games_subtitle">ألعاب الكمبيوتر على هاتفك</string>
+    <string name="games_subtitle">الألعاب غادي توصل قريباً</string>
     <string name="profile_subtitle">معلوماتك وإعداداتك</string>
     <string name="profile_guest_name">مستخدم مضيف</string>
     <string name="profile_guest_mode">وضع الضيف — بلا حساب</string>

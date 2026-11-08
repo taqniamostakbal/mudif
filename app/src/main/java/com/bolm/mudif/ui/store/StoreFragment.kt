@@ -8,13 +8,13 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentStoreBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.ui.MudifDialog
 import com.google.android.material.snackbar.Snackbar
 
 /**
@@ -130,11 +130,13 @@ class StoreFragment : Fragment() {
                     Snackbar.LENGTH_LONG
                 ).show()
             } else {
-                AlertDialog.Builder(requireContext())
-                    .setTitle(getString(R.string.system_install_title))
-                    .setMessage(message)
-                    .setPositiveButton(getString(R.string.ok), null)
-                    .show()
+                // P16: branded dialog.
+                MudifDialog.info(
+                    requireContext(),
+                    getString(R.string.system_install_title),
+                    message,
+                    getString(R.string.ok)
+                )
             }
         }
     }
@@ -271,11 +273,13 @@ class StoreFragment : Fragment() {
                 return
             }
             if (ProgramStore.isArm64(guestArch) && program.debArm64 == null) {
-                AlertDialog.Builder(requireContext())
-                    .setTitle(getString(R.string.store_no_arm64_title))
-                    .setMessage(getString(R.string.store_no_arm64))
-                    .setPositiveButton(getString(R.string.ok), null)
-                    .show()
+                // P16: branded dialog.
+                MudifDialog.info(
+                    requireContext(),
+                    getString(R.string.store_no_arm64_title),
+                    getString(R.string.store_no_arm64),
+                    getString(R.string.ok)
+                )
                 return
             }
         }
@@ -308,14 +312,14 @@ class StoreFragment : Fragment() {
                     states[program.id] = ProgramState.NOT_INSTALLED
                     evidence.remove(program.id)
                     programAdapter.refreshStates(states, evidence)
-                    AlertDialog.Builder(requireContext())
-                        .setTitle(getString(R.string.store_install_failed_title))
-                        .setMessage(
-                            getString(R.string.store_install_failed, program.name) +
-                                "\n\n" + detail
-                        )
-                        .setPositiveButton(getString(R.string.ok), null)
-                        .show()
+                    // P16: branded dialog.
+                    MudifDialog.info(
+                        requireContext(),
+                        getString(R.string.store_install_failed_title),
+                        getString(R.string.store_install_failed, program.name) +
+                            "\n\n" + detail,
+                        getString(R.string.ok)
+                    )
                 }
             }
         }.start()
@@ -346,14 +350,14 @@ class StoreFragment : Fragment() {
                 } else {
                     states[program.id] = ProgramState.INSTALLED
                     programAdapter.refreshStates(states, evidence)
-                    AlertDialog.Builder(requireContext())
-                        .setTitle(getString(R.string.store_uninstall_failed_title))
-                        .setMessage(
-                            getString(R.string.store_uninstall_failed, program.name) +
-                                "\n\n" + ProgramStore.lastLines(result.output)
-                        )
-                        .setPositiveButton(getString(R.string.ok), null)
-                        .show()
+                    // P16: branded dialog.
+                    MudifDialog.info(
+                        requireContext(),
+                        getString(R.string.store_uninstall_failed_title),
+                        getString(R.string.store_uninstall_failed, program.name) +
+                            "\n\n" + ProgramStore.lastLines(result.output),
+                        getString(R.string.ok)
+                    )
                 }
             }
         }.start()

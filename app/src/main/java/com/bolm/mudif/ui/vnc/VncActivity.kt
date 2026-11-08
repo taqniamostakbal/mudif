@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
 import com.bolm.mudif.engine.DebianSystem
@@ -13,6 +12,7 @@ import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.LxqtLook
 import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.engine.X11Session
+import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.logs.LogViewerActivity
 
 /**
@@ -68,8 +68,8 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
-        // Version indicator — P8 (verifiable by evidence).
-        Toast.makeText(this, "نسخة: P8", Toast.LENGTH_LONG).show()
+        // Version indicator — reads the live marker, never a stale label.
+        Toast.makeText(this, "نسخة: ${LxqtLook.MARKER_VERSION}", Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -156,6 +156,20 @@ class VncActivity : AppCompatActivity() {
                 false
             }
 
+            // P16 XKB GUARD: if the desktop install did not complete,
+            // the xkb data is not there either — do NOT start the X
+            // server (it would die instantly with an empty
+            // XKB_CONFIG_ROOT). Tell the user plainly instead.
+            if (!desktopOk) {
+                if (destroyed) return@Thread
+                runOnUiThread {
+                    showFailureDialog(
+                        "تثبيت نظام مضيف ما كملش.\nإلا كان التثبيت مازال خدام من المتجر، تسنى حتى يكمل وعاود فتح سطح المكتب."
+                    )
+                }
+                return@Thread
+            }
+
             // 3. Start the X server (Tiny launchXServer) — but ONLY
             // if it is not already up. Judge by the real state
             // (socket + TCP listener), not by the in-memory flag.
@@ -193,9 +207,30 @@ class VncActivity : AppCompatActivity() {
                 }
             }
             if (!serverUp) {
+                // P16 XKB GUARD: make sure the keyboard data is there
+                // (reinstall xkb-data once if it is missing), then start
+                // the server only if the guard allows it.
+                setStatus("جاري فحص بيانات لوحة المفاتيح…")
+                if (!X11Session.ensureXkbData(this)) {
+                    if (destroyed) return@Thread
+                    runOnUiThread {
+                        showFailureDialog(
+                            "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب."
+                        )
+                    }
+                    return@Thread
+                }
                 setStatus("جاري تشغيل خادم X…")
                 val xkbRootfs = DebianSystem.debianRootfsDir(this)
-                X11Session.startXServer(this, xkbRootfs)
+                if (!X11Session.startXServer(this, xkbRootfs)) {
+                    if (destroyed) return@Thread
+                    runOnUiThread {
+                        showFailureDialog(
+                            "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب."
+                        )
+                    }
+                    return@Thread
+                }
 
                 // 3. Wait ONLY for the socket file (Tiny waitForFile).
                 if (!X11Session.waitForXSocket(this, 15000)) {
@@ -260,22 +295,23 @@ class VncActivity : AppCompatActivity() {
                     if (ok) "جاهز — افتح العارض لبدء سطح المكتب"
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
-                AlertDialog.Builder(this)
-                    .setTitle("تشخيص P8 — نظام مضيف")
-                    .setMessage(
-                        "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
-                            "PTY حية: ${GuestSession.alive}\n" +
-                            "الضيف قلع: ${GuestSession.booted}\n" +
-                            "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
-                            "TCP 6006: $tcpOk\n" +
-                            "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
-                            "نظام مضيف تثبت: $desktopOk\n" +
-                            "الشكل ديال Deepin تثبت: $lookOk\n" +
-                            "سطح المكتب: يبدأ بعد فتح العارض (الحجم كيتثبت أولا)\n\n" +
-                            "--- السبب الحقيقي ---\n" +
-                            DesktopDiagnostics.hypothesisDebian()
-                    )
-                    .setPositiveButton("فتح العارض وبدء سطح المكتب") { _, _ ->
+                // P16: branded dialog (title fixed: no stale P8).
+                MudifDialog.info(
+                    this,
+                    "تشخيص — نظام مضيف",
+                    "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
+                        "PTY حية: ${GuestSession.alive}\n" +
+                        "الضيف قلع: ${GuestSession.booted}\n" +
+                        "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
+                        "TCP 6006: $tcpOk\n" +
+                        "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
+                        "نظام مضيف تثبت: $desktopOk\n" +
+                        "الشكل ديال Deepin تثبت: $lookOk\n" +
+                        "سطح المكتب: يبدأ بعد فتح العارض (الحجم كيتثبت أولا)\n\n" +
+                        "--- السبب الحقيقي ---\n" +
+                        DesktopDiagnostics.hypothesisDebian(),
+                    "فتح العارض وبدء سطح المكتب",
+                    onPositive = {
                         X11Session.openViewer(this)
                         // P6.5: launch the desktop AFTER the viewer
                         // attaches and resizes the server (RandR).
@@ -303,12 +339,13 @@ class VncActivity : AppCompatActivity() {
                                 }
                             }
                         }.start()
-                    }
-                    .setNeutralButton("اللوجات المفصلة") { _, _ ->
+                    },
+                    neutral = "اللوجات المفصلة",
+                    onNeutral = {
                         startActivity(Intent(this, LogViewerActivity::class.java))
-                    }
-                    .setNegativeButton("إلغاء", null)
-                    .show()
+                    },
+                    negative = "إلغاء"
+                )
             }
         }.start()
     }
@@ -316,20 +353,25 @@ class VncActivity : AppCompatActivity() {
     /** Shown when the container or the X server fails to start. */
     private fun showFailureDialog(reason: String) {
         if (destroyed) return
-        AlertDialog.Builder(this)
-            .setTitle("فشل بدء سطح المكتب")
-            .setMessage(
-                "$reason\n\nالسبب الحقيقي كاين في اللوجات " +
-                    "(logcat ديال أندرويد + حالة الخادم)."
-            )
-            .setPositiveButton("عرض اللوجات") { _, _ ->
+        // P16: branded dialog.
+        MudifDialog.info(
+            this,
+            "فشل بدء سطح المكتب",
+            "$reason\n\nالسبب الحقيقي كاين في اللوجات " +
+                "(logcat ديال أندرويد + حالة الخادم).",
+            "عرض اللوجات",
+            onPositive = {
                 startActivity(Intent(this, LogViewerActivity::class.java))
-            }
-            .setNeutralButton("إعادة المحاولة") { _, _ ->
+            },
+            neutral = "إعادة المحاولة",
+            onNeutral = {
                 startDesktop()
+            },
+            negative = "إغلاق",
+            onNegative = {
+                finish()
             }
-            .setNegativeButton("إغلاق") { _, _ -> finish() }
-            .show()
+        )
     }
 
     override fun onDestroy() {

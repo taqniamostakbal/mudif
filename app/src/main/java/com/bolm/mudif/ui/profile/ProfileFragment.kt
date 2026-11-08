@@ -4,13 +4,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentProfileBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.terminal.TerminalActivity
 import com.bolm.mudif.ui.vnc.VncActivity
@@ -42,11 +42,13 @@ class ProfileFragment : Fragment() {
             Thread {
                 val result = EngineCheck.runProotVersion(requireContext())
                 activity?.runOnUiThread {
-                    AlertDialog.Builder(requireContext())
-                        .setTitle(getString(R.string.engine_check))
-                        .setMessage(result)
-                        .setPositiveButton(getString(R.string.ok), null)
-                        .show()
+                    // P16: branded dialog.
+                    MudifDialog.info(
+                        requireContext(),
+                        getString(R.string.engine_check),
+                        result,
+                        getString(R.string.ok)
+                    )
                 }
             }.start()
         }
@@ -72,11 +74,13 @@ class ProfileFragment : Fragment() {
                             }
                         )
                     } else {
-                        AlertDialog.Builder(requireContext())
-                            .setTitle(getString(R.string.system_install_title))
-                            .setMessage(message)
-                            .setPositiveButton(getString(R.string.ok), null)
-                            .show()
+                        // P16: branded dialog.
+                        MudifDialog.info(
+                            requireContext(),
+                            getString(R.string.system_install_title),
+                            message,
+                            getString(R.string.ok)
+                        )
                     }
                 }
             } else {
