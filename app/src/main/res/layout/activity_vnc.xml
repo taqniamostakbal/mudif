@@ -22,6 +22,13 @@
             android:textSize="16sp" />
 
         <Button
+            android:id="@+id/btn_open_viewer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="افتح العارض وبدء سطح المكتب" />
+
+        <Button
             android:id="@+id/btn_show_logs"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
