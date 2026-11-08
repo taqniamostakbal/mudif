@@ -116,7 +116,7 @@ object X11Session {
         Log.d(TAG, "XKB GUARD: xkb dir missing — reinstalling xkb-data")
         val result = TerminalSession.runCommandDebian(
             context,
-            "export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install --reinstall -y xkb-data",
+            "export DEBIAN_FRONTEND=noninteractive; dpkg --configure -a; apt-get update && apt-get install --reinstall -y xkb-data",
             idleTimeoutSec = 120,
             maxTimeoutSec = 600
         )
@@ -640,9 +640,13 @@ object X11Session {
      * after LxqtLook has copied the Cairo files in).
      * P8 fix: less + nano + curl are the Arabic CLI's primary tools
      * (the P8 test found them missing in the guest).
+     * P16.3: dpkg --configure -a runs first — an interrupted dpkg
+     * (proven on the Nova 9, 2026-11-09: "E: dpkg was interrupted")
+     * makes every apt call fail until it is repaired.
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
+            "dpkg --configure -a; " +
             "apt-get update && apt-get install -y --no-install-recommends " +
             "xkb-data procps lxqt lxqt-session lxqt-panel lxqt-config lxqt-runner " +
             "lxqt-notificationd lxqt-globalkeys lxqt-themes lxqt-qtplugin pcmanfm-qt " +
