@@ -14,6 +14,7 @@ import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.logs.LogViewerActivity
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * P5.22 RADICAL REBUILD — X11 desktop via Termux:X11, Tiny
@@ -68,10 +69,79 @@ class VncActivity : AppCompatActivity() {
             startActivity(Intent(this, LogViewerActivity::class.java))
         }
 
+        // P16.2: the status screen is the escape hatch. If the diagnostics
+        // dialog never appears (or the user dismisses it), this button
+        // still opens the viewer and starts the desktop — the screen is
+        // never a dead end. The TCP check runs off the UI thread
+        // (Socket.connect throws NetworkOnMainThreadException, P5.25).
+        binding.btnOpenViewer.setOnClickListener {
+            Thread {
+                if (X11Session.isTcpDisplayOpen()) {
+                    runOnUiThread { openViewerAndLaunchDesktop() }
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this,
+                            "سطح المكتب مازال ما وجدش — تسنى حتى يكمل",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        startDesktop()
+                    }
+                }
+            }.start()
+        }
+
         // Version indicator — reads the live marker, never a stale label.
         Toast.makeText(this, "نسخة: ${LxqtLook.MARKER_VERSION}", Toast.LENGTH_LONG).show()
 
         startDesktop()
+    }
+
+    /**
+     * P16.2: singleTop relaunch. A second tap on "افتح سطح المكتب" (or a
+     * relaunch while this screen is already in the stack) brings THIS
+     * instance forward instead of stacking a second VncActivity whose
+     * background thread would race the first on the PTY and the X
+     * server (the P16.1 second-launch stall). Re-run the flow only if
+     * no run is already in progress.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        startDesktop()
+    }
+
+    /**
+     * P16.2: open the viewer, then launch the desktop after the viewer
+     * attaches and resizes the server (P6.5). Shared by the diagnostics
+     * dialog's positive button and the status screen's viewer button.
+     */
+    private fun openViewerAndLaunchDesktop() {
+        X11Session.openViewer(this)
+        // P6.5: launch the desktop AFTER the viewer attaches and
+        // resizes the server (RandR). A plain Thread (not
+        // lifecycleScope): this activity is only paused by the viewer,
+        // not destroyed, so the thread survives the navigation. The
+        // Toast is guarded by `destroyed` in case the user pressed
+        // Back before the launch finished.
+        Thread {
+            Thread.sleep(4000)
+            val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
+            Thread.sleep(3000)
+            val running = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
+            val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
+            Log.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
+            if (!destroyed) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        if (sent && running) "سطح المكتب خدام ✓"
+                        else "سطح المكتب ما خدمش — شوف اللوجات",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
     }
 
     private fun setStatus(text: String) {
@@ -80,7 +150,18 @@ class VncActivity : AppCompatActivity() {
     }
 
     private fun startDesktop() {
+        // P16.2: at most one run at a time (see the companion flag).
+        // A second launch while a run is in progress just waits — it
+        // must NOT spawn a second thread racing the first on the PTY
+        // and the X server.
+        if (!startInProgress.compareAndSet(false, true)) {
+            runOnUiThread {
+                Toast.makeText(this, "سطح المكتب كيبدا دابا، تسنى شوية", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
         Thread {
+            try {
             // 0. PTY smoke test (study step 0): prove the PTY session
             // can be created and delivers bytes on this device BEFORE
             // building anything on it. If this fails, stop here and
@@ -312,33 +393,8 @@ class VncActivity : AppCompatActivity() {
                         DesktopDiagnostics.hypothesisDebian(),
                     "فتح العارض وبدء سطح المكتب",
                     onPositive = {
-                        X11Session.openViewer(this)
-                        // P6.5: launch the desktop AFTER the viewer
-                        // attaches and resizes the server (RandR).
-                        // A plain Thread (not lifecycleScope): this
-                        // activity is only paused by the viewer, not
-                        // destroyed, so the thread survives the
-                        // navigation. The Toast is guarded by
-                        // `destroyed` in case the user pressed Back
-                        // before the launch finished.
-                        Thread {
-                            Thread.sleep(4000)
-                            val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
-                            Thread.sleep(3000)
-                            val running = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
-                            val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
-                            Log.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
-                            if (!destroyed) {
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this,
-                                        if (sent && running) "سطح المكتب خدام ✓"
-                                        else "سطح المكتب ما خدمش — شوف اللوجات",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        }.start()
+                        // P16.2: shared with the status screen button.
+                        openViewerAndLaunchDesktop()
                     },
                     neutral = "اللوجات المفصلة",
                     onNeutral = {
@@ -346,6 +402,20 @@ class VncActivity : AppCompatActivity() {
                     },
                     negative = "إلغاء"
                 )
+            }
+            } catch (e: Exception) {
+                // P16.2: a silent thread death used to leave the user
+                // on a stuck status screen with no dialog and no error
+                // (the P16.1 second-launch stall). Any failure now
+                // surfaces as a dialog with a retry button instead.
+                Log.e("VncActivity", "startDesktop failed", e)
+                if (!destroyed) {
+                    runOnUiThread {
+                        showFailureDialog("خطأ غير متوقع أثناء بدء سطح المكتب:\n${e.message}")
+                    }
+                }
+            } finally {
+                startInProgress.set(false)
             }
         }.start()
     }
@@ -394,5 +464,16 @@ class VncActivity : AppCompatActivity() {
         const val DESKTOP_LXQT = "lxqt"
         /** P6 — نظام مضيف: Debian 13.1 + LXQt, the ONE system. */
         const val DESKTOP_MUDIF = "mudif"
+
+        /**
+         * P16.2: at most ONE startDesktop run at a time, across ALL
+         * VncActivity instances. A second launch while a run is in
+         * progress used to spawn a second thread that raced the first
+         * on the PTY session and the X server (the P16.1 second-launch
+         * stall: the restart stalled after the stale-socket cleanup
+         * and no dialog ever appeared). The flag is reset in a
+         * finally block, so a failed run never blocks the next one.
+         */
+        private val startInProgress = AtomicBoolean(false)
     }
 }
