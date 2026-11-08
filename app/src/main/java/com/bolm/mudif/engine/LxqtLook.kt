@@ -5,7 +5,7 @@ import android.util.Log
 import java.io.File
 
 /**
- * P6.4 — the Deepin-style look for نظام مضيف (ONE system, Debian + LXQt).
+ * P6.4 - the Deepin-style look for نظام مضيف (ONE system, Debian + LXQt).
  *
  * XFCE is gone by the user's order (2026-11-07); the look moves from
  * DeepinLook's xfconf XMLs + WhiteSur to LXQt configs. The recipe is
@@ -22,44 +22,44 @@ import java.io.File
  *
  * Kvantum is DELIBERATELY NOT used: there is NO kvantum or
  * kvantum-themes package in Debian trixie (verified
- * packages.debian.org 2026-11-07: "No such package") — the Alpine
+ * packages.debian.org 2026-11-07: "No such package") - the Alpine
  * recipe (kvantum + KvArcDark) does not transfer. Adwaita-dark is
  * the Debian-native dark Qt style (upstream FedoraQt README lists
  * Adwaita / Adwaita-dark / HighContrast).
  *
  * The look is applied ONCE per rootfs (marker .mudif_lxqt_look in
  * the guest's /root) by writing files directly into the rootfs (no
- * guest execution needed — the app owns these files), BEFORE the
+ * guest execution needed - the app owns these files), BEFORE the
  * first desktop launch. That order matters: the 2026-11-07 LXQt
  * test proved the running pcmanfm-qt rewrites settings.conf on
- * exit (clobber race) — writing before any launch means no running
+ * exit (clobber race) - writing before any launch means no running
  * process can clobber the files. No live apply step exists for
  * LXQt (there is no xfconf to query); the configs are read by the
  * session at startup.
  *
  * The user vetoed a separate dock ("الدوك، لا"): there is NO Plank
- * and NO floating dock — the single full-width bottom lxqt-panel IS
+ * and NO floating dock - the single full-width bottom lxqt-panel IS
  * the taskbar.
  *
- * P8 — Arabic layer: LANG ar_MA.UTF-8 + LANGUAGE=ar (session env,
+ * P8 - Arabic layer: LANG ar_MA.UTF-8 + LANGUAGE=ar (session env,
  * RootfsManager one-shot env and boot argv), Cairo variable font
  * bundled as an asset (fonts-cairo, no apt package exists), Noto
  * Arabic fallback from apt, purple wallpaper (the user's pick),
  * and the Arabic CLI (48 Fusha commands + Mudif qterminal scheme).
- * P8.1 — the LXQt shell itself is Arabic too: the upstream Arabic
+ * P8.1 - the LXQt shell itself is Arabic too: the upstream Arabic
  * .qm files (47, 100% translated) are bundled as assets and copied
  * into the rootfs (Debian trixie ships no LXQt .qm at all).
- * P9 — the `mudif` theme: dark purple LXQt theme + purple icon
+ * P9 - the `mudif` theme: dark purple LXQt theme + purple icon
  * theme (inherits bloom-dark) + purple Openbox theme (Onyx base),
  * bundled as one zip asset and extracted into the rootfs.
- * P9FIX — the theme images did not render (P9 test PARTIAL):
+ * P9FIX - the theme images did not render (P9 test PARTIAL):
  * the QSS image urls were made absolute guest paths (the P9
  * diagnosis suspected relative url() fails when the stylesheet
  * is applied as a string), the icon theme gets an
  * icon-theme.cache built inside the guest after extraction
  * (Qt's icon lookup needs the cache to discover the theme),
  * and lxqt.conf selects palette=Mudif explicitly.
- * P9FIX6 — the absolute urls were WRONG: the spacer diagnosis
+ * P9FIX6 - the absolute urls were WRONG: the spacer diagnosis
  * (diagnosis-spacer/DIAGNOSIS-SPACER.md) proved the LXQt theme
  * loader prepends the theme directory to every QSS url(), so
  * absolute urls are resolved to a DOUBLED path that does not
@@ -71,12 +71,12 @@ import java.io.File
  * root-relative /spacer-plugin/... form, as stock themes do).
  * The P9FIX5 base #Spacer rule is KEPT (the log proves it
  * matches the live SpacerWidget).
- * P9FIX2 — the P9FIX re-test proved the fix landed but changed
+ * P9FIX2 - the P9FIX re-test proved the fix landed but changed
  * nothing on screen, and the diagnosis (diagnosis-p9fix/
  * DIAGNOSIS.md) found the real causes. The logo: the Fancy Menu
  * plugin sets the start button icon ITSELF via setButtonIcon()
  * (lxqtfancymenu.cpp; the same logic in LXQtMainMenu for the
- * standard menu) — it reads ownIcon + icon from the [mainmenu]
+ * standard menu) - it reads ownIcon + icon from the [mainmenu]
  * settings and applies `#FancyMenu { qproperty-icon: url(<icon>);
  * }` as the button's own stylesheet, which overrides the theme
  * QSS. With ownIcon=false (the default; the P9FIX panel.conf
@@ -86,18 +86,18 @@ import java.io.File
  * (ownIcon=true + icon=<mudif logo>), not in the QSS. The
  * spacers: panel.conf has NO spacer plugin at all (the system
  * default has none either), so there is no #Spacer widget to
- * style — a [spacer] section is written into panel.conf (keys
+ * style - a [spacer] section is written into panel.conf (keys
  * from the lxqt-panel source: size, expandable, spaceType).
  * The icons: the lookup works (a fresh Qt process resolves the
  * mudif overrides to purple); the running processes were stale,
- * so no code change — the fresh-panel re-test is the decisive
+ * so no code change - the fresh-panel re-test is the decisive
  * check. The palette: the palette probe proved
  * QT_STYLE_OVERRIDE is NOT the cause (without it the palette
  * becomes Fusion light, not Mudif), so the override stays and
  * the palette is deferred (its cause is inside libqtlxqt's
  * palette handling).
  * P9FIX3: the P9FIX2 re-test proved the [spacer] section alone
- * is NOT enough — the panel loads plugins ONLY from the
+ * is NOT enough - the panel loads plugins ONLY from the
  * `plugins=` list in [panel1] (LXQtPanel::loadPlugins), and the
  * user panel.conf [panel1] has NO `plugins=` key, so it falls
  * back to the system default's 12-plugin list (no spacer). The
@@ -143,6 +143,18 @@ import java.io.File
  * spacer-line.png"). The fix reverts ALL 17 QSS urls to
  * theme-relative paths (stock LXQt convention); the P9FIX5 base
  * #Spacer rule is KEPT.
+ * P11: desktop polish (his order 2026-11-08: the picked
+ * wallpapers must actually be in the system, a professional
+ * panel, and a Start menu like the mockups in branding/):
+ * the pomegranate + bold poster wallpapers are bundled as
+ * assets and copied into /usr/share/backgrounds/ next to the
+ * purple default (default stays purple); the panel becomes a
+ * translucent purple gradient (bold mockup); the QuickLaunch
+ * plugin gets the 4 mockup apps (file manager, terminal,
+ * browser, settings); the Fancy Menu search box and category
+ * rows become rounded and lighter (launcher mockups). The
+ * palette is NOT touched: still deferred. The spacer is NOT
+ * touched: P9FIX6-verified.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -161,7 +173,7 @@ object LxqtLook {
     // existing rootfs receive the new configs.
     // P8FIX2: bumped again because the look content changes again
     // (SHELL=/bin/bash in session.conf so qterminal runs bash, and
-    // the Mudif scheme moves to the system color-schemes dir —
+    // the Mudif scheme moves to the system color-schemes dir -
     // qtermwidget never scans the user dir).
     // P8.1: bumped again because the look content changes again
     // (the upstream Arabic .qm files are copied into the rootfs,
@@ -170,9 +182,9 @@ object LxqtLook {
     // (the `mudif` theme + icons + Openbox theme are installed,
     // and lxqt.conf switches to theme=mudif, icon_theme=mudif).
     // P9FIX: bumped again because the look content changes again
-    // (the QSS image urls become absolute guest paths — relative
+    // (the QSS image urls become absolute guest paths - relative
     // url() fails when the stylesheet is applied as a string, P9
-    // test item 1 + 3 — and the icon theme gets a cache built, P9
+    // test item 1 + 3 - and the icon theme gets a cache built, P9
     // test item 5; lxqt.conf also selects palette=Mudif, item 4).
     // P9FIX2: bumped again because the look content changes again
     // (panel.conf is now written by LxqtLook, merged never
@@ -204,9 +216,18 @@ object LxqtLook {
     // themes/mudif/spacer-plugin/spacer-line.png"). The P9FIX5
     // base #Spacer rule is KEPT. The palette is NOT touched:
     // deferred.
-    private const val MARKER_VERSION = "p9fix6"
+    // P11: bumped again because the look content changes again
+    // (two more wallpapers are copied into
+    // /usr/share/backgrounds/, the panel QSS becomes a purple
+    // gradient, the [quicklaunch] section gains the 4 mockup
+    // apps, and the Fancy Menu search + categories are
+    // restyled). The palette is NOT touched: deferred. The
+    // spacer is NOT touched: P9FIX6-verified.
+    private const val MARKER_VERSION = "p11"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
+    private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
+    private const val WALLPAPER_BOLD_ASSET = "mudif-wallpaper-bold.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
     private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
@@ -239,11 +260,11 @@ object LxqtLook {
         // must report false honestly instead of writing configs for
         // programs that are not there.
         if (!File(rootfs, "usr/bin/startlxqt").exists()) {
-            Log.d(TAG, "startlxqt missing — Debian desktop set not installed")
+            Log.d(TAG, "startlxqt missing - Debian desktop set not installed")
             return false
         }
         if (!File(rootfs, "usr/share/icons/bloom-dark").exists()) {
-            Log.d(TAG, "bloom-dark icons missing — deepin-icon-theme not installed")
+            Log.d(TAG, "bloom-dark icons missing - deepin-icon-theme not installed")
             return false
         }
 
@@ -255,6 +276,20 @@ object LxqtLook {
                     input.copyTo(out)
                 }
             }
+            // P11: the two picked poster wallpapers are installed
+            // next to the purple default so they are selectable in
+            // the desktop wallpaper settings. Default stays purple
+            // (PCMANFM_SETTINGS_CONF Wallpaper is unchanged).
+            context.assets.open(WALLPAPER_POMEGRANATE_ASSET).use { input ->
+                File(backgrounds, "mudif-wallpaper-pomegranate.png").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            context.assets.open(WALLPAPER_BOLD_ASSET).use { input ->
+                File(backgrounds, "mudif-wallpaper-bold.png").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
             val lxqtDir = File(rootfs, "root/.config/lxqt")
             lxqtDir.mkdirs()
             File(lxqtDir, "lxqt.conf").writeText(LXQT_CONF)
@@ -262,7 +297,7 @@ object LxqtLook {
             val pcmanfmDir = File(rootfs, "root/.config/pcmanfm-qt/lxqt")
             pcmanfmDir.mkdirs()
             File(pcmanfmDir, "settings.conf").writeText(PCMANFM_SETTINGS_CONF)
-            // P8 — Arabic: Cairo font + fontconfig + Arabic CLI.
+            // P8 - Arabic: Cairo font + fontconfig + Arabic CLI.
             // Cairo cannot come from apt (no fonts-cairo in trixie,
             // P8-READINESS §1.1): bundle the variable TTF as an app
             // asset and copy it into the rootfs. Lifta is NOT bundled
@@ -283,7 +318,7 @@ object LxqtLook {
             val fontsConfDir = File(rootfs, "etc/fonts")
             fontsConfDir.mkdirs()
             File(fontsConfDir, "local.conf").writeText(LOCAL_CONF)
-            // P8 — Arabic CLI: the catalog file, the qterminal colour
+            // P8 - Arabic CLI: the catalog file, the qterminal colour
             // scheme, the qterminal.ini keys (merged, never overwritten),
             // and the .bashrc block (appended once, idempotent).
             val mudifConfDir = File(rootfs, "root/.config/mudif")
@@ -309,7 +344,7 @@ object LxqtLook {
                     input.copyTo(out)
                 }
             }
-            // P8.1 — Arabic translations: extract the translations.zip
+            // P8.1 - Arabic translations: extract the translations.zip
             // asset into the rootfs. The zip's entries mirror the guest
             // tree under /usr/share/ (lxqt/translations/...,
             // pcmanfm-qt/translations/..., libfm-qt6/...,
@@ -325,7 +360,7 @@ object LxqtLook {
             // through the GitHub web UI, where 47 nested uploads are
             // error-prone; the zip keeps the tree intact as one file.
             extractZipAsset(context, TRANSLATIONS_ZIP_ASSET, File(rootfs, "usr/share"))
-            // P9 — the `mudif` theme: extract mudif-theme.zip into the
+            // P9 - the `mudif` theme: extract mudif-theme.zip into the
             // rootfs. Its entries are guest-relative paths, so each
             // lands at File(rootfs, entry.name): the LXQt theme to
             // usr/share/lxqt/themes/mudif/, the palette to
@@ -335,7 +370,7 @@ object LxqtLook {
             // root/.config/openbox/rc.xml. lxqt.conf (below) switches
             // to theme=mudif + icon_theme=mudif; the Openbox theme
             // name is set inside rc.xml itself.
-            // P9FIX6 — the QSS files inside the zip use THEME-
+            // P9FIX6 - the QSS files inside the zip use THEME-
             // RELATIVE image urls (url(mainmenu.png),
             // url(/spacer-plugin/spacer-line.png), ...). P9FIX made
             // them ABSOLUTE (url(/usr/share/lxqt/themes/mudif/...)),
@@ -347,7 +382,7 @@ object LxqtLook {
             // themes all use relative urls. The P9FIX5 base #Spacer
             // rule is kept.
             extractZipAsset(context, THEME_ZIP_ASSET, rootfs)
-            // P9FIX — build the icon-theme cache for `mudif`.
+            // P9FIX - build the icon-theme cache for `mudif`.
             // The P9 test proved all 10 mudif icon overrides fall
             // back to bloom-dark defaults, and the one verified
             // difference is that /usr/share/icons/mudif has NO
@@ -366,7 +401,7 @@ object LxqtLook {
             // ensureDebianDesktop, before the desktop launches, so
             // the session reads the cache at startup. If it fails,
             // the look is NOT marked applied (return false) so the
-            // next launch retries — the icons are the whole point of
+            // next launch retries - the icons are the whole point of
             // P9FIX, and a silent failure would leave them broken
             // under a "p9fix" marker.
             val cacheResult = TerminalSession.runCommandDebian(
@@ -377,22 +412,22 @@ object LxqtLook {
             )
             Log.d(TAG, "icon cache build exit=${cacheResult.exitCode} out=${cacheResult.output.takeLast(200)}")
             if (!cacheResult.output.contains("ICON_CACHE_OK")) {
-                Log.d(TAG, "icon cache build failed — look not applied")
+                Log.d(TAG, "icon cache build failed - look not applied")
                 return false
             }
-            // P9FIX2 — the panel's start-button logo + a spacer
-            // plugin, via panel.conf (merged, never overwritten —
+            // P9FIX2 - the panel's start-button logo + a spacer
+            // plugin, via panel.conf (merged, never overwritten -
             // the panel rewrites panel.conf on exit, so overwriting
             // it would lose the user's plugin layout; the same
             // clobber race as pcmanfm-qt's settings.conf). P9FIX3
             // adds the `plugins=` key to [panel1] (the [spacer]
-            // section alone is not loaded — the panel reads only
+            // section alone is not loaded - the panel reads only
             // the `plugins=` list). P9FIX4 adds `iconTheme=mudif`
             // to [General] (the panel reads its icon theme from
             // there, not from lxqt.conf). The base is the existing
             // panel.conf if the panel already created one, else
             // the system default /etc/xdg/lxqt/panel.conf
-            // (lxqt-panel is installed — startlxqt exists — so
+            // (lxqt-panel is installed - startlxqt exists - so
             // the default must exist). The write happens here,
             // before the first desktop launch (the same ordering
             // as lxqt.conf / session.conf), so no running panel
@@ -500,7 +535,7 @@ SHELL=/bin/bash
     // (Settings::loadFile, beginGroup("Desktop")). Writing Wallpaper
     // under [General] is invisible to it: mode defaults to
     // WallpaperNone, updateWallpaper() returns early, and
-    // paintBackground() fills the window solid BgColor (#000000) —
+    // paintBackground() fills the window solid BgColor (#000000) -
     // the 0% paint defect, proven live by PAINT-PROBE2-P65 (0.00% ->
     // 92.16% with the corrected config). WallpaperMode=stretch is
     // required alongside the path: without it the mode is none and
@@ -511,7 +546,7 @@ Wallpaper=/usr/share/backgrounds/mudif-wallpaper.png
 WallpaperMode=stretch
 """
 
-    // P8 — fontconfig: Cairo is the preferred sans-serif and serif
+    // P8 - fontconfig: Cairo is the preferred sans-serif and serif
     // font, and Arabic text prefers Cairo (Noto Sans Arabic is the
     // next fallback, installed from apt). Monospace is NOT aliased
     // in fontconfig (Cairo has no monospace variant), BUT the
@@ -544,7 +579,7 @@ WallpaperMode=stretch
 </fontconfig>
 """
 
-    // P8 — the .bashrc block that loads the Arabic CLI. Appended
+    // P8 - the .bashrc block that loads the Arabic CLI. Appended
     // once (the "# mudif-arabic-cli" marker guards re-runs). The PS1
     // shows "نظام مضيف" in purple, the current directory in cyan,
     // then the ❯ prompt mark (ARABIC-CLI-DESIGN §3.3).
@@ -556,15 +591,15 @@ fi
 PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
 """
 
-    // P8 — merge the four qterminal keys into [General], preserving
+    // P8 - merge the four qterminal keys into [General], preserving
     // every key already present (HideTabBarWithOneTab, version,
     // [MainWindow], [Shortcuts]) and any key the user changed.
     // If the file does not exist yet, a [General] section is created.
     // A key already present is replaced in place (one copy only).
-    // P9FIX5 — fontFamily is "Cairo" (his order: "التيرمينال خاصو
+    // P9FIX5 - fontFamily is "Cairo" (his order: "التيرمينال خاصو
     // خط كايرو"), not DejaVu Sans Mono. DejaVu Sans Mono has its
     // own Arabic glyphs, so the Arabic rendered in DejaVu, not
-    // Cairo — that is why his screenshot showed no Cairo.
+    // Cairo - that is why his screenshot showed no Cairo.
     private fun mergeQterminalIni(existing: String?): String {
         val keys = linkedMapOf(
             "colorScheme" to "Mudif",
@@ -616,7 +651,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         return out.toString().trimEnd() + "\n"
     }
 
-    // P9FIX2 — merge the panel's start-button icon + a spacer
+    // P9FIX2 - merge the panel's start-button icon + a spacer
     // plugin into panel.conf, preserving every plugin section
     // already present (the panel rewrites panel.conf on exit, so
     // overwriting it would lose the user's plugin layout).
@@ -625,7 +660,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // standard menu) reads ownIcon + icon from the [mainmenu]
     // settings and sets the button's own stylesheet to
     // `#FancyMenu { qproperty-icon: url(<icon>); }`. When ownIcon
-    // is false (the default — the P9FIX panel.conf [mainmenu] has
+    // is false (the default - the P9FIX panel.conf [mainmenu] has
     // no ownIcon key) the plugin sets the button's stylesheet to
     // EMPTY, which clears the theme QSS's qproperty-icon on that
     // button. That is why the logo never rendered even though the
@@ -646,7 +681,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // settingsChanged, plugin-spacer/spacerconfiguration.cpp
     // msTypes): size (default 8), expandable (default false),
     // spaceType (lined/dotted/invisible, default lined).
-    // P9FIX3 — the [spacer] section alone is NOT enough (the
+    // P9FIX3 - the [spacer] section alone is NOT enough (the
     // P9FIX2 assumption "the panel loads plugins by scanning
     // sections with a type= key" was REFUTED by the P9FIX2
     // re-test: the section was present and the panel fresh, yet
@@ -663,7 +698,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // persists. expandable=true makes the spacer push the
     // right-aligned plugins to the right edge (the usual layout
     // purpose); size is ignored when expandable.
-    // P9FIX4 — the panel reads its icon theme from panel.conf
+    // P9FIX4 - the panel reads its icon theme from panel.conf
     // [General] iconTheme, NOT from lxqt.conf icon_theme. The
     // user panel.conf [General] has no iconTheme key, so the
     // panel falls back to the system default's
@@ -678,7 +713,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             "icon" to "/usr/share/lxqt/themes/mudif/mainmenu.png",
             "ownIcon" to "true"
         )
-        // P9FIX4 — the panel reads its icon theme from panel.conf
+        // P9FIX4 - the panel reads its icon theme from panel.conf
         // [General] iconTheme, NOT from lxqt.conf icon_theme. The
         // user panel.conf [General] has no iconTheme key, so the
         // panel falls back to the system default's
@@ -686,6 +721,22 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // Papirus-Dark + hicolor only, no mudif). Writing
         // iconTheme=mudif here makes the panel use mudif.
         val generalKeys = linkedMapOf("iconTheme" to "mudif")
+        // P11: the QuickLaunch plugin shows the 4 mockup apps
+        // (file manager, terminal, browser, settings). The plugin
+        // reads the "apps" key as a QStringList of .desktop file
+        // paths from its [quicklaunch] section. The 4 .desktop
+        // names are verified against the Debian Contents index
+        // (store/work-debian/Contents-main.gz). The value uses the
+        // standard QSettings INI QStringList encoding
+        // @StringList(...). NOTE: the lxqt-panel source could not
+        // be fetched to confirm the key name (raw.githubusercontent
+        // 404, GitHub tree fetch timed out), so the InstaBox
+        // re-test must confirm the 4 icons actually appear on the
+        // panel; if they do not, the encoding is the first suspect.
+        // quicklaunch2 is left alone (empty, invisible).
+        val quicklaunchKeys = linkedMapOf(
+            "apps" to "@StringList(/usr/share/applications/pcmanfm-qt.desktop, /usr/share/applications/qterminal.desktop, /usr/share/applications/firefox-esr.desktop, /usr/share/applications/lxqt-config.desktop)"
+        )
         val pluginsList = "mainmenu, showdesktop, desktopswitch, quicklaunch, taskbar, kbindicator, tray, statusnotifier, mount, volume, worldclock, quicklaunch2, spacer"
         val spacerLines = listOf(
             "[spacer]",
@@ -706,6 +757,9 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         var panel1Seen = false
         var pluginsSeen = false
         var spacerSeen = false
+        val seenQuicklaunchKeys = mutableSetOf<String>()
+        var inQuicklaunch = false
+        var quicklaunchSeen = false
         fun appendMissingMainmenuKeys() {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             for ((k, v) in mainmenuKeys) if (k !in seenMainmenuKeys) out.append("$k=$v\n")
@@ -721,6 +775,10 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                 pluginsSeen = true
             }
         }
+        fun appendMissingQuicklaunchKeys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in quicklaunchKeys) if (k !in seenQuicklaunchKeys) out.append("$k=$v\n")
+        }
         // trimEnd on the input drops the trailing empty lines the
         // file's final newline produces, so no blank line lands
         // inside [mainmenu] when it is the last section.
@@ -730,12 +788,15 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                 if (inMainmenu) appendMissingMainmenuKeys()
                 if (inGeneral) appendMissingGeneralKeys()
                 if (inPanel1) appendMissingPanel1Plugins()
+                if (inQuicklaunch) appendMissingQuicklaunchKeys()
                 inMainmenu = trimmed == "[mainmenu]"
                 if (inMainmenu) mainmenuSeen = true
                 inGeneral = trimmed == "[General]"
                 if (inGeneral) generalSeen = true
                 inPanel1 = trimmed == "[panel1]"
                 if (inPanel1) panel1Seen = true
+                inQuicklaunch = trimmed == "[quicklaunch]"
+                if (inQuicklaunch) quicklaunchSeen = true
                 if (trimmed == "[spacer]") spacerSeen = true
                 out.append(line).append("\n")
                 continue
@@ -756,6 +817,16 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                     if (key !in seenMainmenuKeys) {
                         out.append("$key=${mainmenuKeys[key]}\n")
                         seenMainmenuKeys.add(key)
+                    }
+                    continue
+                }
+            }
+            if (inQuicklaunch) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key in quicklaunchKeys) {
+                    if (key !in seenQuicklaunchKeys) {
+                        out.append("$key=${quicklaunchKeys[key]}\n")
+                        seenQuicklaunchKeys.add(key)
                     }
                     continue
                 }
@@ -787,6 +858,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         if (inMainmenu) appendMissingMainmenuKeys()
         if (inGeneral) appendMissingGeneralKeys()
         if (inPanel1) appendMissingPanel1Plugins()
+        if (inQuicklaunch) appendMissingQuicklaunchKeys()
         if (!generalSeen) {
             // Defensive only: [General] is in both the system
             // default and the user panel.conf, so this should
@@ -812,6 +884,17 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             out.append("[panel1]\n")
             out.append("plugins=$pluginsList\n")
+        }
+        if (!quicklaunchSeen) {
+            // Defensive only: [quicklaunch] is in both the system
+            // default and the user panel.conf, so this should
+            // never trigger. A minimal [quicklaunch] with just
+            // the apps list is better than an empty quicklaunch.
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[quicklaunch]\n")
+            out.append("alignment=Left\n")
+            out.append("type=quicklaunch\n")
+            for ((k, v) in quicklaunchKeys) out.append("$k=$v\n")
         }
         if (!spacerSeen) {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
