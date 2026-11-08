@@ -223,7 +223,7 @@ object LxqtLook {
     // apps, and the Fancy Menu search + categories are
     // restyled). The palette is NOT touched: deferred. The
     // spacer is NOT touched: P9FIX6-verified.
-    private const val MARKER_VERSION = "p11"
+    private const val MARKER_VERSION = "p12"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -726,16 +726,18 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // reads the "apps" key as a QStringList of .desktop file
         // paths from its [quicklaunch] section. The 4 .desktop
         // names are verified against the Debian Contents index
-        // (store/work-debian/Contents-main.gz). The value uses the
-        // standard QSettings INI QStringList encoding
-        // @StringList(...). NOTE: the lxqt-panel source could not
-        // be fetched to confirm the key name (raw.githubusercontent
-        // 404, GitHub tree fetch timed out), so the InstaBox
-        // re-test must confirm the 4 icons actually appear on the
-        // panel; if they do not, the encoding is the first suspect.
+        // (store/work-debian/Contents-main.gz).
+        // P12: the @StringList(...) encoding is PROVEN wrong. The
+        // P11 InstaBox test found the live panel.conf holding
+        // apps=@@StringList(...), i.e. QSettings stored it as a
+        // literal string, so the plugin showed its 3 defaults
+        // instead of the 4 configured apps. The value is now the
+        // plain comma-separated form (the native QSettings INI
+        // representation of a QStringList); the re-test must
+        // confirm the 4 icons actually appear on the panel.
         // quicklaunch2 is left alone (empty, invisible).
         val quicklaunchKeys = linkedMapOf(
-            "apps" to "@StringList(/usr/share/applications/pcmanfm-qt.desktop, /usr/share/applications/qterminal.desktop, /usr/share/applications/firefox-esr.desktop, /usr/share/applications/lxqt-config.desktop)"
+            "apps" to "/usr/share/applications/pcmanfm-qt.desktop, /usr/share/applications/qterminal.desktop, /usr/share/applications/firefox-esr.desktop, /usr/share/applications/lxqt-config.desktop"
         )
         val pluginsList = "mainmenu, showdesktop, desktopswitch, quicklaunch, taskbar, kbindicator, tray, statusnotifier, mount, volume, worldclock, quicklaunch2, spacer"
         val spacerLines = listOf(
