@@ -39,6 +39,7 @@ class ChipAdapter(
         val selected = category.key == selectedKey
         with(holder.binding) {
             chipButton.text = category.label
+            chipButton.isCheckable = true
             chipButton.isChecked = selected
             chipButton.setOnClickListener { onSelect(category) }
         }
