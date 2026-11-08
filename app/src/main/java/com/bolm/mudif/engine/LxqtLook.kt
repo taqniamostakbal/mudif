@@ -58,6 +58,31 @@ import java.io.File
  * theme gets an icon-theme.cache built inside the guest after
  * extraction (Qt's icon lookup needs the cache to discover the
  * theme), and lxqt.conf selects palette=Mudif explicitly.
+ * P9FIX2 — the P9FIX re-test proved the fix landed but changed
+ * nothing on screen, and the diagnosis (diagnosis-p9fix/
+ * DIAGNOSIS.md) found the real causes. The logo: the Fancy Menu
+ * plugin sets the start button icon ITSELF via setButtonIcon()
+ * (lxqtfancymenu.cpp; the same logic in LXQtMainMenu for the
+ * standard menu) — it reads ownIcon + icon from the [mainmenu]
+ * settings and applies `#FancyMenu { qproperty-icon: url(<icon>);
+ * }` as the button's own stylesheet, which overrides the theme
+ * QSS. With ownIcon=false (the default; the P9FIX panel.conf
+ * [mainmenu] has no ownIcon key) the plugin sets the button's
+ * stylesheet to EMPTY, clearing the theme QSS's qproperty-icon
+ * on that button. So the logo is set in panel.conf
+ * (ownIcon=true + icon=<mudif logo>), not in the QSS. The
+ * spacers: panel.conf has NO spacer plugin at all (the system
+ * default has none either), so there is no #Spacer widget to
+ * style — a [spacer] section is written into panel.conf (keys
+ * from the lxqt-panel source: size, expandable, spaceType).
+ * The icons: the lookup works (a fresh Qt process resolves the
+ * mudif overrides to purple); the running processes were stale,
+ * so no code change — the fresh-panel re-test is the decisive
+ * check. The palette: the palette probe proved
+ * QT_STYLE_OVERRIDE is NOT the cause (without it the palette
+ * becomes Fusion light, not Mudif), so the override stays and
+ * the palette is deferred (its cause is inside libqtlxqt's
+ * palette handling).
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -89,7 +114,16 @@ object LxqtLook {
     // url() fails when the stylesheet is applied as a string, P9
     // test item 1 + 3 — and the icon theme gets a cache built, P9
     // test item 5; lxqt.conf also selects palette=Mudif, item 4).
-    private const val MARKER_VERSION = "p9fix"
+    // P9FIX2: bumped again because the look content changes again
+    // (panel.conf is now written by LxqtLook, merged never
+    // overwritten: the [mainmenu] section gains ownIcon=true +
+    // icon=<mudif logo> so the Fancy Menu plugin sets the start
+    // button icon itself, and a [spacer] section is added so the
+    // panel has a spacer widget to style. The palette is NOT
+    // touched: the palette probe proved QT_STYLE_OVERRIDE is NOT
+    // the cause of the palette not loading, and removing it would
+    // make the desktop light).
+    private const val MARKER_VERSION = "p9fix2"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
@@ -259,6 +293,28 @@ object LxqtLook {
                 Log.d(TAG, "icon cache build failed — look not applied")
                 return false
             }
+            // P9FIX2 — the panel's start-button logo + a spacer
+            // plugin, via panel.conf (merged, never overwritten —
+            // the panel rewrites panel.conf on exit, so overwriting
+            // it would lose the user's plugin layout; the same
+            // clobber race as pcmanfm-qt's settings.conf). The
+            // base is the existing panel.conf if the panel already
+            // created one, else the system default
+            // /etc/xdg/lxqt/panel.conf (lxqt-panel is installed —
+            // startlxqt exists — so the default must exist). The
+            // write happens here, before the first desktop launch
+            // (the same ordering as lxqt.conf / session.conf), so
+            // no running panel can clobber it, and the panel reads
+            // it at startup and preserves both additions when it
+            // rewrites panel.conf on exit.
+            val panelConf = File(lxqtDir, "panel.conf")
+            val existingPanelConf = when {
+                panelConf.exists() -> panelConf.readText()
+                File(rootfs, "etc/xdg/lxqt/panel.conf").exists() ->
+                    File(rootfs, "etc/xdg/lxqt/panel.conf").readText()
+                else -> null
+            }
+            panelConf.writeText(mergePanelConf(existingPanelConf))
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
@@ -455,6 +511,110 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // Normalize the ending: exactly one trailing newline, so a
         // re-merge of an already-merged file is byte-identical
         // (without this, each merge would add one more blank line).
+        return out.toString().trimEnd() + "\n"
+    }
+
+    // P9FIX2 — merge the panel's start-button icon + a spacer
+    // plugin into panel.conf, preserving every plugin section
+    // already present (the panel rewrites panel.conf on exit, so
+    // overwriting it would lose the user's plugin layout).
+    // The logo: LXQtFancyMenu::setButtonIcon() (lxqtfancymenu.cpp;
+    // the same logic in LXQtMainMenu::setButtonIcon for the
+    // standard menu) reads ownIcon + icon from the [mainmenu]
+    // settings and sets the button's own stylesheet to
+    // `#FancyMenu { qproperty-icon: url(<icon>); }`. When ownIcon
+    // is false (the default — the P9FIX panel.conf [mainmenu] has
+    // no ownIcon key) the plugin sets the button's stylesheet to
+    // EMPTY, which clears the theme QSS's qproperty-icon on that
+    // button. That is why the logo never rendered even though the
+    // QSS url() itself works (diagnosis Q4 proved url() loads the
+    // PNG on a plain button). Setting ownIcon=true + icon=<mudif
+    // logo> in [mainmenu] makes the plugin set the icon itself,
+    // via its own stylesheet (which overrides the theme QSS). The
+    // theme QSS qproperty-icon is left in place (harmless; the
+    // plugin's rule wins). The icon path is the mudif logo PNG
+    // already installed by the theme zip
+    // (/usr/share/lxqt/themes/mudif/mainmenu.png).
+    // The spacer: panel.conf has NO spacer plugin (the system
+    // default /etc/xdg/lxqt/panel.conf has none either), so there
+    // is no #Spacer widget for the QSS spacer rules to style
+    // (diagnosis Q5). The spacer plugin exists (a core plugin,
+    // built into the lxqt-panel binary) and its config keys come
+    // from the lxqt-panel source (plugin-spacer/spacer.cpp
+    // settingsChanged, plugin-spacer/spacerconfiguration.cpp
+    // msTypes): size (default 8), expandable (default false),
+    // spaceType (lined/dotted/invisible, default lined). The panel
+    // loads plugins by scanning sections with a type= key (the user
+    // panel.conf has no [panel1] plugins= list), so adding a
+    // [spacer] section is sufficient. The panel preserves a loaded
+    // plugin when it rewrites panel.conf on exit, so the section
+    // persists. expandable=true makes the spacer push the
+    // right-aligned plugins to the right edge (the usual layout
+    // purpose); size is ignored when expandable.
+    // A key already present is replaced in place (one copy only);
+    // a missing key is appended at the end of its section. A
+    // re-merge of an already-merged file is byte-identical.
+    private fun mergePanelConf(existing: String?): String {
+        val mainmenuKeys = linkedMapOf(
+            "icon" to "/usr/share/lxqt/themes/mudif/mainmenu.png",
+            "ownIcon" to "true"
+        )
+        val spacerLines = listOf(
+            "[spacer]",
+            "alignment=Left",
+            "type=spacer",
+            "size=8",
+            "expandable=true",
+            "spaceType=lined"
+        )
+        val out = StringBuilder()
+        val seenMainmenuKeys = mutableSetOf<String>()
+        var inMainmenu = false
+        var mainmenuSeen = false
+        var spacerSeen = false
+        fun appendMissingMainmenuKeys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in mainmenuKeys) if (k !in seenMainmenuKeys) out.append("$k=$v\n")
+        }
+        // trimEnd on the input drops the trailing empty lines the
+        // file's final newline produces, so no blank line lands
+        // inside [mainmenu] when it is the last section.
+        for (line in (existing?.trimEnd()?.lines() ?: emptyList())) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                if (inMainmenu) appendMissingMainmenuKeys()
+                inMainmenu = trimmed == "[mainmenu]"
+                if (inMainmenu) mainmenuSeen = true
+                if (trimmed == "[spacer]") spacerSeen = true
+                out.append(line).append("\n")
+                continue
+            }
+            if (inMainmenu) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key in mainmenuKeys) {
+                    if (key !in seenMainmenuKeys) {
+                        out.append("$key=${mainmenuKeys[key]}\n")
+                        seenMainmenuKeys.add(key)
+                    }
+                    continue
+                }
+            }
+            out.append(line).append("\n")
+        }
+        if (inMainmenu) appendMissingMainmenuKeys()
+        if (!mainmenuSeen) {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[mainmenu]\n")
+            out.append("alignment=Left\n")
+            out.append("type=fancymenu\n")
+            for ((k, v) in mainmenuKeys) out.append("$k=$v\n")
+        }
+        if (!spacerSeen) {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for (l in spacerLines) out.append(l).append("\n")
+        }
+        // Normalize the ending: exactly one trailing newline, so a
+        // re-merge of an already-merged file is byte-identical.
         return out.toString().trimEnd() + "\n"
     }
 
