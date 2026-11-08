@@ -52,6 +52,12 @@ import java.io.File
  * P9 — the `mudif` theme: dark purple LXQt theme + purple icon
  * theme (inherits bloom-dark) + purple Openbox theme (Onyx base),
  * bundled as one zip asset and extracted into the rootfs.
+ * P9FIX — the theme images did not render (P9 test PARTIAL):
+ * the QSS image urls are now absolute guest paths (relative url()
+ * fails when the stylesheet is applied as a string), the icon
+ * theme gets an icon-theme.cache built inside the guest after
+ * extraction (Qt's icon lookup needs the cache to discover the
+ * theme), and lxqt.conf selects palette=Mudif explicitly.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -78,7 +84,12 @@ object LxqtLook {
     // P9: bumped again because the look content changes again
     // (the `mudif` theme + icons + Openbox theme are installed,
     // and lxqt.conf switches to theme=mudif, icon_theme=mudif).
-    private const val MARKER_VERSION = "p9"
+    // P9FIX: bumped again because the look content changes again
+    // (the QSS image urls become absolute guest paths — relative
+    // url() fails when the stylesheet is applied as a string, P9
+    // test item 1 + 3 — and the icon theme gets a cache built, P9
+    // test item 5; lxqt.conf also selects palette=Mudif, item 4).
+    private const val MARKER_VERSION = "p9fix"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
@@ -209,7 +220,45 @@ object LxqtLook {
             // root/.config/openbox/rc.xml. lxqt.conf (below) switches
             // to theme=mudif + icon_theme=mudif; the Openbox theme
             // name is set inside rc.xml itself.
+            // P9FIX — the QSS files inside the zip now use ABSOLUTE
+            // image urls (url(/usr/share/lxqt/themes/mudif/...)):
+            // relative url() fails when LXQt applies the stylesheet
+            // as a string, so the start-button logo and the spacer
+            // SVGs never rendered (P9 test items 1 + 3).
             extractZipAsset(context, THEME_ZIP_ASSET, rootfs)
+            // P9FIX — build the icon-theme cache for `mudif`.
+            // The P9 test proved all 10 mudif icon overrides fall
+            // back to bloom-dark defaults, and the one verified
+            // difference is that /usr/share/icons/mudif has NO
+            // icon-theme.cache while bloom-dark does (40,180 B).
+            // Qt's icon lookup uses the cache to discover the theme;
+            // without it the mudif icons are never found. A prebuilt
+            // cache shipped in the zip would be ignored: the cache
+            // records the theme directory mtime, and extraction sets
+            // a new mtime, so the cache is stale on arrival. Building
+            // it inside the guest (after extraction) is the only
+            // correct way. gtk-update-icon-cache is verified present
+            // in the guest (/usr/bin/gtk-update-icon-cache, P9 test).
+            // -f forces a fresh cache on re-apply (idempotent). This
+            // is a guest command, not a host-side write: it runs via
+            // the same one-shot proot mechanism as
+            // ensureDebianDesktop, before the desktop launches, so
+            // the session reads the cache at startup. If it fails,
+            // the look is NOT marked applied (return false) so the
+            // next launch retries — the icons are the whole point of
+            // P9FIX, and a silent failure would leave them broken
+            // under a "p9fix" marker.
+            val cacheResult = TerminalSession.runCommandDebian(
+                context,
+                "gtk-update-icon-cache -f /usr/share/icons/mudif && echo ICON_CACHE_OK",
+                idleTimeoutSec = 30,
+                maxTimeoutSec = 120
+            )
+            Log.d(TAG, "icon cache build exit=${cacheResult.exitCode} out=${cacheResult.output.takeLast(200)}")
+            if (!cacheResult.output.contains("ICON_CACHE_OK")) {
+                Log.d(TAG, "icon cache build failed — look not applied")
+                return false
+            }
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
@@ -261,10 +310,17 @@ object LxqtLook {
     // P9: theme=mudif + icon_theme=mudif (the `mudif` theme and icon
     // theme installed by extractZipAsset above). Before P9 this was
     // theme=dark + icon_theme=bloom-dark.
+    // P9FIX: palette=Mudif selects the `Mudif` palette explicitly
+    // (usr/share/lxqt/palettes/Mudif, highlight #593BFE). The file
+    // name is capitalized like upstream (theme `dark` -> palette
+    // `Dark`), so it matches the theme-name lookup; the explicit
+    // key covers the case where LXQt reads the palette name from
+    // the config instead. Harmless if unread (an extra key).
     private const val LXQT_CONF = """[General]
 __userfile__=true
 icon_theme=mudif
 theme=mudif
+palette=Mudif
 """
 
     // Openbox is LXQt's window manager. The Environment section is
