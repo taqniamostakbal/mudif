@@ -215,24 +215,17 @@ class VncActivity : AppCompatActivity() {
             }
 
             // 2. One-shot installers FIRST (proven path).
-            // P6.4: نظام مضيف installs the Debian LXQt set in ONE
-            // apt call (lxqt + openbox + qterminal + lxqt-qtplugin +
-            // adwaita-qt6 + firefox-esr + deepin/papirus/adwaita
-            // icons + dbus + xkb-data). No bwrap shim: Debian's
-            // gdk-pixbuf has native loaders and glycin is not in
-            // the closure. Kvantum is NOT in the set: there is no
-            // kvantum package in Debian trixie (verified
-            // packages.debian.org 2026-11-07) — the dark Qt style
-            // is Adwaita-dark instead.
-            // P16.5: kill orphaned apt-get/dpkg FIRST — an orphaned
-            // apt-get holds the dpkg lock and blocks every install
-            // (proven on the Nova 9, P16.3: PID 11794). The app never
-            // killed it before; the P16.4 evidence (no install, no
-            // temp files) is exactly a lock-blocked install.
+            // P17: NO install anymore — the desktop set ships INSIDE
+            // the pre-built image (LXQt + openbox + qterminal +
+            // firefox-esr + deepin/papirus/adwaita icons + dbus +
+            // xkb-data, all pre-installed). ensureDebianDesktop only
+            // checks the /root/.mudif_desktop_ok marker the image
+            // bakes in. The orphan-kill stays: it clears any apt-get
+            // orphaned by a killed P16 install on the upgrade path.
             setStatus("جاري تنظيف عمليات التثبيت العالقة…")
             X11Session.killOrphanedAptProcesses(this)
 
-            setStatus("جاري تثبيت نظام مضيف (LXQt + فايرفوكس)…")
+            setStatus("جاري التحقق من نظام مضيف…")
             val desktopOk = X11Session.ensureDebianDesktop(this)
             // P6.4 — the Deepin-style look for LXQt (navy wallpaper,
             // bloom-dark icons, dark panel, dark Qt/GTK): written
@@ -253,7 +246,7 @@ class VncActivity : AppCompatActivity() {
                 if (destroyed) return@Thread
                 runOnUiThread {
                     showFailureDialog(
-                        "تثبيت نظام مضيف ما كملش.\nإلا كان التثبيت مازال خدام من المتجر، تسنى حتى يكمل وعاود فتح سطح المكتب."
+                        "نظام مضيف غير مكتمل.\nالصورة ما فيهاش سطح المكتب — عاود تثبيت النظام من جديد."
                     )
                 }
                 return@Thread
