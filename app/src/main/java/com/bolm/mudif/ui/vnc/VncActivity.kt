@@ -224,6 +224,14 @@ class VncActivity : AppCompatActivity() {
             // kvantum package in Debian trixie (verified
             // packages.debian.org 2026-11-07) — the dark Qt style
             // is Adwaita-dark instead.
+            // P16.5: kill orphaned apt-get/dpkg FIRST — an orphaned
+            // apt-get holds the dpkg lock and blocks every install
+            // (proven on the Nova 9, P16.3: PID 11794). The app never
+            // killed it before; the P16.4 evidence (no install, no
+            // temp files) is exactly a lock-blocked install.
+            setStatus("جاري تنظيف عمليات التثبيت العالقة…")
+            X11Session.killOrphanedAptProcesses(this)
+
             setStatus("جاري تثبيت نظام مضيف (LXQt + فايرفوكس)…")
             val desktopOk = X11Session.ensureDebianDesktop(this)
             // P6.4 — the Deepin-style look for LXQt (navy wallpaper,

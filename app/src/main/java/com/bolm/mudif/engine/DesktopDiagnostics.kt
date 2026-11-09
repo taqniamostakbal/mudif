@@ -129,6 +129,58 @@ object DesktopDiagnostics {
     }
 
     /**
+     * P16.5 — are apt-get/dpkg processes alive on the host side?
+     * An orphaned apt-get holds the dpkg lock and blocks every
+     * install (proven on the Nova 9, P16.3: PID 11794). The old
+     * xServerProcess() filter hides them; this one shows them.
+     */
+    fun aptProcesses(): String {
+        return try {
+            val proc = Runtime.getRuntime().exec(arrayOf("ps", "-A"))
+            val out = proc.inputStream.bufferedReader().readText()
+            proc.waitFor()
+            val hits = out.lines().filter {
+                it.contains("apt-get", ignoreCase = true) ||
+                    it.contains("dpkg", ignoreCase = true)
+            }
+            if (hits.isEmpty()) "(no apt-get/dpkg process)\n"
+            else hits.joinToString("\n") + "\n"
+        } catch (e: Exception) {
+            "ps failed: ${e.message}\n"
+        }
+    }
+
+    /**
+     * P16.5 — the last desktop-install attempt, as recorded by
+     * X11Session.ensureDebianDesktop. This is the evidence the P16.4
+     * diagnostics lacked: WHY the install failed (exit code, timeout,
+     * last output) and whether the dpkg lock files exist.
+     */
+    fun installState(context: Context): String {
+        val sb = StringBuilder()
+        val r = X11Session.lastInstallResult
+        if (r == null) {
+            sb.append("no install attempted yet in this process\n")
+        } else {
+            sb.append("exitCode: ${r.exitCode}\n")
+            sb.append("timedOut: ${r.timedOut}\n")
+            sb.append("output (last 500):\n")
+            sb.append(r.output.takeLast(500))
+            sb.append("\n")
+        }
+        try {
+            val rootfs = DebianSystem.debianRootfsDir(context)
+            val lockFrontend = File(rootfs, "var/lib/dpkg/lock-frontend")
+            val lock = File(rootfs, "var/lib/dpkg/lock")
+            sb.append("lock-frontend exists: ${lockFrontend.exists()}\n")
+            sb.append("lock exists: ${lock.exists()}\n")
+        } catch (e: Exception) {
+            sb.append("lock check failed: ${e.message}\n")
+        }
+        return sb.toString()
+    }
+
+    /**
      * P5.9: what exactly was handed to the X server at launch?
      * A blank XKB_CONFIG_ROOT or a stale .X6-lock would both stop the
      * server before it creates its socket.
@@ -230,7 +282,11 @@ object DesktopDiagnostics {
                 }
             )
             append(X11Session.getDesktopLog(context, "lxqt"))
-            append("\n\n--- logcat (phantom/kill/X11/CmdEntry) ---\n")
+            append("\n\n--- حالة التثبيت (apt/dpkg) ---\n")
+            append(installState(context))
+            append("\n--- عمليات apt/dpkg (ps) ---\n")
+            append(aptProcesses())
+            append("\n--- logcat (phantom/kill/X11/CmdEntry) ---\n")
             append(collectLogcat())
         }
     }
