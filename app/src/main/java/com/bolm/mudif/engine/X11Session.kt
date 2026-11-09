@@ -643,6 +643,16 @@ object X11Session {
      * P16.3: dpkg --configure -a runs first — an interrupted dpkg
      * (proven on the Nova 9, 2026-11-09: "E: dpkg was interrupted")
      * makes every apt call fail until it is repaired.
+     * P16.4: timeouts raised (idle 120 -> 600, max 1800 -> 3600).
+     * PROVEN 2026-11-09 by reading this code + the Nova 9 logs: the
+     * install was killed by the app's OWN 120 s idle timeout, not by
+     * the phone sleeping. apt/dpkg go silent > 2 min while downloading
+     * a large .deb (no newline in piped mode), unpacking firefox-esr /
+     * fonts-noto-core, running locale-gen or fc-cache — and
+     * TerminalSession.destroyForcibly() then kills apt mid-operation,
+     * which interrupts dpkg and orphans an apt-get holding the lock
+     * (PID 11794 on the Nova 9). The user kept the phone awake and it
+     * still failed on a fresh install — the killer is this timeout.
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
@@ -661,8 +671,8 @@ object X11Session {
         val result = TerminalSession.runCommandDebian(
             context,
             command,
-            idleTimeoutSec = 120,
-            maxTimeoutSec = 1800
+            idleTimeoutSec = 600,
+            maxTimeoutSec = 3600
         )
         Log.d(TAG, "ensureDebianDesktop exit=${result.exitCode} out=${result.output.takeLast(500)}")
         return result.output.contains("DEBIAN_DESKTOP_OK")
