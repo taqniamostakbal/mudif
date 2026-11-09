@@ -51,6 +51,11 @@ object X11Session {
     var lastWaitResult: Boolean? = null
         private set
 
+    /** P16.5: result of the last ensureDebianDesktop install attempt (null = none yet). Read by the diagnostics so the log can show WHY the install failed. */
+    @Volatile
+    var lastInstallResult: TerminalResult? = null
+        private set
+
     /**
      * Tiny `launchXServer`: start CmdEntryPointService with ACTION_START.
      * Sets the started flag FIRST (Tiny does the same) so a later stop
@@ -393,7 +398,8 @@ object X11Session {
         val pattern = "[l]xqt-session|[l]xqt-panel|[l]xqt-runner|[l]xqt-notificationd|" +
             "[l]xqt-globalkeysd|[p]cmanfm-qt|[q]terminal|[o]penbox|[s]tartlxqt|" +
             "[x]fwm4|[x]fce4-session|[x]fce4-panel|[x]fdesktop|[x]fce4-terminal|" +
-            "[f]irefox-esr|[s]tartxfce4|[d]bus-daemon"
+            "[f]irefox-esr|[s]tartxfce4|[d]bus-daemon|" +
+            "[a]pt-get|[d]pkg"
         val result = TerminalSession.runCommandDebian(
             context,
             "pkill -f '$pattern'; echo DESKTOP_CLEANED",
@@ -402,6 +408,57 @@ object X11Session {
         )
         Log.d(TAG, "killDebianDesktopProcesses exit=${result.exitCode} out=${result.output}")
         return result.output.contains("DESKTOP_CLEANED")
+    }
+
+    /**
+     * P16.5 — kill orphaned apt-get/dpkg before the install.
+     * PROVEN 2026-11-09 by reading this code + the Nova 9 evidence:
+     * when an install is killed mid-operation (P16.3: the 120 s idle
+     * timeout), its apt-get child survives — P16.3 screenshot: PID
+     * 11794 holding /var/lib/dpkg/lock-frontend — and
+     * killDebianDesktopProcesses never killed it (its pkill pattern
+     * had no apt-get/dpkg). Every later install then fails fast on
+     * the lock: no install, no temp files — exactly the P16.4
+     * evidence (Nova 9, 2026-11-09, 30+ min wait, nothing happened).
+     * The orphan is a child of this app's proot, same UID, so the
+     * app can kill it from the host side with plain ps + kill (no
+     * procps needed in the guest). Belt and suspenders: a guest-side
+     * pkill too (works when procps is installed; harmless when not).
+     * Best-effort; the install's own dpkg --configure -a repairs
+     * any interrupted state afterwards.
+     */
+    fun killOrphanedAptProcesses(context: Context): Boolean {
+        var killed = 0
+        try {
+            val proc = Runtime.getRuntime().exec(arrayOf("ps", "-A"))
+            val out = proc.inputStream.bufferedReader().readText()
+            proc.waitFor()
+            for (line in out.lines()) {
+                val lower = line.lowercase()
+                if (!lower.contains("apt-get") && !lower.contains("dpkg")) continue
+                val parts = line.trim().split(Regex("\\s+"))
+                if (parts.size < 2) continue
+                val pid = parts[1].toIntOrNull() ?: continue
+                if (pid <= 1) continue
+                try {
+                    Runtime.getRuntime().exec(arrayOf("kill", "-9", pid.toString())).waitFor()
+                    killed++
+                    Log.d(TAG, "killOrphanedAptProcesses killed pid=$pid line=${line.trim()}")
+                } catch (_: Exception) { /* already gone */ }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "killOrphanedAptProcesses ps failed: ${e.message}")
+        }
+        try {
+            TerminalSession.runCommandDebian(
+                context,
+                "pkill -9 -f apt-get 2>/dev/null; pkill -9 -f dpkg 2>/dev/null; echo APT_CLEANED",
+                idleTimeoutSec = 15,
+                maxTimeoutSec = 30
+            )
+        } catch (_: Exception) { /* best-effort */ }
+        Log.d(TAG, "killOrphanedAptProcesses killed=$killed")
+        return true
     }
 
     /**
@@ -653,6 +710,13 @@ object X11Session {
      * which interrupts dpkg and orphans an apt-get holding the lock
      * (PID 11794 on the Nova 9). The user kept the phone awake and it
      * still failed on a fresh install — the killer is this timeout.
+     * P16.5: the 600/3600 raise did NOT fix the Nova 9 (2026-11-09:
+     * 30+ min wait, no install, no temp files). The orphaned apt-get
+     * from the earlier kill still holds the dpkg lock, and this app
+     * never killed it — so the install now fails fast on the lock
+     * before apt can start. The caller kills orphans first
+     * (killOrphanedAptProcesses) and the result is recorded in
+     * lastInstallResult so the diagnostics can show WHY it failed.
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
@@ -674,6 +738,7 @@ object X11Session {
             idleTimeoutSec = 600,
             maxTimeoutSec = 3600
         )
+        lastInstallResult = result
         Log.d(TAG, "ensureDebianDesktop exit=${result.exitCode} out=${result.output.takeLast(500)}")
         return result.output.contains("DEBIAN_DESKTOP_OK")
     }
