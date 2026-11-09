@@ -250,7 +250,11 @@ object LxqtLook {
     // favorites array). The palette is NOT touched: deferred.
     // P16: public so the version toast + diagnostic report always show
     // the CURRENT marker (never a stale hardcoded "P8" again).
-    const val MARKER_VERSION = "p16.6"
+    // P17: bumped again because the rootfs is now the pre-built
+    // image — the look still runs once after extraction (it rebuilds
+    // the mudif icon cache inside the guest), so a fresh rootfs must
+    // receive it.
+    const val MARKER_VERSION = "p17"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"

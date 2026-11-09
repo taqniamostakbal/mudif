@@ -646,6 +646,14 @@ object X11Session {
     }
 
     /**
+     * P17 — SUPERSEDED: the on-device apt install below is GONE.
+     * The desktop set now ships INSIDE the pre-built image; this
+     * function only checks the /root/.mudif_desktop_ok marker the
+     * image bakes in. The P6–P16.6 history is kept below for the
+     * record (it is why P17 exists: the install could never finish
+     * on the Nova 9 — the app's own idle timeout killed it, P16.5/
+     * P16.6 — and an orphaned apt-get then held the dpkg lock).
+     *
      * P6 — install the نظام مضيف desktop set in the DEBIAN guest
      * (proven live by the 2026-11-06 diagnostic, Q4): apt update,
      * then ONE apt install with --no-install-recommends.
@@ -732,27 +740,20 @@ object X11Session {
      * orphaned by this kill (PID 4302) on the next run.
      */
     fun ensureDebianDesktop(context: Context): Boolean {
-        val command = "export DEBIAN_FRONTEND=noninteractive; " +
-            "dpkg --configure -a; " +
-            "apt-get update && apt-get install -y --no-install-recommends " +
-            "xkb-data procps lxqt lxqt-session lxqt-panel lxqt-config lxqt-runner " +
-            "lxqt-notificationd lxqt-globalkeys lxqt-themes lxqt-qtplugin pcmanfm-qt " +
-            "openbox qterminal adwaita-qt adwaita-qt6 gnome-themes-extra " +
-            "firefox-esr deepin-icon-theme papirus-icon-theme adwaita-icon-theme dbus-x11 " +
-            "libgl1 libglx-mesa0 x11-utils " +
-            "fonts-noto-core fonts-noto-ui-core qttranslations5-l10n locales " +
-            "less nano curl " +
-            "&& sed -i 's/^# *ar_MA.UTF-8 UTF-8/ar_MA.UTF-8 UTF-8/' /etc/locale.gen " +
-            "&& locale-gen && fc-cache -f " +
-            "&& echo DEBIAN_DESKTOP_OK"
-        val result = TerminalSession.runCommandDebian(
-            context,
-            command,
-            idleTimeoutSec = 7200,
-            maxTimeoutSec = 7200
-        )
-        lastInstallResult = result
-        Log.d(TAG, "ensureDebianDesktop exit=${result.exitCode} out=${result.output.takeLast(500)}")
-        return result.output.contains("DEBIAN_DESKTOP_OK")
+        // P17: the desktop set ships INSIDE the pre-built image —
+        // no on-device apt install anymore (that install could never
+        // finish on the Nova 9: P16.5/P16.6). The image bakes
+        // /root/.mudif_desktop_ok = "DEBIAN_DESKTOP_OK"
+        // (build-image.sh); its presence proves the full LXQt set is
+        // installed. No install ran, so lastInstallResult stays null.
+        val marker = File(DebianSystem.debianRootfsDir(context), "root/.mudif_desktop_ok")
+        val ok = try {
+            marker.exists() && marker.readText().trim() == "DEBIAN_DESKTOP_OK"
+        } catch (e: Exception) {
+            false
+        }
+        lastInstallResult = null
+        Log.d(TAG, "ensureDebianDesktop (P17 marker check) ok=$ok")
+        return ok
     }
 }
