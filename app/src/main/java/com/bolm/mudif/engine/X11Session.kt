@@ -717,6 +717,19 @@ object X11Session {
      * before apt can start. The caller kills orphans first
      * (killOrphanedAptProcesses) and the result is recorded in
      * lastInstallResult so the diagnostics can show WHY it failed.
+     * P16.6: PROVEN by the P16.5 diagnostics on the Nova 9
+     * (2026-11-09 03:33): the install DID run this time (reached
+     * "Setting up papirus-icon-theme") and was killed by the app's
+     * OWN idle timeout — "تم إيقاف الأمر: توقف عن إخراج أي نتيجة
+     * منذ 601s" — during the silent "Setting up" phase, which on
+     * this slow phone takes > 10 min of no stdout. The idle timeout
+     * assumes silence = stuck, but dpkg/apt legitimately go silent
+     * for long stretches while unpacking and updating caches on
+     * slow storage. So idle and max are BOTH 7200 s (2 h) here:
+     * silence alone can never kill this install; only the 2 h total
+     * cap can. The orphan-kill (P16.5) stays — it cleared the old
+     * lock so the install could start, and it will clear the dpkg
+     * orphaned by this kill (PID 4302) on the next run.
      */
     fun ensureDebianDesktop(context: Context): Boolean {
         val command = "export DEBIAN_FRONTEND=noninteractive; " +
@@ -735,8 +748,8 @@ object X11Session {
         val result = TerminalSession.runCommandDebian(
             context,
             command,
-            idleTimeoutSec = 600,
-            maxTimeoutSec = 3600
+            idleTimeoutSec = 7200,
+            maxTimeoutSec = 7200
         )
         lastInstallResult = result
         Log.d(TAG, "ensureDebianDesktop exit=${result.exitCode} out=${result.output.takeLast(500)}")
