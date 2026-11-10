@@ -95,6 +95,13 @@ class MainActivity : AppCompatActivity() {
         binding.drawerLayout.openDrawer(GravityCompat.START)
     }
 
+    /** P18.5: let a fragment switch tabs (the Apps empty state
+     *  links to the Store). Setting selectedItemId runs the same
+     *  listener as a tap, so the fragment shows. */
+    fun selectTab(itemId: Int) {
+        binding.bottomNav.selectedItemId = itemId
+    }
+
     private fun show(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
             .replace(R.id.nav_host, fragment)
