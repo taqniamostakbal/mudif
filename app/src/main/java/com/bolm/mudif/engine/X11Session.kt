@@ -331,7 +331,25 @@ object X11Session {
             // The default (TRACKPAD=1) made the phone act like a laptop
             // touchpad: drag to move a cursor, tap to click. The user
             // asked for finger touch, so the viewer starts in TOUCH.
-            .putString("touchMode", "3")
+            // P18.1: SIMULATED_TOUCH=2, not TOUCH=3. TOUCH uses
+            // NullInputStrategy: the handler ignores every touch gesture,
+            // so the pointer only jumps on tap ("put your finger on the
+            // place, then press") and never follows a drag. SIMULATED_TOUCH
+            // translates touch into mouse events, so the pointer follows
+            // the finger while dragging — a real tactile mouse.
+            .putString("touchMode", "2")
+            // P18.1: stretch the display to fill the screen. The exact
+            // resolution already matches the screen aspect, so this
+            // changes nothing when it is right; but on the phone the
+            // display stayed 1280x720 (letterboxed, black side bars),
+            // so stretching guarantees the big fullscreen the user asked
+            // for instead of black bars.
+            .putBoolean("displayStretch", true)
+            // P18.1: the extra-keys bar starts HIDDEN. It appears only
+            // when the user taps the floating keyboard button in the
+            // viewer (which flips additionalKbdVisible). This keeps the
+            // desktop fullscreen until the keys are actually needed.
+            .putBoolean("additionalKbdVisible", false)
             .apply()
         val intent = Intent(context, com.termux.x11.MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
