@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- P19 Phase 2: drawer header (brand purple, app name + version). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="160dp"
+    android:orientation="vertical"
+    android:background="@color/mudif_purple"
+    android:gravity="bottom"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textSize="26sp"
+        android:textColor="@android:color/white"
+        android:fontFamily="@font/lifta" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/home_subtitle"
+        android:textSize="13sp"
+        android:textColor="#DCD6FF"
+        android:fontFamily="@font/cairo" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/about_value"
+        android:textSize="12sp"
+        android:textColor="#DCD6FF"
+        android:fontFamily="@font/cairo" />
+</LinearLayout>

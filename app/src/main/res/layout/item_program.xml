@@ -22,9 +22,13 @@
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
+            <!-- P19 Phase 1: squircle icon tile (OneOS style). The tile
+                 clips the bitmap to its rounded shape. -->
             <FrameLayout
                 android:layout_width="56dp"
-                android:layout_height="56dp">
+                android:layout_height="56dp"
+                android:background="@drawable/icon_tile_bg"
+                android:clipToOutline="true">
 
                 <ImageView
                     android:id="@+id/program_icon"
@@ -42,7 +46,7 @@
                     android:textStyle="bold"
                     android:textColor="@android:color/white"
                     android:fontFamily="@font/cairo"
-                    android:background="@drawable/circle_bg"
+                    android:background="@drawable/cat_all"
                     android:visibility="gone" />
             </FrameLayout>
 

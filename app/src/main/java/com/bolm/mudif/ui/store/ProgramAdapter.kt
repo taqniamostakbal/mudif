@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemProgramBinding
 import com.bolm.mudif.databinding.ItemSectionHeaderBinding
@@ -106,7 +107,13 @@ class ProgramAdapter(
                 binding.programIcon.visibility = View.VISIBLE
                 binding.programLetter.visibility = View.GONE
             } else {
+                // P19 Phase 1: no icon — the letter sits on the program's
+                // category gradient (squircle), not a plain purple circle.
                 binding.programLetter.text = program.name.firstOrNull()?.toString() ?: "؟"
+                val cat = StoreCategory.forKey(program.category)
+                binding.programLetter.background = ContextCompat.getDrawable(
+                    ctx, cat?.gradientRes ?: R.drawable.cat_all
+                )
                 binding.programLetter.visibility = View.VISIBLE
                 binding.programIcon.visibility = View.GONE
             }

@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="6dp"
-    app:cardCornerRadius="16dp"
+    app:cardCornerRadius="20dp"
     app:cardElevation="3dp">
 
     <LinearLayout
@@ -23,7 +23,7 @@
             android:textStyle="bold"
             android:textColor="@android:color/white"
             android:fontFamily="@font/cairo"
-            android:background="@drawable/circle_bg" />
+            android:background="@drawable/letter_tile_bg" />
 
         <TextView
             android:id="@+id/app_name"
@@ -63,6 +63,6 @@
             android:fontFamily="@font/cairo"
             android:textSize="12sp"
             app:backgroundTint="@color/mudif_purple"
-            app:cornerRadius="10dp" />
+            app:cornerRadius="24dp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
