@@ -1,5 +1,6 @@
 package com.bolm.mudif.ui.vnc
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -11,11 +12,16 @@ import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.DesktopDiagnostics
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.LxqtLook
+import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.RootfsManager
+import com.bolm.mudif.engine.ScreenRecorder
+import com.bolm.mudif.engine.TerminalSession
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.logs.LogViewerActivity
+import com.bolm.mudif.ui.settings.ViewerPrefs
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * P5.22 RADICAL REBUILD — X11 desktop via Termux:X11, Tiny
@@ -133,6 +139,114 @@ class VncActivity : AppCompatActivity() {
             }.start()
         }
 
+        // Real-computer #5 — screen recording. The button toggles:
+        // start (ffmpeg in the guest, viewer opens so you can see
+        // what is being recorded) or stop (the mp4 lands in the
+        // shared folder). One-shots run off the UI thread.
+        binding.btnRecord.setOnClickListener {
+            Thread {
+                if (ScreenRecorder.isRecording(this)) {
+                    val out = ScreenRecorder.stop(this)
+                    ScreenRecorder.hideStopNotification(this)
+                    runOnUiThread {
+                        binding.btnRecord.text = getString(R.string.record_start)
+                        Toast.makeText(
+                            this,
+                            if (out != null) getString(R.string.record_saved, out.absolutePath)
+                            else getString(R.string.record_not_running),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } else {
+                    if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
+                        runOnUiThread {
+                            Toast.makeText(this, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                        }
+                        return@Thread
+                    }
+                    val startedFile = ScreenRecorder.start(this)
+                    runOnUiThread {
+                        if (startedFile != null) {
+                            binding.btnRecord.text = getString(R.string.record_stop)
+                            ScreenRecorder.showStopNotification(this)
+                            Toast.makeText(this, getString(R.string.record_running), Toast.LENGTH_SHORT).show()
+                            X11Session.openViewer(this)
+                        } else {
+                            MudifDialog.info(
+                                this,
+                                getString(R.string.record_title),
+                                getString(R.string.record_failed) + "\n\n" + ScreenRecorder.lastLog(this),
+                                getString(R.string.ok)
+                            )
+                        }
+                    }
+                }
+            }.start()
+        }
+
+        // Real-computer #9 — desktop on TV. The TV shows the live
+        // desktop; it does not boot one, so the button refuses until
+        // the desktop is up. The TV gets its own viewer prefs.
+        binding.btnTv.setOnClickListener {
+            Thread {
+                val dm = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+                val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
+                if (displays.isEmpty()) {
+                    runOnUiThread {
+                        MudifDialog.info(this, getString(R.string.tv_title), getString(R.string.tv_no_display), getString(R.string.ok))
+                    }
+                    return@Thread
+                }
+                if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
+                    runOnUiThread {
+                        Toast.makeText(this, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                    }
+                    return@Thread
+                }
+                ViewerPrefs.prefs(this).edit()
+                    .putBoolean("storeSecondaryDisplayPreferencesSeparately", true).apply()
+                val ok = X11Session.openViewerOnDisplay(this, displays[0])
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        if (ok) getString(R.string.tv_opened) else getString(R.string.tv_no_display),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }.start()
+        }
+
+        // Real-computer #1 — audio passthrough. The button toggles
+        // the "audio enabled" preference; the pump starts with the
+        // desktop when enabled, and immediately on tap when the
+        // desktop is already up.
+        binding.btnAudio.setOnClickListener {
+            Thread {
+                val nowEnabled = !PulseAudio.isEnabled(this)
+                PulseAudio.setEnabled(this, nowEnabled)
+                if (nowEnabled) {
+                    if (GuestSession.booted && X11Session.isTcpDisplayOpen()) {
+                        val started = PulseAudio.start(this)
+                        if (!started) {
+                            runOnUiThread {
+                                Toast.makeText(this, getString(R.string.audio_failed), Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this, "الصوت غادي يبدا ملي يفتح سطح المكتب", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    PulseAudio.stop(this)
+                }
+                runOnUiThread {
+                    binding.btnAudio.text =
+                        if (nowEnabled) getString(R.string.audio_on) else getString(R.string.audio_off)
+                }
+            }.start()
+        }
+
         // Version indicator — reads the live marker, never a stale label.
         Toast.makeText(this, "نسخة: ${LxqtLook.MARKER_VERSION}", Toast.LENGTH_LONG).show()
 
@@ -156,6 +270,27 @@ class VncActivity : AppCompatActivity() {
     }
 
     /**
+     * Real-computer #1/#5: refresh the toggle buttons when the
+     * screen comes back (the user may have left the viewer running).
+     * Audio reads the preference (cheap, no one-shot); recording
+     * checks the live ffmpeg process (one-shot, off the UI thread).
+     */
+    override fun onResume() {
+        super.onResume()
+        binding.btnAudio.text =
+            if (PulseAudio.isEnabled(this)) getString(R.string.audio_on)
+            else getString(R.string.audio_off)
+        Thread {
+            val recording = ScreenRecorder.isRecording(this)
+            runOnUiThread {
+                binding.btnRecord.text =
+                    if (recording) getString(R.string.record_stop)
+                    else getString(R.string.record_start)
+            }
+        }.start()
+    }
+
+    /**
      * P16.2: open the viewer, then launch the desktop after the viewer
      * attaches and resizes the server (P6.5). Shared by the diagnostics
      * dialog's positive button and the status screen's viewer button.
@@ -171,8 +306,18 @@ class VncActivity : AppCompatActivity() {
         Thread {
             Thread.sleep(4000)
             val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
-            Thread.sleep(3000)
+            // Real-computer #8: the 3 s sleep here was redundant —
+            // isDesktopRunning already polls twice (up to 20 s each
+            // with a 3 s gap). The 4 s sleep above stays: the viewer
+            // must attach and resize the server BEFORE the desktop
+            // launches (P6.5), and there is no event for that.
             val running = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
+            // Real-computer #1: audio starts with the desktop when
+            // enabled. Own thread: the pump connects (up to ~6 s)
+            // and must not delay the Toast below.
+            if (sent && running && PulseAudio.isEnabled(this)) {
+                Thread { PulseAudio.start(this) }.start()
+            }
             val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
             Log.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
             // P18.5: fire a pending app launch (from the Apps tab)
@@ -223,6 +368,9 @@ class VncActivity : AppCompatActivity() {
         }
         Thread {
             try {
+            // Real-computer #7: fast reattach — a healthy session
+            // opens the viewer directly, no reboot-on-entry.
+            if (tryFastReattach()) return@Thread
             // 0. PTY smoke test (study step 0): prove the PTY session
             // can be created and delivers bytes on this device BEFORE
             // building anything on it. If this fails, stop here and
@@ -257,9 +405,23 @@ class VncActivity : AppCompatActivity() {
             // hold the live Alpine LXQt session from the 2026-11-07
             // test owning :6, and a surviving window manager blocks
             // the new desktop (P5.24).
+            // Real-computer #8: the two kill one-shots are
+            // independent — run them in parallel, join both.
             setStatus("جاري تنظيف سطح المكتب السابق…")
-            if (DebianSystem.isReady(this)) X11Session.killDebianDesktopProcesses(this)
-            if (RootfsManager.isReady(this)) X11Session.killDesktopProcesses(this)
+            val killThreads = listOf(
+                Thread { if (DebianSystem.isReady(this)) X11Session.killDebianDesktopProcesses(this) },
+                Thread { if (RootfsManager.isReady(this)) X11Session.killDesktopProcesses(this) }
+            )
+            killThreads.forEach { it.start() }
+            killThreads.forEach { it.join() }
+
+            // Real-computer #8: the X server does not depend on the
+            // guest boot (one-shots only need the rootfs), so it
+            // starts in parallel with the container boot below.
+            // The result is joined before the TCP gate (step 4).
+            val xResult = AtomicReference<XResult?>(null)
+            val xThread = Thread { xResult.set(runXStartup()) }
+            xThread.start()
 
             // 1. Boot the container in the PTY session (Tiny:
             // clean slate, fresh boot on every entry).
@@ -304,6 +466,10 @@ class VncActivity : AppCompatActivity() {
             // server (it would die instantly with an empty
             // XKB_CONFIG_ROOT). Tell the user plainly instead.
             if (!desktopOk) {
+                // Real-computer #8: the parallel X thread must be
+                // joined before leaving, or it would keep starting
+                // a server for a broken system.
+                xThread.join()
                 if (destroyed) return@Thread
                 runOnUiThread {
                     showFailureDialog(
@@ -313,90 +479,17 @@ class VncActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            // 3. Start the X server (Tiny launchXServer) — but ONLY
-            // if it is not already up. Judge by the real state
-            // (socket + TCP listener), not by the in-memory flag.
-            // P6.3.3 — نظام مضيف ALWAYS restarts the X server fresh.
-            // P6.3.6 proved the cold-start restart sequence works
-            // end to end (the old server dies, the fresh server
-            // survives, the TCP gate holds) — that sequence, not
-            // the old "fresh server" correlation, is why the
-            // restart is kept on every entry. (The P6.3.3 comment
-            // used to claim the fresh-server condition was "the one
-            // proven to work" — P6.3.4 disproved that correlation.)
-            // The stop is best-effort (guarded by the in-memory
-            // flag; if this process never started the server, the
-            // stop is a no-op and the flow falls back to the
-            // surviving server).
-            var serverUp = X11Session.isXSocketPresent(this) && X11Session.isTcpDisplayOpen()
-            if (serverUp) {
-                setStatus("جاري إعادة تشغيل خادم X من جديد…")
-                X11Session.stopXServer(this)
-                // P6.3.6: the old waitForXSocketGone veto is GONE.
-                // The P6.3.5 resume run proved it: a SIGKILLed server
-                // never deletes its socket file, so the wait always
-                // timed out (10 s), serverUp stayed true, startXServer
-                // was SKIPPED, and startxfce4 was sent to a dead
-                // server. TCP closing is the true death signal, and
-                // the stale files are deleted by hand — but ONLY when
-                // TCP proves no live server holds the display.
-                X11Session.waitForTcpDisplayClosed(10000)
-                if (X11Session.isTcpDisplayOpen()) {
-                    // Old server survived the stop — fall back to it
-                    // (never start a second server on :6).
-                } else {
-                    X11Session.deleteStaleXSocketFiles(this)
-                    serverUp = false
+            // Real-computer #8: join the parallel X startup; a
+            // failure there is reported exactly like the old
+            // serial failure was.
+            xThread.join()
+            val xr = xResult.get()
+            if (xr == null || !xr.ok) {
+                if (destroyed) return@Thread
+                runOnUiThread {
+                    showFailureDialog(xr?.error ?: "خادم X ما قلعش.")
                 }
-            }
-            if (!serverUp) {
-                // P16 XKB GUARD: make sure the keyboard data is there
-                // (reinstall xkb-data once if it is missing), then start
-                // the server only if the guard allows it.
-                setStatus("جاري فحص بيانات لوحة المفاتيح…")
-                if (!X11Session.ensureXkbData(this)) {
-                    if (destroyed) return@Thread
-                    runOnUiThread {
-                        showFailureDialog(
-                            "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب."
-                        )
-                    }
-                    return@Thread
-                }
-                setStatus("جاري تشغيل خادم X…")
-                val xkbRootfs = DebianSystem.debianRootfsDir(this)
-                if (!X11Session.startXServer(this, xkbRootfs)) {
-                    if (destroyed) return@Thread
-                    runOnUiThread {
-                        showFailureDialog(
-                            "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب."
-                        )
-                    }
-                    return@Thread
-                }
-
-                // 3. Wait ONLY for the socket file (Tiny waitForFile).
-                if (!X11Session.waitForXSocket(this, 15000)) {
-                    if (destroyed) return@Thread
-                    runOnUiThread {
-                        showFailureDialog("خادم X ما قلعش: سوكيت X6 ما تخلقش خلال 15 ثانية.")
-                    }
-                    return@Thread
-                }
-
-                // 3b. Wait until the server accepts TCP on
-                // 127.0.0.1:6006. The socket file can exist before the
-                // server is ready, and the Unix socket connect from
-                // inside proot is broken on this device, so the guest
-                // uses TCP — prove the listener is there first.
-                setStatus("جاري انتظار منفذ TCP…")
-                if (!X11Session.waitForTcpDisplay(10000)) {
-                    if (destroyed) return@Thread
-                    runOnUiThread {
-                        showFailureDialog("خادم X ما فتحش منفذ TCP 6006 خلال 10 ثواني (السوكيت موجود ولكن TCP مسدود).")
-                    }
-                    return@Thread
-                }
+                return@Thread
             }
 
             // 4. TCP gate (P6.3.6): NEVER send the desktop command to
@@ -495,6 +588,113 @@ class VncActivity : AppCompatActivity() {
                 startInProgress.set(false)
             }
         }.start()
+    }
+
+    /**
+     * Real-computer #8 — the X-server startup sequence, extracted
+     * unchanged from startDesktop step 3 so it can run in PARALLEL
+     * with the container boot (the X server only needs the rootfs
+     * for xkb-data, never the booted PTY session — the same split
+     * Tiny Container uses). Returns ok/error instead of showing
+     * dialogs: the caller shows the dialog after joining.
+     */
+    private data class XResult(val ok: Boolean, val error: String? = null)
+
+    private fun runXStartup(): XResult {
+        // 3. Start the X server (Tiny launchXServer) — but ONLY
+        // if it is not already up. Judge by the real state
+        // (socket + TCP listener), not by the in-memory flag.
+        // P6.3.3 — نظام مضيف ALWAYS restarts the X server fresh.
+        // P6.3.6 proved the cold-start restart sequence works
+        // end to end (the old server dies, the fresh server
+        // survives, the TCP gate holds) — that sequence, not
+        // the old "fresh server" correlation, is why the
+        // restart is kept on every entry. (The P6.3.3 comment
+        // used to claim the fresh-server condition was "the one
+        // proven to work" — P6.3.4 disproved that correlation.)
+        // The stop is best-effort (guarded by the in-memory
+        // flag; if this process never started the server, the
+        // stop is a no-op and the flow falls back to the
+        // surviving server).
+        var serverUp = X11Session.isXSocketPresent(this) && X11Session.isTcpDisplayOpen()
+        if (serverUp) {
+            setStatus("جاري إعادة تشغيل خادم X من جديد…")
+            X11Session.stopXServer(this)
+            // P6.3.6: the old waitForXSocketGone veto is GONE.
+            // The P6.3.5 resume run proved it: a SIGKILLed server
+            // never deletes its socket file, so the wait always
+            // timed out (10 s), serverUp stayed true, startXServer
+            // was SKIPPED, and startxfce4 was sent to a dead
+            // server. TCP closing is the true death signal, and
+            // the stale files are deleted by hand — but ONLY when
+            // TCP proves no live server holds the display.
+            X11Session.waitForTcpDisplayClosed(10000)
+            if (X11Session.isTcpDisplayOpen()) {
+                // Old server survived the stop — fall back to it
+                // (never start a second server on :6).
+            } else {
+                X11Session.deleteStaleXSocketFiles(this)
+                serverUp = false
+            }
+        }
+        if (!serverUp) {
+            // P16 XKB GUARD: make sure the keyboard data is there
+            // (reinstall xkb-data once if it is missing), then start
+            // the server only if the guard allows it.
+            setStatus("جاري فحص بيانات لوحة المفاتيح…")
+            if (!X11Session.ensureXkbData(this)) {
+                return XResult(false, "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب.")
+            }
+            setStatus("جاري تشغيل خادم X…")
+            val xkbRootfs = DebianSystem.debianRootfsDir(this)
+            if (!X11Session.startXServer(this, xkbRootfs)) {
+                return XResult(false, "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب.")
+            }
+
+            // 3. Wait ONLY for the socket file (Tiny waitForFile).
+            if (!X11Session.waitForXSocket(this, 15000)) {
+                return XResult(false, "خادم X ما قلعش: سوكيت X6 ما تخلقش خلال 15 ثانية.")
+            }
+
+            // 3b. Wait until the server accepts TCP on
+            // 127.0.0.1:6006. The socket file can exist before the
+            // server is ready, and the Unix socket connect from
+            // inside proot is broken on this device, so the guest
+            // uses TCP — prove the listener is there first.
+            setStatus("جاري انتظار منفذ TCP…")
+            if (!X11Session.waitForTcpDisplay(10000)) {
+                return XResult(false, "خادم X ما فتحش منفذ TCP 6006 خلال 10 ثواني (السوكيت موجود ولكن TCP مسدود).")
+            }
+        }
+        return XResult(true)
+    }
+
+    /**
+     * Real-computer #7 — fast reattach. When the session is already
+     * alive, the guest is booted, TCP 6006 answers and lxqt-session
+     * is running, the desktop is up: open the viewer directly and
+     * skip the whole reboot-on-entry (PTY probe, kills, boot, X
+     * restart, sleeps). The check is ONE pgrep one-shot, so a dead
+     * desktop falls through to the cold start in ~seconds, not
+     * the ~43 s a full isDesktopRunning (2 attempts) would cost.
+     * Returns true when the viewer was opened.
+     */
+    private fun tryFastReattach(): Boolean {
+        if (!GuestSession.alive || !GuestSession.booted) return false
+        if (!X11Session.isTcpDisplayOpen()) return false
+        val r = TerminalSession.runCommandDebian(
+            this, "pgrep -f '[l]xqt-session' >/dev/null 2>&1 && echo RUNNING", 10, 20
+        )
+        if (!r.output.contains("RUNNING")) return false
+        Log.d("VncActivity", "fast reattach: session healthy, opening viewer directly")
+        val appToLaunch = pendingLaunchApp
+        pendingLaunchApp = null
+        if (appToLaunch != null) GuestSession.sendCommand(appToLaunch)
+        runOnUiThread {
+            setStatus("جاهز — افتح العارض لبدء سطح المكتب")
+            X11Session.openViewer(this)
+        }
+        return true
     }
 
     /** Shown when the container or the X server fails to start. */
