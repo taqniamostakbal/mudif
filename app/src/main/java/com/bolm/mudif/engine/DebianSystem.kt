@@ -19,12 +19,12 @@ import java.security.MessageDigest
  * the Mudif look files + #593BFE palette + ar_MA.UTF-8), hosted
  * as 20 MB parts on Hugging Face (public dataset
  * 855teche/mudif-images). Phones download the aarch64 image
- * (20 parts), the rig downloads x86_64 (22 parts). The image has
- * ONE top-level dir (mudif-p17-<arch>/) — extraction strips it,
+ * (22 parts), the rig downloads x86_64 (25 parts). The image has
+ * ONE top-level dir (mudif-p19-<arch>/) — extraction strips it,
  * exactly like the old proot-distro tarballs did. The reassembled
  * file is verified against its sha256 before any extraction.
  *
- * Markers inside the image: /root/.mudif_image_version = "p17-v1",
+ * Markers inside the image: /root/.mudif_image_version = "p19-v2",
  * /root/.mudif_desktop_ok = "DEBIAN_DESKTOP_OK" (proves the full
  * desktop set is installed — X11Session.ensureDebianDesktop checks
  * it instead of running apt). .mudif_ready is NOT baked: the app
@@ -55,21 +55,21 @@ object DebianSystem {
     const val DEBIAN_VERSION = "13.1"
     private const val HF_BASE =
         "https://huggingface.co/datasets/855teche/mudif-images/resolve/main/"
-    private const val IMAGE_VERSION = "p17-v1"
+    private const val IMAGE_VERSION = "p19-v2"
     private const val READY_MARKER = ".mudif_ready"
 
-    // P17 pre-built image, hosted as 20 MB parts (every part is
+    // P19-v2 pre-built image, hosted as 20 MB parts (every part is
     // 20,971,520 B except the last). Totals + sha256 verified
-    // 2026-11-09 (builder + independent re-download of the parts):
-    // x86_64 457,723,716 B (22 parts), aarch64 410,664,128 B (20 parts).
+    // 2026-11-10 (builder + independent verify-image.sh, both arches):
+    // x86_64 508,991,732 B (25 parts), aarch64 455,448,308 B (22 parts).
     private const val SHA256_X86_64 =
-        "ea98803f5f7317d4ba492feba60a2f01ff75782c1ed6b7745ef67d8e6ecabe35"
+        "98e602a1cb14cb3012d9345d05ac2b02ec514ace2ff804cf5799ec2b56b2a3bc"
     private const val SHA256_AARCH64 =
-        "4c13f00582ccd3d83f1c8c3d767567dc4a0728c6362bacc9fbee5b841a7ad4ec"
-    private const val TOTAL_BYTES_X86_64 = 457723716L
-    private const val TOTAL_BYTES_AARCH64 = 410664128L
-    private const val PART_COUNT_X86_64 = 22
-    private const val PART_COUNT_AARCH64 = 20
+        "c0d32fa0eb1bbc43c73480abafa5e6dc8d058aa99f903136c3dce7e89cf18704"
+    private const val TOTAL_BYTES_X86_64 = 508991732L
+    private const val TOTAL_BYTES_AARCH64 = 455448308L
+    private const val PART_COUNT_X86_64 = 25
+    private const val PART_COUNT_AARCH64 = 22
     private const val PART_SIZE = 20971520L
 
     private fun abi(): String {
@@ -195,8 +195,8 @@ object DebianSystem {
             ).use { tar ->
                 var entry = tar.nextEntry
                 while (entry != null) {
-                    // P17 images have ONE top-level dir
-                    // (mudif-p17-<arch>/): strip it, like the old
+                    // P19 images have ONE top-level dir
+                    // (mudif-p19-<arch>/): strip it, like the old
                     // proot-distro tarballs.
                     val raw = entry.name.trimStart('/')
                     val stripped = raw.substringAfter('/', "")
