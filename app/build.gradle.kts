@@ -86,7 +86,11 @@ dependencies {
     // 2.1.20, which conflicts with the project's Kotlin 2.0.20.
     // P18.1: fork commit fc815a5 adds the floating keyboard button
     // (FAB) that shows/hides the extra keys on demand.
-    implementation("com.github.taqniamostakbal:termux-x11:fc815a5f38b2f3a965b614862b03a3b3048772af") {
+    // P18.2: fork commit 38a73e4 fixes the drag: a plain single-finger
+    // drag now moves the cursor in SimulatedTouch (the tactile-mouse
+    // mode), and the FAB bottom margin is 91dp so it clears the 75dp
+    // keys bar when shown.
+    implementation("com.github.taqniamostakbal:termux-x11:38a73e479903f9a6d6bfe9af6cd21c0801089c49") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
