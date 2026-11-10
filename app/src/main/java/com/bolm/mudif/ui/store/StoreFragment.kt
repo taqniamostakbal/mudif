@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentStoreBinding
@@ -37,7 +38,7 @@ class StoreFragment : Fragment() {
     private val states = HashMap<String, ProgramState>()
     private val evidence = HashMap<String, String>()
     private lateinit var programAdapter: ProgramAdapter
-    private lateinit var chipAdapter: ChipAdapter
+    private lateinit var categoryAdapter: CategoryCardAdapter
     private val uiHandler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(
@@ -62,15 +63,17 @@ class StoreFragment : Fragment() {
             onInstall = { d -> onInstallClicked(d) }
         )
 
-        chipAdapter = ChipAdapter(StoreCategory.entries, selectedCategory) { category ->
+        // P19 Phase 1: category gradient cards (2-column grid) replace
+        // the plain filter chips. Same tap-to-filter behaviour.
+        categoryAdapter = CategoryCardAdapter(
+            StoreCategory.entries, selectedCategory, emptyMap()
+        ) { category ->
             selectedCategory = category.key
-            chipAdapter.setSelected(category.key)
+            categoryAdapter.setSelected(category.key)
             applyFilter()
         }
-        binding.chipRecycler.layoutManager = LinearLayoutManager(
-            requireContext(), LinearLayoutManager.HORIZONTAL, false
-        )
-        binding.chipRecycler.adapter = chipAdapter
+        binding.categoryRecycler.layoutManager = GridLayoutManager(requireContext(), 2)
+        binding.categoryRecycler.adapter = categoryAdapter
 
         programAdapter = ProgramAdapter(
             onVerify = { p -> runVerify(p) },
@@ -155,6 +158,10 @@ class StoreFragment : Fragment() {
                 if (!isAdded) return@post
                 programs = loaded
                 guestArch = arch
+                // P19 Phase 1: category counts for the gradient cards.
+                categoryAdapter.setCounts(
+                    loaded.groupBy { it.category }.mapValues { it.value.size }
+                )
                 if (loaded.isEmpty()) {
                     Snackbar.make(
                         binding.root,

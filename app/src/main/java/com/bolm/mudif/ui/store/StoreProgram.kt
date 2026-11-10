@@ -1,6 +1,7 @@
 package com.bolm.mudif.ui.store
 
 import android.content.Context
+import com.bolm.mudif.R
 import org.json.JSONObject
 
 /**
@@ -25,20 +26,30 @@ data class StoreProgram(
     val icon: String
 )
 
-/** The 7 catalog categories plus the "all" filter, with Fusha labels. */
-enum class StoreCategory(val key: String, val label: String) {
-    ALL("all", "الكل"),
-    INTERNET("internet", "الإنترنت"),
-    OFFICE("office", "المكتب"),
-    MEDIA("media", "الوسائط"),
-    DEV("dev", "التطوير"),
-    AI("ai", "الذكاء الاصطناعي"),
-    SYSTEM("system", "النظام"),
-    FONTS("fonts", "الخطوط");
+/** The 7 catalog categories plus the "all" filter, with Fusha labels.
+ *  P19 Phase 1: each category also carries its gradient card background
+ *  and its white icon (from the user's style refs). */
+enum class StoreCategory(
+    val key: String,
+    val label: String,
+    val gradientRes: Int,
+    val iconRes: Int
+) {
+    ALL("all", "الكل", R.drawable.cat_all, R.drawable.ic_cat_all),
+    INTERNET("internet", "الإنترنت", R.drawable.cat_internet, R.drawable.ic_cat_internet),
+    OFFICE("office", "المكتب", R.drawable.cat_office, R.drawable.ic_cat_office),
+    MEDIA("media", "الوسائط", R.drawable.cat_media, R.drawable.ic_cat_media),
+    DEV("dev", "التطوير", R.drawable.cat_dev, R.drawable.ic_cat_dev),
+    AI("ai", "الذكاء الاصطناعي", R.drawable.cat_ai, R.drawable.ic_cat_ai),
+    SYSTEM("system", "النظام", R.drawable.cat_system, R.drawable.ic_cat_system),
+    FONTS("fonts", "الخطوط", R.drawable.cat_fonts, R.drawable.ic_cat_fonts);
 
     companion object {
         fun labelFor(key: String): String =
             entries.firstOrNull { it.key == key }?.label ?: key
+
+        fun forKey(key: String): StoreCategory? =
+            entries.firstOrNull { it.key == key }
     }
 }
 
