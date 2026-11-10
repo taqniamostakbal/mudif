@@ -73,8 +73,15 @@ dependencies {
     // P6: XZ support for commons-compress (Debian .tar.xz extraction).
     // XZCompressorInputStream needs the XZ for Java runtime library.
     implementation("org.tukaani:xz:1.9")
-    // Termux:X11 from JitPack (pure Java, exclude Kotlin stdlib to avoid version conflict)
-    implementation("com.github.tiny-computer:termux-x11:21159a1405") {
+    // P17.4: Termux:X11 as a LOCAL module (project(":termux-x11")),
+    // not the JitPack artifact. P17.3 proved the JitPack artifact
+    // silently ignores edits to the vendored termux-x11/ copy: the
+    // touch-startup fix and the Mudif keys styling never reached the
+    // APK (only app-module code did). The local module IS the vendored
+    // copy, so viewer edits ship. Keep the kotlin-stdlib excludes:
+    // the module's transitive deps can pull kotlin-stdlib 2.1.20,
+    // which conflicts with the project's Kotlin 2.0.20.
+    implementation(project(":termux-x11")) {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
