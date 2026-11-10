@@ -99,9 +99,31 @@ object DebianSystem {
     private fun tarball(context: Context): File =
         File(context.filesDir, "mudif-image.tar.xz")
 
-    /** True only after a COMPLETE verified extraction (marker file). */
-    fun isReady(context: Context): Boolean =
-        File(debianRootfsDir(context), READY_MARKER).exists()
+    /**
+     * True only after a COMPLETE verified extraction (marker file)
+     * AND the installed image version matches this build's
+     * IMAGE_VERSION. Without the version check, an app update that
+     * points at a newer image would keep booting the old system
+     * (the .mudif_ready marker survives an update install), so the
+     * user would never get the fix. A version mismatch (or a
+     * missing version marker) is treated as "not installed", so the
+     * install flow re-downloads the current image.
+     */
+    fun isReady(context: Context): Boolean {
+        val rootfs = debianRootfsDir(context)
+        if (!File(rootfs, READY_MARKER).exists()) return false
+        return installedImageVersion(context) == IMAGE_VERSION
+    }
+
+    /** The version baked into the installed image, or null if unknown. */
+    private fun installedImageVersion(context: Context): String? {
+        return try {
+            File(debianRootfsDir(context), "root/.mudif_image_version")
+                .readText().trim().ifEmpty { null }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     /**
      * P17: download the pre-built image as 20 MB parts from Hugging
