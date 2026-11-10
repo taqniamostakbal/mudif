@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityVncBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.DesktopDiagnostics
