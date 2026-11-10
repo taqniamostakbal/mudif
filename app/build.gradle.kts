@@ -84,7 +84,9 @@ dependencies {
     // it the same way it built the original. Keep the kotlin-stdlib
     // excludes: the module's transitive deps can pull kotlin-stdlib
     // 2.1.20, which conflicts with the project's Kotlin 2.0.20.
-    implementation("com.github.taqniamostakbal:termux-x11:7b3151d3525127216b78ad2b363b426e56f51312") {
+    // P18.1: fork commit fc815a5 adds the floating keyboard button
+    // (FAB) that shows/hides the extra keys on demand.
+    implementation("com.github.taqniamostakbal:termux-x11:fc815a5f38b2f3a965b614862b03a3b3048772af") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
