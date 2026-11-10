@@ -40,15 +40,20 @@ object ProgramStore {
     fun debUrlFor(program: StoreProgram, arch: String): String? =
         if (isArm64(arch)) program.debArm64 else program.deb
 
-    /** Shell test that is true when the program is installed. */
+    /** Shell test that is true when the program is installed.
+     * P18.6: dpkg -s exits 0 for "rc" packages (removed, config
+     * files remain), so it reported uninstalled programs as
+     * installed. dpkg-query + "install ok installed" (the test
+     * verify() already uses) is true only for really installed
+     * packages. */
     fun verifySnippet(program: StoreProgram): String = when (program.method) {
-        "apt" -> "dpkg -s ${program.apt} >/dev/null 2>&1"
-        "deb" -> "dpkg -s ${program.debPackage} >/dev/null 2>&1"
+        "apt" -> "dpkg-query -W -f='\${Status}' ${program.apt} 2>/dev/null | grep -q \"install ok installed\""
+        "deb" -> "dpkg-query -W -f='\${Status}' ${program.debPackage} 2>/dev/null | grep -q \"install ok installed\""
         "script" -> "command -v ${program.binary} >/dev/null 2>&1"
         "font" -> if (program.font != null) {
             "[ -f /usr/share/fonts/truetype/lifta/${program.font} ]"
         } else {
-            "dpkg -s ${program.apt} >/dev/null 2>&1"
+            "dpkg-query -W -f='\${Status}' ${program.apt} 2>/dev/null | grep -q \"install ok installed\""
         }
         else -> "false"
     }
@@ -137,7 +142,7 @@ object ProgramStore {
                     while kill -0 "${'$'}dl_pid" 2>/dev/null; do echo "جار التحميل..."; sleep 20; done
                     wait "${'$'}dl_pid" || { echo "فشل تحميل الحزمة"; exit 1; }
                     dpkg -i $STORE_TMP/$file || { dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -f -y; }
-                    dpkg -s ${program.debPackage} >/dev/null 2>&1
+                    dpkg-query -W -f='${'$'}{Status}' ${program.debPackage} 2>/dev/null | grep -q "install ok installed"
                 """.trimIndent()
                 TerminalSession.runCommandDebian(context, "($cmd) 2>&1", 180, 3600)
             }
