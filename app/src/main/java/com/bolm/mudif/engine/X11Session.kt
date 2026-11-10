@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
+import com.bolm.mudif.ui.settings.ViewerPrefs
 import com.termux.x11.CmdEntryPointService
 import java.io.File
 import kotlin.math.roundToInt
@@ -321,36 +322,18 @@ object X11Session {
         var width = (720.0 * aspect).roundToInt()
         if (width % 2 != 0) width += 1
         val resolution = "${width}x720"
-        context.getSharedPreferences(
-            "${context.packageName}_preferences", Context.MODE_PRIVATE
-        ).edit()
-            .putString("displayResolutionMode", "exact")
-            .putString("displayResolutionExact", resolution)
-            .putBoolean("adjustResolution", false)
-            // P17.2: touchscreen mode (TOUCH=3) — direct finger touch.
-            // The default (TRACKPAD=1) made the phone act like a laptop
-            // touchpad: drag to move a cursor, tap to click. The user
-            // asked for finger touch, so the viewer starts in TOUCH.
-            // P18.1: SIMULATED_TOUCH=2, not TOUCH=3. TOUCH uses
-            // NullInputStrategy: the handler ignores every touch gesture,
-            // so the pointer only jumps on tap ("put your finger on the
-            // place, then press") and never follows a drag. SIMULATED_TOUCH
-            // translates touch into mouse events, so the pointer follows
-            // the finger while dragging — a real tactile mouse.
-            .putString("touchMode", "2")
-            // P18.1: stretch the display to fill the screen. The exact
-            // resolution already matches the screen aspect, so this
-            // changes nothing when it is right; but on the phone the
-            // display stayed 1280x720 (letterboxed, black side bars),
-            // so stretching guarantees the big fullscreen the user asked
-            // for instead of black bars.
-            .putBoolean("displayStretch", true)
-            // P18.1: the extra-keys bar starts HIDDEN. It appears only
-            // when the user taps the floating keyboard button in the
-            // viewer (which flips additionalKbdVisible). This keeps the
-            // desktop fullscreen until the keys are actually needed.
-            .putBoolean("additionalKbdVisible", false)
-            .apply()
+        // P18.3: Mudif defaults are applied ONLY when a pref is absent
+        // (first launch). The old code overwrote touchMode / exact /
+        // stretch / additionalKbdVisible on EVERY launch, which silently
+        // erased the user's choices from the new settings screen. The
+        // user's choice now always wins after first launch. Defaults:
+        // touchMode=2 (SIMULATED_TOUCH, pointer follows the finger),
+        // exact + stretch (fullscreen, no black bars), fullscreen=true,
+        // tapToMove=false, additionalKbdVisible=false (bar hidden until
+        // the FAB is tapped), forceOrientation=landscape (a desktop is
+        // landscape; in portrait the wallpaper is cropped and the layout
+        // breaks — the user's "فاشل" verdict on the portrait shot).
+        ViewerPrefs.applyMudifDefaults(context, resolution)
         val intent = Intent(context, com.termux.x11.MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
         }
