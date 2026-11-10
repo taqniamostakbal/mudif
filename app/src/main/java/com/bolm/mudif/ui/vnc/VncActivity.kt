@@ -3,6 +3,7 @@ package com.bolm.mudif.ui.vnc
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.databinding.ActivityVncBinding
@@ -66,6 +67,16 @@ class VncActivity : AppCompatActivity() {
     @Volatile
     private var pendingLaunchApp: String? = null
 
+    /**
+     * P19: the last diagnostics report (built in startDesktop step 5).
+     * The viewer now opens directly, so the report is shown on demand
+     * from the status screen's "التشخيص" button instead of blocking
+     * the normal path. Volatile: written on the start thread, read on
+     * the UI thread.
+     */
+    @Volatile
+    private var lastDiagnostics: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityVncBinding.inflate(layoutInflater)
@@ -78,6 +89,26 @@ class VncActivity : AppCompatActivity() {
 
         binding.btnShowLogs.setOnClickListener {
             startActivity(Intent(this, LogViewerActivity::class.java))
+        }
+
+        // P19: diagnostics on demand (the viewer opens directly now,
+        // so the report lives here instead of in a blocking dialog).
+        binding.btnShowDiagnostics.setOnClickListener {
+            val report = lastDiagnostics
+            if (report == null) {
+                Toast.makeText(
+                    this,
+                    "لا توجد معلومات تشخيص بعد — افتح سطح المكتب أولا",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                MudifDialog.info(
+                    this,
+                    "تشخيص — نظام مضيف",
+                    report,
+                    "إغلاق"
+                )
+            }
         }
 
         // P16.2: the status screen is the escape hatch. If the diagnostics
@@ -397,42 +428,57 @@ class VncActivity : AppCompatActivity() {
             // configs before launch (pcmanfm-qt reads settings.conf
             // at startup).
 
-            // 5. Status dialog (a report, not a gate): PTY alive,
-            // guest booted, X socket + TCP, install + look. The
-            // desktop itself starts after the viewer opens.
+            // 5. P19: the viewer opens DIRECTLY — the diagnostics
+            // dialog no longer blocks the normal path. The dialog was
+            // a report, not a gate (the desktop only launches after
+            // the viewer opens, P6.5), so opening the viewer here is
+            // the same action the dialog's positive button took.
+            // The report is still built (same content, including
+            // DesktopDiagnostics.hypothesisDebian()), logged, and kept
+            // for the status screen's "التشخيص" button. Only when the
+            // desktop is NOT ready does the dialog still appear, so
+            // the user sees why it failed.
             if (destroyed) return@Thread
+            val report = "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
+                "PTY حية: ${GuestSession.alive}\n" +
+                "الضيف قلع: ${GuestSession.booted}\n" +
+                "سوكيت X6: ${X11Session.isXSocketPresent(this@VncActivity)}\n" +
+                "TCP 6006: $tcpOk\n" +
+                "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
+                "نظام مضيف تثبت: $desktopOk\n" +
+                "الشكل ديال Deepin تثبت: $lookOk\n" +
+                "سطح المكتب: يبدأ بعد فتح العارض (الحجم كيتثبت أولا)\n\n" +
+                "--- السبب الحقيقي ---\n" +
+                DesktopDiagnostics.hypothesisDebian()
+            Log.d("VncActivity", "diagnostics:\n$report")
+            lastDiagnostics = report
             runOnUiThread {
                 val ok = GuestSession.alive && GuestSession.booted && tcpOk
                 setStatus(
                     if (ok) "جاهز — افتح العارض لبدء سطح المكتب"
                     else "سطح المكتب ما خدمش — شوف اللوجات"
                 )
-                // P16: branded dialog (title fixed: no stale P8).
-                MudifDialog.info(
-                    this,
-                    "تشخيص — نظام مضيف",
-                    "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
-                        "PTY حية: ${GuestSession.alive}\n" +
-                        "الضيف قلع: ${GuestSession.booted}\n" +
-                        "سوكيت X6: ${X11Session.isXSocketPresent(this)}\n" +
-                        "TCP 6006: $tcpOk\n" +
-                        "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
-                        "نظام مضيف تثبت: $desktopOk\n" +
-                        "الشكل ديال Deepin تثبت: $lookOk\n" +
-                        "سطح المكتب: يبدأ بعد فتح العارض (الحجم كيتثبت أولا)\n\n" +
-                        "--- السبب الحقيقي ---\n" +
-                        DesktopDiagnostics.hypothesisDebian(),
-                    "فتح العارض وبدء سطح المكتب",
-                    onPositive = {
-                        // P16.2: shared with the status screen button.
-                        openViewerAndLaunchDesktop()
-                    },
-                    neutral = "اللوجات المفصلة",
-                    onNeutral = {
-                        startActivity(Intent(this, LogViewerActivity::class.java))
-                    },
-                    negative = "إلغاء"
-                )
+                binding.btnShowDiagnostics.visibility = View.VISIBLE
+                if (ok) {
+                    openViewerAndLaunchDesktop()
+                } else {
+                    // P16: branded dialog (title fixed: no stale P8).
+                    MudifDialog.info(
+                        this,
+                        "تشخيص — نظام مضيف",
+                        report,
+                        "فتح العارض وبدء سطح المكتب",
+                        onPositive = {
+                            // P16.2: shared with the status screen button.
+                            openViewerAndLaunchDesktop()
+                        },
+                        neutral = "اللوجات المفصلة",
+                        onNeutral = {
+                            startActivity(Intent(this, LogViewerActivity::class.java))
+                        },
+                        negative = "إلغاء"
+                    )
+                }
             }
             } catch (e: Exception) {
                 // P16.2: a silent thread death used to leave the user

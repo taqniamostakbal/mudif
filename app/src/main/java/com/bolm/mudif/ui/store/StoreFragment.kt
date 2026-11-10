@@ -292,8 +292,31 @@ class StoreFragment : Fragment() {
         }
         setState(program.id, ProgramState.INSTALLING)
         val appCtx = requireContext().applicationContext
+        // P19: visible progress dialog (stage + real percentage when
+        // the install reports one). The card already shows a spinner;
+        // the dialog is what tells the user HOW FAR the install has
+        // got. Non-cancelable: there is no way to cancel a running
+        // guest install, same as the system install dialog.
+        val progress = MudifDialog.progress(requireContext(), program.name)
+        progress.setStatus(getString(R.string.store_status_installing))
+        progress.setIndeterminate(true)
         Thread {
-            val result = ProgramStore.install(appCtx, program, guestArch)
+            val result = ProgramStore.install(appCtx, program, guestArch) { stage, percent ->
+                uiHandler.post {
+                    if (percent != null) {
+                        progress.setProgress(percent * 10)
+                        progress.setStatus("$stage $percent%")
+                    } else {
+                        progress.setIndeterminate(true)
+                        progress.setStatus(stage)
+                    }
+                }
+            }
+            // Verify step: show the checking stage while it runs.
+            uiHandler.post {
+                progress.setIndeterminate(true)
+                progress.setStatus(getString(R.string.store_status_checking))
+            }
             val (verified, ev) = if (result.exitCode == 0) {
                 ProgramStore.verify(appCtx, program)
             } else {
@@ -305,6 +328,9 @@ class StoreFragment : Fragment() {
                 ProgramStore.lastLines(result.output)
             }
             uiHandler.post {
+                // Dismiss first: the fragment may be detached by now,
+                // but the dialog must never be left on screen.
+                progress.dismiss()
                 if (!isAdded) return@post
                 if (result.exitCode == 0 && verified) {
                     states[program.id] = ProgramState.INSTALLED

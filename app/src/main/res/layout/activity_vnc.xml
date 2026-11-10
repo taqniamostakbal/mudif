@@ -34,6 +34,16 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="عرض اللوجات المفصلة" />
+
+        <!-- P19: diagnostics stay reachable on demand. Hidden until a
+             diagnostics report exists (set after the first start). -->
+        <Button
+            android:id="@+id/btn_show_diagnostics"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            android:text="التشخيص" />
     </LinearLayout>
 
 </FrameLayout>

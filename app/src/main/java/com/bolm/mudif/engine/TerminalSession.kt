@@ -23,17 +23,21 @@ object TerminalSession {
      * no output for [idleTimeoutSec] — or if it exceeds [maxTimeoutSec]
      * total. A command actively producing output (e.g. apk installing
      * 108 packages) is never killed for being slow.
+     * [onLine] (optional) receives every output line as it arrives,
+     * on the drain thread — callers use it for live progress (e.g.
+     * the store install dialog). Null keeps the old behaviour.
      */
     fun runCommand(
         context: Context,
         command: String,
         idleTimeoutSec: Long = 60,
-        maxTimeoutSec: Long = 600
+        maxTimeoutSec: Long = 600,
+        onLine: ((String) -> Unit)? = null
     ): TerminalResult {
         val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", command))
         return runWithBuilder(
             pb, "النظام غير جاهز: ثبت Alpine من المتجر أولا",
-            idleTimeoutSec, maxTimeoutSec
+            idleTimeoutSec, maxTimeoutSec, onLine
         )
     }
 
@@ -42,12 +46,13 @@ object TerminalSession {
         context: Context,
         command: String,
         idleTimeoutSec: Long = 60,
-        maxTimeoutSec: Long = 600
+        maxTimeoutSec: Long = 600,
+        onLine: ((String) -> Unit)? = null
     ): TerminalResult {
         val pb = DebianSystem.prootBuilder(context, listOf("/bin/sh", "-c", command))
         return runWithBuilder(
             pb, "النظام غير جاهز: ثبت نظام مضيف أولا",
-            idleTimeoutSec, maxTimeoutSec
+            idleTimeoutSec, maxTimeoutSec, onLine
         )
     }
 
@@ -60,7 +65,8 @@ object TerminalSession {
         pb: ProcessBuilder?,
         notReadyMessage: String,
         idleTimeoutSec: Long,
-        maxTimeoutSec: Long
+        maxTimeoutSec: Long,
+        onLine: ((String) -> Unit)? = null
     ): TerminalResult {
         return try {
             val builder = pb ?: return TerminalResult(notReadyMessage, -1, false)
@@ -76,6 +82,9 @@ object TerminalSession {
                     proc.inputStream.bufferedReader().forEachLine { line ->
                         synchronized(output) { output.appendLine(line) }
                         lastOutputAt.set(System.currentTimeMillis())
+                        // Live progress: outside the lock, so a slow
+                        // consumer never blocks the drain.
+                        onLine?.invoke(line)
                     }
                 } catch (_: Exception) {
                     // Stream closed (timeout kill) — partial output is kept.
