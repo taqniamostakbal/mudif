@@ -229,6 +229,55 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- P18.3 — Viewer settings (Termux:X11), Fusha, Mudif style. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/row_viewer_settings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="18dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/viewer_settings_row_title"
+                            android:textSize="16sp"
+                            android:textColor="#1A1A1A"
+                            android:fontFamily="@font/cairo" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/viewer_settings_row_subtitle"
+                            android:textSize="13sp"
+                            android:textColor="#777777"
+                            android:fontFamily="@font/cairo" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="‹"
+                        android:textSize="24sp"
+                        android:textColor="#AAAAAA" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/row_engine"
                 android:layout_width="match_parent"

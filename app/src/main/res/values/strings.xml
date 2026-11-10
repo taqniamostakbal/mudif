@@ -56,6 +56,11 @@
     <string name="profile_subtitle">معلوماتك وإعداداتك</string>
     <string name="profile_guest_name">مستخدم مضيف</string>
     <string name="profile_guest_mode">وضع الضيف — بلا حساب</string>
+    <string name="viewer_settings_title">إعدادات العارض</string>
+    <string name="viewer_settings_subtitle">إعدادات قارئ سطح المكتب — تُحفظ فورا وتُطبق مباشرة</string>
+    <string name="viewer_settings_row_title">إعدادات العارض</string>
+    <string name="viewer_settings_row_subtitle">العرض، المؤشر، لوحة المفاتيح، شريط المفاتيح</string>
+    <string name="viewer_settings_mouse_hint">نقرة الفأرة: إصبع واحد = زر أيسر، إصبعان = زر أيمن، ثلاثة أصابع = زر أوسط. ولأزرار ظاهرة على الشاشة فعّل «أزرار الماوس على الشاشة» في قسم المؤشر.</string>
     <string name="my_systems">أنظمتي</string>
     <string name="my_apps">تطبيقاتي</string>
     <string name="settings_title">الإعدادات</string>
