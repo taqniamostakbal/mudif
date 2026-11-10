@@ -305,6 +305,11 @@ object X11Session {
             .putString("displayResolutionMode", "exact")
             .putString("displayResolutionExact", "1280x720")
             .putBoolean("adjustResolution", false)
+            // P17.2: touchscreen mode (TOUCH=3) — direct finger touch.
+            // The default (TRACKPAD=1) made the phone act like a laptop
+            // touchpad: drag to move a cursor, tap to click. The user
+            // asked for finger touch, so the viewer starts in TOUCH.
+            .putString("touchMode", "3")
             .apply()
         val intent = Intent(context, com.termux.x11.MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
