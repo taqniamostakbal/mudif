@@ -21,26 +21,44 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:background="@color/mudif_purple"
             android:padding="24dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/tab_store"
-                android:textSize="28sp"
-                android:textColor="@android:color/white"
-                android:fontFamily="@font/lifta" />
+            <ImageButton
+                android:id="@+id/menu_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_menu"
+                android:contentDescription="القائمة"
+                android:onClick="openDrawer" />
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/store_subtitle"
-                android:textSize="14sp"
-                android:textColor="#DCD6FF"
-                android:fontFamily="@font/cairo" />
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingStart="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/tab_store"
+                    android:textSize="28sp"
+                    android:textColor="@android:color/white"
+                    android:fontFamily="@font/lifta" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/store_subtitle"
+                    android:textSize="14sp"
+                    android:textColor="#DCD6FF"
+                    android:fontFamily="@font/cairo" />
+            </LinearLayout>
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
@@ -71,12 +89,15 @@
             android:inputType="text"
             android:maxLines="1" />
 
+        <!-- P19 Phase 1: category gradient cards (2-column grid) replace
+             the plain filter chips. Same tap-to-filter behaviour. -->
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/chip_recycler"
+            android:id="@+id/category_recycler"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:clipToPadding="false"
+            android:nestedScrollingEnabled="false"
             android:paddingStart="12dp"
             android:paddingEnd="12dp" />
 
