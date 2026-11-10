@@ -90,7 +90,12 @@ dependencies {
     // drag now moves the cursor in SimulatedTouch (the tactile-mouse
     // mode), and the FAB bottom margin is 91dp so it clears the 75dp
     // keys bar when shown.
-    implementation("com.github.taqniamostakbal:termux-x11:38a73e479903f9a6d6bfe9af6cd21c0801089c49") {
+    // P18.3: fork commit 22d647b restyles the keys bar as a light card
+    // (white rounded keys, dark text, purple pressed, held key stays
+    // purple), shrinks it to 56dp (28dp/row), and sets the FAB margin
+    // to 72dp. The app-side settings screen + landscape lock are in
+    // this PR (ViewerPrefs / SettingsActivity / X11Session).
+    implementation("com.github.taqniamostakbal:termux-x11:22d647b32e6ead9bd70ce72254df7648fc7db222") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
