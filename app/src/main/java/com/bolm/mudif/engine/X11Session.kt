@@ -3,9 +3,12 @@ package com.bolm.mudif.engine
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
+import android.util.DisplayMetrics
 import android.util.Log
+import android.view.WindowManager
 import com.termux.x11.CmdEntryPointService
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
  * P5.22 RADICAL REBUILD — Tiny Container's X11 flow, exactly.
@@ -289,21 +292,40 @@ object X11Session {
     }
 
     /** Open the Termux:X11 viewer (Tiny: OpenX11 navigation event).
-     * P6.5: pin the viewer to the exact resolution 1280x720 BEFORE
-     * it opens. The library reads these keys from the default
-     * SharedPreferences (displayResolutionMode/displayResolutionExact/
-     * adjustResolution, preferences.xml); with "exact" the viewer
-     * resizes the server to 1280x720 on attach instead of halving it
-     * to 640x360 (the default scaled mode at scale 200). The desktop
-     * launches after the viewer opens (VncActivity), so it lays out
-     * at the settled 1280x720. adjustResolution is forced false so a
-     * portrait surface never swaps the dimensions. */
+     * P6.5: pin the viewer to an exact resolution BEFORE it opens. The
+     * library reads these keys from the default SharedPreferences
+     * (displayResolutionMode/displayResolutionExact/adjustResolution,
+     * preferences.xml); with "exact" the viewer resizes the server to
+     * that resolution on attach instead of halving it to 640x360 (the
+     * default scaled mode at scale 200). P17.3: the resolution is no
+     * longer a fixed 1280x720 — it is computed from the phone's screen
+     * aspect ratio (height 720, width scaled) so the desktop fills the
+     * screen without letterboxing. The desktop launches after the viewer
+     * opens (VncActivity), so it lays out at the settled resolution.
+     * adjustResolution is forced false so a portrait surface never swaps
+     * the dimensions. */
     fun openViewer(context: Context) {
+        // P17.3: match the desktop resolution to the phone's screen aspect
+        // ratio (height fixed at 720, width scaled) so the desktop fills
+        // the screen without letterboxing and without stretching (which
+        // would distort it). Orientation-independent: long side / short
+        // side, so it works whether the phone is held portrait or
+        // landscape when the viewer opens. Width is rounded to even.
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(metrics)
+        val longSide = maxOf(metrics.widthPixels, metrics.heightPixels)
+        val shortSide = minOf(metrics.widthPixels, metrics.heightPixels)
+        val aspect = longSide.toDouble() / shortSide.toDouble()
+        var width = (720.0 * aspect).roundToInt()
+        if (width % 2 != 0) width += 1
+        val resolution = "${width}x720"
         context.getSharedPreferences(
             "${context.packageName}_preferences", Context.MODE_PRIVATE
         ).edit()
             .putString("displayResolutionMode", "exact")
-            .putString("displayResolutionExact", "1280x720")
+            .putString("displayResolutionExact", resolution)
             .putBoolean("adjustResolution", false)
             // P17.2: touchscreen mode (TOUCH=3) — direct finger touch.
             // The default (TRACKPAD=1) made the phone act like a laptop
