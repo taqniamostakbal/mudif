@@ -84,6 +84,24 @@
                     android:textColor="#666666"
                     android:fontFamily="@font/cairo"
                     android:maxLines="3" />
+
+                <!-- Tested badge: only shown when the catalog carries a
+                     rig-verified "tested" value (StoreProgram.tested).
+                     No value = no badge, never a placeholder. -->
+                <TextView
+                    android:id="@+id/program_tested_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/badge_bg"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:textSize="11sp"
+                    android:textColor="@android:color/white"
+                    android:fontFamily="@font/cairo"
+                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
 

@@ -292,6 +292,29 @@ object X11Session {
         return false
     }
 
+    /**
+     * P17.3: match the desktop resolution to the phone's screen aspect
+     * ratio (height fixed at 720, width scaled) so the desktop fills
+     * the screen without letterboxing and without stretching (which
+     * would distort it). Orientation-independent: long side / short
+     * side, so it works whether the phone is held portrait or
+     * landscape when the viewer opens. Width is rounded to even.
+     * Shared by openViewer and the screen recorder (the recording
+     * must grab the exact size the server runs at).
+     */
+    fun viewerResolution(context: Context): String {
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(metrics)
+        val longSide = maxOf(metrics.widthPixels, metrics.heightPixels)
+        val shortSide = minOf(metrics.widthPixels, metrics.heightPixels)
+        val aspect = longSide.toDouble() / shortSide.toDouble()
+        var width = (720.0 * aspect).roundToInt()
+        if (width % 2 != 0) width += 1
+        return "${width}x720"
+    }
+
     /** Open the Termux:X11 viewer (Tiny: OpenX11 navigation event).
      * P6.5: pin the viewer to an exact resolution BEFORE it opens. The
      * library reads these keys from the default SharedPreferences
@@ -312,16 +335,7 @@ object X11Session {
         // would distort it). Orientation-independent: long side / short
         // side, so it works whether the phone is held portrait or
         // landscape when the viewer opens. Width is rounded to even.
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val metrics = DisplayMetrics()
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getRealMetrics(metrics)
-        val longSide = maxOf(metrics.widthPixels, metrics.heightPixels)
-        val shortSide = minOf(metrics.widthPixels, metrics.heightPixels)
-        val aspect = longSide.toDouble() / shortSide.toDouble()
-        var width = (720.0 * aspect).roundToInt()
-        if (width % 2 != 0) width += 1
-        val resolution = "${width}x720"
+        val resolution = viewerResolution(context)
         // P18.3: Mudif defaults are applied ONLY when a pref is absent
         // (first launch). The old code overwrote touchMode / exact /
         // stretch / additionalKbdVisible on EVERY launch, which silently
@@ -338,6 +352,45 @@ object X11Session {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
         }
         context.startActivity(intent)
+    }
+
+    /**
+     * Real-computer #9 — open the viewer on an EXTERNAL display
+     * (TV over Smart View / DeX / HDMI). Same as openViewer, but the
+     * activity is launched on [display] (ActivityOptions
+     * setLaunchDisplayId, API 26+) and the resolution is computed
+     * from THAT display's real metrics. The fork already keeps
+     * separate prefs for the secondary display
+     * (storeSecondaryDisplayPreferencesSeparately); the caller
+     * enables that flag first so the TV gets its own settings.
+     * Returns false when the launch fails (e.g. the display went
+     * away). Unverified on a real TV: the fork supports secondary
+     * displays, but no TV was available to test this path.
+     */
+    fun openViewerOnDisplay(context: Context, display: android.view.Display): Boolean {
+        return try {
+            val metrics = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            display.getRealMetrics(metrics)
+            val longSide = maxOf(metrics.widthPixels, metrics.heightPixels)
+            val shortSide = minOf(metrics.widthPixels, metrics.heightPixels)
+            val aspect = longSide.toDouble() / shortSide.toDouble()
+            var width = (720.0 * aspect).roundToInt()
+            if (width % 2 != 0) width += 1
+            val resolution = "${width}x720"
+            ViewerPrefs.applyMudifDefaults(context, resolution)
+            val intent = Intent(context, com.termux.x11.MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            }
+            val options = android.app.ActivityOptions.makeBasic()
+                .setLaunchDisplayId(display.displayId)
+            context.startActivity(intent, options.toBundle())
+            Log.d(TAG, "viewer opened on external display ${display.displayId} ($resolution)")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "openViewerOnDisplay failed: ${e.message}")
+            false
+        }
     }
 
     /**

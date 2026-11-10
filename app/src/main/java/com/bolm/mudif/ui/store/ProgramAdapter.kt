@@ -122,6 +122,17 @@ class ProgramAdapter(
             val busy = state == ProgramState.CHECKING ||
                 state == ProgramState.INSTALLING ||
                 state == ProgramState.UNINSTALLING
+            // Tested badge: rig-verified install only. The catalog
+            // value names the arch + date (e.g. "x86_64 · 2026-11-10");
+            // a null/blank value hides the badge entirely.
+            val tested = program.tested
+            if (!tested.isNullOrBlank()) {
+                binding.programTestedBadge.text =
+                    ctx.getString(R.string.store_tested_badge, tested)
+                binding.programTestedBadge.visibility = View.VISIBLE
+            } else {
+                binding.programTestedBadge.visibility = View.GONE
+            }
             binding.programProgress.visibility = if (busy) View.VISIBLE else View.GONE
             binding.programStatus.text = when (state) {
                 ProgramState.INSTALLED -> ctx.getString(R.string.store_status_installed)

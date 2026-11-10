@@ -10,7 +10,8 @@
       "method": "apt",
       "apt": "firefox-esr",
       "binary": "firefox-esr",
-      "icon": "firefox-esr.png"
+      "icon": "firefox-esr.png",
+      "tested": "x86_64 · 2026-11-10"
     },
     {
       "id": "thunderbird",
@@ -530,6 +531,7 @@
       "binary": "craft-anything",
       "deb": "https://github.com/storytold/craft-anything/releases/download/v0.6.0/craft-anything-0.6.0-linux-x86_64.deb",
       "icon": "craft-anything.png",
+      "tested": "x86_64 · 2026-11-10",
       "debArm64": "https://github.com/storytold/craft-anything/releases/download/v0.6.0/craft-anything-0.6.0-linux-aarch64.deb",
       "debPackage": "craft-anything"
     },
@@ -786,7 +788,8 @@
       "method": "apt",
       "apt": "sherlock",
       "binary": "sherlock",
-      "icon": "sherlock.png"
+      "icon": "sherlock.png",
+      "tested": "x86_64 · 2026-11-10"
     },
     {
       "id": "photocraft",
@@ -1290,7 +1293,8 @@
       "method": "script",
       "binary": "dart",
       "script": "install-dart.sh",
-      "icon": "dart.png"
+      "icon": "dart.png",
+      "tested": "x86_64 · 2026-11-10"
     }
   ]
 }

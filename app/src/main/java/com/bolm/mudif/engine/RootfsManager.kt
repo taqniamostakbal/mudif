@@ -45,6 +45,22 @@ object RootfsManager {
     fun rootfsDir(context: Context): File =
         File(context.filesDir, "rootfs").apply { mkdirs() }
 
+    /**
+     * The shared folder: one directory visible on BOTH sides.
+     * Android side: <external-files>/mudif-shared (browsable from
+     * the Files app and over USB; app-private, needs no permission).
+     * Falls back to the internal files dir when external storage is
+     * absent. Guest side: /mnt/mudif-shared (bind-mounted below) with
+     * a /root/shared symlink for convenience. The same dir is where
+     * screen recordings land, so the user can pull them out.
+     */
+    fun sharedDir(context: Context): File =
+        (context.getExternalFilesDir("mudif-shared")
+            ?: File(context.filesDir, "mudif-shared")).apply { mkdirs() }
+
+    /** Guest path of the shared folder (inside proot). */
+    const val SHARED_GUEST_PATH = "/mnt/mudif-shared"
+
     private fun tarball(context: Context): File =
         File(context.filesDir, "alpine-minirootfs.tar.gz")
 
@@ -246,6 +262,13 @@ object RootfsManager {
         val loader = loaderPath(context) ?: return null
         val tmpDir = File(context.filesDir, "tmp").apply { mkdirs() }
         val runDir = File(context.filesDir, "run").apply { mkdirs() }
+        // Audio (real-computer #1): the pulseaudio runtime dir must
+        // exist or the daemon refuses to start. /run is bound into
+        // the guest, so this host dir IS the guest's /run/user/0.
+        File(runDir, "user/0").apply {
+            mkdirs()
+            try { android.system.Os.chmod(absolutePath, 448) } catch (_: Exception) { }
+        }
         File(context.filesDir, "proot_tmp").apply { mkdirs() }
         // DNS fix: the minirootfs ships without a working resolv.conf, so
         // name resolution fails inside proot ("DNS: transient error").
@@ -263,6 +286,9 @@ object RootfsManager {
         ensureDevPty(rootfs)
         // P5.22: bind targets for TC's whole-filesystem binds.
         ensureBootBindTargets(rootfs)
+        // Shared folder (real-computer #3): the host dir must exist
+        // before proot accepts the bind.
+        sharedDir(context)
         // X servers need a writable /tmp for lock files and sockets
         // (/tmp/.X6-lock, /tmp/.X11-unix/). The guest's /tmp is root-owned
         // and the app runs as a normal UID, so bind-mount the app's
@@ -287,6 +313,11 @@ object RootfsManager {
             "--bind=" + tmpDir.absolutePath + ":/dev/shm",
             "--bind=" + tmpDir.absolutePath + ":/tmp",
             "--bind=" + runDir.absolutePath + ":/run",
+            // Shared folder (real-computer #3): the Android
+            // <external-files>/mudif-shared dir appears in the guest
+            // as /mnt/mudif-shared (and /root/shared). Both the boot
+            // session and every one-shot see the same files.
+            "--bind=" + sharedDir(context).absolutePath + ":" + SHARED_GUEST_PATH,
             "-w", "/root"
         )
     }
@@ -329,6 +360,10 @@ object RootfsManager {
             // one-shots instead of prefixing each command.
             "USER" to "root",
             "LOGNAME" to "root",
+            // Audio (real-computer #1): one-shot guest commands find
+            // the pulseaudio daemon through this runtime dir, same as
+            // the boot shell.
+            "XDG_RUNTIME_DIR" to "/run/user/0",
             "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TERM" to "xterm-256color",
             "LANG" to "ar_MA.UTF-8",
@@ -372,6 +407,9 @@ object RootfsManager {
             "USER=root",
             "TERM=xterm-256color",
             "COLORTERM=truecolor",
+            // Audio (real-computer #1): guest apps find the
+            // pulseaudio daemon through this runtime dir.
+            "XDG_RUNTIME_DIR=/run/user/0",
             "/bin/sh", "-l"
         )
     }
@@ -514,6 +552,25 @@ object RootfsManager {
             File(rootfs, "sys").mkdirs()
             File(rootfs, "sys/.empty").mkdirs()
             File(rootfs, "proc").mkdirs()
+            // Shared folder (real-computer #3): the bind target must
+            // exist in the rootfs, plus a /root/shared convenience
+            // symlink. Idempotent: a correct link is left alone, a
+            // wrong one is replaced.
+            File(rootfs, "mnt/mudif-shared").mkdirs()
+            val link = File(rootfs, "root/shared")
+            val want = SHARED_GUEST_PATH
+            try {
+                val isLink = java.nio.file.Files.isSymbolicLink(link.toPath())
+                val target = if (isLink) {
+                    java.nio.file.Files.readSymbolicLink(link.toPath()).toString()
+                } else null
+                if (target != want) {
+                    if (link.exists() || isLink) {
+                        try { android.system.Os.remove(link.absolutePath) } catch (_: Exception) {}
+                    }
+                    android.system.Os.symlink(want, link.absolutePath)
+                }
+            } catch (_: Exception) { /* non-fatal */ }
         } catch (_: Exception) { /* non-fatal */ }
     }
 
