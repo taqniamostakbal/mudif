@@ -2,6 +2,7 @@ package com.bolm.mudif.ui.home
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.StatFs
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +12,7 @@ import com.bolm.mudif.databinding.FragmentHomeBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
 import com.bolm.mudif.ui.MudifDialog
+import com.bolm.mudif.ui.store.StoreCatalog
 import com.bolm.mudif.ui.vnc.VncActivity
 
 /**
@@ -61,6 +63,28 @@ class HomeFragment : Fragment() {
             }
         }
         refreshSystemCard()
+        // P19 Phase 2: the two stats that need I/O (catalog size, free
+        // storage) load off the main thread; the system stat is in
+        // refreshSystemCard.
+        Thread {
+            val count = try {
+                StoreCatalog.load(requireContext().applicationContext).size
+            } catch (e: Exception) {
+                0
+            }
+            val freeGb = try {
+                val stat = StatFs(requireContext().filesDir.path)
+                stat.availableBytes / 1_073_741_824.0
+            } catch (e: Exception) {
+                -1.0
+            }
+            val act = activity ?: return@Thread
+            act.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                binding.statPrograms.text = if (count > 0) "$count" else "—"
+                binding.statStorage.text = if (freeGb >= 0) "%.1f GB".format(freeGb) else "—"
+            }
+        }.start()
     }
 
     override fun onResume() {
@@ -79,6 +103,8 @@ class HomeFragment : Fragment() {
             if (ready) R.string.home_open_desktop
             else R.string.home_install_system
         )
+        // P19 Phase 2: system stat mirrors the hero status.
+        binding.statSystem.text = if (ready) "مثبت ✓" else "غير مثبت"
     }
 
     private fun openDesktop() {
