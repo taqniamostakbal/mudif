@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -51,7 +52,53 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:clipToPadding="false"
         android:padding="12dp" />
+
+    <!-- P18.5: shown when no program is installed (or the system is
+         not ready yet); the button opens the Store tab. -->
+    <LinearLayout
+        android:id="@+id/empty_state"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/empty_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/apps_empty_title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A1A"
+            android:fontFamily="@font/cairo" />
+
+        <TextView
+            android:id="@+id/empty_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/apps_empty_text"
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:gravity="center"
+            android:fontFamily="@font/cairo" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_go_store"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/apps_go_to_store"
+            android:fontFamily="@font/cairo"
+            android:textSize="14sp"
+            app:backgroundTint="@color/mudif_purple"
+            app:cornerRadius="24dp" />
+    </LinearLayout>
 </LinearLayout>

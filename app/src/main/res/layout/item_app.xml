@@ -14,16 +14,34 @@
         android:gravity="center_horizontal"
         android:padding="16dp">
 
-        <TextView
-            android:id="@+id/app_letter"
+        <!-- P19 squircle icon tile (OneOS style): the real store icon,
+             or the first letter on the category gradient when the icon
+             file is missing (same fallback as the store). -->
+        <FrameLayout
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:gravity="center"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:fontFamily="@font/cairo"
-            android:background="@drawable/letter_tile_bg" />
+            android:background="@drawable/icon_tile_bg"
+            android:clipToOutline="true">
+
+            <ImageView
+                android:id="@+id/app_icon"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:contentDescription="@string/store_program_icon_desc"
+                android:scaleType="fitCenter"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/app_letter"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:gravity="center"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:fontFamily="@font/cairo"
+                android:background="@drawable/cat_all" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/app_name"
@@ -43,7 +61,9 @@
             android:textSize="12sp"
             android:textColor="#666666"
             android:gravity="center"
-            android:fontFamily="@font/cairo" />
+            android:fontFamily="@font/cairo"
+            android:maxLines="3"
+            android:ellipsize="end" />
 
         <TextView
             android:id="@+id/app_category"
@@ -54,15 +74,35 @@
             android:textColor="@color/mudif_purple"
             android:fontFamily="@font/cairo" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_install"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="@string/install"
-            android:fontFamily="@font/cairo"
-            android:textSize="12sp"
-            app:backgroundTint="@color/mudif_purple"
-            app:cornerRadius="24dp" />
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_launch"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/apps_launch"
+                android:fontFamily="@font/cairo"
+                android:textSize="12sp"
+                app:backgroundTint="@color/mudif_purple"
+                app:cornerRadius="24dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_uninstall"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="@string/store_uninstall"
+                android:fontFamily="@font/cairo"
+                android:textSize="12sp"
+                android:textColor="#B3261E" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

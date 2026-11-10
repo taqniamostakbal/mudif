@@ -51,7 +51,14 @@
     <string name="store_arch_unknown">تعذر تحديد معمارية النظام، أعد المحاولة</string>
     <string name="install">تثبيت</string>
     <string name="install_soon">التثبيت الحقيقي سيتوفر قريباً</string>
-    <string name="apps_subtitle">ثبّت تطبيقاتك المفضلة بضغطة واحدة</string>
+    <string name="apps_subtitle">برامجك المثبتة — شغّلها بضغطة واحدة</string>
+    <string name="apps_empty_title">لا توجد برامج مثبتة بعد</string>
+    <string name="apps_empty_text">ثبّت برامج من المتجر وستظهر هنا لتشغيلها بضغطة واحدة.</string>
+    <string name="apps_system_not_ready">نظام مضيف غير مثبت بعد — ثبّته من المتجر أولا</string>
+    <string name="apps_go_to_store">تصفح المتجر</string>
+    <string name="apps_launch">تشغيل</string>
+    <string name="apps_launching">جار تشغيل %1$s…</string>
+    <string name="apps_launched">تم تشغيل %1$s — شوف سطح المكتب</string>
     <string name="games_subtitle">الألعاب غادي توصل قريباً</string>
     <string name="profile_subtitle">معلوماتك وإعداداتك</string>
     <string name="profile_guest_name">مستخدم مضيف</string>
