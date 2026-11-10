@@ -73,15 +73,18 @@ dependencies {
     // P6: XZ support for commons-compress (Debian .tar.xz extraction).
     // XZCompressorInputStream needs the XZ for Java runtime library.
     implementation("org.tukaani:xz:1.9")
-    // P17.4: Termux:X11 as a LOCAL module (project(":termux-x11")),
-    // not the JitPack artifact. P17.3 proved the JitPack artifact
-    // silently ignores edits to the vendored termux-x11/ copy: the
-    // touch-startup fix and the Mudif keys styling never reached the
-    // APK (only app-module code did). The local module IS the vendored
-    // copy, so viewer edits ship. Keep the kotlin-stdlib excludes:
-    // the module's transitive deps can pull kotlin-stdlib 2.1.20,
-    // which conflicts with the project's Kotlin 2.0.20.
-    implementation(project(":termux-x11")) {
+    // P17.5: Termux:X11 from OUR fork (taqniamostakbal/termux-x11),
+    // commit 7b3151d3525127216b78ad2b363b426e56f51312, which carries the
+    // Mudif viewer edits (touch mode applied at startup, Mudif purple
+    // keys). P17.3 proved the tiny-computer JitPack artifact silently
+    // ignores edits to the vendored termux-x11/ copy; P17.4 proved the
+    // vendored copy cannot be built as a local module (it lacks the
+    // generated Prefs class and the hidden-API stubs). The fork is the
+    // complete upstream repo with the 4 Mudif edits, so JitPack builds
+    // it the same way it built the original. Keep the kotlin-stdlib
+    // excludes: the module's transitive deps can pull kotlin-stdlib
+    // 2.1.20, which conflicts with the project's Kotlin 2.0.20.
+    implementation("com.github.taqniamostakbal:termux-x11:7b3151d3525127216b78ad2b363b426e56f51312") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
