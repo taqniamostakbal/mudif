@@ -23,7 +23,17 @@ data class StoreProgram(
     val debPackage: String?,
     val script: String?,
     val font: String?,
-    val icon: String
+    val icon: String,
+    /**
+     * Rig-verified install, e.g. "x86_64 · 2026-11-10". Null = never
+     * verified on the rig. Only programs whose install actually
+     * passed a rig test carry a value — never set it from a guess.
+     * The value names the arch the rig tested (x86_64); arm64 is
+     * added only after a phone verification. pdfcraft is
+     * deliberately UNMARKED: it installs, but its window never
+     * paints (P19v2), so a "tested" badge on it would be a lie.
+     */
+    val tested: String?
 )
 
 /** The 7 catalog categories plus the "all" filter, with Fusha labels.
@@ -75,9 +85,12 @@ object StoreCatalog {
                     deb = o.optString("deb", null),
                     debArm64 = o.optString("debArm64", null),
                     debPackage = o.optString("debPackage", null),
-                    script = o.optString("script", null),
-                    font = o.optString("font", null),
-                    icon = o.getString("icon")
+                    script = o.optString("script", null)?.takeIf { it != "null" },
+                    font = o.optString("font", null)?.takeIf { it != "null" },
+                    icon = o.getString("icon"),
+                    // org.json returns the STRING "null" for a JSON
+                    // null, so normalize it away (same trap as D3).
+                    tested = o.optString("tested", null)?.takeIf { it != "null" }
                 )
             )
         }
