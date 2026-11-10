@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- P19 Phase 2: side menu (navigation drawer). The 5 main sections reuse
+     the bottom-nav item ids (same destinations); the second group holds
+     the viewer settings, the logs, and About. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_home"
+            android:icon="@drawable/ic_home"
+            android:title="@string/tab_home" />
+        <item
+            android:id="@+id/nav_store"
+            android:icon="@drawable/ic_store"
+            android:title="@string/tab_store" />
+        <item
+            android:id="@+id/nav_apps"
+            android:icon="@drawable/ic_apps"
+            android:title="@string/tab_apps" />
+        <item
+            android:id="@+id/nav_games"
+            android:icon="@drawable/ic_games"
+            android:title="@string/tab_games" />
+        <item
+            android:id="@+id/nav_profile"
+            android:icon="@drawable/ic_person"
+            android:title="@string/tab_profile" />
+    </group>
+    <item android:title="الإعدادات والأدوات">
+        <menu>
+            <item
+                android:id="@+id/drawer_settings"
+                android:icon="@drawable/ic_settings"
+                android:title="@string/viewer_settings_title" />
+            <item
+                android:id="@+id/drawer_control_center"
+                android:icon="@drawable/ic_cat_system"
+                android:title="@string/control_center" />
+            <item
+                android:id="@+id/drawer_logs"
+                android:icon="@drawable/ic_logs"
+                android:title="@string/log_title" />
+            <item
+                android:id="@+id/drawer_about"
+                android:icon="@drawable/ic_info"
+                android:title="@string/about" />
+        </menu>
+    </item>
+</menu>
