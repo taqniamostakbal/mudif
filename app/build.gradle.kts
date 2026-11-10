@@ -95,7 +95,11 @@ dependencies {
     // purple), shrinks it to 56dp (28dp/row), and sets the FAB margin
     // to 72dp. The app-side settings screen + landscape lock are in
     // this PR (ViewerPrefs / SettingsActivity / X11Session).
-    implementation("com.github.taqniamostakbal:termux-x11:22d647b32e6ead9bd70ce72254df7648fc7db222") {
+    // P18.3.1: fork commit 63aca3c tints the 5 icon keys (arrows +
+    // keyboard) dark on the light card, white when pressed/held — the
+    // P18.3 restyle left the white icon drawables untinted, so the
+    // icons were invisible on the white keys (rig FAIL item 3).
+    implementation("com.github.taqniamostakbal:termux-x11:63aca3c9cdda68a0ccc3578212f0ec1c1d4eeb22") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
