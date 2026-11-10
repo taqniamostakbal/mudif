@@ -243,7 +243,24 @@ object DebianSystem {
                                         f.absolutePath
                                     )
                                 } catch (e: Exception) {
-                                    throw RuntimeException("تعذر إنشاء الرابط الصلب ${entry.name}: ${e.message}")
+                                    // P17.1: some phones (Huawei/EMUI) refuse
+                                    // link() with EACCES in the app's private
+                                    // dir. A hard link and a copy hold the
+                                    // same bytes for the guest — copy the
+                                    // target file instead of failing.
+                                    val src = File(dest, targetStripped)
+                                    if (!src.isFile) throw RuntimeException("تعذر إنشاء الرابط الصلب ${entry.name}: ${e.message}")
+                                    try {
+                                        src.inputStream().use { input ->
+                                            f.outputStream().use { out -> input.copyTo(out) }
+                                        }
+                                    } catch (e2: Exception) {
+                                        throw RuntimeException("تعذر نسخ الرابط الصلب ${entry.name}: ${e2.message}")
+                                    }
+                                    try {
+                                        android.system.Os.chmod(f.absolutePath, entry.mode and 4095)
+                                    } catch (ignored: Exception) {
+                                    }
                                 }
                             }
                         }
