@@ -45,5 +45,16 @@
             android:name=".ui.control.ControlCenterActivity"
             android:exported="false"
             android:label="مركز التحكم" />
+        <activity
+            android:name=".ui.control.TaskManagerActivity"
+            android:exported="false"
+            android:label="مدير المهام" />
+        <receiver
+            android:name=".ui.control.ScreenRecordReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.bolm.mudif.STOP_SCREEN_RECORDING" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
