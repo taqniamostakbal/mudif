@@ -57,10 +57,21 @@ class VncActivity : AppCompatActivity() {
     @Volatile
     private var destroyed = false
 
+    /**
+     * P18.5: a pending app launch, handed in by the Apps tab
+     * (EXTRA_LAUNCH_APP = the full shell command). It fires only
+     * after the desktop is confirmed running, inside
+     * openViewerAndLaunchDesktop — never into a dead X server.
+     */
+    @Volatile
+    private var pendingLaunchApp: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityVncBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        pendingLaunchApp = intent.getStringExtra(EXTRA_LAUNCH_APP)
 
         supportActionBar?.title = "نظام مضيف"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -108,6 +119,8 @@ class VncActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // A fresh launch request replaces any pending one.
+        pendingLaunchApp = intent.getStringExtra(EXTRA_LAUNCH_APP)
         startDesktop()
     }
 
@@ -131,12 +144,29 @@ class VncActivity : AppCompatActivity() {
             val running = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
             val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
             Log.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
+            // P18.5: fire a pending app launch (from the Apps tab)
+            // only now that the desktop is confirmed running. The
+            // command goes through the PTY session, like the desktop
+            // launch itself — a one-shot proot could not keep the
+            // app alive. Cleared whether it fires or not, so a
+            // failed desktop never launches an app into a dead X.
+            val appToLaunch = pendingLaunchApp
+            pendingLaunchApp = null
+            val appLaunched = if (appToLaunch != null && sent && running) {
+                val ok = GuestSession.sendCommand(appToLaunch)
+                Log.d("VncActivity", "pending app launch: sent=$ok cmd=$appToLaunch")
+                ok
+            } else {
+                false
+            }
             if (!destroyed) {
                 runOnUiThread {
                     Toast.makeText(
                         this,
-                        if (sent && running) "سطح المكتب خدام ✓"
-                        else "سطح المكتب ما خدمش — شوف اللوجات",
+                        if (sent && running) {
+                            if (appLaunched) "تم تشغيل التطبيق ✓"
+                            else "سطح المكتب خدام ✓"
+                        } else "سطح المكتب ما خدمش — شوف اللوجات",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -463,6 +493,9 @@ class VncActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_DESKTOP = "desktop"
         const val DESKTOP_LXQT = "lxqt"
+        /** P18.5: full shell command for one app to launch after the
+         *  desktop is confirmed running (handed in by the Apps tab). */
+        const val EXTRA_LAUNCH_APP = "launch_app"
         /** P6 — نظام مضيف: Debian 13.1 + LXQt, the ONE system. */
         const val DESKTOP_MUDIF = "mudif"
 
