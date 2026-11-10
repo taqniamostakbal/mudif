@@ -122,36 +122,114 @@ object ProgramStore {
         }
     }
 
-    /** Installs the program in the guest. Caller must post-verify. */
-    fun install(context: Context, program: StoreProgram, arch: String): TerminalResult {
+    /**
+     * Runs a guest command, translating MUDIF_STAGE: / MUDIF_PROGRESS:
+     * marker lines into [onProgress] calls and stripping the markers
+     * from the returned output, so failure diagnostics show the real
+     * error instead of progress noise. A null [onProgress] runs the
+     * command exactly as before (no streaming, no stripping).
+     * Stage text is Arabic (shown in the progress dialog as-is);
+     * percent is 0..100 when the install reports a real one,
+     * null when it does not (the dialog stays indeterminate).
+     */
+    private fun runWithProgress(
+        context: Context,
+        command: String,
+        idleTimeoutSec: Long,
+        maxTimeoutSec: Long,
+        onProgress: ((stage: String, percent: Int?) -> Unit)?
+    ): TerminalResult {
+        if (onProgress == null) {
+            return TerminalSession.runCommandDebian(context, command, idleTimeoutSec, maxTimeoutSec)
+        }
+        val result = TerminalSession.runCommandDebian(
+            context, command, idleTimeoutSec, maxTimeoutSec
+        ) { line ->
+            when {
+                line.startsWith("MUDIF_STAGE:") -> {
+                    onProgress(line.removePrefix("MUDIF_STAGE:"), null)
+                }
+                line.startsWith("MUDIF_PROGRESS:") -> {
+                    val pct = line.removePrefix("MUDIF_PROGRESS:").trim().toIntOrNull()
+                    if (pct != null) onProgress("جاري التحميل…", pct.coerceIn(0, 100))
+                }
+                else -> {
+                    // apt's own download progress, when it prints one:
+                    // a trailing [NN%]. Absent in piped output, so the
+                    // dialog stays indeterminate on the stage instead.
+                    val m = Regex("""\[(\d{1,3})%\]\s*$""").find(line)
+                    val pct = m?.groupValues?.getOrNull(1)?.toIntOrNull()
+                    if (pct != null) onProgress("جاري التحميل…", pct.coerceIn(0, 100))
+                }
+            }
+        }
+        val clean = result.output.lines()
+            .filter { !it.startsWith("MUDIF_STAGE:") && !it.startsWith("MUDIF_PROGRESS:") }
+            .joinToString("\n").trim()
+        return if (clean.isEmpty()) result else result.copy(output = clean)
+    }
+
+    /** Installs the program in the guest. Caller must post-verify.
+     * [onProgress] (optional) reports the real stage and, when the
+     * install can measure it, a real 0..100 percentage. Nothing is
+     * faked: a stage without a measurable percentage reports null. */
+    fun install(
+        context: Context,
+        program: StoreProgram,
+        arch: String,
+        onProgress: ((stage: String, percent: Int?) -> Unit)? = null
+    ): TerminalResult {
         return when (program.method) {
-            "apt" -> TerminalSession.runCommandDebian(
-                context,
-                "(dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && " +
-                    "DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}) 2>&1",
-                180, 1800
-            )
+            "apt" -> {
+                // Same command as before (dpkg --configure -a, then
+                // update && install), with stage markers at the real
+                // phase boundaries. The && keeps "install only runs
+                // if update succeeded".
+                val cmd = """
+                    dpkg --configure -a
+                    echo "MUDIF_STAGE:جاري تحديث قوائم الحزم…"
+                    DEBIAN_FRONTEND=noninteractive apt-get update && echo "MUDIF_STAGE:جار التثبيت…" && DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}
+                """.trimIndent()
+                runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress)
+            }
             "deb" -> {
                 val url = debUrlFor(program, arch)
                     ?: return TerminalResult("لا توجد نسخة arm64 لهذا البرنامج", -1, false)
                 val file = url.substringAfterLast('/')
+                // Real download percentage: Content-Length from a HEAD
+                // request, then the downloaded file size polled every
+                // 2 s. No Content-Length (or a failed HEAD) falls back
+                // to the old "جار التحميل..." heartbeat, indeterminate.
                 val cmd = """
-                    mkdir -p $STORE_TMP
-                    curl -fsSL -o $STORE_TMP/$file "$url" &
-                    dl_pid=$!
-                    while kill -0 "${'$'}dl_pid" 2>/dev/null; do echo "جار التحميل..."; sleep 20; done
+                    mkdir -p ${'$'}STORE_TMP
+                    echo "MUDIF_STAGE:جاري التحميل…"
+                    total=${'$'}(curl -fsSLI "${'$'}url" | grep -i '^content-length:' | tail -1 | awk '{print ${'$'}2}' | tr -d '\r')
+                    curl -fsSL -o ${'$'}STORE_TMP/${'$'}file "${'$'}url" &
+                    dl_pid=${'$'}!
+                    while kill -0 "${'$'}dl_pid" 2>/dev/null; do
+                      if [ -n "${'$'}total" ] && [ "${'$'}total" -gt 0 ]; then
+                        got=${'$'}(stat -c%s ${'$'}STORE_TMP/${'$'}file 2>/dev/null || echo 0)
+                        echo "MUDIF_PROGRESS:${'$'}((got*100/total))"
+                      else
+                        echo "جار التحميل..."
+                      fi
+                      sleep 2
+                    done
                     wait "${'$'}dl_pid" || { echo "فشل تحميل الحزمة"; exit 1; }
-                    dpkg -i $STORE_TMP/$file || { dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -f -y; }
+                    echo "MUDIF_STAGE:جار التثبيت…"
+                    dpkg -i ${'$'}STORE_TMP/${'$'}file || { dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -f -y; }
                     dpkg-query -W -f='${'$'}{Status}' ${program.debPackage} 2>/dev/null | grep -q "install ok installed"
                 """.trimIndent()
-                TerminalSession.runCommandDebian(context, "($cmd) 2>&1", 180, 3600)
+                runWithProgress(context, "($cmd) 2>&1", 180, 3600, onProgress)
             }
             "script" -> {
                 if (!stageAssetToGuest(context, program.script!!, "$STORE_TMP/${program.script}")) {
                     return TerminalResult("تعذر تجهيز سكربت التثبيت", -1, false)
                 }
-                TerminalSession.runCommandDebian(
-                    context, "(sh $STORE_TMP/${program.script}) 2>&1", 180, 1800
+                runWithProgress(
+                    context,
+                    "(echo \"MUDIF_STAGE:جار التثبيت…\"; sh $STORE_TMP/${program.script}) 2>&1",
+                    180, 1800, onProgress
                 )
             }
             "font" -> {
@@ -159,20 +237,20 @@ object ProgramStore {
                     if (!stageAssetToGuest(context, "store-fonts/${program.font}", "$STORE_TMP/${program.font}")) {
                         return TerminalResult("تعذر تجهيز ملف الخط", -1, false)
                     }
-                    TerminalSession.runCommandDebian(
+                    runWithProgress(
                         context,
-                        "(mkdir -p /usr/share/fonts/truetype/lifta && " +
+                        "(echo \"MUDIF_STAGE:جار التثبيت…\"; mkdir -p /usr/share/fonts/truetype/lifta && " +
                             "cp $STORE_TMP/${program.font} /usr/share/fonts/truetype/lifta/ && " +
                             "fc-cache -f >/dev/null 2>&1; fc-list | grep -i lifta) 2>&1",
-                        60, 300
+                        60, 300, onProgress
                     )
                 } else {
-                    TerminalSession.runCommandDebian(
-                        context,
-                        "(dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && " +
-                            "DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}) 2>&1",
-                        180, 1800
-                    )
+                    val cmd = """
+                        dpkg --configure -a
+                        echo "MUDIF_STAGE:جاري تحديث قوائم الحزم…"
+                        DEBIAN_FRONTEND=noninteractive apt-get update && echo "MUDIF_STAGE:جار التثبيت…" && DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}
+                    """.trimIndent()
+                    runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress)
                 }
             }
             else -> TerminalResult("طريقة تثبيت غير معروفة", -1, false)
