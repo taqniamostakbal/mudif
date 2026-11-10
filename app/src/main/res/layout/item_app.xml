@@ -74,18 +74,20 @@
             android:textColor="@color/mudif_purple"
             android:fontFamily="@font/cairo" />
 
+        <!-- P18.6: buttons stacked vertically, each full width. In the
+             2-column grid a card is too narrow for two side-by-side
+             buttons: the تشغيل pill measured 116x264 px and its label
+             wrapped one letter per line. Full width fits the word. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:orientation="horizontal"
-            android:gravity="center">
+            android:orientation="vertical">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_launch"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:text="@string/apps_launch"
                 android:fontFamily="@font/cairo"
                 android:textSize="12sp"
@@ -95,10 +97,9 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_uninstall"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
+                android:layout_marginTop="4dp"
                 android:text="@string/store_uninstall"
                 android:fontFamily="@font/cairo"
                 android:textSize="12sp"
