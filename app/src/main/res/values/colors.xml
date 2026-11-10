@@ -3,4 +3,23 @@
     <color name="mudif_purple">#593BFE</color>
     <color name="mudif_purple_dark">#4527D6</color>
     <color name="mudif_teal">#00E5CC</color>
+
+    <!-- P19 Phase 1: category gradients (from the user's style refs:
+         vivid gradient cards, each category its own color). -->
+    <color name="cat_all_start">#593BFE</color>
+    <color name="cat_all_end">#8B5CF6</color>
+    <color name="cat_internet_start">#2563EB</color>
+    <color name="cat_internet_end">#06B6D4</color>
+    <color name="cat_office_start">#1E40AF</color>
+    <color name="cat_office_end">#3B82F6</color>
+    <color name="cat_media_start">#EA580C</color>
+    <color name="cat_media_end">#F59E0B</color>
+    <color name="cat_dev_start">#7C3AED</color>
+    <color name="cat_dev_end">#C026D3</color>
+    <color name="cat_ai_start">#059669</color>
+    <color name="cat_ai_end">#00E5CC</color>
+    <color name="cat_system_start">#475569</color>
+    <color name="cat_system_end">#1E293B</color>
+    <color name="cat_fonts_start">#DB2777</color>
+    <color name="cat_fonts_end">#F43F5E</color>
 </resources>
