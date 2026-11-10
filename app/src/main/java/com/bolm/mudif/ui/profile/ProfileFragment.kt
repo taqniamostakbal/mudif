@@ -12,6 +12,7 @@ import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.InstallFlow
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.logs.LogViewerActivity
+import com.bolm.mudif.ui.settings.SettingsActivity
 import com.bolm.mudif.ui.terminal.TerminalActivity
 import com.bolm.mudif.ui.vnc.VncActivity
 import com.google.android.material.snackbar.Snackbar
@@ -35,6 +36,10 @@ class ProfileFragment : Fragment() {
         }
         binding.rowLanguage.setOnClickListener(soon)
         binding.rowAbout.setOnClickListener(soon)
+        // P18.3 — Viewer settings screen (Fusha, Mudif style).
+        binding.rowViewerSettings.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), SettingsActivity::class.java))
+        }
         binding.cardSystems.setOnClickListener(soon)
         binding.cardApps.setOnClickListener(soon)
         binding.rowEngine.setOnClickListener {
