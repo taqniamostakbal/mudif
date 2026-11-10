@@ -99,7 +99,10 @@ dependencies {
     // keyboard) dark on the light card, white when pressed/held — the
     // P18.3 restyle left the white icon drawables untinted, so the
     // icons were invisible on the white keys (rig FAIL item 3).
-    implementation("com.github.taqniamostakbal:termux-x11:63aca3c9cdda68a0ccc3578212f0ec1c1d4eeb22") {
+    // P18.5: fork commit b1c96fb adds the raw drag path in
+    // SIMULATED_TOUCH (cursor follows the finger, bypassing
+    // GestureDetector onScroll slop/batching).
+    implementation("com.github.taqniamostakbal:termux-x11:b1c96fb41113c834a3c88925d9ae59854e025e9c") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
