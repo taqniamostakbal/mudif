@@ -193,7 +193,18 @@ class SettingsActivity : AppCompatActivity() {
                         ) {}
                     }
                 }
-                top.addView(spinner)
+                // P18.5: the spinner goes BELOW the texts, full width
+                // (same vertical pattern as SliderSetting/TextSetting).
+                // Side-by-side, the spinner ate the row width and long
+                // Arabic titles wrapped word-by-word into a narrow
+                // column (Nova 9 screenshot, 2026-11-10).
+                spinner.layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(8) }
+                row.addView(top)
+                row.addView(spinner)
+                return row
             }
             is ViewerPrefs.SliderSetting -> {
                 // Slider goes below the texts (full width).
