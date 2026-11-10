@@ -94,12 +94,10 @@ class AppsFragment : Fragment() {
             } catch (e: Exception) {
                 emptyList()
             }
-            // Fonts have no binary — nothing to launch, not apps.
-            // P18.6: exclude by category too, so no font program can
-            // ever reach the Apps list even if a catalog edit gives
-            // one a binary (the rig saw نوتو listed despite binary
-            // null, so the binary test alone did not hold).
-            val launchable = all.filter { it.binary != null && it.category != "fonts" }
+            // The user wants fonts listed in the Apps list (2026-11-10:
+            // he objected to the P18.6 category exclusion of نوتو).
+            // Reverted to the binary test only, as in P18.5-tip.
+            val launchable = all.filter { it.binary != null }
             val map = ProgramStore.batchStatus(appCtx, launchable)
             val list = launchable.filter { map[it.id] == true }
             uiHandler.post {
