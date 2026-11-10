@@ -44,6 +44,30 @@
             android:layout_marginTop="16dp"
             android:visibility="gone"
             android:text="التشخيص" />
+
+        <!-- Real-computer program: screen recording (#5), desktop on
+             TV (#9), audio passthrough (#1). The texts are set from
+             code (record/audio reflect the live state). -->
+        <Button
+            android:id="@+id/btn_record"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/record_start" />
+
+        <Button
+            android:id="@+id/btn_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/tv_title" />
+
+        <Button
+            android:id="@+id/btn_audio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/audio_off" />
     </LinearLayout>
 
 </FrameLayout>
