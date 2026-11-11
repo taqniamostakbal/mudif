@@ -104,7 +104,12 @@ class HomeFragment : Fragment() {
             else R.string.home_install_system
         )
         // P19 Phase 2: system stat mirrors the hero status.
-        binding.statSystem.text = if (ready) "مثبت ✓" else "غير مثبت"
+        // The image version is shown so a screenshot always tells
+        // which image is installed (p17-v1 vs p19-v2 vs p20).
+        binding.statSystem.text = if (ready) {
+            val v = DebianSystem.installedImageVersion(requireContext())
+            if (v != null) "مثبت ✓ · $v" else "مثبت ✓"
+        } else "غير مثبت"
     }
 
     private fun openDesktop() {
