@@ -28,8 +28,9 @@ class DistroAdapter(
             distroName.text = d.name
             distroDesc.text = d.desc
             distroSize.text = d.size
-            distroLetter.text = d.name.first().toString()
-            distroLetter.backgroundTintList = ColorStateList.valueOf(Color.parseColor(d.color))
+            // Phase 1b: the icon is the penguin logo in the layout
+            // (@drawable/logo_mudif); no letter is set here.
+            distroLogo.backgroundTintList = ColorStateList.valueOf(Color.parseColor(d.color))
             val installed = isInstalled(d)
             btnInstall.text = if (installed) "مثبت ✓" else root.context.getString(com.bolm.mudif.R.string.install)
             btnInstall.isEnabled = !installed

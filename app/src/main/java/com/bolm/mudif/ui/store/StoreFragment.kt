@@ -59,19 +59,35 @@ class StoreFragment : Fragment() {
             // ONE system). The Alpine card and the install_soon
             // placeholders are gone.
             isInstalled = { d ->
-                d.name == "دبيان" && DebianSystem.isReady(requireContext())
+                d.name == "نظام مضيف" && DebianSystem.isReady(requireContext())
             },
             onInstall = { d -> onInstallClicked(d) }
         )
 
-        // P19 Phase 1: category gradient cards (2-column grid) replace
-        // the plain filter chips. Same tap-to-filter behaviour.
+        // P19 Phase 1: category gradient cards (2-column grid).
+        // Phase 1c: tapping a specific category opens its dedicated
+        // page (slide transition); "الكل" keeps the in-place filter
+        // (it IS the store's full view, so there is nowhere to go).
         categoryAdapter = CategoryCardAdapter(
             StoreCategory.entries, selectedCategory, emptyMap()
         ) { category ->
-            selectedCategory = category.key
-            categoryAdapter.setSelected(category.key)
-            applyFilter()
+            if (category == StoreCategory.ALL) {
+                selectedCategory = category.key
+                categoryAdapter.setSelected(category.key)
+                applyFilter()
+            } else {
+                parentFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        R.anim.slide_in_right, R.anim.slide_out_left,
+                        R.anim.slide_in_left, R.anim.slide_out_right
+                    )
+                    .replace(
+                        R.id.nav_host,
+                        StoreCategoryFragment.newInstance(category.key)
+                    )
+                    .addToBackStack(null)
+                    .commit()
+            }
         }
         binding.categoryRecycler.layoutManager = GridLayoutManager(requireContext(), 2)
         binding.categoryRecycler.adapter = categoryAdapter
@@ -107,7 +123,7 @@ class StoreFragment : Fragment() {
 
     private fun onInstallClicked(d: Distro) {
         when (d.name) {
-            "دبيان" -> installDebian()
+            "نظام مضيف" -> installDebian()
             else -> Snackbar.make(
                 binding.root,
                 getString(R.string.install_soon),
