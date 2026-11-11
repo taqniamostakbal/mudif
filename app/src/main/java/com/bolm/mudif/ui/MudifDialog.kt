@@ -9,7 +9,6 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
-import com.bolm.mudif.BuildConfig
 import com.bolm.mudif.R
 import com.bolm.mudif.engine.DebianSystem
 import com.google.android.material.button.MaterialButton
@@ -76,10 +75,11 @@ object MudifDialog {
     fun about(ctx: Context): AlertDialog {
         val view = LayoutInflater.from(ctx).inflate(R.layout.dialog_mudif_about, null)
         val imageVersion = DebianSystem.installedImageVersion(ctx)
+        val appVersion = appVersion(ctx)
         val versionText = if (imageVersion != null) {
-            "الإصدار ${BuildConfig.VERSION_NAME} · صورة $imageVersion"
+            "الإصدار $appVersion · صورة $imageVersion"
         } else {
-            "الإصدار ${BuildConfig.VERSION_NAME}"
+            "الإصدار $appVersion"
         }
         view.findViewById<TextView>(R.id.about_version).text = versionText
         val dialog = AlertDialog.Builder(ctx)
@@ -100,6 +100,21 @@ object MudifDialog {
             ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
         )
         return dialog
+    }
+
+    /**
+     * App version from the package itself. BuildConfig is NOT
+     * generated (AGP 8 defaults: buildFeatures has viewBinding
+     * only), so the version comes from PackageManager, never from
+     * a BuildConfig reference.
+     */
+    private fun appVersion(ctx: Context): String {
+        return try {
+            @Suppress("DEPRECATION")
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "0.1.0"
+        } catch (_: Exception) {
+            "0.1.0"
+        }
     }
 
     private fun openLink(ctx: Context, url: String) {
