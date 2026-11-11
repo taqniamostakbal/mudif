@@ -60,6 +60,7 @@
     <string name="apps_launch">تشغيل</string>
     <string name="apps_launching">جار تشغيل %1$s…</string>
     <string name="apps_launched">تم تشغيل %1$s — شوف سطح المكتب</string>
+    <string name="apps_launch_failed">لم يفتح %1$s — البرنامج ما بداش. جرب مرة أخرى أو أعد تثبيته من المتجر.</string>
     <string name="games_subtitle">الألعاب غادي توصل قريباً</string>
     <string name="profile_subtitle">معلوماتك وإعداداتك</string>
     <string name="profile_guest_name">مستخدم مضيف</string>
