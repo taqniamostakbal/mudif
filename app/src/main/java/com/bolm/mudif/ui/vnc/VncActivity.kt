@@ -7,8 +7,10 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.mediarouter.app.MediaRouteChooserDialogFragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityVncBinding
+import com.bolm.mudif.engine.CastManager
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.DesktopDiagnostics
 import com.bolm.mudif.engine.GuestSession
@@ -16,7 +18,9 @@ import com.bolm.mudif.engine.LxqtLook
 import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.engine.ScreenRecorder
+import com.bolm.mudif.engine.SystemDisplay
 import com.bolm.mudif.engine.TerminalSession
+import com.bolm.mudif.engine.TvStreamer
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.logs.LogViewerActivity
@@ -102,6 +106,10 @@ class VncActivity : AppCompatActivity() {
 
         supportActionBar?.title = "نظام مضيف"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        // Phase 2: Cast init (main thread, guarded: no Play
+        // Services on some devices means no Cast, never a crash).
+        try { CastManager.init(this) } catch (_: Exception) { }
 
         binding.btnShowLogs.setOnClickListener {
             startActivity(Intent(this, LogViewerActivity::class.java))
@@ -194,36 +202,114 @@ class VncActivity : AppCompatActivity() {
             }.start()
         }
 
-        // Real-computer #9 — desktop on TV. The TV shows the live
-        // desktop; it does not boot one, so the button refuses until
-        // the desktop is up. The TV gets its own viewer prefs.
+        // Phase 2 — desktop on TV, three paths (research order):
+        // Cast live-HLS (in-app, wireless), system display
+        // (Presentation: Smart View / DeX / HDMI), system wireless
+        // settings (Miracast fallback). The TV shows the live
+        // desktop; it does not boot one, so Cast refuses until the
+        // desktop is up. When streaming, the button stops it.
         binding.btnTv.setOnClickListener {
-            Thread {
-                val dm = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
-                val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
-                if (displays.isEmpty()) {
-                    runOnUiThread {
-                        MudifDialog.info(this, getString(R.string.tv_title), getString(R.string.tv_no_display), getString(R.string.ok))
-                    }
-                    return@Thread
-                }
-                if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
-                    runOnUiThread {
+            if (TvStreamer.state == TvStreamer.TvState.STREAMING) {
+                MudifDialog.info(
+                    this, getString(R.string.tv_title),
+                    getString(R.string.tv_cast_running),
+                    getString(R.string.tv_cast_stop),
+                    onPositive = {
+                        Thread {
+                            TvStreamer.stop(this)
+                            CastManager.stopCast()
+                        }.start()
+                    },
+                    negative = "إلغاء"
+                )
+                return@setOnClickListener
+            }
+            MudifDialog.info(
+                this, getString(R.string.tv_title),
+                getString(R.string.tv_choose_body),
+                getString(R.string.tv_choose_cast),
+                onPositive = {
+                    if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
                         Toast.makeText(this, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                        return@info
                     }
-                    return@Thread
-                }
-                ViewerPrefs.prefs(this).edit()
-                    .putBoolean("storeSecondaryDisplayPreferencesSeparately", true).apply()
-                val ok = X11Session.openViewerOnDisplay(this, displays[0])
-                runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        if (ok) getString(R.string.tv_opened) else getString(R.string.tv_no_display),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }.start()
+                    if (!CastManager.available) {
+                        MudifDialog.info(this, getString(R.string.tv_title), getString(R.string.tv_cast_no_play_services), getString(R.string.ok))
+                        return@info
+                    }
+                    Toast.makeText(this, getString(R.string.tv_cast_starting), Toast.LENGTH_SHORT).show()
+                    Thread {
+                        val started = TvStreamer.start(this)
+                        runOnUiThread {
+                            if (!started) {
+                                MudifDialog.info(
+                                    this, getString(R.string.tv_title),
+                                    getString(R.string.tv_cast_failed) + "\n\n" + (TvStreamer.lastError ?: "") + "\n\n" + TvStreamer.lastLog(this),
+                                    getString(R.string.ok)
+                                )
+                                return@runOnUiThread
+                            }
+                            val url = TvStreamer.streamUrl()
+                            if (url == null) {
+                                Toast.makeText(this, getString(R.string.tv_cast_failed), Toast.LENGTH_LONG).show()
+                                return@runOnUiThread
+                            }
+                            CastManager.setPendingHlsUrl(url)
+                            // If a Cast session is already connected,
+                            // load now; otherwise the session listener
+                            // loads when the user picks a TV below.
+                            if (!CastManager.loadNow(url)) {
+                                MediaRouteChooserDialogFragment()
+                                    .show(supportFragmentManager, "mudif_cast_chooser")
+                            } else {
+                                Toast.makeText(this, getString(R.string.tv_cast_started), Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }.start()
+                },
+                neutral = getString(R.string.tv_choose_system),
+                onNeutral = {
+                    Thread {
+                        val dm = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+                        val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
+                        if (displays.isEmpty()) {
+                            // No system display: label the Miracast
+                            // fallback as a SYSTEM flow before opening
+                            // the system settings (the app cannot
+                            // connect to a Miracast TV itself).
+                            runOnUiThread {
+                                MudifDialog.info(
+                                    this, getString(R.string.tv_title),
+                                    getString(R.string.tv_miracast_body),
+                                    getString(R.string.tv_miracast_open_button),
+                                    onPositive = {
+                                        SystemDisplay.openWirelessDisplaySettings(this)
+                                    },
+                                    negative = "إلغاء"
+                                )
+                            }
+                            return@Thread
+                        }
+                        if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
+                            runOnUiThread {
+                                Toast.makeText(this, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                            }
+                            return@Thread
+                        }
+                        ViewerPrefs.prefs(this).edit()
+                            .putBoolean("storeSecondaryDisplayPreferencesSeparately", true).apply()
+                        val ok = X11Session.openViewerOnDisplay(this, displays[0])
+                        runOnUiThread {
+                            Toast.makeText(
+                                this,
+                                if (ok) getString(R.string.tv_opened) else getString(R.string.tv_no_display),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }.start()
+                },
+                negative = "إلغاء"
+            )
         }
 
         // Real-computer #1 — audio passthrough. The button toggles
