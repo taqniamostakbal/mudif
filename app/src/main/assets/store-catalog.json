@@ -110,7 +110,8 @@
       "method": "apt",
       "apt": "libreoffice",
       "binary": "lowriter",
-      "icon": "libreoffice.png"
+      "icon": "libreoffice.png",
+      "process": "soffice.bin"
     },
     {
       "id": "evince",
