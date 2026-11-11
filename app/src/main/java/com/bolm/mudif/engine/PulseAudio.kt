@@ -258,7 +258,7 @@ private object ViewerPrefsShim {
         )
 
     fun isAudioEnabled(context: Context): Boolean =
-        prefs(context).getBoolean("mudifAudioEnabled", false)
+        prefs(context).getBoolean("mudifAudioEnabled", true)
 
     fun setAudioEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean("mudifAudioEnabled", enabled).apply()

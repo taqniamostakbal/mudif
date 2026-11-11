@@ -116,7 +116,7 @@ object DebianSystem {
     }
 
     /** The version baked into the installed image, or null if unknown. */
-    private fun installedImageVersion(context: Context): String? {
+    fun installedImageVersion(context: Context): String? {
         return try {
             File(debianRootfsDir(context), "root/.mudif_image_version")
                 .readText().trim().ifEmpty { null }
