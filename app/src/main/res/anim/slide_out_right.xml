@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Professional page transition (back): current page slides out to the right. -->
+<translate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="280"
+    android:fromXDelta="0%"
+    android:toXDelta="100%"
+    android:interpolator="@android:anim/decelerate_interpolator" />
