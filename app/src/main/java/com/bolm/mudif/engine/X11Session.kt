@@ -46,6 +46,15 @@ object X11Session {
     private const val TAG = "X11Session"
     private const val DISPLAY = ":6"
 
+    /**
+     * Phase 1e: the phone desktop renders at height 540 (not 720).
+     * A phone screen is small and dense, so a 720-high desktop draws
+     * its panel, icons and text physically tiny. At 540 the same UI is
+     * ~1.33x bigger and readable/tappable. The TV path
+     * (openViewerOnDisplay) keeps 720: a TV is big, so 720 is fine there.
+     */
+    private const val PHONE_DESKTOP_HEIGHT = 540
+
     @Volatile
     var xserverRunning = false
         private set
@@ -294,13 +303,13 @@ object X11Session {
 
     /**
      * P17.3: match the desktop resolution to the phone's screen aspect
-     * ratio (height fixed at 720, width scaled) so the desktop fills
-     * the screen without letterboxing and without stretching (which
-     * would distort it). Orientation-independent: long side / short
-     * side, so it works whether the phone is held portrait or
-     * landscape when the viewer opens. Width is rounded to even.
-     * Shared by openViewer and the screen recorder (the recording
-     * must grab the exact size the server runs at).
+     * ratio (height fixed at PHONE_DESKTOP_HEIGHT, width scaled) so the
+     * desktop fills the screen without letterboxing and without
+     * stretching (which would distort it). Orientation-independent:
+     * long side / short side, so it works whether the phone is held
+     * portrait or landscape when the viewer opens. Width is rounded
+     * to even. Shared by openViewer and the screen recorder (the
+     * recording must grab the exact size the server runs at).
      */
     fun viewerResolution(context: Context): String {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -310,9 +319,9 @@ object X11Session {
         val longSide = maxOf(metrics.widthPixels, metrics.heightPixels)
         val shortSide = minOf(metrics.widthPixels, metrics.heightPixels)
         val aspect = longSide.toDouble() / shortSide.toDouble()
-        var width = (720.0 * aspect).roundToInt()
+        var width = (PHONE_DESKTOP_HEIGHT.toDouble() * aspect).roundToInt()
         if (width % 2 != 0) width += 1
-        return "${width}x720"
+        return "${width}x$PHONE_DESKTOP_HEIGHT"
     }
 
     /** Open the Termux:X11 viewer (Tiny: OpenX11 navigation event).
@@ -323,18 +332,19 @@ object X11Session {
      * that resolution on attach instead of halving it to 640x360 (the
      * default scaled mode at scale 200). P17.3: the resolution is no
      * longer a fixed 1280x720 — it is computed from the phone's screen
-     * aspect ratio (height 720, width scaled) so the desktop fills the
-     * screen without letterboxing. The desktop launches after the viewer
-     * opens (VncActivity), so it lays out at the settled resolution.
-     * adjustResolution is forced false so a portrait surface never swaps
-     * the dimensions. */
+     * aspect ratio (height PHONE_DESKTOP_HEIGHT, width scaled) so the
+     * desktop fills the screen without letterboxing. The desktop
+     * launches after the viewer opens (VncActivity), so it lays out at
+     * the settled resolution. adjustResolution is forced false so a
+     * portrait surface never swaps the dimensions. */
     fun openViewer(context: Context) {
         // P17.3: match the desktop resolution to the phone's screen aspect
-        // ratio (height fixed at 720, width scaled) so the desktop fills
-        // the screen without letterboxing and without stretching (which
-        // would distort it). Orientation-independent: long side / short
-        // side, so it works whether the phone is held portrait or
-        // landscape when the viewer opens. Width is rounded to even.
+        // ratio (height fixed at PHONE_DESKTOP_HEIGHT, width scaled) so the
+        // desktop fills the screen without letterboxing and without
+        // stretching (which would distort it). Orientation-independent:
+        // long side / short side, so it works whether the phone is held
+        // portrait or landscape when the viewer opens. Width is rounded
+        // to even.
         val resolution = viewerResolution(context)
         // P18.3: Mudif defaults are applied ONLY when a pref is absent
         // (first launch). The old code overwrote touchMode / exact /
