@@ -19,12 +19,12 @@ import java.security.MessageDigest
  * the Mudif look files + #593BFE palette + ar_MA.UTF-8), hosted
  * as 20 MB parts on Hugging Face (public dataset
  * 855teche/mudif-images). Phones download the aarch64 image
- * (22 parts), the rig downloads x86_64 (25 parts). The image has
+ * (23 parts), the rig downloads x86_64 (26 parts). The image has
  * ONE top-level dir (mudif-p19-<arch>/) — extraction strips it,
  * exactly like the old proot-distro tarballs did. The reassembled
  * file is verified against its sha256 before any extraction.
  *
- * Markers inside the image: /root/.mudif_image_version = "p19-v2",
+ * Markers inside the image: /root/.mudif_image_version = "p20",
  * /root/.mudif_desktop_ok = "DEBIAN_DESKTOP_OK" (proves the full
  * desktop set is installed — X11Session.ensureDebianDesktop checks
  * it instead of running apt). .mudif_ready is NOT baked: the app
@@ -55,21 +55,22 @@ object DebianSystem {
     const val DEBIAN_VERSION = "13.1"
     private const val HF_BASE =
         "https://huggingface.co/datasets/855teche/mudif-images/resolve/main/"
-    private const val IMAGE_VERSION = "p19-v2"
+    private const val IMAGE_VERSION = "p20"
     private const val READY_MARKER = ".mudif_ready"
 
-    // P19-v2 pre-built image, hosted as 20 MB parts (every part is
+    // P20 image, hosted as 20 MB parts (every part is
     // 20,971,520 B except the last). Totals + sha256 verified
-    // 2026-11-10 (builder + independent verify-image.sh, both arches):
-    // x86_64 508,991,732 B (25 parts), aarch64 455,448,308 B (22 parts).
+    // 2026-11-11 (builder + independent verify-image.sh, both arches,
+    // fresh debootstrap, keyring-verified):
+    // x86_64 529,123,452 B (26 parts), aarch64 475,137,968 B (23 parts).
     private const val SHA256_X86_64 =
-        "98e602a1cb14cb3012d9345d05ac2b02ec514ace2ff804cf5799ec2b56b2a3bc"
+        "e4aa9a2bea2cb15a25fb7104ffc20bdd887134d7c1d69fee07ac8b656959bf34"
     private const val SHA256_AARCH64 =
-        "c0d32fa0eb1bbc43c73480abafa5e6dc8d058aa99f903136c3dce7e89cf18704"
-    private const val TOTAL_BYTES_X86_64 = 508991732L
-    private const val TOTAL_BYTES_AARCH64 = 455448308L
-    private const val PART_COUNT_X86_64 = 25
-    private const val PART_COUNT_AARCH64 = 22
+        "ae0efb49d35510e94bf3d777513ed321be3bf1cf464fac24ada8e621ecad2218"
+    private const val TOTAL_BYTES_X86_64 = 529123452L
+    private const val TOTAL_BYTES_AARCH64 = 475137968L
+    private const val PART_COUNT_X86_64 = 26
+    private const val PART_COUNT_AARCH64 = 23
     private const val PART_SIZE = 20971520L
 
     private fun abi(): String {
