@@ -17,6 +17,7 @@ import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.EngineCheck
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.engine.InstallService
 import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.engine.SystemBackup
 import com.bolm.mudif.engine.SystemUpdate
@@ -145,12 +146,15 @@ class ProfileFragment : Fragment() {
             val progress = MudifDialog.progress(ctx, getString(R.string.system_update_title))
             progress.setStatus(getString(R.string.system_update_running))
             progress.setIndeterminate(true)
+            // Foreground service + WakeLock: apt upgrade runs minutes.
+            InstallService.start(ctx, "تحديث النظام…")
             Thread {
                 val result = SystemUpdate.run(ctx) { line ->
                     activity?.runOnUiThread { progress.setStatus(line.take(120)) }
                 }
                 activity?.runOnUiThread {
                     progress.dismiss()
+                    InstallService.stop(ctx)
                     if (!isAdded) return@runOnUiThread
                     val tail = result.output.takeLast(1200).ifBlank { "(لا يوجد إخراج)" }
                     MudifDialog.info(
@@ -211,9 +215,16 @@ class ProfileFragment : Fragment() {
         }
         val progress = MudifDialog.progress(ctx, getString(R.string.backup_title))
         progress.setStatus(getString(R.string.backup_running))
+        // Foreground service + WakeLock: tar+xz of the whole rootfs.
+        InstallService.start(ctx, "نسخ احتياطي…")
         Thread {
             try {
                 val file = SystemBackup.backup(ctx) { done, total ->
+                    if (total > 0) {
+                        InstallService.updateProgress(
+                            "نسخ احتياطي… ${(done * 100) / total}%", ((done * 100) / total).toInt()
+                        )
+                    }
                     activity?.runOnUiThread {
                         if (total > 0) progress.setProgress(((done * 1000) / total).toInt())
                         else progress.setIndeterminate(true)
@@ -240,6 +251,8 @@ class ProfileFragment : Fragment() {
                         getString(R.string.ok)
                     )
                 }
+            } finally {
+                InstallService.stop(ctx)
             }
         }.start()
     }
