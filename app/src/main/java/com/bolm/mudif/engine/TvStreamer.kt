@@ -346,8 +346,9 @@ object TvStreamer {
 
     /**
      * Tiny HTTP server, stdlib only (java.net.ServerSocket).
-     * Inner class: it reads the streamer's live state (state,
-     * lanIp) for the status page, so it must hold the object.
+     * Nested class, not inner: `inner` is illegal inside a
+     * standalone object. It reads the streamer's live state via
+     * TvStreamer.state / TvStreamer.lanIp for the status page.
      * Serves, on the LAN:
      *  GET /stream.m3u8 — live HLS playlist (no-cache).
      *  GET /seg_*.ts — HLS segments.
@@ -361,7 +362,7 @@ object TvStreamer {
      * Path traversal is rejected: only basenames inside the
      * segments dir are served (canonical-path check).
      */
-    private inner class HttpServer(
+    private class HttpServer(
         private val segmentsDir: File
     ) {
         var port: Int = -1
@@ -380,7 +381,7 @@ object TvStreamer {
         private var ingestSocket: Socket? = null
 
         fun start(): Boolean {
-            for (p in HTTP_PORT_START..HTTP_PORT_END) {
+            for (p in TvStreamer.HTTP_PORT_START..TvStreamer.HTTP_PORT_END) {
                 try {
                     val ss = ServerSocket()
                     ss.reuseAddress = true
@@ -389,7 +390,7 @@ object TvStreamer {
                     port = p
                     running = true
                     acceptThread = Thread { acceptLoop() }.apply { isDaemon = true; start() }
-                    Log.d(TAG, "HTTP server on port $port")
+                    Log.d(TvStreamer.TAG, "HTTP server on port $port")
                     return true
                 } catch (_: Exception) {
                     // Port busy: try the next one.
@@ -624,12 +625,12 @@ object TvStreamer {
         }
 
         private fun statusPage(): String {
-            val url = "http://${lanIp ?: "?"}:$port/stream.m3u8"
+            val url = "http://${TvStreamer.lanIp ?: "?"}:$port/stream.m3u8"
             val count = segmentsDir.listFiles()?.count { it.name.endsWith(".ts") } ?: 0
             return "<!DOCTYPE html><html lang=\"ar\" dir=\"rtl\"><head>" +
                 "<meta charset=\"utf-8\"><title>بث مضيف</title></head><body>" +
                 "<h1>بث نظام مضيف</h1>" +
-                "<p>الحالة: ${state.name}</p>" +
+                "<p>الحالة: ${TvStreamer.state.name}</p>" +
                 "<p>البث المباشر: <a href=\"/stream.m3u8\">$url</a></p>" +
                 "<p>مقاطع جاهزة: $count</p>" +
                 "<p>البث السريع: <a href=\"/live.ts\">/live.ts</a></p>" +
