@@ -33,6 +33,13 @@ data class StoreProgram(
      */
     val flags: String?,
     /**
+     * The process name to check when verifying the launch.
+     * Defaults to [binary]. Needed when the binary is a wrapper
+     * that execs another program (LibreOffice Writer's binary is
+     * `lowriter` but its process is `soffice.bin`).
+     */
+    val process: String?,
+    /**
      * Rig-verified install, e.g. "x86_64 · 2026-11-10". Null = never
      * verified on the rig. Only programs whose install actually
      * passed a rig test carry a value — never set it from a guess.
@@ -97,6 +104,7 @@ object StoreCatalog {
                     font = o.optString("font", null)?.takeIf { it != "null" },
                     icon = o.getString("icon"),
                     flags = o.optString("flags", null)?.takeIf { it != "null" },
+                    process = o.optString("process", null)?.takeIf { it != "null" },
                     // org.json returns the STRING "null" for a JSON
                     // null, so normalize it away (same trap as D3).
                     tested = o.optString("tested", null)?.takeIf { it != "null" }

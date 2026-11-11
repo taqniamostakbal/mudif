@@ -185,15 +185,30 @@ class AppsFragment : Fragment() {
             val live = GuestSession.alive && GuestSession.booted &&
                 X11Session.isTcpDisplayOpen()
             if (live && GuestSession.sendCommand(launchCmd)) {
+                // Verify the process actually started before claiming
+                // success. The old code Toasted "launched" on `sent`
+                // alone, which only proves bytes reached the PTY, not
+                // that the program opened — failures were invisible
+                // (output goes to /dev/null). Now a real check decides.
+                val started = verifyStarted(appCtx, program)
                 uiHandler.post {
                     if (!isAdded) return@post
                     setBusy(program.id, false)
-                    X11Session.openViewer(requireContext())
-                    Toast.makeText(
-                        requireContext(),
-                        getString(R.string.apps_launched, program.name),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    if (started) {
+                        X11Session.openViewer(requireContext())
+                        Toast.makeText(
+                            requireContext(),
+                            getString(R.string.apps_launched, program.name),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        MudifDialog.info(
+                            requireContext(),
+                            program.name,
+                            getString(R.string.apps_launch_failed, program.name),
+                            getString(R.string.ok)
+                        )
+                    }
                 }
                 return@Thread
             }
@@ -215,6 +230,31 @@ class AppsFragment : Fragment() {
                 startActivity(intent)
             }
         }.start()
+    }
+
+    /**
+     * True if the program's process is running in the guest.
+     * Checks twice (after 4s, then after 6s more) so slow apps
+     * (LibreOffice, Electron) get time to start. pgrep -x matches
+     * the exact process name; [StoreProgram.process] is the name
+     * to check (defaults to the binary). A missing pgrep binary
+     * or a failed check returns false (fail safe: report the
+     * launch as failed rather than lie about it).
+     */
+    private fun verifyStarted(appCtx: Context, program: StoreProgram): Boolean {
+        val process = program.process?.takeIf { it.isNotBlank() }
+            ?: program.binary ?: return false
+        repeat(2) { attempt ->
+            Thread.sleep(if (attempt == 0) 4000 else 6000)
+            val check = TerminalSession.runCommandDebian(
+                appCtx,
+                "pgrep -x \"$process\" >/dev/null 2>&1",
+                idleTimeoutSec = 10,
+                maxTimeoutSec = 15
+            )
+            if (check.exitCode == 0) return true
+        }
+        return false
     }
 
     /** Same uninstall path as the store: exit 0 AND post-verify. */
