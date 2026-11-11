@@ -146,7 +146,9 @@ class ControlCenterActivity : AppCompatActivity() {
             val storageFree = stat.availableBytes
             runOnUiThread {
                 binding.cpuBar.progress = cpu.coerceIn(0, 100)
-                binding.cpuValue.text = "$cpu%"
+                // readCpuUsage returns -1 when /proc/stat is unreadable;
+                // never show the sentinel as a percentage.
+                binding.cpuValue.text = if (cpu >= 0) "$cpu%" else "غير معروف"
                 val ramPct = if (info.totalMem > 0)
                     (ramUsed * 100 / info.totalMem).toInt() else 0
                 binding.ramBar.progress = ramPct
