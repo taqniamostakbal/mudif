@@ -31,11 +31,20 @@ object InstallFlow {
         progress.setStatus(ctx.getString(R.string.downloading))
 
         val ui = { block: () -> Unit -> fragment.activity?.runOnUiThread(block) }
+        // Foreground service + WakeLock: a 455 MB download must survive
+        // the user leaving the app or the screen turning off.
+        InstallService.start(ctx, "تحميل نظام مضيف…")
         Thread {
             try {
                 if (!DebianSystem.isReady(ctx)) {
                     ui { progress.setStatus(ctx.getString(R.string.downloading)) }
                     DebianSystem.download(ctx) { done, total ->
+                        if (total > 0) {
+                            val pct = ((done * 100) / total).toInt()
+                            InstallService.updateProgress(
+                                "${ctx.getString(R.string.downloading)} $pct%", pct
+                            )
+                        }
                         ui {
                             if (total > 0) {
                                 progress.setProgress(((done * 1000) / total).toInt())
@@ -64,6 +73,8 @@ object InstallFlow {
                     progress.dismiss()
                     onDone(false, "خطأ: ${e.message}")
                 }
+            } finally {
+                InstallService.stop(ctx)
             }
         }.start()
     }

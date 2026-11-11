@@ -15,6 +15,7 @@ import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentStoreBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.engine.InstallService
 import com.bolm.mudif.ui.MudifDialog
 import com.google.android.material.snackbar.Snackbar
 
@@ -300,8 +301,14 @@ class StoreFragment : Fragment() {
         val progress = MudifDialog.progress(requireContext(), program.name)
         progress.setStatus(getString(R.string.store_status_installing))
         progress.setIndeterminate(true)
+        // Foreground service + WakeLock: the install keeps running
+        // when the user leaves the app or the screen turns off.
+        InstallService.start(appCtx, "تثبيت ${program.name}…")
         Thread {
             val result = ProgramStore.install(appCtx, program, guestArch) { stage, percent ->
+                InstallService.updateProgress(
+                    if (percent != null) "$stage $percent%" else stage, percent
+                )
                 uiHandler.post {
                     if (percent != null) {
                         progress.setProgress(percent * 10)
@@ -331,6 +338,7 @@ class StoreFragment : Fragment() {
                 // Dismiss first: the fragment may be detached by now,
                 // but the dialog must never be left on screen.
                 progress.dismiss()
+                InstallService.stop(appCtx)
                 if (!isAdded) return@post
                 if (result.exitCode == 0 && verified) {
                     states[program.id] = ProgramState.INSTALLED
