@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Branded About dialog (Phase 1a): the same identity as the desktop
+     mudif-about — the user's avatar, the channel credit, and the links.
+     NOT the version-only dialog. Avatar is the approved casual avatar
+     (@drawable/avatar_mudif, already circular). Links open in the browser. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="24dp">
+
+        <ImageView
+            android:id="@+id/about_avatar"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:src="@drawable/avatar_mudif"
+            android:contentDescription="@string/about_avatar_desc" />
+
+        <TextView
+            android:id="@+id/about_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/about_system_name"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A1A"
+            android:fontFamily="@font/cairo" />
+
+        <TextView
+            android:id="@+id/about_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:fontFamily="@font/cairo" />
+
+        <TextView
+            android:id="@+id/about_tagline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/about_tagline"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#593BFE"
+            android:fontFamily="@font/cairo" />
+
+        <TextView
+            android:id="@+id/about_oneliner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="@string/about_oneliner"
+            android:textSize="13sp"
+            android:textColor="#555555"
+            android:fontFamily="@font/cairo" />
+
+        <TextView
+            android:id="@+id/about_credit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="@string/about_credit"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A1A"
+            android:fontFamily="@font/cairo" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/about_btn_github"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="GitHub"
+                android:textColor="@color/mudif_purple"
+                android:fontFamily="@font/cairo"
+                app:cornerRadius="10dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/about_btn_youtube"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="YouTube"
+                android:textColor="@color/mudif_purple"
+                android:fontFamily="@font/cairo"
+                app:cornerRadius="10dp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/about_btn_ok"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/ok"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/cairo"
+            app:backgroundTint="@color/mudif_purple"
+            app:cornerRadius="12dp" />
+    </LinearLayout>
+</ScrollView>

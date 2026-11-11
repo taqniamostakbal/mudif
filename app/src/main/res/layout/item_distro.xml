@@ -14,15 +14,14 @@
         android:gravity="center_vertical"
         android:padding="16dp">
 
-        <TextView
-            android:id="@+id/distro_letter"
+        <!-- Phase 1b: the system logo (penguin), not a letter. -->
+        <ImageView
+            android:id="@+id/distro_logo"
             android:layout_width="52dp"
             android:layout_height="52dp"
-            android:gravity="center"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:fontFamily="@font/cairo"
+            android:src="@drawable/logo_mudif"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/about_system_name"
             android:background="@drawable/circle_bg" />
 
         <LinearLayout
