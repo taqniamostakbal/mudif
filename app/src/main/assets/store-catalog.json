@@ -398,7 +398,8 @@
       "deb": "https://github.com/VSCodium/vscodium/releases/download/1.143.17232/codium_1.143.17232_amd64.deb",
       "icon": "vscodium.png",
       "debArm64": "https://github.com/VSCodium/vscodium/releases/download/1.143.17232/codium_1.143.17232_arm64.deb",
-      "debPackage": "codium"
+      "debPackage": "codium",
+      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage"
     },
     {
       "id": "geany",
