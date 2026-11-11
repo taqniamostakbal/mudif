@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mudif_purple">#593BFE</color>
+    <color name="background">#12101C</color>
+    <color name="input_background">#2A2440</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="text_secondary">#B8B2D6</color>
+</resources>
