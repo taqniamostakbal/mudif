@@ -46,13 +46,20 @@ class CategoryCardAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val category = categories[position]
         val selected = category.key == selectedKey
-        val count = if (category == StoreCategory.ALL) counts.values.sum()
-        else counts[category.key] ?: 0
+        // Honest counts: "الكل" counts only real programs (entries
+        // with a launchable binary). Fonts are not programs — they
+        // are counted on their own card as خطوط, never as برامج.
+        val count = if (category == StoreCategory.ALL) {
+            counts.entries
+                .filter { it.key != StoreCategory.FONTS.key }
+                .sumOf { it.value }
+        } else counts[category.key] ?: 0
+        val unit = if (category == StoreCategory.FONTS) "خطوط" else "برامج"
         with(holder.binding) {
             cardBg.setBackgroundResource(category.gradientRes)
             catIcon.setImageResource(category.iconRes)
             catLabel.text = category.label
-            catCount.text = "$count برامج"
+            catCount.text = "$count $unit"
             root.strokeWidth = if (selected) dp(3, holder) else 0
             root.strokeColor = Color.WHITE
             root.setOnClickListener { onSelect(category) }
