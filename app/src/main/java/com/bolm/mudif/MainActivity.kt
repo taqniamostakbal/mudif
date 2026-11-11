@@ -60,12 +60,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.drawer_logs ->
                     startActivity(Intent(this, LogViewerActivity::class.java))
                 R.id.drawer_about ->
-                    MudifDialog.info(
-                        this,
-                        getString(R.string.about),
-                        getString(R.string.about_value),
-                        getString(R.string.ok)
-                    )
+                    MudifDialog.about(this)
             }
             binding.drawerLayout.closeDrawer(GravityCompat.START)
             true
