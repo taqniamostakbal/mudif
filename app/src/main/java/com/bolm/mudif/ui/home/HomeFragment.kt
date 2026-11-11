@@ -67,8 +67,13 @@ class HomeFragment : Fragment() {
         // storage) load off the main thread; the system stat is in
         // refreshSystemCard.
         Thread {
+            // Honest count: only real programs (a launchable binary).
+            // The 7 fonts have no binary; counting all 113 entries
+            // is the "113 programs" the user rightly called dishonest.
+            // This matches the Store ALL card (106).
             val count = try {
-                StoreCatalog.load(requireContext().applicationContext).size
+                StoreCatalog.load(requireContext().applicationContext)
+                    .count { it.binary != null }
             } catch (e: Exception) {
                 0
             }
