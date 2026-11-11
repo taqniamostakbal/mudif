@@ -543,7 +543,7 @@
     <string name="agent_name">Mudif Assistant</string>
     <string name="agent_subtitle">Your assistant inside the Mudif system</string>
     <string name="agent_about">Mudif Assistant is your Arabic assistant inside the Mudif system: it searches the web, opens programs, changes settings, and carries out tasks on the desktop by voice or by typing — and its abilities keep growing. For long tasks, set the battery to Unrestricted in the phone settings so the system does not stop the assistant.</string>
-    <string name="accessibility_service_description">Mudif Assistant controls Mudif's own screens and reads the on-screen UI tree so the agent can act inside the app. It never reads passwords and nothing leaves the phone.</string>
+    <string name="accessibility_service_description">Mudif Assistant controls Mudif\'s own screens and reads the on-screen UI tree so the agent can act inside the app. It never reads passwords and nothing leaves the phone.</string>
     <string name="agent_greeting">Hello, I\'m Mudif Assistant. I can open any installed program and carry out any task inside the Mudif system — what should I do?</string>
     <string name="agent_hint">Write your message to Mudif Assistant…</string>
     <string name="agent_send">Send</string>
