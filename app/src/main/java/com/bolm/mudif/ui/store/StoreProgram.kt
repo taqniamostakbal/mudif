@@ -25,6 +25,14 @@ data class StoreProgram(
     val font: String?,
     val icon: String,
     /**
+     * Extra launch flags appended to the binary when the program
+     * is run (e.g. Electron apps that crash without them).
+     * Null = no extra flags. VSCodium needs
+     * "--no-sandbox --disable-gpu --disable-dev-shm-usage":
+     * it crashed on launch (code 5) without them in proot.
+     */
+    val flags: String?,
+    /**
      * Rig-verified install, e.g. "x86_64 · 2026-11-10". Null = never
      * verified on the rig. Only programs whose install actually
      * passed a rig test carry a value — never set it from a guess.
@@ -88,6 +96,7 @@ object StoreCatalog {
                     script = o.optString("script", null)?.takeIf { it != "null" },
                     font = o.optString("font", null)?.takeIf { it != "null" },
                     icon = o.getString("icon"),
+                    flags = o.optString("flags", null)?.takeIf { it != "null" },
                     // org.json returns the STRING "null" for a JSON
                     // null, so normalize it away (same trap as D3).
                     tested = o.optString("tested", null)?.takeIf { it != "null" }
