@@ -118,4 +118,8 @@ dependencies {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
+    // Phase 2 — Google Cast sender (live HLS, Default Media Receiver)
+    // + route chooser dialog. No Remote Display API (deprecated 2021).
+    implementation(libs.play.services.cast.framework)
+    implementation(libs.androidx.mediarouter)
 }
