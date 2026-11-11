@@ -196,11 +196,23 @@ object ProgramStore {
                 val url = debUrlFor(program, arch)
                     ?: return TerminalResult("لا توجد نسخة arm64 لهذا البرنامج", -1, false)
                 val file = url.substringAfterLast('/')
+                if (url.isBlank() || file.isBlank())
+                    return TerminalResult("رابط الحزمة غير صالح", -1, false)
                 // Real download percentage: Content-Length from a HEAD
                 // request, then the downloaded file size polled every
                 // 2 s. No Content-Length (or a failed HEAD) falls back
                 // to the old "جار التحميل..." heartbeat, indeterminate.
+                // The three shell variables are assigned here from the
+                // Kotlin values (single-quoted: URLs can contain & ? =).
+                // The old code used $STORE_TMP / $url / $file without
+                // ever assigning them, so EVERY deb install failed
+                // with "mkdir: missing operand" + curl errors.
+                val urlQ = "'" + url.replace("'", "'\\''") + "'"
+                val fileQ = "'" + file.replace("'", "'\\''") + "'"
                 val cmd = """
+                    STORE_TMP="$STORE_TMP"
+                    url=$urlQ
+                    file=$fileQ
                     mkdir -p ${'$'}STORE_TMP
                     echo "MUDIF_STAGE:جاري التحميل…"
                     total=${'$'}(curl -fsSLI "${'$'}url" | grep -i '^content-length:' | tail -1 | awk '{print ${'$'}2}' | tr -d '\r')
