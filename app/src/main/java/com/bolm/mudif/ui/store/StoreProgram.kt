@@ -56,22 +56,24 @@ data class StoreProgram(
  *  and its white icon (from the user's style refs). */
 enum class StoreCategory(
     val key: String,
-    val label: String,
+    val labelRes: Int,
     val gradientRes: Int,
     val iconRes: Int
 ) {
-    ALL("all", "الكل", R.drawable.cat_all, R.drawable.ic_cat_all),
-    INTERNET("internet", "الإنترنت", R.drawable.cat_internet, R.drawable.ic_cat_internet),
-    OFFICE("office", "المكتب", R.drawable.cat_office, R.drawable.ic_cat_office),
-    MEDIA("media", "الوسائط", R.drawable.cat_media, R.drawable.ic_cat_media),
-    DEV("dev", "التطوير", R.drawable.cat_dev, R.drawable.ic_cat_dev),
-    AI("ai", "الذكاء الاصطناعي", R.drawable.cat_ai, R.drawable.ic_cat_ai),
-    SYSTEM("system", "النظام", R.drawable.cat_system, R.drawable.ic_cat_system),
-    FONTS("fonts", "الخطوط", R.drawable.cat_fonts, R.drawable.ic_cat_fonts);
+    ALL("all", R.string.ui_cat_all, R.drawable.cat_all, R.drawable.ic_cat_all),
+    INTERNET("internet", R.string.ui_cat_internet, R.drawable.cat_internet, R.drawable.ic_cat_internet),
+    OFFICE("office", R.string.ui_cat_office, R.drawable.cat_office, R.drawable.ic_cat_office),
+    MEDIA("media", R.string.ui_cat_media, R.drawable.cat_media, R.drawable.ic_cat_media),
+    DEV("dev", R.string.ui_cat_dev, R.drawable.cat_dev, R.drawable.ic_cat_dev),
+    GAMES("games", R.string.ui_cat_games, R.drawable.cat_games, R.drawable.ic_cat_games),
+    AI("ai", R.string.ui_cat_ai, R.drawable.cat_ai, R.drawable.ic_cat_ai),
+    SYSTEM("system", R.string.ui_cat_system, R.drawable.cat_system, R.drawable.ic_cat_system),
+    FONTS("fonts", R.string.ui_cat_fonts, R.drawable.cat_fonts, R.drawable.ic_cat_fonts);
 
     companion object {
-        fun labelFor(key: String): String =
-            entries.firstOrNull { it.key == key }?.label ?: key
+        /** Localized label; the key itself is the fallback for unknown keys. */
+        fun labelFor(context: Context, key: String): String =
+            entries.firstOrNull { it.key == key }?.let { context.getString(it.labelRes) } ?: key
 
         fun forKey(key: String): StoreCategory? =
             entries.firstOrNull { it.key == key }

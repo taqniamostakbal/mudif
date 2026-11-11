@@ -1,28 +1,21 @@
 package com.bolm.mudif.ui.apps
 
-import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import com.bolm.mudif.MainActivity
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentAppsBinding
 import com.bolm.mudif.engine.DebianSystem
-import com.bolm.mudif.engine.GuestSession
-import com.bolm.mudif.engine.TerminalSession
-import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.store.ProgramStore
 import com.bolm.mudif.ui.store.StoreCatalog
 import com.bolm.mudif.ui.store.StoreProgram
-import com.bolm.mudif.ui.vnc.VncActivity
 import com.google.android.material.snackbar.Snackbar
 
 /**
@@ -147,115 +140,13 @@ class AppsFragment : Fragment() {
     }
 
     /**
-     * Launch the program's binary in the guest desktop session.
-     * GUI or CLI is decided for real: a .desktop file whose Exec
-     * runs this binary means a window of its own; otherwise the
-     * binary opens inside qterminal (LXQt's terminal, in the image).
-     * The command goes through the live PTY session
-     * (GuestSession.sendCommand — the proven launchDesktop
-     * mechanism): a one-shot proot cannot keep a GUI process alive
-     * after it exits. When no desktop session is live, the launch
-     * is handed to VncActivity, which boots the desktop and fires
-     * the pending app once it is confirmed running. Either way the
-     * user ends up in the viewer, looking at the running app.
+     * Launch via the shared path (AppLauncher — the same code the
+     * Games tab uses). The old inline copy of this logic is gone;
+     * see AppLauncher for the GUI/CLI decision, the PTY launch, and
+     * the pgrep verify.
      */
     private fun runLaunch(program: StoreProgram) {
-        val binary = program.binary ?: return
-        setBusy(program.id, true)
-        val appCtx = requireContext().applicationContext
-        Thread {
-            val guiCheck = TerminalSession.runCommandDebian(
-                appCtx,
-                "grep -rl '^Exec=[^ ]*\\b$binary\\b' " +
-                    "/usr/share/applications/*.desktop 2>/dev/null | head -1",
-                idleTimeoutSec = 15,
-                maxTimeoutSec = 30
-            )
-            val isGui = guiCheck.exitCode == 0 &&
-                guiCheck.output.isNotBlank() &&
-                guiCheck.output.trim() != "(لا مخرجات)"
-            // Extra launch flags (e.g. Electron apps). VSCodium
-            // crashes on launch (code 5) without --no-sandbox
-            // --disable-gpu --disable-dev-shm-usage in proot.
-            val flags = program.flags?.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
-            val launchCmd = if (isGui) {
-                "$binary$flags >/dev/null 2>&1 &"
-            } else {
-                "qterminal -e sh -c '$binary$flags; exec sh' >/dev/null 2>&1 &"
-            }
-            val live = GuestSession.alive && GuestSession.booted &&
-                X11Session.isTcpDisplayOpen()
-            if (live && GuestSession.sendCommand(launchCmd)) {
-                // Verify the process actually started before claiming
-                // success. The old code Toasted "launched" on `sent`
-                // alone, which only proves bytes reached the PTY, not
-                // that the program opened — failures were invisible
-                // (output goes to /dev/null). Now a real check decides.
-                val started = verifyStarted(appCtx, program)
-                uiHandler.post {
-                    if (!isAdded) return@post
-                    setBusy(program.id, false)
-                    if (started) {
-                        X11Session.openViewer(requireContext())
-                        Toast.makeText(
-                            requireContext(),
-                            getString(R.string.apps_launched, program.name),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        MudifDialog.info(
-                            requireContext(),
-                            program.name,
-                            getString(R.string.apps_launch_failed, program.name),
-                            getString(R.string.ok)
-                        )
-                    }
-                }
-                return@Thread
-            }
-            uiHandler.post {
-                if (!isAdded) return@post
-                setBusy(program.id, false)
-                val intent = Intent(requireContext(), VncActivity::class.java).apply {
-                    putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_MUDIF)
-                    putExtra(VncActivity.EXTRA_LAUNCH_APP, launchCmd)
-                    addFlags(
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    )
-                }
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.apps_launching, program.name),
-                    Toast.LENGTH_SHORT
-                ).show()
-                startActivity(intent)
-            }
-        }.start()
-    }
-
-    /**
-     * True if the program's process is running in the guest.
-     * Checks twice (after 4s, then after 6s more) so slow apps
-     * (LibreOffice, Electron) get time to start. pgrep -x matches
-     * the exact process name; [StoreProgram.process] is the name
-     * to check (defaults to the binary). A missing pgrep binary
-     * or a failed check returns false (fail safe: report the
-     * launch as failed rather than lie about it).
-     */
-    private fun verifyStarted(appCtx: Context, program: StoreProgram): Boolean {
-        val process = program.process?.takeIf { it.isNotBlank() }
-            ?: program.binary ?: return false
-        repeat(2) { attempt ->
-            Thread.sleep(if (attempt == 0) 4000 else 6000)
-            val check = TerminalSession.runCommandDebian(
-                appCtx,
-                "pgrep -x \"$process\" >/dev/null 2>&1",
-                idleTimeoutSec = 10,
-                maxTimeoutSec = 15
-            )
-            if (check.exitCode == 0) return true
-        }
-        return false
+        AppLauncher.launch(this, program) { busy -> setBusy(program.id, busy) }
     }
 
     /** Same uninstall path as the store: exit 0 AND post-verify. */
@@ -300,7 +191,7 @@ class AppsFragment : Fragment() {
                         requireContext(),
                         getString(R.string.store_uninstall_failed_title),
                         getString(R.string.store_uninstall_failed, program.name) +
-                            "\n\n" + ProgramStore.lastLines(result.output),
+                            "\n\n" + ProgramStore.lastLines(requireContext(), result.output),
                         getString(R.string.ok)
                     )
                 }

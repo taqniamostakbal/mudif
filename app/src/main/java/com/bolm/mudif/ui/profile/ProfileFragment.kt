@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentProfileBinding
@@ -24,6 +25,7 @@ import com.bolm.mudif.engine.SystemUpdate
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.control.TaskManagerActivity
 import com.bolm.mudif.ui.logs.LogViewerActivity
+import com.bolm.mudif.ui.settings.AppLanguage
 import com.bolm.mudif.ui.settings.SettingsActivity
 import com.bolm.mudif.ui.terminal.TerminalActivity
 import com.bolm.mudif.ui.vnc.VncActivity
@@ -57,7 +59,11 @@ class ProfileFragment : Fragment() {
         val soon = View.OnClickListener {
             Snackbar.make(binding.root, getString(R.string.coming_soon), Snackbar.LENGTH_SHORT).show()
         }
-        binding.rowLanguage.setOnClickListener(soon)
+        // The language row opens the same picker as the drawer
+        // and the first-run dialog (it used to say "coming soon").
+        binding.rowLanguage.setOnClickListener {
+            (requireActivity() as? AppCompatActivity)?.let { AppLanguage.showPicker(it) }
+        }
         binding.rowAbout.setOnClickListener(soon)
         // P18.3 — Viewer settings screen (Fusha, Mudif style).
         binding.rowViewerSettings.setOnClickListener {
@@ -147,7 +153,7 @@ class ProfileFragment : Fragment() {
             progress.setStatus(getString(R.string.system_update_running))
             progress.setIndeterminate(true)
             // Foreground service + WakeLock: apt upgrade runs minutes.
-            InstallService.start(ctx, "تحديث النظام…")
+            InstallService.start(ctx, getString(R.string.ui_service_update))
             Thread {
                 val result = SystemUpdate.run(ctx) { line ->
                     activity?.runOnUiThread { progress.setStatus(line.take(120)) }
@@ -156,7 +162,7 @@ class ProfileFragment : Fragment() {
                     progress.dismiss()
                     InstallService.stop(ctx)
                     if (!isAdded) return@runOnUiThread
-                    val tail = result.output.takeLast(1200).ifBlank { "(لا يوجد إخراج)" }
+                    val tail = result.output.takeLast(1200).ifBlank { getString(R.string.ui_profile_no_output) }
                     MudifDialog.info(
                         ctx,
                         if (result.exitCode == 0) getString(R.string.system_update_done)
@@ -216,13 +222,13 @@ class ProfileFragment : Fragment() {
         val progress = MudifDialog.progress(ctx, getString(R.string.backup_title))
         progress.setStatus(getString(R.string.backup_running))
         // Foreground service + WakeLock: tar+xz of the whole rootfs.
-        InstallService.start(ctx, "نسخ احتياطي…")
+        InstallService.start(ctx, getString(R.string.ui_service_backup))
         Thread {
             try {
                 val file = SystemBackup.backup(ctx) { done, total ->
                     if (total > 0) {
                         InstallService.updateProgress(
-                            "نسخ احتياطي… ${(done * 100) / total}%", ((done * 100) / total).toInt()
+                            getString(R.string.ui_profile_backup_progress, ((done * 100) / total).toInt()), ((done * 100) / total).toInt()
                         )
                     }
                     activity?.runOnUiThread {
@@ -247,7 +253,7 @@ class ProfileFragment : Fragment() {
                     MudifDialog.info(
                         ctx,
                         getString(R.string.backup_failed_title),
-                        e.message ?: "خطأ غير معروف",
+                        e.message ?: getString(R.string.ui_profile_unknown_error),
                         getString(R.string.ok)
                     )
                 }
@@ -277,12 +283,12 @@ class ProfileFragment : Fragment() {
                 try {
                     ctx.contentResolver.openInputStream(uri)?.use { input ->
                         tmp.outputStream().use { out -> input.copyTo(out) }
-                    } ?: throw RuntimeException("تعذر قراءة الملف المختار")
+                    } ?: throw RuntimeException(getString(R.string.ui_profile_read_file_failed))
                 } catch (e: Exception) {
                     MudifDialog.info(
                         ctx,
                         getString(R.string.backup_restore_failed_title),
-                        e.message ?: "خطأ غير معروف",
+                        e.message ?: getString(R.string.ui_profile_unknown_error),
                         getString(R.string.ok)
                     )
                     return@info
@@ -317,7 +323,7 @@ class ProfileFragment : Fragment() {
                             MudifDialog.info(
                                 ctx,
                                 getString(R.string.backup_restore_failed_title),
-                                e.message ?: "خطأ غير معروف",
+                                e.message ?: getString(R.string.ui_profile_unknown_error),
                                 getString(R.string.ok)
                             )
                         }

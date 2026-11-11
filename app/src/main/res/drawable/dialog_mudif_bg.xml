@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- P16: branded dialog background — rounded white card for all Mudif dialogs. -->
+<!-- P16: branded dialog background — rounded card for all Mudif dialogs.
+     UI overhaul: solid is ?attr/colorSurface (was hardcoded white)
+     so dialogs work in DayNight dark mode. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@android:color/white" />
+    <solid android:color="?attr/colorSurface" />
     <corners android:radius="20dp" />
 </shape>

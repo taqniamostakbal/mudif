@@ -1,8 +1,10 @@
 package com.bolm.mudif.ui.store
 
+import com.bolm.mudif.R
+
 data class Distro(
     val name: String,
-    val desc: String,
+    val descRes: Int,
     val size: String,
     val color: String
 )
@@ -13,5 +15,5 @@ data class Distro(
 // Phase 1b: the card is branded as the user's own system (name +
 // penguin logo), never "Debian".
 val DISTROS = listOf(
-    Distro("نظام مضيف", "نظامك الكامل — جاهز بضغطة واحدة", "35MB", "#593BFE")
+    Distro("نظام مضيف", R.string.ui_distro_mudif_desc, "35MB", "#593BFE")
 )

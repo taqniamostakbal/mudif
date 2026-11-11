@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import android.os.Build
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
@@ -78,7 +79,7 @@ object RootfsManager {
         }
         conn.connect()
         if (conn.responseCode != HttpURLConnection.HTTP_OK)
-            throw RuntimeException("التحميل فشل: HTTP ${conn.responseCode}")
+            throw RuntimeException(context.getString(R.string.ui_dl_failed_http, conn.responseCode))
         val total = conn.contentLengthLong
         var done = 0L
         conn.inputStream.use { input ->
@@ -94,9 +95,9 @@ object RootfsManager {
             }
         }
         if (total > 0 && out.length() != total)
-            throw RuntimeException("التحميل ناقص: وصل ${out.length()} من $total بايت — أعد المحاولة")
+            throw RuntimeException(context.getString(R.string.ui_dl_incomplete, out.length(), total))
         if (out.length() < 1024 * 1024)
-            throw RuntimeException("ملف التحميل صغير بشكل مشبوه (${out.length()} بايت)")
+            throw RuntimeException(context.getString(R.string.ui_dl_too_small, out.length()))
     }
 
     fun extract(context: Context) {
@@ -116,7 +117,7 @@ object RootfsManager {
                     val canon = f.canonicalPath
                     // "./" (the archive root itself) canonicalizes to dest: allow it
                     if (canon != dest.canonicalPath && !canon.startsWith(destPath))
-                        throw RuntimeException("مسار مشبوه في الأرشيف: ${entry.name}")
+                        throw RuntimeException(context.getString(R.string.ui_dl_bad_entry, entry.name))
                     when {
                         entry.isDirectory -> f.mkdirs()
                         entry.isSymbolicLink -> {
@@ -131,7 +132,7 @@ object RootfsManager {
                             try {
                                 android.system.Os.symlink(entry.linkName, f.absolutePath)
                             } catch (e: Exception) {
-                                throw RuntimeException("تعذر إنشاء الرابط ${entry.name}: ${e.message}")
+                                throw RuntimeException(context.getString(R.string.ui_dl_link_failed, entry.name, e.message))
                             }
                         }
                         else -> {
@@ -157,7 +158,7 @@ object RootfsManager {
             throw e
         }
         if (count < 100)
-            throw RuntimeException("الأرشيف ناقص بشكل مشبوه ($count مدخل فقط)")
+            throw RuntimeException(context.getString(R.string.ui_dl_archive_short, count))
         // Atomic completion: marker written ONLY after everything succeeded.
         File(dest, READY_MARKER).writeText(ALPINE_VERSION)
         tarball(context).delete()
@@ -172,7 +173,7 @@ object RootfsManager {
         try {
             val rootfs = File(context.filesDir, "rootfs")
             sb.appendLine("ABI: ${Build.SUPPORTED_ABIS.joinToString(",")}")
-            sb.appendLine("rootfs موجود: ${rootfs.exists()}")
+            sb.appendLine(context.getString(R.string.ui_diag_rootfs_exists, rootfs.exists()))
             sb.appendLine("marker: ${File(rootfs, READY_MARKER).exists()}")
             val binCat = File(rootfs, "bin/cat")
             val isLink = try {
@@ -180,25 +181,25 @@ object RootfsManager {
             } catch (e: Exception) {
                 null
             }
-            sb.appendLine("bin/cat رابط؟: $isLink")
+            sb.appendLine(context.getString(R.string.ui_diag_bincat_link, isLink))
             if (isLink == true) {
                 val target = try {
                     java.nio.file.Files.readSymbolicLink(binCat.toPath()).toString()
                 } catch (e: Exception) {
-                    "خطأ: ${e.message}"
+                    context.getString(R.string.ui_error_prefix, e.message)
                 }
                 sb.appendLine("bin/cat -> $target")
             }
-            sb.appendLine("bin/cat يتحل؟: ${binCat.exists()}")
-            sb.appendLine("bin/busybox موجود: ${File(rootfs, "bin/busybox").exists()}")
+            sb.appendLine(context.getString(R.string.ui_diag_bincat_resolves, binCat.exists()))
+            sb.appendLine(context.getString(R.string.ui_diag_busybox, File(rootfs, "bin/busybox").exists()))
             val libDir = File(rootfs, "lib")
             val loaders = libDir.listFiles { f -> f.name.startsWith("ld-musl") }
                 ?.map { it.name } ?: emptyList()
             sb.appendLine("ld-musl: $loaders")
-            sb.appendLine("عدد ملفات bin: ${File(rootfs, "bin").listFiles()?.size}")
-            sb.appendLine("عدد ملفات lib: ${libDir.listFiles()?.size}")
+            sb.appendLine(context.getString(R.string.ui_diag_bin_count, File(rootfs, "bin").listFiles()?.size))
+            sb.appendLine(context.getString(R.string.ui_diag_lib_count, libDir.listFiles()?.size))
         } catch (e: Exception) {
-            sb.appendLine("التشخيص فشل: ${e.message}")
+            sb.appendLine(context.getString(R.string.ui_diag_diag_failed, e.message))
         }
         return sb.toString()
     }
@@ -609,7 +610,7 @@ object RootfsManager {
     fun firstBoot(context: Context): String {
         return try {
             val pb = prootBuilder(context, listOf("/bin/cat", "/etc/alpine-release"))
-                ?: return "المحرك غير موجود أو النظام غير مكتمل"
+                ?: return context.getString(R.string.ui_boot_no_engine)
             val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
             val code = proc.waitFor()
@@ -621,12 +622,12 @@ object RootfsManager {
                 lower.contains("exec format") ||
                 code != 0
             when {
-                out.isEmpty() -> "خرج بلا مخرجات (code=$code)"
-                failed -> "الإقلاع فشل (code=$code):\n$out\n\n--- تشخيص ---\n${diagnose(context)}"
-                else -> "Alpine خدام ✓\nالإصدار: $out"
+                out.isEmpty() -> context.getString(R.string.ui_boot_no_output, code)
+                failed -> context.getString(R.string.ui_boot_failed, code, "$out\n\n--- تشخيص ---\n${diagnose(context)}")
+                else -> context.getString(R.string.ui_boot_ok_alpine, out)
             }
         } catch (e: Exception) {
-            "خطأ: ${e.message}"
+            context.getString(R.string.ui_error_prefix, e.message)
         }
     }
 }

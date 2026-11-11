@@ -77,9 +77,9 @@ object MudifDialog {
         val imageVersion = DebianSystem.installedImageVersion(ctx)
         val appVersion = appVersion(ctx)
         val versionText = if (imageVersion != null) {
-            "الإصدار $appVersion · صورة $imageVersion"
+            ctx.getString(R.string.ui_about_version, appVersion, imageVersion)
         } else {
-            "الإصدار $appVersion"
+            ctx.getString(R.string.ui_about_version_app, appVersion)
         }
         view.findViewById<TextView>(R.id.about_version).text = versionText
         val dialog = AlertDialog.Builder(ctx)

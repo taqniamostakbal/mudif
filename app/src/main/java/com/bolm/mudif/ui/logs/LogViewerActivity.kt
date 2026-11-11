@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityLogViewerBinding
 import com.bolm.mudif.engine.DesktopDiagnostics
 
@@ -29,7 +30,7 @@ class LogViewerActivity : AppCompatActivity() {
         binding = ActivityLogViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        supportActionBar?.title = "سجلات سطح المكتب"
+        supportActionBar?.title = getString(R.string.log_title)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         binding.btnCopy.setOnClickListener { copyLogs() }
@@ -39,7 +40,7 @@ class LogViewerActivity : AppCompatActivity() {
     }
 
     private fun loadLogs() {
-        binding.logText.text = "جاري جمع اللوجات…"
+        binding.logText.text = getString(R.string.ui_log_collecting)
         Thread {
             // P5.22: no launch-gate checks anymore (the pipe-session
             // isOpenboxRunning round trip is deleted). The snapshot
@@ -54,7 +55,7 @@ class LogViewerActivity : AppCompatActivity() {
         val text = binding.logText.text?.toString() ?: return
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("mudif-logs", text))
-        Toast.makeText(this, "تم النسخ", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.ui_log_copied), Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {

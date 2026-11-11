@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phase 6 — Mudif Assistant AccessibilityService config.
+  The service reads the active window's UI tree and performs the
+  gestures the agent requests (tap / swipe / type / screenshot).
+  It never reads password fields and never logs keystrokes; see the
+  KDoc on MudifAccessibilityService for the full access statement.
+  canTakeScreenshot (API 33+) gates takeScreenshot(); on older
+  Android the attribute is ignored and takeScreenshot (API 30+)
+  still applies.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/accessibility_service_description"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
+    android:canTakeScreenshot="true"
+    android:notificationTimeout="100" />

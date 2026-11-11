@@ -23,7 +23,7 @@
             android:src="@drawable/avatar_mudif"
             android:contentDescription="@string/about_avatar_desc" />
 
-        <TextView
+        <TextView style="@style/TextAppearance.Mudif.Title"
             android:id="@+id/about_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -31,16 +31,16 @@
             android:text="@string/about_system_name"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#1A1A1A"
+            android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/cairo" />
 
-        <TextView
+        <TextView style="@style/TextAppearance.Mudif.Caption"
             android:id="@+id/about_version"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:textSize="13sp"
-            android:textColor="#666666"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/cairo" />
 
         <TextView
@@ -51,10 +51,10 @@
             android:text="@string/about_tagline"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="#593BFE"
+            android:textColor="@color/mudif_purple"
             android:fontFamily="@font/cairo" />
 
-        <TextView
+        <TextView style="@style/TextAppearance.Mudif.Caption"
             android:id="@+id/about_oneliner"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -62,7 +62,7 @@
             android:gravity="center"
             android:text="@string/about_oneliner"
             android:textSize="13sp"
-            android:textColor="#555555"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/cairo" />
 
         <TextView
@@ -74,7 +74,7 @@
             android:text="@string/about_credit"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="#1A1A1A"
+            android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/cairo" />
 
         <LinearLayout
@@ -86,35 +86,31 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/about_btn_github"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Mudif.Button.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="GitHub"
-                android:textColor="@color/mudif_purple"
                 android:fontFamily="@font/cairo"
                 app:cornerRadius="10dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/about_btn_youtube"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Mudif.Button.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:text="YouTube"
-                android:textColor="@color/mudif_purple"
                 android:fontFamily="@font/cairo"
                 app:cornerRadius="10dp" />
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/about_btn_ok"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:text="@string/ok"
-            android:textColor="@android:color/white"
             android:fontFamily="@font/cairo"
-            app:backgroundTint="@color/mudif_purple"
             app:cornerRadius="12dp" />
     </LinearLayout>
 </ScrollView>

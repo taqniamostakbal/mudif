@@ -9,6 +9,8 @@ import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.databinding.ActivityMainBinding
 import com.bolm.mudif.ui.MudifDialog
+import com.bolm.mudif.ui.settings.AppLanguage
+import com.bolm.mudif.ui.agent.AgentFragment
 import com.bolm.mudif.ui.apps.AppsFragment
 import com.bolm.mudif.ui.control.ControlCenterActivity
 import com.bolm.mudif.ui.games.GamesFragment
@@ -27,6 +29,14 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // First run only: ask once which language the app speaks.
+        // Safe here: it runs after setContentView, shows a plain
+        // modal dialog, and never fires again once a choice is saved
+        // (apply() persists the tag before recreate()).
+        if (!AppLanguage.isChosen(this)) {
+            AppLanguage.showPicker(this, firstRun = true)
+        }
+
         if (savedInstanceState == null) {
             show(HomeFragment())
         }
@@ -37,6 +47,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_store -> StoreFragment()
                 R.id.nav_apps -> AppsFragment()
                 R.id.nav_games -> GamesFragment()
+                R.id.nav_agent -> AgentFragment()
                 R.id.nav_profile -> ProfileFragment()
                 else -> HomeFragment()
             }
@@ -51,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         binding.navView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home, R.id.nav_store, R.id.nav_apps,
-                R.id.nav_games, R.id.nav_profile ->
+                R.id.nav_games, R.id.nav_agent, R.id.nav_profile ->
                     binding.bottomNav.selectedItemId = item.itemId
                 R.id.drawer_settings ->
                     startActivity(Intent(this, SettingsActivity::class.java))
@@ -59,6 +70,8 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, ControlCenterActivity::class.java))
                 R.id.drawer_logs ->
                     startActivity(Intent(this, LogViewerActivity::class.java))
+                R.id.drawer_language ->
+                    AppLanguage.showPicker(this)
                 R.id.drawer_about ->
                     MudifDialog.about(this)
             }

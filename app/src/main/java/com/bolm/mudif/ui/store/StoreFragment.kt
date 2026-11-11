@@ -336,7 +336,7 @@ class StoreFragment : Fragment() {
         progress.setIndeterminate(true)
         // Foreground service + WakeLock: the install keeps running
         // when the user leaves the app or the screen turns off.
-        InstallService.start(appCtx, "تثبيت ${program.name}…")
+        InstallService.start(appCtx, getString(R.string.ui_service_install_program, program.name))
         Thread {
             val result = ProgramStore.install(appCtx, program, guestArch) { stage, percent ->
                 InstallService.updateProgress(
@@ -360,12 +360,12 @@ class StoreFragment : Fragment() {
             val (verified, ev) = if (result.exitCode == 0) {
                 ProgramStore.verify(appCtx, program)
             } else {
-                false to ProgramStore.lastLine(result.output)
+                false to ProgramStore.lastLine(appCtx, result.output)
             }
             val detail = if (result.exitCode == 0 && !verified) {
-                ProgramStore.lastLine(result.output)
+                ProgramStore.lastLine(appCtx, result.output)
             } else {
-                ProgramStore.lastLines(result.output)
+                ProgramStore.lastLines(appCtx, result.output)
             }
             uiHandler.post {
                 // Dismiss first: the fragment may be detached by now,
@@ -429,7 +429,7 @@ class StoreFragment : Fragment() {
                         requireContext(),
                         getString(R.string.store_uninstall_failed_title),
                         getString(R.string.store_uninstall_failed, program.name) +
-                            "\n\n" + ProgramStore.lastLines(result.output),
+                            "\n\n" + ProgramStore.lastLines(appCtx, result.output),
                         getString(R.string.ok)
                     )
                 }

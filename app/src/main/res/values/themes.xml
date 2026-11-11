@@ -5,6 +5,12 @@
         <item name="colorOnPrimary">@android:color/white</item>
         <item name="colorSecondary">@color/mudif_teal</item>
         <item name="android:statusBarColor">@color/mudif_purple</item>
-        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <!-- Mudif design system (values/styles.xml): every card and every
+             unstyled button gets the Mudif look by default; an explicit
+             style on a view still wins over these defaults. -->
+        <item name="materialCardViewStyle">@style/Widget.Mudif.Card</item>
+        <item name="buttonStyle">@style/Widget.Mudif.Button.Primary</item>
+        <item name="bottomNavigationStyle">@style/Widget.Mudif.BottomNavigation</item>
     </style>
 </resources>

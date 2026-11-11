@@ -2,7 +2,7 @@
 <!-- P19 Phase 1: category gradient card (replaces the plain filter chips).
      The gradient + white icon come from StoreCategory; the selected card
      gets a white stroke (set in code). -->
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card" xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -10,8 +10,6 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="3dp"
     app:strokeWidth="0dp">
 
     <LinearLayout

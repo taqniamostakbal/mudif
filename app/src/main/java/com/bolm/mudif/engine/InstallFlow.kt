@@ -33,7 +33,7 @@ object InstallFlow {
         val ui = { block: () -> Unit -> fragment.activity?.runOnUiThread(block) }
         // Foreground service + WakeLock: a 455 MB download must survive
         // the user leaving the app or the screen turning off.
-        InstallService.start(ctx, "تحميل نظام مضيف…")
+        InstallService.start(ctx, ctx.getString(R.string.ui_service_install_system))
         Thread {
             try {
                 if (!DebianSystem.isReady(ctx)) {
@@ -71,7 +71,7 @@ object InstallFlow {
             } catch (e: Exception) {
                 ui {
                     progress.dismiss()
-                    onDone(false, "خطأ: ${e.message}")
+                    onDone(false, ctx.getString(R.string.ui_error_prefix, e.message))
                 }
             } finally {
                 InstallService.stop(ctx)
@@ -137,7 +137,7 @@ object InstallFlow {
             } catch (e: Exception) {
                 ui {
                     dialog.dismiss()
-                    onDone(false, "خطأ: ${e.message}")
+                    onDone(false, ctx.getString(R.string.ui_error_prefix, e.message))
                 }
             }
         }.start()

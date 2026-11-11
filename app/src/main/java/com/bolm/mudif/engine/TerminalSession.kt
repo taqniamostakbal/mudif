@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 
 /**
  * Result of a single terminal command.
@@ -36,7 +37,7 @@ object TerminalSession {
     ): TerminalResult {
         val pb = RootfsManager.prootBuilder(context, listOf("/bin/sh", "-c", command))
         return runWithBuilder(
-            pb, "النظام غير جاهز: ثبت Alpine من المتجر أولا",
+            context, pb, context.getString(R.string.ui_term_not_ready_alpine),
             idleTimeoutSec, maxTimeoutSec, onLine
         )
     }
@@ -51,7 +52,7 @@ object TerminalSession {
     ): TerminalResult {
         val pb = DebianSystem.prootBuilder(context, listOf("/bin/sh", "-c", command))
         return runWithBuilder(
-            pb, "النظام غير جاهز: ثبت نظام مضيف أولا",
+            context, pb, context.getString(R.string.ui_term_not_ready_mudif),
             idleTimeoutSec, maxTimeoutSec, onLine
         )
     }
@@ -62,6 +63,7 @@ object TerminalSession {
      * before — a command is killed only if it is TRULY stuck.
      */
     private fun runWithBuilder(
+        context: Context,
         pb: ProcessBuilder?,
         notReadyMessage: String,
         idleTimeoutSec: Long,
@@ -107,12 +109,12 @@ object TerminalSession {
                 val totalSec = (now - startAt) / 1000
                 if (idleSec >= idleTimeoutSec) {
                     timedOut = true
-                    timeoutReason = "توقف عن إخراج أي نتيجة منذ ${idleSec}s"
+                    timeoutReason = context.getString(R.string.ui_term_timeout_idle, idleSec)
                     break
                 }
                 if (totalSec >= maxTimeoutSec) {
                     timedOut = true
-                    timeoutReason = "تجاوز الحد الأقصى (${maxTimeoutSec}s)"
+                    timeoutReason = context.getString(R.string.ui_term_timeout_max, maxTimeoutSec)
                     break
                 }
                 Thread.sleep(2000)
@@ -127,18 +129,21 @@ object TerminalSession {
             if (timedOut) {
                 val msg = buildString {
                     if (partial.isNotEmpty()) appendLine(partial)
-                    append("تم إيقاف الأمر: $timeoutReason")
+                    append(context.getString(R.string.ui_term_stopped, timeoutReason))
                 }
                 return TerminalResult(msg, -1, true)
             }
 
             TerminalResult(
-                output = partial.ifEmpty { "(لا مخرجات)" },
+                // Machine-compared sentinel (AppsFragment compares
+                // against it); the resource value is byte-identical
+                // in every locale, so resolving it here is safe.
+                output = partial.ifEmpty { context.getString(R.string.ui_no_output) },
                 exitCode = proc.exitValue(),
                 timedOut = false
             )
         } catch (e: Exception) {
-            TerminalResult("خطأ: ${e.message}", -1, false)
+            TerminalResult(context.getString(R.string.ui_error_prefix, e.message), -1, false)
         }
     }
 }

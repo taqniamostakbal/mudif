@@ -3,6 +3,8 @@ package com.bolm.mudif.ui.settings
 import android.content.Context
 import android.content.SharedPreferences
 
+import com.bolm.mudif.R
+
 /**
  * P18.3 — Viewer settings (Termux:X11) in Fusha Arabic, Mudif style.
  *
@@ -46,29 +48,31 @@ object ViewerPrefs {
 
     sealed class Setting {
         abstract val key: String
-        abstract val title: String
-        abstract val desc: String
+        abstract val titleRes: Int
+        abstract val descRes: Int
     }
 
     data class SwitchSetting(
         override val key: String,
-        override val title: String,
-        override val desc: String,
+        override val titleRes: Int,
+        override val descRes: Int,
         val default: Boolean
     ) : Setting()
 
     data class ListSetting(
         override val key: String,
-        override val title: String,
-        override val desc: String,
-        val options: List<Pair<String, String>>, // value -> Fusha label
+        override val titleRes: Int,
+        override val descRes: Int,
+        // value -> label resource id; 0 means the label IS the value
+        // (used for the resolution list, e.g. "1280x720").
+        val options: List<Pair<String, Int>>,
         val default: String
     ) : Setting()
 
     data class SliderSetting(
         override val key: String,
-        override val title: String,
-        override val desc: String,
+        override val titleRes: Int,
+        override val descRes: Int,
         val min: Int,
         val max: Int,
         val default: Int
@@ -76,32 +80,32 @@ object ViewerPrefs {
 
     data class TextSetting(
         override val key: String,
-        override val title: String,
-        override val desc: String,
+        override val titleRes: Int,
+        override val descRes: Int,
         val default: String
     ) : Setting()
 
     data class ActionSetting(
         override val key: String,
-        override val title: String,
-        override val desc: String
+        override val titleRes: Int,
+        override val descRes: Int
     ) : Setting()
 
-    data class Section(val title: String, val settings: List<Setting>)
+    data class Section(val titleRes: Int, val settings: List<Setting>)
 
     private fun list(
-        key: String, title: String, desc: String,
-        options: List<Pair<String, String>>, default: String
-    ) = ListSetting(key, title, desc, options, default)
+        key: String, titleRes: Int, descRes: Int,
+        options: List<Pair<String, Int>>, default: String
+    ) = ListSetting(key, titleRes, descRes, options, default)
 
-    private fun switch(key: String, title: String, desc: String, default: Boolean) =
-        SwitchSetting(key, title, desc, default)
+    private fun switch(key: String, titleRes: Int, descRes: Int, default: Boolean) =
+        SwitchSetting(key, titleRes, descRes, default)
 
-    private fun slider(key: String, title: String, desc: String, min: Int, max: Int, default: Int) =
-        SliderSetting(key, title, desc, min, max, default)
+    private fun slider(key: String, titleRes: Int, descRes: Int, min: Int, max: Int, default: Int) =
+        SliderSetting(key, titleRes, descRes, min, max, default)
 
-    private fun text(key: String, title: String, desc: String, default: String) =
-        TextSetting(key, title, desc, default)
+    private fun text(key: String, titleRes: Int, descRes: Int, default: String) =
+        TextSetting(key, titleRes, descRes, default)
 
     val RESOLUTIONS = listOf(
         "320x200", "320x240", "352x288", "400x240", "640x350", "640x480",
@@ -112,169 +116,169 @@ object ViewerPrefs {
     )
 
     private val USER_ACTIONS = listOf(
-        "no action" to "بلا إجراء",
-        "toggle soft keyboard" to "تبديل لوحة المفاتيح البرمجية",
-        "toggle additional key bar" to "تبديل شريط المفاتيح الإضافية",
-        "open preferences" to "فتح الإعدادات",
-        "release pointer and keyboard capture" to "تحرير المؤشر ولوحة المفاتيح",
-        "toggle fullscreen" to "تبديل ملء الشاشة",
-        "restart activity" to "إعادة تشغيل النشاط",
-        "exit" to "الخروج"
+        "no action" to R.string.vp_opt_no_action,
+        "toggle soft keyboard" to R.string.vp_opt_toggle_soft_keyboard,
+        "toggle additional key bar" to R.string.vp_opt_toggle_additional_key_bar,
+        "open preferences" to R.string.vp_opt_open_preferences,
+        "release pointer and keyboard capture" to R.string.vp_opt_release_pointer_keyboard,
+        "toggle fullscreen" to R.string.vp_opt_toggle_fullscreen,
+        "restart activity" to R.string.vp_opt_restart_activity,
+        "exit" to R.string.vp_opt_exit
     )
     private val USER_ACTIONS_VOLUME = USER_ACTIONS + listOf(
-        "send volume up" to "إرسال رفع الصوت",
-        "send volume down" to "إرسال خفض الصوت"
+        "send volume up" to R.string.vp_opt_send_volume_up,
+        "send volume down" to R.string.vp_opt_send_volume_down
     )
     private val USER_ACTIONS_MEDIA = USER_ACTIONS + listOf(
-        "send media action" to "إرسال إجراء الوسائط"
+        "send media action" to R.string.vp_opt_send_media_action
     )
 
     val SECTIONS: List<Section> = listOf(
-        Section("العرض", listOf(
-            list("displayResolutionMode", "وضع دقة العرض",
-                "كيف يحدد القارئ دقة سطح المكتب",
-                listOf("native" to "أصلية", "scaled" to "مقيّسة",
-                    "exact" to "دقيقة", "custom" to "مخصصة"), "scaled"),
-            slider("displayScale", "مقياس العرض",
-                "تكبير سطح المكتب أو تصغيره (٪)", 30, 300, 200),
-            list("displayResolutionExact", "الدقة الدقيقة",
-                "الدقة المستعملة عند اختيار الوضع الدقيق",
-                RESOLUTIONS.map { it to it }, "1280x1024"),
-            text("displayResolutionCustom", "دقة مخصصة",
-                "اكتب الدقة بصيغة العرض×الارتفاع، مثل 1560x720", "1280x1024"),
-            list("displayFilteringMode", "طريقة تنعيم العرض",
-                "كيف تُصقل الصورة عند تغيير حجمها",
-                listOf("bilinear" to "ثنائي الخط", "nearest" to "الأقرب"),
+        Section(R.string.vp_section_display, listOf(
+            list("displayResolutionMode", R.string.vp_displayresolutionmode_title,
+                R.string.vp_displayresolutionmode_desc,
+                listOf("native" to R.string.vp_opt_native, "scaled" to R.string.vp_opt_scaled,
+                    "exact" to R.string.vp_opt_exact, "custom" to R.string.vp_opt_custom), "scaled"),
+            slider("displayScale", R.string.vp_displayscale_title,
+                R.string.vp_displayscale_desc, 30, 300, 200),
+            list("displayResolutionExact", R.string.vp_displayresolutionexact_title,
+                R.string.vp_displayresolutionexact_desc,
+                RESOLUTIONS.map { it to 0 }, "1280x1024"),
+            text("displayResolutionCustom", R.string.vp_displayresolutioncustom_title,
+                R.string.vp_displayresolutioncustom_desc, "1280x1024"),
+            list("displayFilteringMode", R.string.vp_displayfilteringmode_title,
+                R.string.vp_displayfilteringmode_desc,
+                listOf("bilinear" to R.string.vp_opt_bilinear, "nearest" to R.string.vp_opt_nearest),
                 "nearest"),
-            switch("adjustResolution", "ضبط الدقة حسب الاتجاه",
-                "تغيير الدقة تلقائيا عند تدوير الهاتف", false),
-            switch("displayStretch", "تمديد العرض لملء الشاشة",
-                "تمديد سطح المكتب ليملأ الشاشة بلا أشرطة سوداء", false),
-            switch("Reseed", "إعادة ضبط الشاشة عند فتح لوحة المفاتيح",
-                "تعديل حجم الشاشة أثناء فتح لوحة المفاتيح البرمجية", true),
-            switch("PIP", "وضع الصورة داخل الصورة",
-                "عرض التطبيق في نافذة صغيرة عند الضغط على زر الرئيسية", true),
-            switch("fullscreen", "ملء الشاشة",
-                "تفعيل الوضع الغامر في شاشة الهاتف", true),
-            list("forceOrientation", "اتجاه الشاشة",
-                "تثبيت اتجاه القارئ أو تركه تلقائيا",
-                listOf("auto" to "تلقائي", "portrait" to "عمودي",
-                    "landscape" to "أفقي", "reverse portrait" to "عمودي معكوس",
-                    "reverse landscape" to "أفقي معكوس"), "auto"),
-            switch("hideCutout", "إخفاء نتوء الشاشة",
-                "إخفاء النتوء (إن وجد) في أعلى الشاشة", true),
-            switch("keepScreenOn", "إبقاء الشاشة مضاءة",
-                "منع الشاشة من الانطفاء أثناء استعمال سطح المكتب", true)
+            switch("adjustResolution", R.string.vp_adjustresolution_title,
+                R.string.vp_adjustresolution_desc, false),
+            switch("displayStretch", R.string.vp_displaystretch_title,
+                R.string.vp_displaystretch_desc, false),
+            switch("Reseed", R.string.vp_reseed_title,
+                R.string.vp_reseed_desc, true),
+            switch("PIP", R.string.vp_pip_title,
+                R.string.vp_pip_desc, true),
+            switch("fullscreen", R.string.vp_fullscreen_title,
+                R.string.vp_fullscreen_desc, true),
+            list("forceOrientation", R.string.vp_forceorientation_title,
+                R.string.vp_forceorientation_desc,
+                listOf("auto" to R.string.vp_opt_auto, "portrait" to R.string.vp_opt_portrait,
+                    "landscape" to R.string.vp_opt_landscape, "reverse portrait" to R.string.vp_opt_reverse_portrait,
+                    "reverse landscape" to R.string.vp_opt_reverse_landscape), "auto"),
+            switch("hideCutout", R.string.vp_hidecutout_title,
+                R.string.vp_hidecutout_desc, true),
+            switch("keepScreenOn", R.string.vp_keepscreenon_title,
+                R.string.vp_keepscreenon_desc, true)
         )),
-        Section("المؤشر", listOf(
-            list("touchMode", "وضع إدخال شاشة اللمس",
-                "لمس محاكى: المؤشر يتبع إصبعك. لوحة لمس: المؤشر يتحرك نسبيا. لمس مباشر: النقر فقط.",
-                listOf("1" to "لوحة لمس", "2" to "لمس محاكى",
-                    "3" to "لمس مباشر"), "1"),
-            switch("scaleTouchpad", "تطبيق مقياس العرض على لوحة اللمس",
-                "ضبط سرعة لوحة اللمس حسب مقياس العرض", true),
-            switch("showStylusClickOverride", "إظهار تجاوز نقرة القلم",
-                "إظهار زر لتجاوز نقرة القلم", false),
-            switch("stylusIsMouse", "القلم يعمل كفأرة",
-                "معاملة القلم كفأرة عوض أداة لمس", false),
+        Section(R.string.vp_section_pointer, listOf(
+            list("touchMode", R.string.vp_touchmode_title,
+                R.string.vp_touchmode_desc,
+                listOf("1" to R.string.vp_opt_touchpad, "2" to R.string.vp_opt_simulated_touch,
+                    "3" to R.string.vp_opt_direct_touch), "1"),
+            switch("scaleTouchpad", R.string.vp_scaletouchpad_title,
+                R.string.vp_scaletouchpad_desc, true),
+            switch("showStylusClickOverride", R.string.vp_showstylusclickoverride_title,
+                R.string.vp_showstylusclickoverride_desc, false),
+            switch("stylusIsMouse", R.string.vp_stylusismouse_title,
+                R.string.vp_stylusismouse_desc, false),
             switch("stylusButtonContactModifierMode",
-                "زر القلم كمعدّل عند اللمس",
-                "استعمال زر القلم كمعدّل (Ctrl/Alt) عند ملامسة الشاشة", false),
-            switch("showMouseHelper", "أزرار الماوس على الشاشة",
-                "أزرار النقر الأيسر والأوسط والأيمن للاستعمال مع لوحة اللمس", false),
-            switch("pointerCapture", "التقاط أجهزة المؤشر الخارجية",
-                "اعتراض كل أحداث أجهزة المؤشر المادية عند الإمكان", true),
-            list("transformCapturedPointer", "تحويل حركة المؤشر الملتقط",
-                "تدوير حركة المؤشر الملتقط حسب اتجاه الشاشة",
-                listOf("no" to "بدون تحويل", "c" to "باتجاه عقارب الساعة",
-                    "cc" to "عكس عقارب الساعة", "ud" to "مقلوب",
-                    "at" to "تلقائي"), "no"),
-            slider("capturedPointerSpeedFactor", "سرعة المؤشر الملتقط",
-                "عامل سرعة المؤشر الملتقط (٪)", 1, 300, 100),
-            switch("tapToMove", "النقر للتحريك في لوحة اللمس",
-                "النقر مرة يحرك المؤشر، والنقر مرتين ينقر", false),
-            switch("ignoreGamepadEvents", "تجاهل أحداث لوحة الألعاب",
-                "منع أحداث لوحة الألعاب وعصا التحكم من الوصول إلى الخادم", false)
+                R.string.vp_stylusbuttoncontactmodifiermode_title,
+                R.string.vp_stylusbuttoncontactmodifiermode_desc, false),
+            switch("showMouseHelper", R.string.vp_showmousehelper_title,
+                R.string.vp_showmousehelper_desc, false),
+            switch("pointerCapture", R.string.vp_pointercapture_title,
+                R.string.vp_pointercapture_desc, true),
+            list("transformCapturedPointer", R.string.vp_transformcapturedpointer_title,
+                R.string.vp_transformcapturedpointer_desc,
+                listOf("no" to R.string.vp_opt_no_transform, "c" to R.string.vp_opt_clockwise,
+                    "cc" to R.string.vp_opt_counterclockwise, "ud" to R.string.vp_opt_upside_down,
+                    "at" to R.string.vp_opt_transform_auto), "no"),
+            slider("capturedPointerSpeedFactor", R.string.vp_capturedpointerspeedfactor_title,
+                R.string.vp_capturedpointerspeedfactor_desc, 1, 300, 100),
+            switch("tapToMove", R.string.vp_taptomove_title,
+                R.string.vp_taptomove_desc, false),
+            switch("ignoreGamepadEvents", R.string.vp_ignoregamepadevents_title,
+                R.string.vp_ignoregamepadevents_desc, false)
         )),
-        Section("لوحة المفاتيح", listOf(
-            switch("showAdditionalKbd", "إظهار لوحة المفاتيح الإضافية",
-                "إظهار شريط المفاتيح الإضافية (ESC وCtrl وغيرها)", true),
+        Section(R.string.vp_section_keyboard, listOf(
+            switch("showAdditionalKbd", R.string.vp_showadditionalkbd_title,
+                R.string.vp_showadditionalkbd_desc, true),
             switch("showIMEWhileExternalConnected",
-                "إظهار لوحة المفاتيح البرمجية مع لوحة خارجية",
-                "إظهار لوحة المفاتيح البرمجية أثناء اتصال لوحة مفاتيح مادية", true),
-            switch("preferScancodes", "تفضيل رموز المفاتيح عند الإمكان",
-                "ترك خادم X يعالج تخطيط لوحة المفاتيح المادية", false),
+                R.string.vp_showimewhileexternalconnected_title,
+                R.string.vp_showimewhileexternalconnected_desc, true),
+            switch("preferScancodes", R.string.vp_preferscancodes_title,
+                R.string.vp_preferscancodes_desc, false),
             switch("hardwareKbdScancodesWorkaround",
-                "حل بديل لرموز لوحة المفاتيح المادية",
-                "يصلح الرموز في بعض الأجهزة، وقد يسبب مشاكل مع تخطيطات متعددة", true),
-            switch("dexMetaKeyCapture", "التقاط مفتاح Meta في وضع Dex",
-                "التقاط مفتاح Meta (Win) في وضع سامسونج Dex", false),
+                R.string.vp_hardwarekbdscancodesworkaround_title,
+                R.string.vp_hardwarekbdscancodesworkaround_desc, true),
+            switch("dexMetaKeyCapture", R.string.vp_dexmetakeycapture_title,
+                R.string.vp_dexmetakeycapture_desc, false),
             ActionSetting("enableAccessibilityService",
-                "تفعيل خدمة الوصول يدويا",
-                "فتح إعدادات الوصول في النظام لاعتراض اختصارات النظام"),
+                R.string.vp_enableaccessibilityservice_title,
+                R.string.vp_enableaccessibilityservice_desc),
             switch("enableAccessibilityServiceAutomatically",
-                "تفعيل خدمة الوصول تلقائيا",
-                "يتطلب إذن WRITE_SECURE_SETTINGS", false),
+                R.string.vp_enableaccessibilityserviceautomatically_title,
+                R.string.vp_enableaccessibilityserviceautomatically_desc, false),
             switch("pauseKeyInterceptingWithEsc",
-                "إيقاف اعتراض المفاتيح مؤقتا بمفتاح Esc",
-                "يتطلب اعتراض اختصارات النظام", false),
-            switch("filterOutWinkey", "تصفية مفتاح Win المعترض",
-                "السماح باستعمال اختصارات Dex أثناء الاعتراض", false),
-            switch("enforceCharBasedInput", "فرض الإدخال المعتمد على الأحرف",
-                "إيقاف الاقتراحات والكتابة التنبؤية ولغات CJK", false)
+                R.string.vp_pausekeyinterceptingwithesc_title,
+                R.string.vp_pausekeyinterceptingwithesc_desc, false),
+            switch("filterOutWinkey", R.string.vp_filteroutwinkey_title,
+                R.string.vp_filteroutwinkey_desc, false),
+            switch("enforceCharBasedInput", R.string.vp_enforcecharbasedinput_title,
+                R.string.vp_enforcecharbasedinput_desc, false)
         )),
-        Section("شريط المفاتيح الإضافية", listOf(
-            switch("adjustHeightForEK", "منع شريط المفاتيح من تغطية العرض",
-                "تصغير العرض حتى لا يغطيه شريط المفاتيح", true),
+        Section(R.string.vp_section_keybar, listOf(
+            switch("adjustHeightForEK", R.string.vp_adjustheightforek_title,
+                R.string.vp_adjustheightforek_desc, true),
             switch("useTermuxEKBarBehaviour",
-                "إلغاء تفعيل المفاتيح الخاصة بعد كل ضغطة",
-                "استعمل الضغطة المطولة لتثبيت مفتاح خاص", true),
-            slider("opacityEKBar", "شفافية شريط المفاتيح",
-                "شفافية شريط المفاتيح الإضافية (٪)", 1, 100, 100),
-            text("extra_keys_config", "تكوين المفاتيح الإضافية",
-                "تخطيط مفاتيح الشريط بصيغة JSON", "")
+                R.string.vp_usetermuxekbarbehaviour_title,
+                R.string.vp_usetermuxekbarbehaviour_desc, true),
+            slider("opacityEKBar", R.string.vp_opacityekbar_title,
+                R.string.vp_opacityekbar_desc, 1, 100, 100),
+            text("extra_keys_config", R.string.vp_extra_keys_config_title,
+                R.string.vp_extra_keys_config_desc, "")
         )),
-        Section("إجراءات المستخدم", listOf(
-            list("swipeUpAction", "إجراء السحب للأعلى",
-                "ما يحدث عند السحب بثلاثة أصابع للأعلى",
+        Section(R.string.vp_section_user_actions, listOf(
+            list("swipeUpAction", R.string.vp_swipeupaction_title,
+                R.string.vp_swipeupaction_desc,
                 USER_ACTIONS, "no action"),
-            list("swipeDownAction", "إجراء السحب للأسفل",
-                "ما يحدث عند السحب بثلاثة أصابع للأسفل",
+            list("swipeDownAction", R.string.vp_swipedownaction_title,
+                R.string.vp_swipedownaction_desc,
                 USER_ACTIONS, "toggle additional key bar"),
-            list("volumeUpAction", "إجراء زر رفع الصوت",
-                "ما يحدث عند الضغط على زر رفع الصوت",
+            list("volumeUpAction", R.string.vp_volumeupaction_title,
+                R.string.vp_volumeupaction_desc,
                 USER_ACTIONS_VOLUME, "no action"),
-            list("volumeDownAction", "إجراء زر خفض الصوت",
-                "ما يحدث عند الضغط على زر خفض الصوت",
+            list("volumeDownAction", R.string.vp_volumedownaction_title,
+                R.string.vp_volumedownaction_desc,
                 USER_ACTIONS_VOLUME, "no action"),
-            list("backButtonAction", "إجراء زر الرجوع",
-                "ما يحدث عند الضغط على زر الرجوع",
+            list("backButtonAction", R.string.vp_backbuttonaction_title,
+                R.string.vp_backbuttonaction_desc,
                 USER_ACTIONS, "toggle additional key bar"),
-            list("notificationTapAction", "إجراء النقر على الإشعار",
-                "ما يحدث عند النقر على إشعار القارئ",
+            list("notificationTapAction", R.string.vp_notificationtapaction_title,
+                R.string.vp_notificationtapaction_desc,
                 USER_ACTIONS, "open preferences"),
-            list("notificationButton0Action", "إجراء زر الإشعار الأول",
-                "ما يحدث عند الضغط على زر الإشعار الأول",
+            list("notificationButton0Action", R.string.vp_notificationbutton0action_title,
+                R.string.vp_notificationbutton0action_desc,
                 USER_ACTIONS, "open preferences"),
-            list("notificationButton1Action", "إجراء زر الإشعار الثاني",
-                "ما يحدث عند الضغط على زر الإشعار الثاني",
+            list("notificationButton1Action", R.string.vp_notificationbutton1action_title,
+                R.string.vp_notificationbutton1action_desc,
                 USER_ACTIONS, "exit"),
-            list("mediaKeysAction", "إجراء مفاتيح الوسائط",
-                "ما يحدث عند الضغط على مفاتيح الوسائط",
+            list("mediaKeysAction", R.string.vp_mediakeysaction_title,
+                R.string.vp_mediakeysaction_desc,
                 USER_ACTIONS_MEDIA, "no action")
         )),
-        Section("أخرى", listOf(
-            switch("clipboardEnable", "تفعيل الحافظة المشتركة",
-                "مزامنة الحافظة بين أندرويد وسطح المكتب", true),
+        Section(R.string.vp_section_other, listOf(
+            switch("clipboardEnable", R.string.vp_clipboardenable_title,
+                R.string.vp_clipboardenable_desc, true),
             switch("storeSecondaryDisplayPreferencesSeparately",
-                "حفظ إعدادات الشاشة الثانوية بشكل منفصل",
-                "حفظ إعدادات الشاشة الخارجية في ملف مستقل", false),
+                R.string.vp_storesecondarydisplaypreferencesseparately_title,
+                R.string.vp_storesecondarydisplaypreferencesseparately_desc, false),
             ActionSetting("configureResponseToUserActions",
-                "ضبط إجراءات المستخدم",
-                "الانتقال إلى قسم إجراءات المستخدم في الأسفل"),
+                R.string.vp_configureresponsetouseractions_title,
+                R.string.vp_configureresponsetouseractions_desc),
             ActionSetting("requestNotificationPermission",
-                "طلب إذن الإشعارات",
-                "طلب إذن عرض إشعارات القارئ من النظام")
+                R.string.vp_requestnotificationpermission_title,
+                R.string.vp_requestnotificationpermission_desc)
         ))
     )
 }

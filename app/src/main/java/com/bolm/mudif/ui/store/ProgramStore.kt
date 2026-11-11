@@ -1,6 +1,7 @@
 package com.bolm.mudif.ui.store
 
 import android.content.Context
+import com.bolm.mudif.R
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.TerminalResult
 import com.bolm.mudif.engine.TerminalSession
@@ -92,14 +93,14 @@ object ProgramStore {
                     30, 60
                 )
                 val installed = r.output.contains("install ok installed")
-                installed to if (installed) r.output.trim() else lastLine(r.output)
+                installed to if (installed) r.output.trim() else lastLine(context, r.output)
             }
             "script" -> {
                 val r = TerminalSession.runCommandDebian(
                     context, "command -v ${program.binary}", 30, 60
                 )
                 val installed = r.exitCode == 0 && r.output.isNotBlank()
-                installed to if (installed) r.output.trim() else lastLine(r.output)
+                installed to if (installed) r.output.trim() else lastLine(context, r.output)
             }
             "font" -> {
                 if (program.font != null) {
@@ -107,7 +108,7 @@ object ProgramStore {
                     val r = TerminalSession.runCommandDebian(
                         context, "ls -l $path 2>&1", 30, 60
                     )
-                    (r.exitCode == 0) to if (r.exitCode == 0) r.output.trim() else lastLine(r.output)
+                    (r.exitCode == 0) to if (r.exitCode == 0) r.output.trim() else lastLine(context, r.output)
                 } else {
                     val r = TerminalSession.runCommandDebian(
                         context,
@@ -115,7 +116,7 @@ object ProgramStore {
                         30, 60
                     )
                     val installed = r.output.contains("install ok installed")
-                    installed to if (installed) r.output.trim() else lastLine(r.output)
+                    installed to if (installed) r.output.trim() else lastLine(context, r.output)
                 }
             }
             else -> false to ""
@@ -151,7 +152,7 @@ object ProgramStore {
                 }
                 line.startsWith("MUDIF_PROGRESS:") -> {
                     val pct = line.removePrefix("MUDIF_PROGRESS:").trim().toIntOrNull()
-                    if (pct != null) onProgress("جاري التحميل…", pct.coerceIn(0, 100))
+                    if (pct != null) onProgress(context.getString(R.string.downloading), pct.coerceIn(0, 100))
                 }
                 else -> {
                     // apt's own download progress, when it prints one:
@@ -159,7 +160,7 @@ object ProgramStore {
                     // dialog stays indeterminate on the stage instead.
                     val m = Regex("""\[(\d{1,3})%\]\s*$""").find(line)
                     val pct = m?.groupValues?.getOrNull(1)?.toIntOrNull()
-                    if (pct != null) onProgress("جاري التحميل…", pct.coerceIn(0, 100))
+                    if (pct != null) onProgress(context.getString(R.string.downloading), pct.coerceIn(0, 100))
                 }
             }
         }
@@ -194,10 +195,10 @@ object ProgramStore {
             }
             "deb" -> {
                 val url = debUrlFor(program, arch)
-                    ?: return TerminalResult("لا توجد نسخة arm64 لهذا البرنامج", -1, false)
+                    ?: return TerminalResult(context.getString(R.string.ui_store_no_arm64_error), -1, false)
                 val file = url.substringAfterLast('/')
                 if (url.isBlank() || file.isBlank())
-                    return TerminalResult("رابط الحزمة غير صالح", -1, false)
+                    return TerminalResult(context.getString(R.string.ui_store_bad_url), -1, false)
                 // Real download percentage: Content-Length from a HEAD
                 // request, then the downloaded file size polled every
                 // 2 s. No Content-Length (or a failed HEAD) falls back
@@ -236,7 +237,7 @@ object ProgramStore {
             }
             "script" -> {
                 if (!stageAssetToGuest(context, program.script!!, "$STORE_TMP/${program.script}")) {
-                    return TerminalResult("تعذر تجهيز سكربت التثبيت", -1, false)
+                    return TerminalResult(context.getString(R.string.ui_store_script_failed), -1, false)
                 }
                 runWithProgress(
                     context,
@@ -247,7 +248,7 @@ object ProgramStore {
             "font" -> {
                 if (program.font != null) {
                     if (!stageAssetToGuest(context, "store-fonts/${program.font}", "$STORE_TMP/${program.font}")) {
-                        return TerminalResult("تعذر تجهيز ملف الخط", -1, false)
+                        return TerminalResult(context.getString(R.string.ui_store_font_failed), -1, false)
                     }
                     runWithProgress(
                         context,
@@ -265,8 +266,27 @@ object ProgramStore {
                     runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress)
                 }
             }
-            else -> TerminalResult("طريقة تثبيت غير معروفة", -1, false)
+            else -> TerminalResult(context.getString(R.string.ui_store_unknown_method), -1, false)
         }
+    }
+
+    /**
+     * Runs a guest setup script shipped as an app asset (e.g. the
+     * Arcade station setup, setup-arcade.sh). Stages it exactly like
+     * an install script (stageAssetToGuest) and runs it with sh.
+     * Returns the raw TerminalResult; the caller reports success or
+     * failure honestly from exitCode + output. This stages and runs
+     * the script only — it never edits the LXQt panel config (the
+     * panel rewrites panel.conf on exit, so a guest-script edit
+     * would be silently lost; see the Arcade wiring report).
+     */
+    fun runSetupScript(context: Context, assetName: String): TerminalResult {
+        if (!stageAssetToGuest(context, assetName, "$STORE_TMP/$assetName")) {
+            return TerminalResult(context.getString(R.string.ui_store_script_failed), -1, false)
+        }
+        return TerminalSession.runCommandDebian(
+            context, "(sh $STORE_TMP/$assetName) 2>&1", 60, 600
+        )
     }
 
     /** Removes the program from the guest. Caller must post-verify. */
@@ -302,7 +322,7 @@ object ProgramStore {
                     )
                 }
             }
-            else -> TerminalResult("طريقة إلغاء تثبيت غير معروفة", -1, false)
+            else -> TerminalResult(context.getString(R.string.ui_store_unknown_uninstall), -1, false)
         }
     }
 
@@ -337,17 +357,20 @@ object ProgramStore {
         }
     }
 
-    /** Last non-blank line of guest output, for honest failure reports. */
-    fun lastLine(output: String): String {
+    /** Last non-blank line of guest output, for honest failure reports.
+     *  The empty-output sentinel is the machine-compared "(لا مخرجات)"
+     *  (AppsFragment compares against it); its resource value is kept
+     *  byte-identical in every locale, so resolving it here is safe. */
+    fun lastLine(context: Context, output: String): String {
         val trimmed = output.trim()
-        if (trimmed.isEmpty()) return "(لا مخرجات)"
+        if (trimmed.isEmpty()) return context.getString(R.string.ui_no_output)
         return trimmed.lines().lastOrNull { it.isNotBlank() }?.trim() ?: trimmed
     }
 
     /** Last N non-blank lines of guest output, for failure dialogs. */
-    fun lastLines(output: String, n: Int = 15): String {
+    fun lastLines(context: Context, output: String, n: Int = 15): String {
         val lines = output.trim().lines().filter { it.isNotBlank() }
-        if (lines.isEmpty()) return "(لا مخرجات)"
+        if (lines.isEmpty()) return context.getString(R.string.ui_no_output)
         return lines.takeLast(n).joinToString("\n")
     }
 }

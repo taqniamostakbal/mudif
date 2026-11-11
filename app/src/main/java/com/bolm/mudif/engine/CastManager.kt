@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import android.util.Log
 import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.MediaInfo
@@ -65,6 +66,10 @@ object CastManager {
 
     private var castContext: CastContext? = null
 
+    /** Application context kept from init() for error strings on
+     *  the session-listener path (no Activity is in scope there). */
+    private var appContext: Context? = null
+
     /** HLS URL waiting for a Cast session to connect. */
     @Volatile
     private var pendingHlsUrl: String? = null
@@ -87,6 +92,7 @@ object CastManager {
 
     /** Call once from the main thread (e.g. VncActivity.onCreate). */
     fun init(context: Context) {
+        appContext = context.applicationContext
         try {
             val cc = CastContext.getSharedInstance(context.applicationContext)
             castContext = cc
@@ -97,7 +103,7 @@ object CastManager {
             Log.d(TAG, "Cast available")
         } catch (e: Exception) {
             available = false
-            lastError = "Cast غير متوفر: ${e.message}"
+            lastError = context.getString(R.string.ui_cast_unavailable, e.message)
             Log.w(TAG, "Cast init failed: ${e.message}")
         }
     }
@@ -145,7 +151,7 @@ object CastManager {
         return try {
             val client = session.remoteMediaClient ?: return false
             val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_GENERIC).apply {
-                putString(MediaMetadata.KEY_TITLE, "سطح مكتب مضيف")
+                putString(MediaMetadata.KEY_TITLE, appContext?.getString(R.string.ui_cast_title) ?: "Mudif")
             }
             val media = MediaInfo.Builder(hlsUrl)
                 .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
@@ -156,7 +162,8 @@ object CastManager {
             Log.d(TAG, "Cast load sent: $hlsUrl")
             true
         } catch (e: Exception) {
-            lastError = "تعذر بدء البث: ${e.message}"
+            lastError = appContext?.getString(R.string.ui_cast_start_failed, e.message)
+                ?: "Cast failed: ${e.message}"
             Log.w(TAG, "Cast load failed: ${e.message}")
             false
         }

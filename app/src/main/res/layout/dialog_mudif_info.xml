@@ -19,7 +19,7 @@
         android:layout_height="wrap_content"
         android:textSize="19sp"
         android:textStyle="bold"
-        android:textColor="#1A1A1A"
+        android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/cairo" />
 
     <ScrollView
@@ -30,12 +30,12 @@
         android:layout_marginTop="12dp"
         android:fillViewport="true">
 
-        <TextView
+        <TextView style="@style/TextAppearance.Mudif.Caption"
             android:id="@+id/dialog_message"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="14sp"
-            android:textColor="#555555"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/cairo" />
     </ScrollView>
 
@@ -47,30 +47,26 @@
         android:layout_marginTop="20dp"
         android:orientation="vertical">
 
-        <com.google.android.material.button.MaterialButton
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/dialog_btn_positive"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
             android:fontFamily="@font/cairo"
-            app:backgroundTint="@color/mudif_purple"
             app:cornerRadius="12dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/dialog_btn_neutral"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Mudif.Button.Text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@color/mudif_purple"
             android:fontFamily="@font/cairo"
             android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/dialog_btn_negative"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Mudif.Button.Text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@color/mudif_purple"
             android:fontFamily="@font/cairo"
             android:visibility="gone" />
     </LinearLayout>

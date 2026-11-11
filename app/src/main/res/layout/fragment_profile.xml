@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F7F6FF">
+    android:background="?attr/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -20,7 +20,7 @@
             android:layout_height="40dp"
             android:background="@android:color/transparent"
             android:src="@drawable/ic_menu"
-            android:contentDescription="القائمة"
+            android:contentDescription="@string/ui_nav_menu_desc"
             android:onClick="openDrawer" />
 
         <LinearLayout
@@ -30,7 +30,7 @@
             android:orientation="vertical"
             android:paddingStart="8dp">
 
-            <TextView
+            <TextView style="@style/Widget.Mudif.HeaderTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/tab_profile"
@@ -38,7 +38,7 @@
                 android:textColor="@android:color/white"
                 android:fontFamily="@font/lifta" />
 
-            <TextView
+            <TextView style="@style/Widget.Mudif.HeaderSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
@@ -62,7 +62,7 @@
                     android:paddingEnd="12dp"
                     android:paddingTop="6dp"
                     android:paddingBottom="6dp"
-                    android:text="نظام مضيف"
+                    android:text="@string/mudif_system"
                     android:textSize="12sp"
                     android:textColor="@android:color/white"
                     android:fontFamily="@font/cairo" />
@@ -76,7 +76,7 @@
                     android:paddingEnd="12dp"
                     android:paddingTop="6dp"
                     android:paddingBottom="6dp"
-                    android:text="دبيان"
+                    android:text="@string/ui_profile_distro"
                     android:textSize="12sp"
                     android:textColor="@android:color/white"
                     android:fontFamily="@font/cairo" />
@@ -90,7 +90,7 @@
                     android:paddingEnd="12dp"
                     android:paddingTop="6dp"
                     android:paddingBottom="6dp"
-                    android:text="الإصدار 0.1.0"
+                    android:text="@string/about_value"
                     android:textSize="12sp"
                     android:textColor="@android:color/white"
                     android:fontFamily="@font/cairo" />
@@ -108,11 +108,9 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -141,16 +139,16 @@
                             android:text="@string/profile_guest_name"
                             android:textSize="19sp"
                             android:textStyle="bold"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:text="@string/profile_guest_mode"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
                 </LinearLayout>
@@ -163,14 +161,12 @@
                 android:layout_marginTop="12dp"
                 android:weightSum="2">
 
-                <com.google.android.material.card.MaterialCardView
+                <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card"
                     android:id="@+id/card_systems"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="2dp">
+                    android:layout_marginEnd="6dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -189,25 +185,23 @@
                             android:textColor="@color/mudif_purple"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/my_systems"
                             android:textSize="13sp"
-                            android:textColor="#555555"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <com.google.android.material.card.MaterialCardView
+                <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card"
                     android:id="@+id/card_apps"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="6dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="2dp">
+                    android:layout_marginStart="6dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -226,13 +220,13 @@
                             android:textColor="@color/mudif_purple"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/my_apps"
                             android:textSize="13sp"
-                            android:textColor="#555555"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -246,15 +240,13 @@
                 android:text="@string/settings_title"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:textColor="#1A1A1A"
+                android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/cairo" />
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_language"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -269,21 +261,21 @@
                         android:layout_weight="1"
                         android:orientation="vertical">
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Body"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/language"
                             android:textSize="16sp"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/language_value"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -292,18 +284,16 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <!-- P18.3 — Viewer settings (Termux:X11), Fusha, Mudif style. -->
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_viewer_settings"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                android:layout_marginTop="10dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -318,21 +308,21 @@
                         android:layout_weight="1"
                         android:orientation="vertical">
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Body"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/viewer_settings_row_title"
                             android:textSize="16sp"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/viewer_settings_row_subtitle"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -341,17 +331,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_engine"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="1dp">
 
@@ -377,13 +365,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/engine_check_desc"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -392,17 +380,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_terminal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="1dp">
 
@@ -428,13 +414,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/terminal_subtitle"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -443,17 +429,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_vnc_mudif"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="2dp">
 
@@ -479,13 +463,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/mudif_system_desc"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -494,17 +478,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_logs"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="1dp">
 
@@ -530,13 +512,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/log_desc"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -545,17 +527,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_shared_folder"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="1dp">
 
@@ -581,13 +561,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:id="@+id/text_shared_folder_path"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -596,17 +576,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_system_update"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="1dp">
 
@@ -632,13 +610,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/system_update_desc"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -647,17 +625,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_backup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="1dp">
 
@@ -683,13 +659,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/backup_desc"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -698,17 +674,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_task_manager"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/mudif_purple"
                 app:strokeWidth="1dp">
 
@@ -734,13 +708,13 @@
                             android:textStyle="bold"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/task_manager_desc"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -749,17 +723,15 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_about"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                android:layout_marginTop="10dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -774,21 +746,21 @@
                         android:layout_weight="1"
                         android:orientation="vertical">
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Body"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/about"
                             android:textSize="16sp"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/about_value"
                             android:textSize="13sp"
-                            android:textColor="#777777"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
@@ -797,7 +769,7 @@
                         android:layout_height="wrap_content"
                         android:text="‹"
                         android:textSize="24sp"
-                        android:textColor="#AAAAAA" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

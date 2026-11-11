@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Phase 6: the agent's AccessibilityService (own screens only). -->
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
     <!-- Phase 1d: floating icon controls over the viewer. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -21,13 +23,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Mudif">
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true" />
         <activity
             android:name=".ui.terminal.TerminalActivity"
             android:exported="false"
@@ -36,7 +41,7 @@
         <activity
             android:name=".ui.vnc.VncActivity"
             android:exported="false"
-            android:label="سطح مكتب لينكس"
+            android:label="@string/ui_vnc_activity_label"
             android:launchMode="singleTop"
             android:screenOrientation="landscape" />
         <activity
@@ -46,15 +51,15 @@
         <activity
             android:name=".ui.logs.LogViewerActivity"
             android:exported="false"
-            android:label="سجلات سطح المكتب" />
+            android:label="@string/log_title" />
         <activity
             android:name=".ui.control.ControlCenterActivity"
             android:exported="false"
-            android:label="مركز التحكم" />
+            android:label="@string/control_center" />
         <activity
             android:name=".ui.control.TaskManagerActivity"
             android:exported="false"
-            android:label="مدير المهام" />
+            android:label="@string/task_manager_title" />
         <receiver
             android:name=".ui.control.ScreenRecordReceiver"
             android:exported="false">
@@ -66,6 +71,25 @@
             android:name=".engine.InstallService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Phase 6: supervisor for the whole-app agent (bridge + brain server). -->
+        <service
+            android:name=".engine.AgentSupervisorService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        <!-- Phase 6: the agent's hands/eyes on the Android layer.
+             Enabled by the user in Settings > Accessibility; the app
+             cannot enable it itself. -->
+        <service
+            android:name=".ui.agent.MudifAccessibilityService"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/mudif_accessibility_service_config" />
+        </service>
         <!-- Phase 2 — Google Cast sender: the framework reads the
              OptionsProvider (Default Media Receiver, no custom app ID)
              from this meta-data. No Remote Display API is used. -->

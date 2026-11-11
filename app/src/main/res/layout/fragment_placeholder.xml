@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="#F7F6FF"
+    android:background="?attr/colorBackground"
     android:padding="32dp">
 
     <TextView
@@ -15,12 +15,12 @@
         android:textColor="@color/mudif_purple"
         android:fontFamily="@font/lifta" />
 
-    <TextView
+    <TextView style="@style/TextAppearance.Mudif.Caption"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:text="@string/coming_soon_long"
         android:textSize="15sp"
-        android:textColor="#777777"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/cairo" />
 </LinearLayout>
