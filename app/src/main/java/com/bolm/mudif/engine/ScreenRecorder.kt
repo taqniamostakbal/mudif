@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import android.util.Log
 import java.io.File
 
@@ -146,7 +147,7 @@ object ScreenRecorder {
                 as android.app.NotificationManager
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 val channel = android.app.NotificationChannel(
-                    CHANNEL_ID, "تسجيل الشاشة",
+                    CHANNEL_ID, context.getString(R.string.ui_notif_record_channel),
                     android.app.NotificationManager.IMPORTANCE_LOW
                 )
                 nm.createNotificationChannel(channel)
@@ -161,9 +162,9 @@ object ScreenRecorder {
             )
             val notification = androidx.core.app.NotificationCompat.Builder(app, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentTitle("جار تسجيل سطح المكتب…")
-                .setContentText("اضغط للإيقاف وحفظ التسجيل")
-                .addAction(android.R.drawable.ic_media_pause, "إيقاف", pending)
+                .setContentTitle(context.getString(R.string.record_running))
+                .setContentText(context.getString(R.string.ui_notif_record_stop))
+                .addAction(android.R.drawable.ic_media_pause, context.getString(R.string.ui_stop), pending)
                 .setOngoing(true)
                 .build()
             nm.notify(NOTIFICATION_ID, notification)

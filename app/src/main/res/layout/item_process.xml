@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact" xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginStart="12dp"
     android:layout_marginEnd="12dp"
-    android:layout_marginTop="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp">
+    android:layout_marginTop="8dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -28,25 +26,25 @@
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="#1A1A1A"
+                android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/cairo" />
 
-            <TextView
+            <TextView style="@style/TextAppearance.Mudif.Caption"
                 android:id="@+id/process_detail"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textSize="13sp"
-                android:textColor="#777777"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/cairo" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_kill"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Mudif.Button.Text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="إيقاف"
+            android:text="@string/ui_stop"
             android:textColor="#B3261E"
             android:fontFamily="@font/cairo"
             android:textSize="13sp" />

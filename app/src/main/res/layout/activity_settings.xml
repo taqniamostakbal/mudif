@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F7F6FF">
+    android:background="?attr/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -28,7 +28,7 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
+            <TextView style="@style/Widget.Mudif.HeaderTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/viewer_settings_title"
@@ -36,7 +36,7 @@
                 android:textColor="@android:color/white"
                 android:fontFamily="@font/lifta" />
 
-            <TextView
+            <TextView style="@style/Widget.Mudif.HeaderSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"

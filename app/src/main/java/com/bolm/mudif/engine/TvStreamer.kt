@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
@@ -161,18 +162,18 @@ object TvStreamer {
         state = TvState.STARTING
         lastError = null
         if (!GuestSession.alive || !GuestSession.booted) {
-            lastError = "نظام مضيف ما قلعش بعد"
+            lastError = context.getString(R.string.ui_tv_err_not_booted)
             state = TvState.ERROR
             return false
         }
         if (!X11Session.isTcpDisplayOpen()) {
-            lastError = "خادم X ما خدامش"
+            lastError = context.getString(R.string.ui_tv_err_no_x)
             state = TvState.ERROR
             return false
         }
         val ip = lanIpAddress()
         if (ip == null) {
-            lastError = "ما لقيتش عنوان الشبكة المحلية"
+            lastError = context.getString(R.string.ui_tv_err_no_ip)
             state = TvState.ERROR
             return false
         }
@@ -185,9 +186,9 @@ object TvStreamer {
                 try { f.delete() } catch (_: Exception) { }
             }
         }
-        val server = HttpServer(dir)
+        val server = HttpServer(dir, context.applicationContext)
         if (!server.start()) {
-            lastError = "تعذر فتح خادم البث على الهاتف"
+            lastError = context.getString(R.string.ui_tv_err_no_server)
             state = TvState.ERROR
             return false
         }
@@ -209,7 +210,7 @@ object TvStreamer {
             "[f=mpegts:onfail=ignore]http://127.0.0.1:$httpPort/live.ts\" " +
             "> $LOG_FILE 2>&1 & echo \$! > $PID_FILE"
         if (!GuestSession.sendCommand(cmd)) {
-            lastError = "تعذر إرسال أمر البث إلى النظام"
+            lastError = context.getString(R.string.ui_tv_err_no_send)
             stopServerOnly(context)
             state = TvState.ERROR
             return false
@@ -221,7 +222,7 @@ object TvStreamer {
             Thread.sleep(200)
         }
         if (!pidFile(context).exists()) {
-            lastError = "ffmpeg ما بداش — ${lastLog(context).takeLast(200)}"
+            lastError = context.getString(R.string.ui_tv_err_no_ffmpeg, lastLog(context).takeLast(200))
             stopServerOnly(context)
             state = TvState.ERROR
             return false
@@ -238,7 +239,7 @@ object TvStreamer {
             if (!isPidAlive(context)) break
             Thread.sleep(500)
         }
-        lastError = "البث ما بداش — ${lastLog(context).takeLast(300)}"
+        lastError = context.getString(R.string.ui_tv_err_no_stream, lastLog(context).takeLast(300))
         stop(context)
         state = TvState.ERROR
         return false
@@ -363,7 +364,8 @@ object TvStreamer {
      * segments dir are served (canonical-path check).
      */
     private class HttpServer(
-        private val segmentsDir: File
+        private val segmentsDir: File,
+        private val context: Context
     ) {
         var port: Int = -1
             private set
@@ -628,12 +630,12 @@ object TvStreamer {
             val url = "http://${TvStreamer.lanIp ?: "?"}:$port/stream.m3u8"
             val count = segmentsDir.listFiles()?.count { it.name.endsWith(".ts") } ?: 0
             return "<!DOCTYPE html><html lang=\"ar\" dir=\"rtl\"><head>" +
-                "<meta charset=\"utf-8\"><title>بث مضيف</title></head><body>" +
-                "<h1>بث نظام مضيف</h1>" +
-                "<p>الحالة: ${TvStreamer.state.name}</p>" +
-                "<p>البث المباشر: <a href=\"/stream.m3u8\">$url</a></p>" +
-                "<p>مقاطع جاهزة: $count</p>" +
-                "<p>البث السريع: <a href=\"/live.ts\">/live.ts</a></p>" +
+                "<meta charset=\"utf-8\"><title>" + context.getString(R.string.ui_tvpage_title) + "</title></head><body>" +
+                "<h1>" + context.getString(R.string.ui_tvpage_heading) + "</h1>" +
+                "<p>" + context.getString(R.string.ui_tvpage_status, TvStreamer.state.name) + "</p>" +
+                "<p>" + context.getString(R.string.ui_tvpage_live, "<a href=\"/stream.m3u8\">$url</a>") + "</p>" +
+                "<p>" + context.getString(R.string.ui_tvpage_segments, count) + "</p>" +
+                "<p>" + context.getString(R.string.ui_tvpage_fast, "<a href=\"/live.ts\">/live.ts</a>") + "</p>" +
                 "</body></html>"
         }
 

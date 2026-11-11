@@ -54,7 +54,7 @@ class AppsAdapter(
         with(holder.binding) {
             appName.text = p.name
             appDesc.text = p.desc
-            appCategory.text = StoreCategory.labelFor(p.category)
+            appCategory.text = StoreCategory.labelFor(ctx, p.category)
 
             val icon = iconCache.getOrPut(p.icon) {
                 try {

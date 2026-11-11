@@ -113,8 +113,8 @@ class HomeFragment : Fragment() {
         // which image is installed (p17-v1 vs p19-v2 vs p20).
         binding.statSystem.text = if (ready) {
             val v = DebianSystem.installedImageVersion(requireContext())
-            if (v != null) "مثبت ✓ · $v" else "مثبت ✓"
-        } else "غير مثبت"
+            if (v != null) getString(R.string.ui_home_stat_installed) + " · $v" else getString(R.string.ui_home_stat_installed)
+        } else getString(R.string.ui_home_stat_not_installed)
     }
 
     private fun openDesktop() {

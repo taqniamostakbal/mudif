@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import android.os.Build
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
@@ -159,7 +160,7 @@ object DebianSystem {
                     }
                     conn.connect()
                     if (conn.responseCode != HttpURLConnection.HTTP_OK)
-                        throw RuntimeException("التحميل فشل (الجزء ${index + 1}/${urls.size}): HTTP ${conn.responseCode}")
+                        throw RuntimeException(context.getString(R.string.ui_dl_failed_part, index + 1, urls.size, conn.responseCode))
                     var partDone = 0L
                     conn.inputStream.use { input ->
                         while (true) {
@@ -173,7 +174,7 @@ object DebianSystem {
                     }
                     conn.disconnect()
                     if (partDone != expectedPartSize)
-                        throw RuntimeException("الجزء ${index + 1}/${urls.size} ناقص: وصل $partDone من $expectedPartSize بايت — أعد المحاولة")
+                        throw RuntimeException(context.getString(R.string.ui_dl_part_missing, index + 1, urls.size, partDone, expectedPartSize))
                 }
             }
         } catch (e: Exception) {
@@ -181,15 +182,15 @@ object DebianSystem {
             throw e
         }
         if (out.length() != total)
-            throw RuntimeException("التحميل ناقص: وصل ${out.length()} من $total بايت — أعد المحاولة")
+            throw RuntimeException(context.getString(R.string.ui_dl_incomplete, out.length(), total))
         if (out.length() < 1024 * 1024)
-            throw RuntimeException("ملف التحميل صغير بشكل مشبوه (${out.length()} بايت)")
+            throw RuntimeException(context.getString(R.string.ui_dl_too_small, out.length()))
         // P17: verify the reassembled image against its published
         // hash. A corrupted download must never extract into the
         // system.
         val actual = sha256Hex(out)
         if (!actual.equals(expectedSha256(), ignoreCase = true))
-            throw RuntimeException("التحميل تالف: البصمة لا تطابق المصدر — أعد المحاولة")
+            throw RuntimeException(context.getString(R.string.ui_dl_bad_hash))
     }
 
     private fun sha256Hex(file: File): String {
@@ -231,7 +232,7 @@ object DebianSystem {
                     val canon = f.canonicalPath
                     // "./" (the archive root itself) canonicalizes to dest: allow it
                     if (canon != dest.canonicalPath && !canon.startsWith(destPath))
-                        throw RuntimeException("مسار مشبوه في الأرشيف: ${entry.name}")
+                        throw RuntimeException(context.getString(R.string.ui_dl_bad_entry, entry.name))
                     when {
                         entry.isDirectory -> f.mkdirs()
                         entry.isSymbolicLink -> {
@@ -246,7 +247,7 @@ object DebianSystem {
                             try {
                                 android.system.Os.symlink(entry.linkName, f.absolutePath)
                             } catch (e: Exception) {
-                                throw RuntimeException("تعذر إنشاء الرابط ${entry.name}: ${e.message}")
+                                throw RuntimeException(context.getString(R.string.ui_dl_link_failed, entry.name, e.message))
                             }
                         }
                         entry.isLink -> {
@@ -272,13 +273,13 @@ object DebianSystem {
                                     // same bytes for the guest — copy the
                                     // target file instead of failing.
                                     val src = File(dest, targetStripped)
-                                    if (!src.isFile) throw RuntimeException("تعذر إنشاء الرابط الصلب ${entry.name}: ${e.message}")
+                                    if (!src.isFile) throw RuntimeException(context.getString(R.string.ui_dl_hardlink_missing, entry.name, e.message))
                                     try {
                                         src.inputStream().use { input ->
                                             f.outputStream().use { out -> input.copyTo(out) }
                                         }
                                     } catch (e2: Exception) {
-                                        throw RuntimeException("تعذر نسخ الرابط الصلب ${entry.name}: ${e2.message}")
+                                        throw RuntimeException(context.getString(R.string.ui_dl_hardlink_copy_failed, entry.name, e2.message))
                                     }
                                     try {
                                         android.system.Os.chmod(f.absolutePath, entry.mode and 4095)
@@ -315,7 +316,7 @@ object DebianSystem {
             throw e
         }
         if (count < 1000)
-            throw RuntimeException("الأرشيف ناقص بشكل مشبوه ($count مدخل فقط)")
+            throw RuntimeException(context.getString(R.string.ui_dl_archive_short, count))
         // Atomic completion: marker written ONLY after everything succeeded.
         File(dest, READY_MARKER).writeText(DEBIAN_VERSION)
         tarball(context).delete()
@@ -340,7 +341,7 @@ object DebianSystem {
     fun firstBoot(context: Context): String {
         return try {
             val pb = prootBuilder(context, listOf("/bin/cat", "/etc/debian_version"))
-                ?: return "المحرك غير موجود أو النظام غير مكتمل"
+                ?: return context.getString(R.string.ui_boot_no_engine)
             val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
             val code = proc.waitFor()
@@ -352,12 +353,12 @@ object DebianSystem {
                 lower.contains("exec format") ||
                 code != 0
             when {
-                out.isEmpty() -> "خرج بلا مخرجات (code=$code)"
-                failed -> "الإقلاع فشل (code=$code):\n$out"
-                else -> "دبيان خدام ✓\nالإصدار: $out"
+                out.isEmpty() -> context.getString(R.string.ui_boot_no_output, code)
+                failed -> context.getString(R.string.ui_boot_failed, code, out)
+                else -> context.getString(R.string.ui_boot_ok_debian, out)
             }
         } catch (e: Exception) {
-            "خطأ: ${e.message}"
+            context.getString(R.string.ui_error_prefix, e.message)
         }
     }
 }

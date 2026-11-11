@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -60,11 +61,11 @@ object SystemBackup {
         onProgress: (done: Long, total: Long) -> Unit
     ): File {
         if (GuestSession.alive) {
-            throw RuntimeException("سطح المكتب خدام — أوقفو أولا ثم أعد النسخ الاحتياطي")
+            throw RuntimeException(context.getString(R.string.ui_backup_desktop_running_err))
         }
         val rootfs = DebianSystem.debianRootfsDir(context)
         if (!DebianSystem.isReady(context)) {
-            throw RuntimeException("نظام مضيف غير مثبت — لا يوجد ما يُنسخ")
+            throw RuntimeException(context.getString(R.string.ui_backup_no_system))
         }
         val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
         val outFile = File(backupDir(context), "mudif-backup-$stamp.tar.xz")
@@ -142,7 +143,7 @@ object SystemBackup {
         }
         if (outFile.length() < 1024 * 1024) {
             try { outFile.delete() } catch (_: Exception) { }
-            throw RuntimeException("النسخة صغيرة بشكل مشبوه (${outFile.length()} بايت)")
+            throw RuntimeException(context.getString(R.string.ui_backup_too_small, outFile.length()))
         }
         return outFile
     }
@@ -159,10 +160,10 @@ object SystemBackup {
         onProgress: (done: Long, total: Long) -> Unit
     ): Boolean {
         if (GuestSession.alive) {
-            throw RuntimeException("سطح المكتب خدام — أوقفو أولا ثم أعد الاستعادة")
+            throw RuntimeException(context.getString(R.string.ui_backup_desktop_running_restore))
         }
         if (!backupFile.isFile || backupFile.length() < 1024 * 1024) {
-            throw RuntimeException("ملف النسخة غير صالح")
+            throw RuntimeException(context.getString(R.string.ui_backup_invalid_file))
         }
         // Verify: it must be a Mudif system backup, not any tar.xz.
         var looksLikeBackup = false
@@ -183,7 +184,7 @@ object SystemBackup {
             }
         }
         if (!looksLikeBackup) {
-            throw RuntimeException("هذا الملف ليس نسخة احتياطية لنظام مضيف")
+            throw RuntimeException(context.getString(R.string.ui_backup_not_mudif))
         }
 
         val dest = DebianSystem.debianRootfsDir(context)
@@ -202,7 +203,7 @@ object SystemBackup {
                     val f = File(dest, entry.name)
                     val canon = f.canonicalPath
                     if (canon != dest.canonicalPath && !canon.startsWith(destPath)) {
-                        throw RuntimeException("مسار مشبوه في النسخة: ${entry.name}")
+                        throw RuntimeException(context.getString(R.string.ui_backup_bad_entry, entry.name))
                     }
                     when {
                         entry.isDirectory -> f.mkdirs()
@@ -212,7 +213,7 @@ object SystemBackup {
                             try {
                                 android.system.Os.symlink(entry.linkName, f.absolutePath)
                             } catch (e: Exception) {
-                                throw RuntimeException("تعذر إنشاء الرابط ${entry.name}: ${e.message}")
+                                throw RuntimeException(context.getString(R.string.ui_dl_link_failed, entry.name, e.message))
                             }
                         }
                         entry.isLink -> {
@@ -225,7 +226,7 @@ object SystemBackup {
                                 // Same fallback as DebianSystem.extract:
                                 // Huawei/EMUI refuses link() — copy.
                                 if (!target.isFile) {
-                                    throw RuntimeException("تعذر إنشاء الرابط الصلب ${entry.name}")
+                                    throw RuntimeException(context.getString(R.string.ui_backup_hardlink_missing, entry.name))
                                 }
                                 target.inputStream().use { input ->
                                     f.outputStream().use { out -> input.copyTo(out) }
@@ -258,7 +259,7 @@ object SystemBackup {
         }
         if (count < 1000) {
             try { dest.deleteRecursively() } catch (_: Exception) { }
-            throw RuntimeException("النسخة ناقصة بشكل مشبوه ($count مدخل فقط)")
+            throw RuntimeException(context.getString(R.string.ui_backup_archive_short, count))
         }
         File(dest, READY_MARKER).writeText(DebianSystem.DEBIAN_VERSION)
         return true

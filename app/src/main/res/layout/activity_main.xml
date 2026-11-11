@@ -7,13 +7,13 @@
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F7F6FF">
+    android:background="?attr/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="#F7F6FF">
+        android:background="?attr/colorBackground">
 
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/nav_host"
@@ -21,23 +21,19 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <com.google.android.material.bottomnavigation.BottomNavigationView
+        <com.google.android.material.bottomnavigation.BottomNavigationView style="@style/Widget.Mudif.BottomNavigation"
             android:id="@+id/bottom_nav"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:menu="@menu/bottom_nav_menu"
-            app:itemIconTint="@color/mudif_purple"
-            app:itemTextColor="@color/mudif_purple"
             app:labelVisibilityMode="labeled" />
     </LinearLayout>
 
-    <com.google.android.material.navigation.NavigationView
+    <com.google.android.material.navigation.NavigationView style="@style/Widget.Mudif.NavigationView"
         android:id="@+id/nav_view"
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         app:headerLayout="@layout/nav_header"
-        app:menu="@menu/drawer_menu"
-        app:itemIconTint="@color/mudif_purple"
-        app:itemTextColor="#1A1A1A" />
+        app:menu="@menu/drawer_menu" />
 </androidx.drawerlayout.widget.DrawerLayout>

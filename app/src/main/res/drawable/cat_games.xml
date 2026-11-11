@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- P19 Phase 3: games category gradient card background (16dp squircle).
+     Lime (#65A30D -> #A3E635): distinct from every existing pair
+     (purple all/dev, blues internet/office, orange media, teal ai,
+     pink fonts, slate system). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#65A30D"
+        android:endColor="#A3E635"
+        android:angle="135"
+        android:type="linear" />
+    <corners android:radius="16dp" />
+</shape>

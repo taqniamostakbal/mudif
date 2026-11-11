@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentTerminalBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.GuestSession
@@ -48,7 +49,7 @@ class TerminalFragment : Fragment() {
             RootfsManager.isReady(requireContext())
         }
         if (!ready) {
-            Snackbar.make(binding.root, "النظام غير مثبت — ثبّت نظام مضيف من حسابي أولا", Snackbar.LENGTH_LONG).show()
+            Snackbar.make(binding.root, getString(R.string.ui_term_system_not_installed), Snackbar.LENGTH_LONG).show()
             binding.terminalView.visibility = View.INVISIBLE
             return
         }
@@ -62,7 +63,7 @@ class TerminalFragment : Fragment() {
                 if (!ok || GuestSession.session == null) {
                     Snackbar.make(
                         binding.root,
-                        "تعذّر تشغيل الحاوية: ${GuestSession.lastError ?: ""}",
+                        getString(R.string.ui_term_container_failed, GuestSession.lastError ?: ""),
                         Snackbar.LENGTH_LONG
                     ).show()
                     binding.terminalView.visibility = View.INVISIBLE

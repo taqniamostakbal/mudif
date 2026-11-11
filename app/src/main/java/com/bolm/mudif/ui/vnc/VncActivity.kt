@@ -104,7 +104,7 @@ class VncActivity : AppCompatActivity() {
 
         pendingLaunchApp = intent.getStringExtra(EXTRA_LAUNCH_APP)
 
-        supportActionBar?.title = "نظام مضيف"
+        supportActionBar?.title = getString(R.string.mudif_system)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         // Phase 2: Cast init (main thread, guarded: no Play
@@ -122,15 +122,15 @@ class VncActivity : AppCompatActivity() {
             if (report == null) {
                 Toast.makeText(
                     this,
-                    "لا توجد معلومات تشخيص بعد — افتح سطح المكتب أولا",
+                    getString(R.string.ui_vnc_no_diagnostics),
                     Toast.LENGTH_SHORT
                 ).show()
             } else {
                 MudifDialog.info(
                     this,
-                    "تشخيص — نظام مضيف",
+                    getString(R.string.ui_vnc_diag_title),
                     report,
-                    "إغلاق"
+                    getString(R.string.ui_vnc_close)
                 )
             }
         }
@@ -148,7 +148,7 @@ class VncActivity : AppCompatActivity() {
                     runOnUiThread {
                         Toast.makeText(
                             this,
-                            "سطح المكتب مازال ما وجدش — تسنى حتى يكمل",
+                            getString(R.string.ui_vnc_desktop_not_ready),
                             Toast.LENGTH_SHORT
                         ).show()
                         startDesktop()
@@ -178,7 +178,7 @@ class VncActivity : AppCompatActivity() {
                 } else {
                     if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
                         runOnUiThread {
-                            Toast.makeText(this, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
                         }
                         return@Thread
                     }
@@ -220,7 +220,7 @@ class VncActivity : AppCompatActivity() {
                             CastManager.stopCast()
                         }.start()
                     },
-                    negative = "إلغاء"
+                    negative = getString(R.string.cancel)
                 )
                 return@setOnClickListener
             }
@@ -230,7 +230,7 @@ class VncActivity : AppCompatActivity() {
                 getString(R.string.tv_choose_cast),
                 onPositive = {
                     if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
-                        Toast.makeText(this, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
                         return@info
                     }
                     if (!CastManager.available) {
@@ -285,14 +285,14 @@ class VncActivity : AppCompatActivity() {
                                     onPositive = {
                                         SystemDisplay.openWirelessDisplaySettings(this)
                                     },
-                                    negative = "إلغاء"
+                                    negative = getString(R.string.cancel)
                                 )
                             }
                             return@Thread
                         }
                         if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
                             runOnUiThread {
-                                Toast.makeText(this, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
                             }
                             return@Thread
                         }
@@ -308,7 +308,7 @@ class VncActivity : AppCompatActivity() {
                         }
                     }.start()
                 },
-                negative = "إلغاء"
+                negative = getString(R.string.cancel)
             )
         }
 
@@ -330,7 +330,7 @@ class VncActivity : AppCompatActivity() {
                         }
                     } else {
                         runOnUiThread {
-                            Toast.makeText(this, "الصوت غادي يبدا ملي يفتح سطح المكتب", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, getString(R.string.ui_vnc_audio_starts_later), Toast.LENGTH_SHORT).show()
                         }
                     }
                 } else {
@@ -344,7 +344,7 @@ class VncActivity : AppCompatActivity() {
         }
 
         // Version indicator — reads the live marker, never a stale label.
-        Toast.makeText(this, "نسخة: ${LxqtLook.MARKER_VERSION}", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, getString(R.string.ui_vnc_version_toast, LxqtLook.MARKER_VERSION), Toast.LENGTH_LONG).show()
 
         startDesktop()
     }
@@ -403,11 +403,11 @@ class VncActivity : AppCompatActivity() {
         overlayPermissionPrompted = true
         MudifDialog.info(
             this,
-            "أزرار عائمة فوق سطح المكتب",
-            "باش تبان أزرار التسجيل والتلفاز والصوت فوق سطح المكتب، خاصك تفعّل «العرض فوق التطبيقات» لمضيف.",
-            "تفعيل",
+            getString(R.string.ui_vnc_overlay_title),
+            getString(R.string.ui_vnc_overlay_body),
+            getString(R.string.ui_vnc_overlay_enable),
             onPositive = { overlay.requestPermission() },
-            negative = "لاحقا"
+            negative = getString(R.string.ui_vnc_overlay_later)
         )
     }
 
@@ -463,9 +463,9 @@ class VncActivity : AppCompatActivity() {
                     Toast.makeText(
                         this,
                         if (sent && running) {
-                            if (appLaunched) "تم تشغيل التطبيق ✓"
-                            else "سطح المكتب خدام ✓"
-                        } else "سطح المكتب ما خدمش — شوف اللوجات",
+                            if (appLaunched) getString(R.string.ui_vnc_app_launched)
+                            else getString(R.string.ui_vnc_desktop_running)
+                        } else getString(R.string.ui_vnc_desktop_failed),
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -485,7 +485,7 @@ class VncActivity : AppCompatActivity() {
         // and the X server.
         if (!startInProgress.compareAndSet(false, true)) {
             runOnUiThread {
-                Toast.makeText(this, "سطح المكتب كيبدا دابا، تسنى شوية", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.ui_vnc_desktop_starting), Toast.LENGTH_SHORT).show()
             }
             return
         }
@@ -498,12 +498,12 @@ class VncActivity : AppCompatActivity() {
             // can be created and delivers bytes on this device BEFORE
             // building anything on it. If this fails, stop here and
             // say so — no more builds on an unproven mechanism.
-            setStatus("جاري فحص جلسة PTY…")
+            setStatus(getString(R.string.ui_vnc_status_pty_check))
             if (!GuestSession.ensure(this)) {
                 if (destroyed) return@Thread
                 runOnUiThread {
                     showFailureDialog(
-                        "جلسة PTY ما تخلقاتش على هاد الجهاز.\n${GuestSession.lastError ?: ""}"
+                        getString(R.string.ui_vnc_status_pty_missing, GuestSession.lastError ?: "")
                     )
                 }
                 return@Thread
@@ -512,7 +512,7 @@ class VncActivity : AppCompatActivity() {
                 if (destroyed) return@Thread
                 runOnUiThread {
                     showFailureDialog(
-                        "جلسة PTY ما كتوصلش الأوامر.\n${GuestSession.lastError ?: ""}"
+                        getString(R.string.ui_vnc_status_pty_noconn, GuestSession.lastError ?: "")
                     )
                 }
                 return@Thread
@@ -530,7 +530,7 @@ class VncActivity : AppCompatActivity() {
             // the new desktop (P5.24).
             // Real-computer #8: the two kill one-shots are
             // independent — run them in parallel, join both.
-            setStatus("جاري تنظيف سطح المكتب السابق…")
+            setStatus(getString(R.string.ui_vnc_status_clean_desktop))
             val killThreads = listOf(
                 Thread { if (DebianSystem.isReady(this)) X11Session.killDebianDesktopProcesses(this) },
                 Thread { if (RootfsManager.isReady(this)) X11Session.killDesktopProcesses(this) }
@@ -549,12 +549,12 @@ class VncActivity : AppCompatActivity() {
             // 1. Boot the container in the PTY session (Tiny:
             // clean slate, fresh boot on every entry).
             // P6: نظام مضيف boots DEBIAN in the PTY.
-            setStatus("جاري تشغيل نظام مضيف…")
+            setStatus(getString(R.string.ui_vnc_status_boot_mudif))
             if (!GuestSession.bootContainer(this, GuestSession.GuestSystem.DEBIAN)) {
                 if (destroyed) return@Thread
                 runOnUiThread {
                     showFailureDialog(
-                        "تعذّر تشغيل نظام مضيف.\n" + (GuestSession.lastError ?: "")
+                        getString(R.string.ui_vnc_status_boot_failed, GuestSession.lastError ?: "")
                     )
                 }
                 return@Thread
@@ -568,17 +568,17 @@ class VncActivity : AppCompatActivity() {
             // checks the /root/.mudif_desktop_ok marker the image
             // bakes in. The orphan-kill stays: it clears any apt-get
             // orphaned by a killed P16 install on the upgrade path.
-            setStatus("جاري تنظيف عمليات التثبيت العالقة…")
+            setStatus(getString(R.string.ui_vnc_status_clean_install))
             X11Session.killOrphanedAptProcesses(this)
 
-            setStatus("جاري التحقق من نظام مضيف…")
+            setStatus(getString(R.string.ui_vnc_status_verify_system))
             val desktopOk = X11Session.ensureDebianDesktop(this)
             // P6.4 — the Deepin-style look for LXQt (navy wallpaper,
             // bloom-dark icons, dark panel, dark Qt/GTK): written
             // into the rootfs BEFORE the first launch, once per
             // rootfs (marker); skipped when already applied.
             val lookOk = if (desktopOk) {
-                setStatus("جاري تثبيت الشكل ديال Deepin…")
+                setStatus(getString(R.string.ui_vnc_status_look))
                 LxqtLook.ensureLxqtLook(this)
             } else {
                 false
@@ -596,7 +596,7 @@ class VncActivity : AppCompatActivity() {
                 if (destroyed) return@Thread
                 runOnUiThread {
                     showFailureDialog(
-                        "نظام مضيف غير مكتمل.\nالصورة ما فيهاش سطح المكتب — عاود تثبيت النظام من جديد."
+                        getString(R.string.ui_vnc_status_incomplete)
                     )
                 }
                 return@Thread
@@ -610,7 +610,7 @@ class VncActivity : AppCompatActivity() {
             if (xr == null || !xr.ok) {
                 if (destroyed) return@Thread
                 runOnUiThread {
-                    showFailureDialog(xr?.error ?: "خادم X ما قلعش.")
+                    showFailureDialog(xr?.error ?: getString(R.string.ui_vnc_status_x_failed))
                 }
                 return@Thread
             }
@@ -621,7 +621,7 @@ class VncActivity : AppCompatActivity() {
             if (!X11Session.isTcpDisplayOpen()) {
                 if (destroyed) return@Thread
                 runOnUiThread {
-                    showFailureDialog("خادم X ما خدامش: منفذ TCP 6006 مسدود. سطح المكتب ما تبعتش.")
+                    showFailureDialog(getString(R.string.ui_vnc_status_tcp_blocked))
                 }
                 return@Thread
             }
@@ -655,24 +655,20 @@ class VncActivity : AppCompatActivity() {
             // desktop is NOT ready does the dialog still appear, so
             // the user sees why it failed.
             if (destroyed) return@Thread
-            val report = "النظام: نظام مضيف (دبيان 13.1 + LXQt)\n" +
-                "PTY حية: ${GuestSession.alive}\n" +
-                "الضيف قلع: ${GuestSession.booted}\n" +
-                "سوكيت X6: ${X11Session.isXSocketPresent(this@VncActivity)}\n" +
-                "TCP 6006: $tcpOk\n" +
-                "الأيقونات: أصلية (دبيان، بلا glycin)\n" +
-                "نظام مضيف تثبت: $desktopOk\n" +
-                "الشكل ديال Deepin تثبت: $lookOk\n" +
-                "سطح المكتب: يبدأ بعد فتح العارض (الحجم كيتثبت أولا)\n\n" +
-                "--- السبب الحقيقي ---\n" +
-                DesktopDiagnostics.hypothesisDebian()
+            val report = getString(
+                R.string.ui_vnc_diag_report,
+                GuestSession.alive, GuestSession.booted,
+                X11Session.isXSocketPresent(this@VncActivity), tcpOk,
+                desktopOk, lookOk,
+                DesktopDiagnostics.hypothesisDebian(this@VncActivity)
+            )
             Log.d("VncActivity", "diagnostics:\n$report")
             lastDiagnostics = report
             runOnUiThread {
                 val ok = GuestSession.alive && GuestSession.booted && tcpOk
                 setStatus(
-                    if (ok) "جاهز — افتح العارض لبدء سطح المكتب"
-                    else "سطح المكتب ما خدمش — شوف اللوجات"
+                    if (ok) getString(R.string.ui_vnc_status_ready)
+                    else getString(R.string.ui_vnc_desktop_failed)
                 )
                 binding.btnShowDiagnostics.visibility = View.VISIBLE
                 if (ok) {
@@ -681,18 +677,18 @@ class VncActivity : AppCompatActivity() {
                     // P16: branded dialog (title fixed: no stale P8).
                     MudifDialog.info(
                         this,
-                        "تشخيص — نظام مضيف",
+                        getString(R.string.ui_vnc_diag_title),
                         report,
-                        "فتح العارض وبدء سطح المكتب",
+                        getString(R.string.ui_vnc_diag_open_viewer),
                         onPositive = {
                             // P16.2: shared with the status screen button.
                             openViewerAndLaunchDesktop()
                         },
-                        neutral = "اللوجات المفصلة",
+                        neutral = getString(R.string.ui_vnc_diag_view_logs),
                         onNeutral = {
                             startActivity(Intent(this, LogViewerActivity::class.java))
                         },
-                        negative = "إلغاء"
+                        negative = getString(R.string.cancel)
                     )
                 }
             }
@@ -704,7 +700,7 @@ class VncActivity : AppCompatActivity() {
                 Log.e("VncActivity", "startDesktop failed", e)
                 if (!destroyed) {
                     runOnUiThread {
-                        showFailureDialog("خطأ غير متوقع أثناء بدء سطح المكتب:\n${e.message}")
+                        showFailureDialog(getString(R.string.ui_vnc_unexpected_error, e.message))
                     }
                 }
             } finally {
@@ -741,7 +737,7 @@ class VncActivity : AppCompatActivity() {
         // surviving server).
         var serverUp = X11Session.isXSocketPresent(this) && X11Session.isTcpDisplayOpen()
         if (serverUp) {
-            setStatus("جاري إعادة تشغيل خادم X من جديد…")
+            setStatus(getString(R.string.ui_vnc_status_restart_x))
             X11Session.stopXServer(this)
             // P6.3.6: the old waitForXSocketGone veto is GONE.
             // The P6.3.5 resume run proved it: a SIGKILLed server
@@ -764,19 +760,19 @@ class VncActivity : AppCompatActivity() {
             // P16 XKB GUARD: make sure the keyboard data is there
             // (reinstall xkb-data once if it is missing), then start
             // the server only if the guard allows it.
-            setStatus("جاري فحص بيانات لوحة المفاتيح…")
+            setStatus(getString(R.string.ui_vnc_status_check_xkb))
             if (!X11Session.ensureXkbData(this)) {
-                return XResult(false, "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب.")
+                return XResult(false, getString(R.string.ui_vnc_status_xkb_missing))
             }
-            setStatus("جاري تشغيل خادم X…")
+            setStatus(getString(R.string.ui_vnc_status_start_x))
             val xkbRootfs = DebianSystem.debianRootfsDir(this)
             if (!X11Session.startXServer(this, xkbRootfs)) {
-                return XResult(false, "بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب.")
+                return XResult(false, getString(R.string.ui_vnc_status_xkb_missing))
             }
 
             // 3. Wait ONLY for the socket file (Tiny waitForFile).
             if (!X11Session.waitForXSocket(this, 15000)) {
-                return XResult(false, "خادم X ما قلعش: سوكيت X6 ما تخلقش خلال 15 ثانية.")
+                return XResult(false, getString(R.string.ui_vnc_status_x_nosocket))
             }
 
             // 3b. Wait until the server accepts TCP on
@@ -784,9 +780,9 @@ class VncActivity : AppCompatActivity() {
             // server is ready, and the Unix socket connect from
             // inside proot is broken on this device, so the guest
             // uses TCP — prove the listener is there first.
-            setStatus("جاري انتظار منفذ TCP…")
+            setStatus(getString(R.string.ui_vnc_status_wait_tcp))
             if (!X11Session.waitForTcpDisplay(10000)) {
-                return XResult(false, "خادم X ما فتحش منفذ TCP 6006 خلال 10 ثواني (السوكيت موجود ولكن TCP مسدود).")
+                return XResult(false, getString(R.string.ui_vnc_status_tcp_closed))
             }
         }
         return XResult(true)
@@ -814,7 +810,7 @@ class VncActivity : AppCompatActivity() {
         pendingLaunchApp = null
         if (appToLaunch != null) GuestSession.sendCommand(appToLaunch)
         runOnUiThread {
-            setStatus("جاهز — افتح العارض لبدء سطح المكتب")
+            setStatus(getString(R.string.ui_vnc_status_ready))
             X11Session.openViewer(this)
             // Phase 1d: floating icon controls over the viewer.
             showViewerOverlay()
@@ -828,18 +824,17 @@ class VncActivity : AppCompatActivity() {
         // P16: branded dialog.
         MudifDialog.info(
             this,
-            "فشل بدء سطح المكتب",
-            "$reason\n\nالسبب الحقيقي كاين في اللوجات " +
-                "(logcat ديال أندرويد + حالة الخادم).",
-            "عرض اللوجات",
+            getString(R.string.ui_vnc_fail_title),
+            getString(R.string.ui_vnc_fail_logs_hint, reason),
+            getString(R.string.ui_vnc_view_logs),
             onPositive = {
                 startActivity(Intent(this, LogViewerActivity::class.java))
             },
-            neutral = "إعادة المحاولة",
+            neutral = getString(R.string.ui_vnc_fail_retry),
             onNeutral = {
                 startDesktop()
             },
-            negative = "إغلاق",
+            negative = getString(R.string.ui_vnc_close),
             onNegative = {
                 finish()
             }

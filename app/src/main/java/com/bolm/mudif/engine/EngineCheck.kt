@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import android.os.Build
 import java.io.File
 
@@ -60,7 +61,7 @@ object EngineCheck {
     fun runProotVersion(context: Context): String {
         return try {
             val bin = prootPath(context)
-                ?: return "غير موجود: libtiny_proot.so ماشي فالمكتبة الأصلية"
+                ?: return context.getString(R.string.ui_engine_missing_lib)
             ensureLibs(context)
             val pb = ProcessBuilder(bin.absolutePath, "--version")
                 .redirectErrorStream(true)
@@ -76,13 +77,13 @@ object EngineCheck {
                 lower.contains("exec format")
             val looksLikeProot = lower.contains("proot")
             when {
-                out.isEmpty() -> "خرج بلا مخرجات (${bin.absolutePath})"
+                out.isEmpty() -> context.getString(R.string.ui_engine_no_output, bin.absolutePath)
                 failed || !looksLikeProot ->
-                    "المحرك ما خدمش على هاد الجهاز (${abiDir()}):\n$out"
-                else -> "proot خدام ✓\n$out"
+                    context.getString(R.string.ui_engine_failed, abiDir(), out)
+                else -> context.getString(R.string.ui_engine_ok, out)
             }
         } catch (e: Exception) {
-            "خطأ: ${e.message}"
+            context.getString(R.string.ui_error_prefix, e.message)
         }
     }
 }

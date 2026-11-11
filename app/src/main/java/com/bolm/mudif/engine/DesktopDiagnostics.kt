@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.R
 import android.os.Build
 import java.io.File
 import java.text.SimpleDateFormat
@@ -31,13 +32,13 @@ object DesktopDiagnostics {
      * guest shell and wedged the session. Phantom Killer was never
      * the cause. This section now states the proven finding.
      */
-    fun hypothesis1(): String {
+    fun hypothesis1(context: Context): String {
         val sb = StringBuilder()
         sb.append("Android API: ${Build.VERSION.SDK_INT}\n")
         sb.append("Android: ${Build.VERSION.RELEASE}\n")
-        sb.append("السبب الحقيقي (مثبت 2026-11-06 من xfce.log + فحص الضيف):\n")
-        sb.append("gdk-pixbuf ما عندوش محمل PNG أصلي (غير XPM)، و glycin كيستعمل bwrap اللي ما كيخدمش تحت proot.\n")
-        sb.append("الحل P5.25: bwrap shim + Adwaita.\n")
+        sb.append(context.getString(R.string.ui_diag_cause_title) + "\n")
+        sb.append(context.getString(R.string.ui_diag_cause_pixbuf) + "\n")
+        sb.append(context.getString(R.string.ui_diag_cause_fix) + "\n")
         return sb.toString()
     }
 
@@ -58,15 +59,15 @@ object DesktopDiagnostics {
      * fix is removing --sysvipc, and the desktop now launches after
      * the viewer attaches at the settled 1280x720.
      */
-    fun hypothesisDebian(): String {
+    fun hypothesisDebian(context: Context): String {
         val sb = StringBuilder()
         sb.append("Android API: ${Build.VERSION.SDK_INT}\n")
         sb.append("Android: ${Build.VERSION.RELEASE}\n")
-        sb.append("نظام مضيف (مثبت 2026-11-07 من التشخيص):\n")
-        sb.append("دبيان 13.1، LXQt كيقلع، الأيقونات أصلية، بلا glycin وبلا bwrap.\n")
-        sb.append("التثبيت بـ apt (--no-install-recommends)، والإقلاع من جهة المضيف، ماشي متداخل.\n")
-        sb.append("P6.7: التجميد تصلح بإزالة --sysvipc؛ الحجم كيتثبت 1280x720؛ خلفية سطح المكتب تصاوبات (Wallpaper تحت [Desktop] + WallpaperMode=stretch)؛ إدارة الطاقة مطفية؛ النمط الداكن تصاوب بإضافة adwaita-qt (qlipper هو التطبيق الوحيد Qt5).\n")
-        sb.append("P8: العربية فالعربية (خط Cairo + لغة ar_MA.UTF-8)؛ خلفية بنفسجية؛ الطرفية العربية فيها 48 أمر بالفصحى؛ قائمة LXQt بقات بالإنجليزية (الترجمة .qm جاية من بعد).\n")
+        sb.append(context.getString(R.string.ui_diag_system_note) + "\n")
+        sb.append(context.getString(R.string.ui_diag_system_line1) + "\n")
+        sb.append(context.getString(R.string.ui_diag_system_line2) + "\n")
+        sb.append(context.getString(R.string.ui_diag_p67) + "\n")
+        sb.append(context.getString(R.string.ui_diag_p8) + "\n")
         return sb.toString()
     }
 
@@ -260,31 +261,31 @@ object DesktopDiagnostics {
     fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         return buildString {
-            append("=== مضيف ${LxqtLook.MARKER_VERSION} — سجل مفصل ===\n")
-            append("الوقت: $time\n")
-            append("نسخة: ${LxqtLook.MARKER_VERSION}\n\n")
-            append("--- السبب الحقيقي (تشخيص P5.22) ---\n")
-            append(hypothesis1())
-            append("\n--- حالة خادم X ---\n")
+            append(context.getString(R.string.ui_diag_snapshot_title, LxqtLook.MARKER_VERSION) + "\n")
+            append(context.getString(R.string.ui_diag_time, time) + "\n")
+            append(context.getString(R.string.ui_diag_version, LxqtLook.MARKER_VERSION) + "\n\n")
+            append(context.getString(R.string.ui_diag_cause_header) + "\n")
+            append(hypothesis1(context))
+            append("\n" + context.getString(R.string.ui_diag_x_state) + "\n")
             append(xServerState(context))
-            append("\n--- مدخلات خادم X ---\n")
+            append("\n" + context.getString(R.string.ui_diag_x_inputs) + "\n")
             append(xServerInputs(context))
-            append("\n--- عملية خادم X (ps) ---\n")
+            append("\n" + context.getString(R.string.ui_diag_x_ps) + "\n")
             append(xServerProcess())
-            append("\n--- حالة جلسة الحاوية (PTY) ---\n")
+            append("\n" + context.getString(R.string.ui_diag_pty_state) + "\n")
             append(containerState())
-            append("\n--- سطح المكتب (LXQt) ---\n")
+            append("\n" + context.getString(R.string.ui_diag_desktop) + "\n")
             append(
                 when (desktopRunning) {
-                    true -> "يشتغل: نعم\n"
-                    false -> "يشتغل: لا\n"
-                    null -> "يشتغل: (لم يتم الفحص)\n"
+                    true -> context.getString(R.string.ui_diag_running_yes) + "\n"
+                    false -> context.getString(R.string.ui_diag_running_no) + "\n"
+                    null -> context.getString(R.string.ui_diag_running_unknown) + "\n"
                 }
             )
             append(X11Session.getDesktopLog(context, "lxqt"))
-            append("\n\n--- حالة التثبيت (apt/dpkg) ---\n")
+            append("\n\n" + context.getString(R.string.ui_diag_apt_state) + "\n")
             append(installState(context))
-            append("\n--- عمليات apt/dpkg (ps) ---\n")
+            append("\n" + context.getString(R.string.ui_diag_apt_ps) + "\n")
             append(aptProcesses())
             append("\n--- logcat (phantom/kill/X11/CmdEntry) ---\n")
             append(collectLogcat())

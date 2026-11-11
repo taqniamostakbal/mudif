@@ -86,14 +86,14 @@ class TaskManagerActivity : AppCompatActivity() {
 
     private fun confirmKill(process: GuestProcess) {
         if (process.pid <= 1) {
-            Toast.makeText(this, "لا يمكن إيقاف العملية رقم 1 (قلب النظام)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.ui_task_cannot_kill_pid1), Toast.LENGTH_SHORT).show()
             return
         }
         MudifDialog.info(
             this,
             getString(R.string.task_manager_title),
             getString(R.string.task_manager_kill_confirm, "${process.comm} (${process.pid})"),
-            "إيقاف",
+            getString(R.string.ui_stop),
             onPositive = { killProcess(process) },
             negative = getString(R.string.ok)
         )

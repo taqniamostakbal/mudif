@@ -65,7 +65,7 @@ class ViewerOverlay(private val context: Context) {
             ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             context.startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(context, "افتح الإعدادات وفعّل «العرض فوق التطبيقات»", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.ui_overlay_permission_hint), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -157,9 +157,9 @@ class ViewerOverlay(private val context: Context) {
             setBackgroundResource(R.drawable.overlay_panel_bg)
             setPadding(dp(8), dp(8), dp(8), dp(8))
         }
-        panel.addView(iconButton(R.drawable.ic_record, "تسجيل") { onRecord(panel) })
-        panel.addView(iconButton(R.drawable.ic_tv, "تلفاز") { onTv() })
-        panel.addView(iconButton(R.drawable.ic_audio, "صوت") { onAudio(panel) })
+        panel.addView(iconButton(R.drawable.ic_record, context.getString(R.string.ui_overlay_record)) { onRecord(panel) })
+        panel.addView(iconButton(R.drawable.ic_tv, context.getString(R.string.ui_overlay_tv)) { onTv() })
+        panel.addView(iconButton(R.drawable.ic_audio, context.getString(R.string.ui_overlay_audio)) { onAudio(panel) })
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -220,7 +220,7 @@ class ViewerOverlay(private val context: Context) {
             } else {
                 if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
                     (context as? android.app.Activity)?.runOnUiThread {
-                        Toast.makeText(context, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
                     }
                     return@Thread
                 }
@@ -275,7 +275,7 @@ class ViewerOverlay(private val context: Context) {
             }
             if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
                 (context as? android.app.Activity)?.runOnUiThread {
-                    Toast.makeText(context, "سطح المكتب مازال ما وجدش — تسنى حتى يكمل", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
                 }
                 return@Thread
             }
@@ -307,7 +307,7 @@ class ViewerOverlay(private val context: Context) {
                     }
                 } else {
                     (context as? android.app.Activity)?.runOnUiThread {
-                        Toast.makeText(context, "الصوت غادي يبدا ملي يفتح سطح المكتب", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.ui_vnc_audio_starts_later), Toast.LENGTH_SHORT).show()
                     }
                 }
             } else {

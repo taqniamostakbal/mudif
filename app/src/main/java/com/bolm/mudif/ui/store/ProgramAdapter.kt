@@ -78,7 +78,7 @@ class ProgramAdapter(
         fun bind(item: StoreListItem.Header) {
             binding.headerTitle.text = binding.root.context.getString(
                 R.string.store_section_count,
-                StoreCategory.labelFor(item.category),
+                StoreCategory.labelFor(binding.root.context, item.category),
                 item.count
             )
         }

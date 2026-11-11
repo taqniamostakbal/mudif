@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
+import com.bolm.mudif.R
 import android.content.Intent
 import android.os.IBinder
 import android.os.PowerManager
@@ -74,7 +75,7 @@ class InstallService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val label = intent.getStringExtra(EXTRA_LABEL) ?: "جاري العمل…"
+                val label = intent.getStringExtra(EXTRA_LABEL) ?: getString(R.string.ui_service_working)
                 startForeground(NOTIF_ID, buildNotification(label, null))
             }
             ACTION_STOP -> {
@@ -104,10 +105,10 @@ class InstallService : Service() {
             nm.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "تثبيت وتحميل",
+                    getString(R.string.ui_notif_install_channel),
                     NotificationManager.IMPORTANCE_LOW
                 ).apply {
-                    description = "إشعار أثناء تثبيت البرامج وتحميل النظام"
+                    description = getString(R.string.ui_notif_install_desc)
                 }
             )
         }
@@ -115,7 +116,7 @@ class InstallService : Service() {
 
     private fun buildNotification(label: String, percent: Int?): Notification {
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("مضيف")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText(label)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setOngoing(true)

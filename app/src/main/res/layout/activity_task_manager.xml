@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F7F6FF">
+    android:background="?attr/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -22,7 +22,7 @@
             android:textSize="30sp"
             android:textColor="@android:color/white" />
 
-        <TextView
+        <TextView style="@style/Widget.Mudif.HeaderTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -33,16 +33,14 @@
             android:fontFamily="@font/lifta"
             android:paddingStart="8dp" />
 
-        <Button
+        <Button style="@style/Widget.Mudif.Button.OnPurple"
             android:id="@+id/task_refresh"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/task_manager_refresh"
-            android:textColor="@color/mudif_purple"
-            android:background="@android:color/white" />
+            android:text="@string/task_manager_refresh" />
     </LinearLayout>
 
-    <TextView
+    <TextView style="@style/TextAppearance.Mudif.Caption"
         android:id="@+id/task_empty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -50,7 +48,7 @@
         android:gravity="center"
         android:text="@string/task_manager_empty"
         android:textSize="15sp"
-        android:textColor="#777777"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/cairo"
         android:visibility="gone" />
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 4: user bubble — brand purple, rounded, tail-less. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/mudif_purple" />
+    <corners android:radius="18dp" />
+</shape>

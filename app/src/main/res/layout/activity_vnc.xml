@@ -17,52 +17,52 @@
             android:id="@+id/status_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="جاري بدء سطح المكتب…"
+            android:text="@string/ui_vnc_starting"
             android:textColor="#FFFFFF"
             android:textSize="16sp" />
 
-        <Button
+        <Button style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/btn_open_viewer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="افتح العارض وبدء سطح المكتب" />
+            android:text="@string/ui_vnc_diag_open_viewer" />
 
-        <Button
+        <Button style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/btn_show_logs"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="عرض اللوجات المفصلة" />
+            android:text="@string/ui_vnc_view_logs" />
 
         <!-- P19: diagnostics stay reachable on demand. Hidden until a
              diagnostics report exists (set after the first start). -->
-        <Button
+        <Button style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/btn_show_diagnostics"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:visibility="gone"
-            android:text="التشخيص" />
+            android:text="@string/ui_vnc_diagnostics" />
 
         <!-- Real-computer program: screen recording (#5), desktop on
              TV (#9), audio passthrough (#1). The texts are set from
              code (record/audio reflect the live state). -->
-        <Button
+        <Button style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/btn_record"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/record_start" />
 
-        <Button
+        <Button style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/btn_tv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/tv_title" />
 
-        <Button
+        <Button style="@style/Widget.Mudif.Button.Primary"
             android:id="@+id/btn_audio"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

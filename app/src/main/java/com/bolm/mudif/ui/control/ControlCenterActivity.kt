@@ -15,6 +15,7 @@ import android.provider.Settings
 import android.view.View
 import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityControlCenterBinding
 import java.io.File
 
@@ -120,7 +121,7 @@ class ControlCenterActivity : AppCompatActivity() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val wifi = cm.getNetworkCapabilities(cm.activeNetwork)
             ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        binding.wifiState.text = if (wifi) "متصل ✓" else "غير متصل"
+        binding.wifiState.text = if (wifi) getString(R.string.ui_cc_wifi_on) else getString(R.string.ui_cc_wifi_off)
 
         val battery = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
@@ -130,7 +131,7 @@ class ControlCenterActivity : AppCompatActivity() {
         val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
             status == BatteryManager.BATTERY_STATUS_FULL
         binding.batteryState.text = if (pct >= 0) {
-            "$pct% " + if (charging) "(يشحن)" else ""
+            "$pct% " + if (charging) getString(R.string.ui_cc_charging) else ""
         } else {
             "—"
         }
@@ -148,7 +149,7 @@ class ControlCenterActivity : AppCompatActivity() {
                 binding.cpuBar.progress = cpu.coerceIn(0, 100)
                 // readCpuUsage returns -1 when /proc/stat is unreadable;
                 // never show the sentinel as a percentage.
-                binding.cpuValue.text = if (cpu >= 0) "$cpu%" else "غير معروف"
+                binding.cpuValue.text = if (cpu >= 0) "$cpu%" else getString(R.string.ui_cc_unknown)
                 val ramPct = if (info.totalMem > 0)
                     (ramUsed * 100 / info.totalMem).toInt() else 0
                 binding.ramBar.progress = ramPct

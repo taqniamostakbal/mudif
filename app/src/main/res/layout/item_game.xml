@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- P19 Phase 3: arcade card (gradient + gamepad icon + name + desc +
-     "coming soon" badge). Same card language as the store categories. -->
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Arcade card: real store icon + name + catalog desc + live
+     install state + one working action (install / launch). The
+     gamepad glyph is only the fallback when the icon PNG is missing. -->
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card" xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -9,8 +10,6 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="3dp"
     app:strokeWidth="0dp">
 
     <LinearLayout
@@ -28,6 +27,7 @@
             android:gravity="center_vertical">
 
             <ImageView
+                android:id="@+id/game_icon"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:src="@drawable/ic_gamepad"
@@ -39,7 +39,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="end"
-                android:text="@string/coming_soon"
                 android:textSize="12sp"
                 android:textColor="#E6E6FF"
                 android:fontFamily="@font/cairo" />
@@ -63,5 +62,13 @@
             android:textSize="12sp"
             android:textColor="#E6E6FF"
             android:fontFamily="@font/cairo" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_action"
+            style="@style/Widget.Mudif.Button.OnPurple"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="13sp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

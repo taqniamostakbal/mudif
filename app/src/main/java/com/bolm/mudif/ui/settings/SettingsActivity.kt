@@ -26,9 +26,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.bolm.mudif.R
+import com.bolm.mudif.engine.X11Session
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.switchmaterial.SwitchMaterial
-import kotlin.math.roundToInt
 
 /**
  * P18.3 — Viewer settings screen (Termux:X11), Fusha Arabic, Mudif style.
@@ -42,7 +42,8 @@ class SettingsActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             Toast.makeText(
                 this,
-                if (granted) "تم منح إذن الإشعارات" else "لم يتم منح إذن الإشعارات",
+                if (granted) getString(R.string.ui_settings_notif_granted)
+                else getString(R.string.ui_settings_notif_denied),
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -54,14 +55,11 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.settings_back).setOnClickListener { finish() }
 
         // Apply Mudif defaults on first open (only for absent keys).
-        // Same aspect math as X11Session.openViewer (long/short sides,
-        // height 720, width rounded to even) so both entry points agree.
-        val metrics = resources.displayMetrics
-        val longSide = maxOf(metrics.widthPixels, metrics.heightPixels)
-        val shortSide = minOf(metrics.widthPixels, metrics.heightPixels)
-        var width = (720.0 * longSide / shortSide).roundToInt()
-        if (width % 2 != 0) width += 1
-        ViewerPrefs.applyMudifDefaults(this, "${width}x720")
+        // The first-launch exact resolution comes from
+        // X11Session.viewerResolution (height 540, aspect-matched) so
+        // this entry point agrees with openViewer instead of
+        // computing its own (contradictory) 720-based resolution.
+        ViewerPrefs.applyMudifDefaults(this, X11Session.viewerResolution(this))
 
         buildSections()
     }
@@ -74,9 +72,10 @@ class SettingsActivity : AppCompatActivity() {
     private fun buildSections() {
         val container = findViewById<LinearLayout>(R.id.settings_container)
         container.removeAllViews()
+        buildLanguageCard(container)
         for (section in ViewerPrefs.SECTIONS) {
             val title = TextView(this).apply {
-                text = section.title
+                text = getString(section.titleRes)
                 textSize = 15f
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(Color.parseColor("#1A1A1A"))
@@ -122,14 +121,92 @@ class SettingsActivity : AppCompatActivity() {
         container.addView(footer)
     }
 
+    /** App-level language card, above the viewer sections. Same
+     *  spinner pattern as ListSetting (initial callback ignored);
+     *  picking a language applies it and recreates the activity. */
+    private fun buildLanguageCard(container: LinearLayout) {
+        val title = TextView(this).apply {
+            text = getString(R.string.language_title)
+            textSize = 15f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.parseColor("#1A1A1A"))
+            setPadding(dp(4), dp(18), dp(4), dp(8))
+        }
+        container.addView(title)
+        val card = MaterialCardView(this).apply {
+            radius = dp(14).toFloat()
+            cardElevation = dp(2).toFloat()
+            setCardBackgroundColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        val cardBody = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(12), dp(18), dp(12))
+        }
+        val desc = TextView(this).apply {
+            text = getString(R.string.language_desc)
+            textSize = 13f
+            setTextColor(Color.parseColor("#777777"))
+        }
+        cardBody.addView(desc)
+        val labels = listOf(
+            getString(R.string.language_fusha),
+            getString(R.string.language_darija),
+            getString(R.string.language_english)
+        )
+        val tags = AppLanguage.TAGS
+        val spinner = Spinner(this).apply {
+            val spinnerAdapter = ArrayAdapter(
+                this@SettingsActivity,
+                android.R.layout.simple_spinner_item, labels
+            ).apply {
+                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
+            adapter = spinnerAdapter
+            setSelection(tags.indexOf(AppLanguage.currentTag(this@SettingsActivity)).coerceAtLeast(0))
+            // Ignore the initial selection callback.
+            var first = true
+            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?, view: View?,
+                    position: Int, id: Long
+                ) {
+                    if (first) { first = false; return }
+                    AppLanguage.apply(this@SettingsActivity, tags[position])
+                    recreate()
+                }
+                override fun onNothingSelected(
+                    parent: android.widget.AdapterView<*>?
+                ) {}
+            }
+        }
+        spinner.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(8) }
+        cardBody.addView(spinner)
+        val note = TextView(this).apply {
+            text = getString(R.string.language_restart_note)
+            textSize = 13f
+            setTextColor(Color.parseColor("#777777"))
+            setPadding(0, dp(8), 0, 0)
+        }
+        cardBody.addView(note)
+        card.addView(cardBody)
+        container.addView(card)
+    }
+
     private fun rowTexts(setting: ViewerPrefs.Setting): Pair<TextView, TextView> {
         val title = TextView(this).apply {
-            text = setting.title
+            text = getString(setting.titleRes)
             textSize = 16f
             setTextColor(Color.parseColor("#1A1A1A"))
         }
         val desc = TextView(this).apply {
-            text = setting.desc
+            text = getString(setting.descRes)
             textSize = 13f
             setTextColor(Color.parseColor("#777777"))
         }
@@ -166,7 +243,11 @@ class SettingsActivity : AppCompatActivity() {
                 top.addView(sw)
             }
             is ViewerPrefs.ListSetting -> {
-                val labels = setting.options.map { it.second }
+                // Label resource 0 means the label IS the value
+                // (the resolution list, e.g. "1280x720").
+                val labels = setting.options.map {
+                    if (it.second == 0) it.first else getString(it.second)
+                }
                 val values = setting.options.map { it.first }
                 val current = prefs.getString(setting.key, setting.default) ?: setting.default
                 val spinner = Spinner(this).apply {
@@ -242,6 +323,16 @@ class SettingsActivity : AppCompatActivity() {
                 sliderRow.addView(valueText)
                 row.addView(top)
                 row.addView(sliderRow)
+                // The scale is ignored when the resolution mode is
+                // exact/custom (the viewer pins the size instead).
+                if (setting.key == "displayScale") {
+                    row.addView(TextView(this).apply {
+                        text = getString(R.string.viewer_scale_ignored_note)
+                        textSize = 13f
+                        setTextColor(Color.parseColor("#777777"))
+                        setPadding(0, dp(6), 0, 0)
+                    })
+                }
                 return row
             }
             is ViewerPrefs.TextSetting -> {
@@ -255,7 +346,7 @@ class SettingsActivity : AppCompatActivity() {
                         if (actionId == EditorInfo.IME_ACTION_DONE) {
                             prefs.edit().putString(setting.key, v.text.toString()).apply()
                             Toast.makeText(
-                                this@SettingsActivity, "تم الحفظ", Toast.LENGTH_SHORT
+                                this@SettingsActivity, getString(R.string.ui_settings_saved), Toast.LENGTH_SHORT
                             ).show()
                             clearFocus()
                             true
@@ -296,20 +387,24 @@ class SettingsActivity : AppCompatActivity() {
                             this, Manifest.permission.POST_NOTIFICATIONS
                         ) == PackageManager.PERMISSION_GRANTED
                     ) {
-                        Toast.makeText(this, "إذن الإشعارات ممنوح مسبقا", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.ui_settings_notif_already), Toast.LENGTH_SHORT).show()
                     } else {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 } else {
-                    Toast.makeText(this, "لا حاجة لهذا الإذن في هذا الإصدار", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.ui_settings_notif_not_needed), Toast.LENGTH_SHORT).show()
                 }
             }
             "configureResponseToUserActions" -> {
                 // Scroll to the User actions section (it is section index 4).
+                // Title(0) + card(1) per section, plus the language
+                // title + card (2 children) prepended above them;
+                // section 4 starts at child 10.
                 val scroll = findViewById<ScrollView>(R.id.settings_scroll)
                 val container = findViewById<LinearLayout>(R.id.settings_container)
-                // Title(0) + card(1) per section; section 4 starts at child 8.
-                val target = container.getChildAt(8)
+                // Language title(0) + card(1), then Title+card per
+                // section; section 4 starts at child 10.
+                val target = container.getChildAt(10)
                 target?.let { scroll.post { scroll.smoothScrollTo(0, it.top) } }
             }
         }

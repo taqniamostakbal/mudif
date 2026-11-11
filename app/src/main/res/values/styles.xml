@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mudif design system (UI overhaul, 2026-11-11).
+     One place for the app's look: brand purple #593BFE, Cairo for
+     Arabic/Latin text, Lifta for brand headers, and theme attributes
+     (?attr/colorSurface / colorOnSurface / colorOnSurfaceVariant) so
+     DayNight dark mode works. No hardcoded white card backgrounds and
+     no hardcoded near-black text anywhere in this file.
+     Per-view android:textSize / app:cornerRadius still win over a
+     style, so layouts keep their own sizes and pill radii. -->
+<resources>
+
+    <!-- Cards: surface background (adapts to dark mode). -->
+    <style name="Widget.Mudif.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">2dp</item>
+    </style>
+
+    <!-- Large hero cards (were 20dp / 4dp: home hero, control center). -->
+    <style name="Widget.Mudif.Card.Large" parent="Widget.Mudif.Card">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">4dp</item>
+    </style>
+
+    <!-- Compact row cards (were 14dp in fragment_profile, 12dp in item_process). -->
+    <style name="Widget.Mudif.Card.Compact" parent="Widget.Mudif.Card">
+        <item name="cardCornerRadius">14dp</item>
+        <item name="cardElevation">2dp</item>
+    </style>
+
+    <!-- Buttons. -->
+    <style name="Widget.Mudif.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="backgroundTint">@color/mudif_purple</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <style name="Widget.Mudif.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textColor">@color/mudif_purple</item>
+        <item name="strokeColor">@color/mudif_purple</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <style name="Widget.Mudif.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textColor">@color/mudif_purple</item>
+    </style>
+
+    <!-- White pill button for use ON purple headers / the gradient hero
+         (task_refresh, btn_open_desktop). Purple text on white. -->
+    <style name="Widget.Mudif.Button.OnPurple" parent="Widget.Material3.Button">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textColor">@color/mudif_purple</item>
+        <item name="backgroundTint">@android:color/white</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Text: title 20sp / body 16sp / caption 13sp, Cairo, theme colors.
+         Muted text uses colorOnSurfaceVariant (the theme's muted tone). -->
+    <style name="TextAppearance.Mudif.Title" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <style name="TextAppearance.Mudif.Body" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <style name="TextAppearance.Mudif.Subtitle" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="TextAppearance.Mudif.Caption" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- Purple-header titles (Lifta, white) and subtitles (Cairo,
+         #DCD6FF). The #DCD6FF is deliberate: it sits on the always-purple
+         header, so it is readable in light and dark mode alike.
+         Per-view textSize still applies (home uses 34sp, others 28sp). -->
+    <style name="Widget.Mudif.HeaderTitle" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/lifta</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <style name="Widget.Mudif.HeaderSubtitle" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">#DCD6FF</item>
+    </style>
+
+    <!-- Section header row (item_section_header.xml). -->
+    <style name="Widget.Mudif.SectionHeader" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/mudif_purple</item>
+    </style>
+
+    <!-- Search box (plain EditText on @drawable/search_box_bg; the
+         drawable's solid is ?attr/colorSurface, so this works in dark
+         mode too). See the P16.1 comment in search_box_bg.xml: do NOT
+         wrap this in a TextInputLayout, it breaks keystrokes. -->
+    <style name="Widget.Mudif.SearchBox" parent="android:Widget.EditText">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textColorHint">?attr/colorOnSurfaceVariant</item>
+        <item name="android:background">@drawable/search_box_bg</item>
+    </style>
+
+    <!-- Bottom navigation: purple when selected, muted otherwise. -->
+    <style name="Widget.Mudif.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">?attr/colorSurface</item>
+        <item name="itemIconTint">@color/bottom_nav_item_tint</item>
+        <item name="itemTextColor">@color/bottom_nav_item_tint</item>
+        <item name="labelVisibilityMode">labeled</item>
+    </style>
+
+    <!-- Drawer navigation view: purple icons, on-surface text. -->
+    <style name="Widget.Mudif.NavigationView" parent="Widget.Material3.NavigationView">
+        <item name="itemIconTint">@color/mudif_purple</item>
+        <item name="itemTextColor">?attr/colorOnSurface</item>
+    </style>
+
+</resources>

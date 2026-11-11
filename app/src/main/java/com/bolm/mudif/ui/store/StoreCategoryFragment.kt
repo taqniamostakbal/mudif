@@ -59,7 +59,7 @@ class StoreCategoryFragment : Fragment() {
         val category = StoreCategory.forKey(categoryKey) ?: StoreCategory.ALL
         binding.categoryHeader.background =
             ContextCompat.getDrawable(requireContext(), category.gradientRes)
-        binding.categoryTitle.text = category.label
+        binding.categoryTitle.text = getString(category.labelRes)
         binding.backButton.setOnClickListener {
             parentFragmentManager.popBackStack()
         }
@@ -116,7 +116,7 @@ class StoreCategoryFragment : Fragment() {
                 guestArch = arch
                 val category = StoreCategory.forKey(categoryKey) ?: StoreCategory.ALL
                 binding.categorySubtitle.text = getString(
-                    R.string.store_section_count, category.label, loaded.size
+                    R.string.store_section_count, getString(category.labelRes), loaded.size
                 )
                 if (loaded.isEmpty()) {
                     Snackbar.make(
@@ -239,7 +239,7 @@ class StoreCategoryFragment : Fragment() {
         val progress = MudifDialog.progress(requireContext(), program.name)
         progress.setStatus(getString(R.string.store_status_installing))
         progress.setIndeterminate(true)
-        InstallService.start(appCtx, "تثبيت ${program.name}…")
+        InstallService.start(appCtx, getString(R.string.ui_service_install_program, program.name))
         Thread {
             val result = ProgramStore.install(appCtx, program, guestArch) { stage, percent ->
                 InstallService.updateProgress(
@@ -262,12 +262,12 @@ class StoreCategoryFragment : Fragment() {
             val (verified, ev) = if (result.exitCode == 0) {
                 ProgramStore.verify(appCtx, program)
             } else {
-                false to ProgramStore.lastLine(result.output)
+                false to ProgramStore.lastLine(appCtx, result.output)
             }
             val detail = if (result.exitCode == 0 && !verified) {
-                ProgramStore.lastLine(result.output)
+                ProgramStore.lastLine(appCtx, result.output)
             } else {
-                ProgramStore.lastLines(result.output)
+                ProgramStore.lastLines(appCtx, result.output)
             }
             uiHandler.post {
                 progress.dismiss()
@@ -326,7 +326,7 @@ class StoreCategoryFragment : Fragment() {
                         requireContext(),
                         getString(R.string.store_uninstall_failed_title),
                         getString(R.string.store_uninstall_failed, program.name) +
-                            "\n\n" + ProgramStore.lastLines(result.output),
+                            "\n\n" + ProgramStore.lastLines(appCtx, result.output),
                         getString(R.string.ok)
                     )
                 }

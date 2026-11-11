@@ -7,7 +7,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F7F6FF">
+    android:background="?attr/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -34,19 +34,19 @@
             android:orientation="vertical"
             android:paddingStart="8dp">
 
-            <TextView
+            <TextView style="@style/Widget.Mudif.HeaderTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="مركز التحكم"
+                android:text="@string/control_center"
                 android:textSize="28sp"
                 android:textColor="@android:color/white"
                 android:fontFamily="@font/lifta" />
 
-            <TextView
+            <TextView style="@style/Widget.Mudif.HeaderSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="تحكم سريع وحالة النظام — قيم حقيقية"
+                android:text="@string/ui_cc_subtitle"
                 android:textSize="14sp"
                 android:textColor="#DCD6FF"
                 android:fontFamily="@font/cairo" />
@@ -63,11 +63,9 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Large"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="4dp">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -78,10 +76,10 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="تحكم سريع"
+                        android:text="@string/ui_cc_quick"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#1A1A1A"
+                        android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/cairo" />
 
                     <LinearLayout
@@ -91,13 +89,13 @@
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Body"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="الواي فاي"
+                            android:text="@string/ui_cc_wifi"
                             android:textSize="16sp"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
 
                         <TextView
@@ -109,25 +107,24 @@
                             android:textColor="@color/mudif_purple"
                             android:fontFamily="@font/cairo" />
 
-                        <com.google.android.material.button.MaterialButton
+                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
                             android:id="@+id/btn_wifi_settings"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:text="الإعدادات"
+                            android:text="@string/settings_title"
                             android:textSize="12sp"
                             android:fontFamily="@font/cairo"
-                            app:backgroundTint="@color/mudif_purple"
                             app:cornerRadius="24dp" />
                     </LinearLayout>
 
-                    <TextView
+                    <TextView style="@style/TextAppearance.Mudif.Body"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="الصوت"
+                        android:text="@string/audio_title"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/cairo" />
 
                     <SeekBar
@@ -136,13 +133,13 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp" />
 
-                    <TextView
+                    <TextView style="@style/TextAppearance.Mudif.Body"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="السطوع"
+                        android:text="@string/ui_cc_brightness"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/cairo" />
 
                     <SeekBar
@@ -151,16 +148,15 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp" />
 
-                    <com.google.android.material.button.MaterialButton
+                    <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
                         android:id="@+id/btn_brightness_permission"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="منح إذن تغيير السطوع"
+                        android:text="@string/ui_cc_brightness_perm"
                         android:textSize="12sp"
                         android:fontFamily="@font/cairo"
                         android:visibility="gone"
-                        app:backgroundTint="@color/mudif_purple"
                         app:cornerRadius="24dp" />
 
                     <LinearLayout
@@ -170,13 +166,13 @@
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
 
-                        <TextView
+                        <TextView style="@style/TextAppearance.Mudif.Body"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="البطارية"
+                            android:text="@string/ui_cc_battery"
                             android:textSize="16sp"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
 
                         <TextView
@@ -191,12 +187,10 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Large"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="4dp">
+                android:layout_marginTop="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -214,30 +208,29 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="حالة النظام"
+                            android:text="@string/ui_cc_status"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
 
-                        <com.google.android.material.button.MaterialButton
+                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
                             android:id="@+id/btn_refresh"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="تحديث"
+                            android:text="@string/task_manager_refresh"
                             android:textSize="12sp"
                             android:fontFamily="@font/cairo"
-                            app:backgroundTint="@color/mudif_purple"
                             app:cornerRadius="24dp" />
                     </LinearLayout>
 
-                    <TextView
+                    <TextView style="@style/TextAppearance.Mudif.Caption"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="المعالج"
+                        android:text="@string/ui_cc_cpu"
                         android:textSize="14sp"
-                        android:textColor="#555555"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/cairo" />
 
                     <LinearLayout
@@ -262,17 +255,17 @@
                             android:layout_marginStart="12dp"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
-                    <TextView
+                    <TextView style="@style/TextAppearance.Mudif.Caption"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="الذاكرة"
+                        android:text="@string/ui_cc_memory"
                         android:textSize="14sp"
-                        android:textColor="#555555"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/cairo" />
 
                     <LinearLayout
@@ -297,17 +290,17 @@
                             android:layout_marginStart="12dp"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
 
-                    <TextView
+                    <TextView style="@style/TextAppearance.Mudif.Caption"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="التخزين"
+                        android:text="@string/ui_cc_storage"
                         android:textSize="14sp"
-                        android:textColor="#555555"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/cairo" />
 
                     <LinearLayout
@@ -332,7 +325,7 @@
                             android:layout_marginStart="12dp"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="#1A1A1A"
+                            android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
                 </LinearLayout>

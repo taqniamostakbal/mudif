@@ -21,12 +21,20 @@
             android:icon="@drawable/ic_games"
             android:title="@string/tab_games" />
         <item
+            android:id="@+id/nav_agent"
+            android:icon="@drawable/ic_cat_ai"
+            android:title="@string/tab_agent" />
+        <item
             android:id="@+id/nav_profile"
             android:icon="@drawable/ic_person"
             android:title="@string/tab_profile" />
     </group>
-    <item android:title="الإعدادات والأدوات">
+    <item android:title="@string/ui_drawer_settings_tools">
         <menu>
+            <item
+                android:id="@+id/drawer_language"
+                android:icon="@drawable/ic_menu"
+                android:title="@string/drawer_language" />
             <item
                 android:id="@+id/drawer_settings"
                 android:icon="@drawable/ic_settings"

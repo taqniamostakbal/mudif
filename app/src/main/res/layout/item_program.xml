@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card" xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="6dp"
     android:clickable="true"
     android:focusable="true"
-    android:foreground="?attr/selectableItemBackground"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="3dp">
+    android:foreground="?attr/selectableItemBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -64,24 +62,24 @@
                     android:layout_height="wrap_content"
                     android:textSize="17sp"
                     android:textStyle="bold"
-                    android:textColor="#1A1A1A"
+                    android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/cairo" />
 
-                <TextView
+                <TextView style="@style/TextAppearance.Mudif.Caption"
                     android:id="@+id/program_name_en"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
-                    android:textColor="#999999"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/cairo" />
 
-                <TextView
+                <TextView style="@style/TextAppearance.Mudif.Caption"
                     android:id="@+id/program_desc"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:textSize="13sp"
-                    android:textColor="#666666"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/cairo"
                     android:maxLines="3" />
 
@@ -115,13 +113,13 @@
             android:textColor="@color/mudif_purple"
             android:fontFamily="@font/cairo" />
 
-        <TextView
+        <TextView style="@style/TextAppearance.Mudif.Caption"
             android:id="@+id/program_evidence"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:textSize="12sp"
-            android:textColor="#999999"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/cairo"
             android:maxLines="2"
             android:ellipsize="end"
@@ -144,7 +142,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_verify"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Mudif.Button.Secondary"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -152,7 +150,7 @@
                 android:fontFamily="@font/cairo"
                 android:textSize="12sp" />
 
-            <com.google.android.material.button.MaterialButton
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
                 android:id="@+id/btn_install"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -161,12 +159,11 @@
                 android:text="@string/install"
                 android:fontFamily="@font/cairo"
                 android:textSize="12sp"
-                app:backgroundTint="@color/mudif_purple"
                 app:cornerRadius="10dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_uninstall"
-                style="@style/Widget.Material3.Button.TextButton"
+                style="@style/Widget.Mudif.Button.Text"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"

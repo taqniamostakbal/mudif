@@ -54,11 +54,11 @@ class CategoryCardAdapter(
                 .filter { it.key != StoreCategory.FONTS.key }
                 .sumOf { it.value }
         } else counts[category.key] ?: 0
-        val unit = if (category == StoreCategory.FONTS) "خطوط" else "برامج"
+        val unit = if (category == StoreCategory.FONTS) holder.binding.root.context.getString(com.bolm.mudif.R.string.ui_store_unit_fonts) else holder.binding.root.context.getString(com.bolm.mudif.R.string.ui_store_unit_programs)
         with(holder.binding) {
             cardBg.setBackgroundResource(category.gradientRes)
             catIcon.setImageResource(category.iconRes)
-            catLabel.text = category.label
+            catLabel.text = root.context.getString(category.labelRes)
             catCount.text = "$count $unit"
             root.strokeWidth = if (selected) dp(3, holder) else 0
             root.strokeColor = Color.WHITE

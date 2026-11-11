@@ -13,16 +13,16 @@
         android:layout_height="wrap_content"
         android:textSize="19sp"
         android:textStyle="bold"
-        android:textColor="#1A1A1A"
+        android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/cairo" />
 
-    <TextView
+    <TextView style="@style/TextAppearance.Mudif.Caption"
         android:id="@+id/dialog_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:textSize="14sp"
-        android:textColor="#555555"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/cairo" />
 
     <ProgressBar
