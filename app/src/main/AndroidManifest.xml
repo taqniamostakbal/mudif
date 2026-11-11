@@ -66,5 +66,11 @@
             android:name=".engine.InstallService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Phase 2 — Google Cast sender: the framework reads the
+             OptionsProvider (Default Media Receiver, no custom app ID)
+             from this meta-data. No Remote Display API is used. -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.bolm.mudif.engine.CastOptionsProvider" />
     </application>
 </manifest>

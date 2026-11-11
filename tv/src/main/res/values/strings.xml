@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">مضيف على التلفاز</string>
+
+    <string name="status_searching">جارٍ البحث عن الهاتف على الشبكة نفسها…</string>
+    <string name="status_phone_found">تم العثور على الهاتف. اختر طريقة الاتصال.</string>
+    <string name="status_no_phone_found">لم يتم العثور على أي هاتف. تأكد أن الهاتف والتلفاز على شبكة الواي فاي نفسها، وأن البث يعمل على الهاتف، أو أدخل عنوان الهاتف يدوياً أدناه.</string>
+    <string name="status_discovery_failed">تعذر بدء البحث عن الهاتف. اضغط «إعادة البحث» للمحاولة من جديد.</string>
+    <string name="status_resolve_failed">تعذر تحديد عنوان الهاتف المكتشف. جرّب الإدخال اليدوي.</string>
+    <string name="status_connecting">جارٍ الاتصال بالهاتف (%1$s) على العنوان %2$s:%3$d…</string>
+    <string name="status_buffering">جارٍ تحميل البث…</string>
+    <string name="status_playing">يتم الآن عرض سطح المكتب على التلفاز.</string>
+    <string name="status_playback_error">تعذر تشغيل البث. تأكد أن البث يعمل على الهاتف وأن الشبكة نفسها، ثم أعد المحاولة.</string>
+    <string name="status_stopped">تم إيقاف البث.</string>
+
+    <string name="discovered_none">لم يتم العثور على هاتف بعد.</string>
+    <string name="discovered_found">الهاتف المكتشف: %1$s:%2$d</string>
+
+    <string name="source_manual">إدخال يدوي</string>
+    <string name="source_discovered">اكتشاف تلقائي</string>
+
+    <string name="hint_host">عنوان الهاتف (مثال: 192.168.1.10)</string>
+    <string name="hint_port">المنفذ</string>
+
+    <string name="button_hls">اتصال (جودة مستقرة)</string>
+    <string name="button_low_latency">اتصال (تأخير منخفض)</string>
+    <string name="button_stop">إيقاف</string>
+    <string name="button_rediscover">إعادة البحث</string>
+</resources>

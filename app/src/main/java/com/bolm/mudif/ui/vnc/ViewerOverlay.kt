@@ -19,6 +19,7 @@ import com.bolm.mudif.R
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.ScreenRecorder
+import com.bolm.mudif.engine.SystemDisplay
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.settings.ViewerPrefs
 
@@ -246,15 +247,29 @@ class ViewerOverlay(private val context: Context) {
         }
     }
 
-    /** TV: same rule as VncActivity — needs a system-connected display. */
+    /**
+     * Phase 2 — TV: a system-connected display (Smart View / DeX /
+     * HDMI) opens the viewer on it (unchanged). With no such display,
+     * the button opens the SYSTEM wireless-display settings
+     * (Miracast fallback): the app cannot connect to a Miracast TV
+     * itself. The viewer is on top, so a dialog would not be seen —
+     * the fallback is a direct settings open, plus a Toast.
+     * Cast lives on the VncActivity status screen (btnTv dialog).
+     */
     private fun onTv() {
         Thread {
             val dm = context.getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
             val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
             if (displays.isEmpty()) {
+                val opened = SystemDisplay.openWirelessDisplaySettings(context)
                 // The viewer is on top, so a dialog would not be seen.
                 (context as? android.app.Activity)?.runOnUiThread {
-                    Toast.makeText(context, context.getString(R.string.tv_no_display), Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        context,
+                        if (opened) context.getString(R.string.tv_miracast_open)
+                        else context.getString(R.string.tv_miracast_unavailable),
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
                 return@Thread
             }

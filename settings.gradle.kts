@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Mudif"
 include(":app")
+include(":tv")

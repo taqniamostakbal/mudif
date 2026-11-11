@@ -146,4 +146,17 @@
     <string name="tv_title">عرض على التلفاز</string>
     <string name="tv_no_display">ما كاين حتى شاشة خارجية متصلة. وصل التلفاز بالهاتف (Smart View أو DeX أو HDMI) ثم عاود المحاولة.</string>
     <string name="tv_opened">تم فتح سطح المكتب على التلفاز ✓</string>
+    <string name="tv_miracast_open">جار فتح إعدادات العرض اللاسلكي في النظام…</string>
+    <string name="tv_miracast_unavailable">تعذر فتح إعدادات العرض اللاسلكي في النظام</string>
+    <string name="tv_miracast_body">هذا عرض النظام (Miracast): التطبيق ما يقدرش يتصل بالتلفاز بنفسو، غادي تختار التلفاز من إعدادات النظام. يخدم غير مع تلفاز يدعم Miracast.</string>
+    <string name="tv_miracast_open_button">فتح إعدادات النظام</string>
+    <string name="tv_choose_body">اختار طريقة العرض على التلفاز:\n\n• بث لاسلكي: يعرض سطح المكتب على تلفاز فيه Chromecast أو جهاز Chromecast، بلا سلك. فيه تأخير ثواني، للعرض ماشي للتحكم السريع.\n\n• شاشة النظام: يعرض على شاشة متصلة بالنظام (Smart View أو DeX أو HDMI) إن وجدت، وإلا يفتح إعدادات العرض اللاسلكي في النظام.</string>
+    <string name="tv_choose_cast">بث لاسلكي</string>
+    <string name="tv_choose_system">شاشة النظام</string>
+    <string name="tv_cast_starting">جار بدء البث اللاسلكي…</string>
+    <string name="tv_cast_started">البث خدام — اختار التلفاز من القائمة</string>
+    <string name="tv_cast_failed">تعذر بدء البث اللاسلكي</string>
+    <string name="tv_cast_no_play_services">خدمات Google غير متوفرة على هذا الهاتف، البث اللاسلكي غير ممكن</string>
+    <string name="tv_cast_running">البث اللاسلكي خدام. تقدر توقفو من هنا.</string>
+    <string name="tv_cast_stop">إيقاف البث</string>
 </resources>

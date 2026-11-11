@@ -5,6 +5,8 @@ coreKtx = "1.13.1"
 appcompat = "1.7.0"
 material = "1.12.0"
 lifecycle = "2.8.6"
+castFramework = "21.4.0"
+mediarouter = "1.6.0"
 snakeyaml = "2.3"
 commonsCompress = "1.26.1"
 terminalLib = "e7a15b7877"
@@ -22,6 +24,10 @@ commons-compress = { group = "org.apache.commons", name = "commons-compress", ve
 # Kotlin stdlib dependency expected; if CI reports stdlib metadata
 # conflicts, apply the same exclude pattern as termux-x11 below.
 terminal-lib = { group = "com.github.tiny-computer", name = "terminal-lib", version.ref = "terminalLib" }
+# Phase 2 — Google Cast sender (live HLS, Default Media Receiver).
+play-services-cast-framework = { group = "com.google.android.gms", name = "play-services-cast-framework", version.ref = "castFramework" }
+# Phase 2 — route chooser dialog (MediaRouteChooserDialogFragment).
+androidx-mediarouter = { group = "androidx.mediarouter", name = "mediarouter", version.ref = "mediarouter" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
