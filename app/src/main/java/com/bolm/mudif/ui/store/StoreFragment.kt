@@ -8,6 +8,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -108,6 +109,22 @@ class StoreFragment : Fragment() {
                 applyFilter()
             }
         })
+        // Extract-mode safety: some keyboards buffer text in the IME's
+        // fullscreen extract view and only commit it on the action key,
+        // so afterTextChanged may never fire for the typed text. Read
+        // the EditText's current text on the action and filter from
+        // that, so a search typed in extract mode still filters.
+        binding.searchBox.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                actionId == EditorInfo.IME_ACTION_DONE
+            ) {
+                query = binding.searchBox.text?.toString() ?: ""
+                applyFilter()
+                true
+            } else {
+                false
+            }
+        }
 
         loadCatalog()
     }

@@ -71,6 +71,7 @@
             android:hint="@string/store_search_hint"
             android:fontFamily="@font/cairo"
             android:inputType="text"
+            android:imeOptions="actionSearch"
             android:maxLines="1" />
 
         <androidx.recyclerview.widget.RecyclerView
