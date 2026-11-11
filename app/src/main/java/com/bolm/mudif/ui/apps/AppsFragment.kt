@@ -173,10 +173,14 @@ class AppsFragment : Fragment() {
             val isGui = guiCheck.exitCode == 0 &&
                 guiCheck.output.isNotBlank() &&
                 guiCheck.output.trim() != "(لا مخرجات)"
+            // Extra launch flags (e.g. Electron apps). VSCodium
+            // crashes on launch (code 5) without --no-sandbox
+            // --disable-gpu --disable-dev-shm-usage in proot.
+            val flags = program.flags?.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
             val launchCmd = if (isGui) {
-                "$binary >/dev/null 2>&1 &"
+                "$binary$flags >/dev/null 2>&1 &"
             } else {
-                "qterminal -e sh -c '$binary; exec sh' >/dev/null 2>&1 &"
+                "qterminal -e sh -c '$binary$flags; exec sh' >/dev/null 2>&1 &"
             }
             val live = GuestSession.alive && GuestSession.booted &&
                 X11Session.isTcpDisplayOpen()
