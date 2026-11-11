@@ -1,13 +1,17 @@
 package com.bolm.mudif.ui
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import com.bolm.mudif.BuildConfig
 import com.bolm.mudif.R
+import com.bolm.mudif.engine.DebianSystem
 import com.google.android.material.button.MaterialButton
 
 /**
@@ -63,6 +67,47 @@ object MudifDialog {
             ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
         )
         return dialog
+    }
+
+    /** Branded About dialog (Phase 1a): the same identity as the
+     *  desktop mudif-about — the user's avatar, the channel credit,
+     *  the app + image versions, and the GitHub/YouTube links.
+     *  This replaces the version-only dialog. */
+    fun about(ctx: Context): AlertDialog {
+        val view = LayoutInflater.from(ctx).inflate(R.layout.dialog_mudif_about, null)
+        val imageVersion = DebianSystem.installedImageVersion(ctx)
+        val versionText = if (imageVersion != null) {
+            "الإصدار ${BuildConfig.VERSION_NAME} · صورة $imageVersion"
+        } else {
+            "الإصدار ${BuildConfig.VERSION_NAME}"
+        }
+        view.findViewById<TextView>(R.id.about_version).text = versionText
+        val dialog = AlertDialog.Builder(ctx)
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        view.findViewById<MaterialButton>(R.id.about_btn_github).setOnClickListener {
+            openLink(ctx, "https://github.com/taqniamostakbal/mudif")
+        }
+        view.findViewById<MaterialButton>(R.id.about_btn_youtube).setOnClickListener {
+            openLink(ctx, "https://www.youtube.com/@taqniaMostakbal")
+        }
+        view.findViewById<MaterialButton>(R.id.about_btn_ok).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(
+            ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
+        )
+        return dialog
+    }
+
+    private fun openLink(ctx: Context, url: String) {
+        try {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (e: Exception) {
+            // No browser available: do nothing (the dialog stays open).
+        }
     }
 
     /** Progress dialog handle: status text + bar (0..1000) or indeterminate. */

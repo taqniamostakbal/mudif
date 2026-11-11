@@ -84,6 +84,15 @@ class VncActivity : AppCompatActivity() {
     @Volatile
     private var lastDiagnostics: String? = null
 
+    /**
+     * Phase 1d: floating icon controls over the viewer (record / TV /
+     * audio). Shown when the viewer opens; hidden when this activity
+     * is destroyed. The permission prompt is shown at most once per
+     * activity instance, so it never spams.
+     */
+    private var viewerOverlay: ViewerOverlay? = null
+    private var overlayPermissionPrompted = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityVncBinding.inflate(layoutInflater)
@@ -292,12 +301,39 @@ class VncActivity : AppCompatActivity() {
     }
 
     /**
+     * Phase 1d: show the floating icon controls over the viewer.
+     * If the overlay permission is missing, ask once (open the system
+     * settings); if the user declines, the desktop still works, just
+     * without the floating controls.
+     */
+    private fun showViewerOverlay() {
+        if (viewerOverlay == null) viewerOverlay = ViewerOverlay(this)
+        val overlay = viewerOverlay ?: return
+        if (overlay.canDraw()) {
+            overlay.show()
+            return
+        }
+        if (overlayPermissionPrompted) return
+        overlayPermissionPrompted = true
+        MudifDialog.info(
+            this,
+            "أزرار عائمة فوق سطح المكتب",
+            "باش تبان أزرار التسجيل والتلفاز والصوت فوق سطح المكتب، خاصك تفعّل «العرض فوق التطبيقات» لمضيف.",
+            "تفعيل",
+            onPositive = { overlay.requestPermission() },
+            negative = "لاحقا"
+        )
+    }
+
+    /**
      * P16.2: open the viewer, then launch the desktop after the viewer
      * attaches and resizes the server (P6.5). Shared by the diagnostics
      * dialog's positive button and the status screen's viewer button.
      */
     private fun openViewerAndLaunchDesktop() {
         X11Session.openViewer(this)
+        // Phase 1d: floating icon controls over the viewer.
+        showViewerOverlay()
         // P6.5: launch the desktop AFTER the viewer attaches and
         // resizes the server (RandR). A plain Thread (not
         // lifecycleScope): this activity is only paused by the viewer,
@@ -694,6 +730,8 @@ class VncActivity : AppCompatActivity() {
         runOnUiThread {
             setStatus("جاهز — افتح العارض لبدء سطح المكتب")
             X11Session.openViewer(this)
+            // Phase 1d: floating icon controls over the viewer.
+            showViewerOverlay()
         }
         return true
     }
@@ -724,6 +762,9 @@ class VncActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         destroyed = true
+        // Phase 1d: remove the floating controls with the session.
+        viewerOverlay?.hide()
+        viewerOverlay = null
         // P5.11: do NOT stop the X server or the container session here.
         // Leaving this screen (back button / switching to the terminal
         // tab) used to kill the server under the user's feet. The
