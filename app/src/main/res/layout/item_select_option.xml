@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One option row for the branded select dialog (MudifDialog.select).
+     Inflated once per choice. Same look as the language picker options:
+     outlined purple button, Cairo, 12dp corners; the current choice is
+     filled purple in code. -->
+<com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.Mudif.Button.Secondary"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fontFamily="@font/cairo"
+    app:cornerRadius="12dp" />

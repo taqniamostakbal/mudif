@@ -3,8 +3,10 @@ package com.bolm.mudif.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -67,6 +69,61 @@ object MudifDialog {
         )
         return dialog
     }
+
+    /** Branded single-choice dialog: title + one full-width button
+     *  per option (Secondary outlined purple; the current one filled
+     *  purple). Replaces Spinner dropdowns, whose system popup is
+     *  unstyled and can be clipped by the screen edge in RTL.
+     *  Choosing dismisses the dialog and calls [onSelect]. */
+    fun select(
+        ctx: Context,
+        title: String,
+        options: List<String>,
+        current: Int,
+        message: String? = null,
+        onSelect: (Int) -> Unit
+    ): AlertDialog {
+        val view = LayoutInflater.from(ctx).inflate(R.layout.dialog_mudif_select, null)
+        view.findViewById<TextView>(R.id.dialog_title).text = title
+        val messageView = view.findViewById<TextView>(R.id.dialog_message)
+        if (message != null) {
+            messageView.text = message
+            messageView.visibility = View.VISIBLE
+        }
+        val dialog = AlertDialog.Builder(ctx)
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        val container = view.findViewById<LinearLayout>(R.id.dialog_options)
+        for ((index, label) in options.withIndex()) {
+            val button = LayoutInflater.from(ctx).inflate(
+                R.layout.item_select_option, container, false
+            ) as MaterialButton
+            button.text = label
+            button.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { if (index > 0) topMargin = dp(ctx, 8) }
+            if (index == current) {
+                // Current choice: filled purple, white text (Primary look).
+                button.backgroundTintList =
+                    ContextCompat.getColorStateList(ctx, R.color.mudif_purple)
+                button.setTextColor(ContextCompat.getColor(ctx, android.R.color.white))
+            }
+            button.setOnClickListener { dialog.dismiss(); onSelect(index) }
+            container.addView(button)
+        }
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(
+            ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
+        )
+        return dialog
+    }
+
+    private fun dp(ctx: Context, v: Int): Int =
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), ctx.resources.displayMetrics
+        ).toInt()
 
     /** Branded About dialog (Phase 1a): the same identity as the
      *  desktop mudif-about — the user's avatar, the channel credit,

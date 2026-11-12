@@ -3,7 +3,6 @@ package com.bolm.mudif.ui.settings
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
@@ -11,22 +10,24 @@ import android.provider.Settings
 import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.bolm.mudif.R
 import com.bolm.mudif.engine.X11Session
+import com.bolm.mudif.ui.MudifDialog
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.switchmaterial.SwitchMaterial
 
@@ -69,6 +70,16 @@ class SettingsActivity : AppCompatActivity() {
             TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics
         ).toInt()
 
+    /** Resolve a Material theme color (adapts to dark mode). The
+     *  programmatic rows used hardcoded #1A1A1A / #777777 / white,
+     *  which ignore the theme and dark mode; theme colors keep the
+     *  whole screen in the app's style. */
+    private fun themeColor(attr: Int): Int {
+        val tv = TypedValue()
+        theme.resolveAttribute(attr, tv, true)
+        return tv.data
+    }
+
     private fun buildSections() {
         val container = findViewById<LinearLayout>(R.id.settings_container)
         container.removeAllViews()
@@ -78,7 +89,7 @@ class SettingsActivity : AppCompatActivity() {
                 text = getString(section.titleRes)
                 textSize = 15f
                 setTypeface(typeface, Typeface.BOLD)
-                setTextColor(Color.parseColor("#1A1A1A"))
+                setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
                 setPadding(dp(4), dp(18), dp(4), dp(8))
             }
             container.addView(title)
@@ -86,7 +97,9 @@ class SettingsActivity : AppCompatActivity() {
             val card = MaterialCardView(this).apply {
                 radius = dp(14).toFloat()
                 cardElevation = dp(2).toFloat()
-                setCardBackgroundColor(Color.WHITE)
+                // Background comes from the theme (Widget.Mudif.Card,
+                // colorSurface, dark-mode aware); the old hardcoded
+                // white ignored the theme.
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
@@ -103,7 +116,7 @@ class SettingsActivity : AppCompatActivity() {
                         layoutParams = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
                         ).apply { setMargins(0, dp(4), 0, dp(4)) }
-                        setBackgroundColor(Color.parseColor("#EEEEEE"))
+                        setBackgroundColor(this@SettingsActivity.themeColor(com.google.android.material.R.attr.colorOutline))
                     })
                 }
             }
@@ -115,7 +128,7 @@ class SettingsActivity : AppCompatActivity() {
         val footer = TextView(this).apply {
             text = getString(R.string.viewer_settings_mouse_hint)
             textSize = 13f
-            setTextColor(Color.parseColor("#777777"))
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
             setPadding(dp(4), dp(18), dp(4), dp(24))
         }
         container.addView(footer)
@@ -129,14 +142,14 @@ class SettingsActivity : AppCompatActivity() {
             text = getString(R.string.language_title)
             textSize = 15f
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.parseColor("#1A1A1A"))
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
             setPadding(dp(4), dp(18), dp(4), dp(8))
         }
         container.addView(title)
         val card = MaterialCardView(this).apply {
             radius = dp(14).toFloat()
             cardElevation = dp(2).toFloat()
-            setCardBackgroundColor(Color.WHITE)
+            // Background from the theme (Widget.Mudif.Card).
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -149,7 +162,7 @@ class SettingsActivity : AppCompatActivity() {
         val desc = TextView(this).apply {
             text = getString(R.string.language_desc)
             textSize = 13f
-            setTextColor(Color.parseColor("#777777"))
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
         }
         cardBody.addView(desc)
         val labels = listOf(
@@ -158,40 +171,25 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.language_english)
         )
         val tags = AppLanguage.TAGS
-        val spinner = Spinner(this).apply {
-            val spinnerAdapter = ArrayAdapter(
-                this@SettingsActivity,
-                android.R.layout.simple_spinner_item, labels
-            ).apply {
-                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            }
-            adapter = spinnerAdapter
-            setSelection(tags.indexOf(AppLanguage.currentTag(this@SettingsActivity)).coerceAtLeast(0))
-            // Ignore the initial selection callback.
-            var first = true
-            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    parent: android.widget.AdapterView<*>?, view: View?,
-                    position: Int, id: Long
-                ) {
-                    if (first) { first = false; return }
-                    AppLanguage.apply(this@SettingsActivity, tags[position])
-                    recreate()
-                }
-                override fun onNothingSelected(
-                    parent: android.widget.AdapterView<*>?
-                ) {}
-            }
-        }
-        spinner.layoutParams = LinearLayout.LayoutParams(
+        // Branded picker: a full-width button showing the current
+        // language opens AppLanguage's branded dialog. The old
+        // Spinner popup was unstyled and could be clipped by the
+        // screen edge in RTL (the user's screenshot).
+        val currentLabel = labels[tags.indexOf(AppLanguage.currentTag(this)).coerceAtLeast(0)]
+        val button = LayoutInflater.from(this).inflate(
+            R.layout.item_select_option, cardBody, false
+        ) as MaterialButton
+        button.text = "$currentLabel ▾"
+        button.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(8) }
-        cardBody.addView(spinner)
+        button.setOnClickListener { AppLanguage.showPicker(this) }
+        cardBody.addView(button)
         val note = TextView(this).apply {
             text = getString(R.string.language_restart_note)
             textSize = 13f
-            setTextColor(Color.parseColor("#777777"))
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
             setPadding(0, dp(8), 0, 0)
         }
         cardBody.addView(note)
@@ -203,12 +201,12 @@ class SettingsActivity : AppCompatActivity() {
         val title = TextView(this).apply {
             text = getString(setting.titleRes)
             textSize = 16f
-            setTextColor(Color.parseColor("#1A1A1A"))
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
         }
         val desc = TextView(this).apply {
             text = getString(setting.descRes)
             textSize = 13f
-            setTextColor(Color.parseColor("#777777"))
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
         }
         return title to desc
     }
@@ -250,52 +248,47 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 val values = setting.options.map { it.first }
                 val current = prefs.getString(setting.key, setting.default) ?: setting.default
-                val spinner = Spinner(this).apply {
-                    val spinnerAdapter = ArrayAdapter(
-                        this@SettingsActivity,
-                        android.R.layout.simple_spinner_item, labels
-                    ).apply {
-                        setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                    }
-                    adapter = spinnerAdapter
-                    setSelection((values.indexOf(current)).coerceAtLeast(0))
-                    // Ignore the initial selection callback.
-                    var first = true
-                    onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                        override fun onItemSelected(
-                            parent: android.widget.AdapterView<*>?, view: View?,
-                            position: Int, id: Long
-                        ) {
-                            if (first) { first = false; return }
-                            prefs.edit().putString(setting.key, values[position]).apply()
-                        }
-                        override fun onNothingSelected(
-                            parent: android.widget.AdapterView<*>?
-                        ) {}
-                    }
-                }
-                // P18.5: the spinner goes BELOW the texts, full width
-                // (same vertical pattern as SliderSetting/TextSetting).
-                // Side-by-side, the spinner ate the row width and long
-                // Arabic titles wrapped word-by-word into a narrow
-                // column (Nova 9 screenshot, 2026-11-10).
-                spinner.layoutParams = LinearLayout.LayoutParams(
+                // Branded picker (MudifDialog.select): a full-width
+                // button showing the current value opens the branded
+                // dialog. The old Spinner popup was unstyled and could
+                // be clipped by the screen edge in RTL. The button goes
+                // BELOW the texts, full width (P18.5 vertical pattern).
+                val currentLabel = labels[(values.indexOf(current)).coerceAtLeast(0)]
+                val button = LayoutInflater.from(this).inflate(
+                    R.layout.item_select_option, row, false
+                ) as MaterialButton
+                button.text = "$currentLabel ▾"
+                button.layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(8) }
+                button.setOnClickListener {
+                    MudifDialog.select(
+                        this,
+                        getString(setting.titleRes),
+                        labels,
+                        (values.indexOf(current)).coerceAtLeast(0)
+                    ) { index ->
+                        prefs.edit().putString(setting.key, values[index]).apply()
+                        button.text = "${labels[index]} ▾"
+                    }
+                }
                 row.addView(top)
-                row.addView(spinner)
+                row.addView(button)
                 return row
             }
             is ViewerPrefs.SliderSetting -> {
                 // Slider goes below the texts (full width).
                 val valueText = TextView(this).apply {
                     textSize = 14f
-                    setTextColor(Color.parseColor("#593BFE"))
+                    setTextColor(ContextCompat.getColor(context, R.color.mudif_purple))
                     setTypeface(typeface, Typeface.BOLD)
                 }
                 val seek = SeekBar(this).apply {
                     max = setting.max - setting.min
+                    // Brand purple thumb + track (was the default grey/teal).
+                    progressTintList = ContextCompat.getColorStateList(context, R.color.mudif_purple)
+                    thumbTintList = ContextCompat.getColorStateList(context, R.color.mudif_purple)
                     val current = prefs.getInt(setting.key, setting.default)
                         .coerceIn(setting.min, setting.max)
                     progress = current - setting.min
@@ -329,7 +322,7 @@ class SettingsActivity : AppCompatActivity() {
                     row.addView(TextView(this).apply {
                         text = getString(R.string.viewer_scale_ignored_note)
                         textSize = 13f
-                        setTextColor(Color.parseColor("#777777"))
+                        setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
                         setPadding(0, dp(6), 0, 0)
                     })
                 }
@@ -341,7 +334,13 @@ class SettingsActivity : AppCompatActivity() {
                     inputType = InputType.TYPE_CLASS_TEXT
                     imeOptions = EditorInfo.IME_ACTION_DONE
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                    // Mudif input style (same as Widget.Mudif.SearchBox):
+                    // Cairo, theme text colors, rounded surface background.
+                    typeface = ResourcesCompat.getFont(context, R.font.cairo)
+                    setTextColor(this@SettingsActivity.themeColor(com.google.android.material.R.attr.colorOnSurface))
+                    setHintTextColor(this@SettingsActivity.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                    setBackgroundResource(R.drawable.search_box_bg)
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
                     setOnEditorActionListener { v, actionId, _ ->
                         if (actionId == EditorInfo.IME_ACTION_DONE) {
                             prefs.edit().putString(setting.key, v.text.toString()).apply()
@@ -366,7 +365,7 @@ class SettingsActivity : AppCompatActivity() {
                 val chevron = TextView(this).apply {
                     text = "‹"
                     textSize = 24f
-                    setTextColor(Color.parseColor("#593BFE"))
+                    setTextColor(ContextCompat.getColor(context, R.color.mudif_purple))
                 }
                 top.addView(chevron)
                 top.setOnClickListener { runAction(setting.key) }
