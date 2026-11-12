@@ -404,6 +404,11 @@ object RootfsManager {
             "MOZ_DISABLE_CONTENT_SANDBOX=1",
             "QTWEBENGINE_DISABLE_SANDBOX=1",
             "ELECTRON_DISABLE_SANDBOX=1",
+            // Batch 3 (2026-11-12): GTK4's GL renderer fails under
+            // llvmpipe/ZINK (black windows, e.g. file-roller).
+            // Cairo software rendering fixes it (screenshot b3-05).
+            // Also Phase 3 P3-1 (top 3).
+            "GSK_RENDERER=cairo",
             "HOME=/root",
             "USER=root",
             "TERM=xterm-256color",
