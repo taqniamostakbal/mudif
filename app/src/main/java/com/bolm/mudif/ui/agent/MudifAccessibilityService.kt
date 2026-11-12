@@ -299,9 +299,9 @@ class MudifAccessibilityService : AccessibilityService() {
     }
 
     private fun encodeScreenshot(screenshot: ScreenshotResult): JSONObject {
-        if (screenshot.status != ScreenshotResult.STATUS_SUCCESS) {
-            return err("screenshot_failed", "takeScreenshot reported status ${screenshot.status}.")
-        }
+        // onSuccess already means success: ScreenshotResult has no status
+        // field and no STATUS_SUCCESS constant; a null buffer is the only
+        // failure mode left here.
         val buffer = screenshot.hardwareBuffer
             ?: return err("screenshot_failed", "takeScreenshot returned no image buffer.")
         return try {
