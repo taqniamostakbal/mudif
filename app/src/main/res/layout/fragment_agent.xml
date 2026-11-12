@@ -9,7 +9,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="?attr/colorBackground">
+    android:background="?attr/colorSurface">
 
     <!-- Header: clay-penguin avatar + agent name + reply-language switch.
          Tapping the avatar or the name shows the agent About text. -->
@@ -323,7 +323,7 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:background="?attr/colorBackground"
+            android:background="?attr/colorSurface"
             android:padding="24dp"
             android:visibility="gone">
 
