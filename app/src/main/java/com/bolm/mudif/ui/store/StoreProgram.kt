@@ -28,10 +28,20 @@ data class StoreProgram(
      * Extra launch flags appended to the binary when the program
      * is run (e.g. Electron apps that crash without them).
      * Null = no extra flags. VSCodium needs
-     * "--no-sandbox --disable-gpu --disable-dev-shm-usage":
-     * it crashed on launch (code 5) without them in proot.
+     * "--no-sandbox --disable-gpu --disable-gpu-sandbox
+     * --no-zygote-sandbox --disable-dev-shm-usage":
+     * it crashed on launch (code 5) without the first three in
+     * proot, and died ~4-5 min later (SIGTRAP) without the
+     * --disable-gpu-sandbox / --no-zygote-sandbox pair (Batch 3).
      */
     val flags: String?,
+    /**
+     * User to run the program as (via runuser). Null = run as root
+     * (the guest default). VLC refuses to run as root ("VLC is not
+     * supposed to be run as root"), so it runs as "nobody" — rig
+     * Batch 3 proved `runuser -u nobody` initializes its GUI.
+     */
+    val runAs: String?,
     /**
      * The process name to check when verifying the launch.
      * Defaults to [binary]. Needed when the binary is a wrapper
@@ -106,6 +116,7 @@ object StoreCatalog {
                     font = o.optString("font", null)?.takeIf { it != "null" },
                     icon = o.getString("icon"),
                     flags = o.optString("flags", null)?.takeIf { it != "null" },
+                    runAs = o.optString("runAs", null)?.takeIf { it != "null" },
                     process = o.optString("process", null)?.takeIf { it != "null" },
                     // org.json returns the STRING "null" for a JSON
                     // null, so normalize it away (same trap as D3).

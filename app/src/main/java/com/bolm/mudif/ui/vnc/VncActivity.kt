@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.mediarouter.app.MediaRouteChooserDialogFragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityVncBinding
+import com.bolm.mudif.engine.AgentServer
 import com.bolm.mudif.engine.CastManager
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.DesktopDiagnostics
@@ -441,6 +442,15 @@ class VncActivity : AppCompatActivity() {
             if (sent && running && PulseAudio.isEnabled(this)) {
                 Thread { PulseAudio.start(this) }.start()
             }
+            // p21: the brain servers start with the desktop. Before,
+            // nothing started them on boot: the only callers of
+            // AgentServer.ensureStarted were the agent tab (on send)
+            // and the supervisor service (never started). Own thread:
+            // ensureStarted polls up to 30 s and must not delay the
+            // Toast below.
+            if (sent && running) {
+                startAgentServersInBackground()
+            }
             val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
             Log.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
             // P18.5: fire a pending app launch (from the Apps tab)
@@ -471,6 +481,25 @@ class VncActivity : AppCompatActivity() {
                 }
             }
         }.start()
+    }
+
+    /**
+     * p21: start the agent brain (opencode 4096, ollama 11434) on a
+     * background thread. ensureStarted stages the start script and
+     * runs it on the persistent GuestSession PTY, so the servers live
+     * as long as the desktop session does (a one-shot probe proot
+     * would reap them on exit, which is what the p21 rig test saw
+     * for the manually started servers). Idempotent: a re-entry
+     * costs nothing when the servers are already up.
+     */
+    private fun startAgentServersInBackground() {
+        Thread {
+            val ensured = AgentServer.ensureStarted(applicationContext)
+            Log.d(
+                "VncActivity",
+                "agent servers on desktop boot: up=${ensured.up} reason=${ensured.reason}"
+            )
+        }.apply { isDaemon = true }.start()
     }
 
     private fun setStatus(text: String) {
@@ -806,6 +835,9 @@ class VncActivity : AppCompatActivity() {
         )
         if (!r.output.contains("RUNNING")) return false
         Log.d("VncActivity", "fast reattach: session healthy, opening viewer directly")
+        // p21: the session survived, but the brain servers may not
+        // have; ensureStarted is a no-op when they are already up.
+        startAgentServersInBackground()
         val appToLaunch = pendingLaunchApp
         pendingLaunchApp = null
         if (appToLaunch != null) GuestSession.sendCommand(appToLaunch)

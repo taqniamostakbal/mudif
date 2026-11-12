@@ -210,7 +210,8 @@
       "method": "apt",
       "apt": "vlc",
       "binary": "vlc",
-      "icon": "vlc.png"
+      "icon": "vlc.png",
+      "runAs": "nobody"
     },
     {
       "id": "gimp",
@@ -400,7 +401,7 @@
       "icon": "vscodium.png",
       "debArm64": "https://github.com/VSCodium/vscodium/releases/download/1.143.17232/codium_1.143.17232_arm64.deb",
       "debPackage": "codium",
-      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage --user-data-dir=/root/.config/VSCodium"
+      "flags": "--no-sandbox --disable-gpu --disable-gpu-sandbox --no-zygote-sandbox --disable-dev-shm-usage --user-data-dir=/root/.config/VSCodium"
     },
     {
       "id": "geany",

@@ -45,10 +45,17 @@ object AppLauncher {
         val uiHandler = Handler(Looper.getMainLooper())
         uiHandler.post { onBusy?.invoke(true) }
         Thread {
+            // A .desktop file whose Exec runs this binary means a
+            // window of its own — EXCEPT when it declares
+            // Terminal=true: that is a terminal app (htop), and
+            // launching it raw opens no window at all (Batch 3).
+            // The while loop drops Terminal=true files from the
+            // match list, so htop falls through to qterminal.
             val guiCheck = TerminalSession.runCommandDebian(
                 appCtx,
                 "grep -rl '^Exec=[^ ]*\\b$binary\\b' " +
-                    "/usr/share/applications/*.desktop 2>/dev/null | head -1",
+                    "/usr/share/applications/*.desktop 2>/dev/null | " +
+                    "while read f; do grep -q '^Terminal=true' \"\$f\" || echo \"\$f\"; done | head -1",
                 idleTimeoutSec = 15,
                 maxTimeoutSec = 30
             )
@@ -59,8 +66,15 @@ object AppLauncher {
             // crashes on launch (code 5) without --no-sandbox
             // --disable-gpu --disable-dev-shm-usage in proot.
             val flags = program.flags?.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
+            // Programs that refuse to run as root (VLC) run as
+            // another user via runuser. runuser keeps the caller's
+            // environment (DISPLAY included), so the GUI still
+            // reaches the viewer; Batch 3 proved it initializes
+            // VLC's GUI.
+            val runPrefix = program.runAs?.takeIf { it.isNotBlank() }
+                ?.let { "runuser -u $it -- " } ?: ""
             val launchCmd = if (isGui) {
-                "$binary$flags >/dev/null 2>&1 &"
+                "$runPrefix$binary$flags >/dev/null 2>&1 &"
             } else {
                 "qterminal -e sh -c '$binary$flags; exec sh' >/dev/null 2>&1 &"
             }

@@ -88,6 +88,10 @@ class StoreFragment : Fragment() {
                     )
                     .addToBackStack(null)
                     .commit()
+                // p21: run the navigation now, not on the next frame,
+                // so a tap's result is visible immediately. commitNow
+                // cannot be used here: it forbids addToBackStack.
+                parentFragmentManager.executePendingTransactions()
             }
         }
         binding.categoryRecycler.layoutManager = GridLayoutManager(requireContext(), 2)
@@ -238,6 +242,11 @@ class StoreFragment : Fragment() {
     /** Search (Arabic name, English name, description) plus category filter. */
     private fun applyFilter() {
         val q = query.trim()
+        // p21: while a query is typed, the category cards hide so the
+        // filtered list is what the user sees. Before, the cards
+        // stayed visible with stale counts and the screen looked
+        // unfiltered even though the list below had already filtered.
+        binding.categoryRecycler.visibility = if (q.isEmpty()) View.VISIBLE else View.GONE
         val filtered = programs.filter { p ->
             (selectedCategory == StoreCategory.ALL.key || p.category == selectedCategory) &&
                 (q.isEmpty() || p.name.contains(q, ignoreCase = true) ||
