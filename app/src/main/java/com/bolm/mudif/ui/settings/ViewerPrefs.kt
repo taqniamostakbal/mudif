@@ -2,6 +2,7 @@ package com.bolm.mudif.ui.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 
 import com.bolm.mudif.R
 
@@ -34,6 +35,18 @@ object ViewerPrefs {
         fun putBooleanIfAbsent(key: String, value: Boolean) {
             if (!p.contains(key)) e.putBoolean(key, value)
         }
+        // Mouse fix (2026-11-12, MOUSE-PLAN Step 1): a stored "1"
+        // (Trackpad: relative pointer at half finger speed) is never
+        // corrected by putStringIfAbsent, so a phone that ever got "1"
+        // stays on the bad mode forever. One-time migration: "1" -> "2"
+        // (Simulated). Never touch "3" (Direct, a deliberate choice).
+        // Runs once (flag), never on every launch.
+        if (!p.getBoolean("touchModeMigratedToSimulated", false)) {
+            if (p.getString("touchMode", null) == "1") {
+                e.putString("touchMode", "2")
+            }
+            e.putBoolean("touchModeMigratedToSimulated", true)
+        }
         putStringIfAbsent("touchMode", "2")              // Simulated touchscreen
         putStringIfAbsent("displayResolutionMode", "exact")
         putStringIfAbsent("displayResolutionExact", exactResolution)
@@ -44,6 +57,8 @@ object ViewerPrefs {
         putBooleanIfAbsent("tapToMove", false)
         putBooleanIfAbsent("additionalKbdVisible", false)
         e.apply()
+        // Log the effective mode so the rig proves it (MOUSE-PLAN Step 1).
+        Log.d("Mudif", "touchMode=" + (p.getString("touchMode", "?") ?: "?"))
     }
 
     sealed class Setting {
