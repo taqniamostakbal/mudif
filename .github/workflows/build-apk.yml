@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to create/update the mudif-apk release
     steps:
       - uses: actions/checkout@v4
 
