@@ -56,20 +56,20 @@ object DebianSystem {
     const val DEBIAN_VERSION = "13.1"
     private const val HF_BASE =
         "https://huggingface.co/datasets/855teche/mudif-images/resolve/main/"
-    private const val IMAGE_VERSION = "p22"
+    private const val IMAGE_VERSION = "p23"
     private const val READY_MARKER = ".mudif_ready"
 
-    // P22 image, hosted as 20 MB parts (every part is
+    // P23 image, hosted as 20 MB parts (every part is
     // 20,971,520 B except the last). Totals + sha256 verified
     // 2026-11-13 (builder + independent verify-image.sh, both arches,
-    // x86_64 153 PASS / aarch64 ALL CHECKS PASSED):
-    // x86_64 614,712,068 B (30 parts), aarch64 549,573,136 B (27 parts).
+    // x86_64 154 PASS / aarch64 154 PASS):
+    // x86_64 615,804,788 B (30 parts), aarch64 549,589,848 B (27 parts).
     private const val SHA256_X86_64 =
-        "21dc7c5d0a5578fa3cb38bef1e8dedcf9631ec4481da2220ff7b209d779e102e"
+        "182d59dabfec1fdcb86135640042d209fcb90bb46bfce5743aeba698f61470fc"
     private const val SHA256_AARCH64 =
-        "54f4ba248adee3e95597b96b815ef790f5a6b8b594daaa05cd07ac8b41fe5fb3"
-    private const val TOTAL_BYTES_X86_64 = 614712068L
-    private const val TOTAL_BYTES_AARCH64 = 549573136L
+        "38a4601e32cb47205fa21c1841313df5f767d00f872093702da8efd0d211d55a"
+    private const val TOTAL_BYTES_X86_64 = 615804788L
+    private const val TOTAL_BYTES_AARCH64 = 549589848L
     private const val PART_COUNT_X86_64 = 30
     private const val PART_COUNT_AARCH64 = 27
     private const val PART_SIZE = 20971520L
