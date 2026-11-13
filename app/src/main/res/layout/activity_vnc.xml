@@ -4,7 +4,11 @@
     android:layout_height="match_parent"
     android:background="#1A1A2E">
 
-    <!-- P5.8: status + detailed-log button on the desktop screen. -->
+    <!-- Status + icon actions (p22: icons, not text buttons — the
+         user's order: "ايقونات ماشي كتبة"). Two rows of large circular
+         icon buttons; state (record/audio) is shown by the icon/tint,
+         never by text. IDs are unchanged so the Kotlin listeners
+         attach as before. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -21,53 +25,82 @@
             android:textColor="#FFFFFF"
             android:textSize="16sp" />
 
-        <Button style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/btn_open_viewer"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/ui_vnc_diag_open_viewer" />
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal"
+            android:gravity="center">
 
-        <Button style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/btn_show_logs"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/ui_vnc_view_logs" />
+            <ImageButton
+                android:id="@+id/btn_open_viewer"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_margin="8dp"
+                android:background="@drawable/overlay_icon_bg"
+                android:src="@drawable/ic_apps"
+                android:padding="14dp"
+                android:contentDescription="@string/ui_vnc_diag_open_viewer" />
 
-        <!-- P19: diagnostics stay reachable on demand. Hidden until a
-             diagnostics report exists (set after the first start). -->
-        <Button style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/btn_show_diagnostics"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:visibility="gone"
-            android:text="@string/ui_vnc_diagnostics" />
+            <ImageButton
+                android:id="@+id/btn_record"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_margin="8dp"
+                android:background="@drawable/overlay_icon_bg"
+                android:src="@drawable/ic_record"
+                android:padding="14dp"
+                android:contentDescription="@string/record_start" />
 
-        <!-- Real-computer program: screen recording (#5), desktop on
-             TV (#9), audio passthrough (#1). The texts are set from
-             code (record/audio reflect the live state). -->
-        <Button style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/btn_record"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/record_start" />
+            <ImageButton
+                android:id="@+id/btn_tv"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_margin="8dp"
+                android:background="@drawable/overlay_icon_bg"
+                android:src="@drawable/ic_tv"
+                android:padding="14dp"
+                android:contentDescription="@string/tv_title" />
+        </LinearLayout>
 
-        <Button style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/btn_tv"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/tv_title" />
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:gravity="center">
 
-        <Button style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/btn_audio"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/audio_off" />
+            <ImageButton
+                android:id="@+id/btn_audio"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_margin="8dp"
+                android:background="@drawable/overlay_icon_bg"
+                android:src="@drawable/ic_audio"
+                android:padding="14dp"
+                android:contentDescription="@string/audio_off" />
+
+            <ImageButton
+                android:id="@+id/btn_show_logs"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_margin="8dp"
+                android:background="@drawable/overlay_icon_bg"
+                android:src="@drawable/ic_logs"
+                android:padding="14dp"
+                android:contentDescription="@string/ui_vnc_view_logs" />
+
+            <ImageButton
+                android:id="@+id/btn_show_diagnostics"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_margin="8dp"
+                android:background="@drawable/overlay_icon_bg"
+                android:src="@drawable/ic_info"
+                android:padding="14dp"
+                android:visibility="gone"
+                android:contentDescription="@string/ui_vnc_diagnostics" />
+        </LinearLayout>
     </LinearLayout>
 
 </FrameLayout>

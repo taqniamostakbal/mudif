@@ -254,7 +254,15 @@ object LxqtLook {
     // image — the look still runs once after extraction (it rebuilds
     // the mudif icon cache inside the guest), so a fresh rootfs must
     // receive it.
-    const val MARKER_VERSION = "p17"
+    // P21: WhiteSur-light icon theme + 48px panel + launcher
+    // quicklaunch + 64px desktop icons — existing rootfs must
+    // re-apply the look to pick them up.
+    // P22: bumped again because the p21 APK bundled a STALE look
+    // (2026-11-07 theme) and clobbered the p21 image's fixed look on
+    // first boot — existing rootfs must re-apply the current look to
+    // pick up the maximize rule, padding 4 and DesktopIconSize=64.
+    // The p22 APK and the p22 image must ship from the same snapshot.
+    const val MARKER_VERSION = "p22"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -494,6 +502,28 @@ object LxqtLook {
             val autostartDir = File(rootfs, "root/.config/autostart")
             autostartDir.mkdirs()
             File(autostartDir, "lxqt-powermanagement.desktop").writeText(POWERMANAGEMENT_HIDDEN)
+            // p22 - big macOS cursor: Xresources + the xrdb loader +
+            // GTK settings (the env vars live in SESSION_CONF).
+            // The desktop reads the X cursor, not the Qt/GTK one:
+            // the Appearance size 38 showed only inside some apps
+            // because the Xresources were never loaded for the
+            // desktop. XCURSOR_SIZE=48 in the session env + the
+            // xrdb autostart entry make it 48 everywhere.
+            File(rootfs, "root/.Xresources").writeText(CURSOR_XRESOURCES)
+            File(autostartDir, "xrdb-xresources.desktop").writeText(XRDB_AUTOSTART)
+            val gtkDir = File(rootfs, "root/.config/gtk-3.0")
+            gtkDir.mkdirs()
+            val gtkSettings = File(gtkDir, "settings.ini")
+            val existingGtk = if (gtkSettings.exists()) gtkSettings.readText() else null
+            gtkSettings.writeText(mergeGtkCursorSettings(existingGtk))
+            // p22 - screensaver: the image ships
+            // lxqt-xscreensaver-autostart (it tries to start a
+            // screensaver that is NOT installed), and any lock
+            // trigger then fails as "xdg-screensaver lock" with
+            // the error dialog he saw. No lock is wanted (no
+            // profile set), so the autostart is disabled the
+            // same way powermanagement is.
+            File(autostartDir, "lxqt-xscreensaver-autostart.desktop").writeText(XSCREENSAVER_HIDDEN)
             File(rootfs, "root/$MARKER").writeText("$MARKER_VERSION\n")
         } catch (e: Exception) {
             Log.d(TAG, "look config write failed: ${e.message}")
@@ -532,11 +562,17 @@ object LxqtLook {
     // Highlight #593BFE on all ten roles). The `palette=Mudif` key and
     // the file /usr/share/lxqt/palettes/Mudif are DEAD (nothing reads
     // them); kept as harmless presets for lxqt-config-appearance.
+    // P21: icon_theme=WhiteSur-light (baked into the p21 image;
+    // the `mudif` icon theme stays installed as the last fallback
+    // in WhiteSur-light's Inherits chain, for the penguin/purple
+    // names only it provides). theme stays mudif.
     private const val LXQT_CONF = """[General]
 __userfile__=true
-icon_theme=mudif
+icon_theme=WhiteSur-light
 theme=mudif
 palette=Mudif
+cursor_theme=WhiteSur-cursors
+cursor_size=48
 
 [Palette]
 window_color=#232323
@@ -575,6 +611,8 @@ QT_QPA_PLATFORMTHEME=lxqt
 LANG=ar_MA.UTF-8
 LANGUAGE=ar
 SHELL=/bin/bash
+XCURSOR_THEME=WhiteSur-cursors
+XCURSOR_SIZE=48
 """
 
     // pcmanfm-qt draws the desktop wallpaper. It reads Wallpaper /
@@ -588,9 +626,13 @@ SHELL=/bin/bash
     // required alongside the path: without it the mode is none and
     // the desktop stays black. No BgColor key is needed (default
     // black is invisible under a covering wallpaper).
+    // P21: DesktopIconSize=64 (pcmanfm-qt Settings.cpp: the
+    // [Desktop] DesktopIconSize key, default 48). Bigger desktop
+    // icons for the big-desktop look.
     private const val PCMANFM_SETTINGS_CONF = """[Desktop]
 Wallpaper=/usr/share/backgrounds/mudif-wallpaper-pomegranate.png
 WallpaperMode=stretch
+DesktopIconSize=64
 """
 
     // P8 - fontconfig: Cairo is the preferred sans-serif and serif
@@ -793,8 +835,9 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // panel falls back to the system default's
         // iconTheme=Papirus-Dark (its mapped caches are
         // Papirus-Dark + hicolor only, no mudif). Writing
-        // iconTheme=mudif here makes the panel use mudif.
-        val generalKeys = linkedMapOf("iconTheme" to "mudif")
+        // iconTheme=WhiteSur-light here makes the panel use it.
+        // P21: mudif -> WhiteSur-light (baked into the p21 image).
+        val generalKeys = linkedMapOf("iconTheme" to "WhiteSur-light")
         // P11: the QuickLaunch plugin shows the 4 mockup apps
         // (file manager, terminal, browser, settings). The 4
         // .desktop names are verified against the Debian Contents
@@ -811,8 +854,15 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             "apps\\2\\desktop" to "/usr/share/applications/qterminal.desktop",
             "apps\\3\\desktop" to "/usr/share/applications/firefox-esr.desktop",
             "apps\\4\\desktop" to "/usr/share/applications/lxqt-config.desktop",
-            "apps\\size" to "4"
+            // P21: one-tap launcher (mudif-launcher.desktop,
+            // Icon=system-run). Autostart stays OFF (P20 rule).
+            "apps\\5\\desktop" to "/usr/share/applications/mudif-launcher.desktop",
+            "apps\\size" to "5"
         )
+        // P21: explicit panel height. lxqt-panel reads panelSize
+        // from [panel1] (default 32 when absent); 48px matches the
+        // big-desktop scale (eploringtech uses 41px).
+        val panel1Keys = linkedMapOf("panelSize" to "48")
         // P14: the reference panel layout (mockups, mirrored for
         // RTL). Removed from the P13 list: showdesktop,
         // desktopswitch (the 4 3 2 1 pager), kbindicator (US S N C),
@@ -834,6 +884,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         var inPanel1 = false
         var panel1Seen = false
         var pluginsSeen = false
+        val seenPanel1Keys = mutableSetOf<String>()
         val seenQuicklaunchKeys = mutableSetOf<String>()
         var inQuicklaunch = false
         var quicklaunchSeen = false
@@ -852,6 +903,13 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                 pluginsSeen = true
             }
         }
+        // P21: panelSize (and any future [panel1] key) is merged
+        // the same way as the [General] keys: replaced in place
+        // when present, appended when missing, one copy only.
+        fun appendMissingPanel1Keys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in panel1Keys) if (k !in seenPanel1Keys) out.append("$k=$v\n")
+        }
         fun appendMissingQuicklaunchKeys() {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             for ((k, v) in quicklaunchKeys) if (k !in seenQuicklaunchKeys) out.append("$k=$v\n")
@@ -864,7 +922,10 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
                 if (inMainmenu) appendMissingMainmenuKeys()
                 if (inGeneral) appendMissingGeneralKeys()
-                if (inPanel1) appendMissingPanel1Plugins()
+                if (inPanel1) {
+                    appendMissingPanel1Plugins()
+                    appendMissingPanel1Keys()
+                }
                 if (inQuicklaunch) appendMissingQuicklaunchKeys()
                 inMainmenu = trimmed == "[mainmenu]"
                 if (inMainmenu) mainmenuSeen = true
@@ -930,12 +991,22 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                     pluginsSeen = true
                     continue
                 }
+                if (key in panel1Keys) {
+                    if (key !in seenPanel1Keys) {
+                        out.append("$key=${panel1Keys[key]}\n")
+                        seenPanel1Keys.add(key)
+                    }
+                    continue
+                }
             }
             out.append(line).append("\n")
         }
         if (inMainmenu) appendMissingMainmenuKeys()
         if (inGeneral) appendMissingGeneralKeys()
-        if (inPanel1) appendMissingPanel1Plugins()
+        if (inPanel1) {
+            appendMissingPanel1Plugins()
+            appendMissingPanel1Keys()
+        }
         if (inQuicklaunch) appendMissingQuicklaunchKeys()
         if (!generalSeen) {
             // Defensive only: [General] is in both the system
@@ -962,6 +1033,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             out.append("[panel1]\n")
             out.append("plugins=$pluginsList\n")
+            for ((k, v) in panel1Keys) out.append("$k=$v\n")
         }
         if (!quicklaunchSeen) {
             // Defensive only: [quicklaunch] is in both the system
@@ -976,6 +1048,78 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         }
         // Normalize the ending: exactly one trailing newline, so a
         // re-merge of an already-merged file is byte-identical.
+        return out.toString().trimEnd() + "\n"
+    }
+
+    // p22 - big macOS cursor (his order: the desktop cursor is too
+    // small; the Appearance size 38 shows only inside some apps
+    // because the desktop reads the X cursor, not the Qt/GTK one).
+    // The theme files ride in mudif-theme.zip
+    // (usr/share/icons/WhiteSur-cursors/, 111 cursors + index.theme,
+    // macOS black arrow, vinceliuice/WhiteSur-cursors, MIT).
+    private const val CURSOR_XRESOURCES = """Xcursor.theme: WhiteSur-cursors
+Xcursor.size: 48
+"""
+
+    private const val XRDB_AUTOSTART = """[Desktop Entry]
+Type=Application
+Name=xrdb-xresources
+Exec=xrdb -merge /root/.Xresources
+"""
+
+    // p22 - screensaver: the image ships lxqt-xscreensaver-autostart
+    // (it tries to start a screensaver that is NOT installed), and
+    // any lock trigger then fails as "xdg-screensaver lock" with the
+    // error dialog he saw. No lock is wanted (no profile set), so
+    // the autostart is disabled the same way powermanagement is.
+    private const val XSCREENSAVER_HIDDEN = """[Desktop Entry]
+Type=Application
+Name=lxqt-xscreensaver-autostart
+Hidden=true
+"""
+
+    /** Merge the two cursor keys into gtk-3.0/settings.ini, preserving
+     *  every key already present. If the file does not exist, a
+     *  [Settings] section is created. A key already present is
+     *  replaced in place (one copy only). */
+    private fun mergeGtkCursorSettings(existing: String?): String {
+        val out = StringBuilder()
+        var inSettings = false
+        var settingsSeen = false
+        var nameSeen = false
+        var sizeSeen = false
+        fun flushMissing() {
+            if (!nameSeen) out.append("gtk-cursor-theme-name=WhiteSur-cursors\n")
+            if (!sizeSeen) out.append("gtk-cursor-theme-size=48\n")
+            nameSeen = true
+            sizeSeen = true
+        }
+        for (line in (existing?.lines() ?: emptyList())) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                if (inSettings) flushMissing()
+                inSettings = trimmed == "[Settings]"
+                if (inSettings) settingsSeen = true
+                out.append(line).append("\n")
+                continue
+            }
+            if (inSettings && trimmed.startsWith("gtk-cursor-theme-name=")) {
+                out.append("gtk-cursor-theme-name=WhiteSur-cursors\n")
+                nameSeen = true
+                continue
+            }
+            if (inSettings && trimmed.startsWith("gtk-cursor-theme-size=")) {
+                out.append("gtk-cursor-theme-size=48\n")
+                sizeSeen = true
+                continue
+            }
+            out.append(line).append("\n")
+        }
+        if (inSettings) flushMissing()
+        if (!settingsSeen) {
+            out.append("[Settings]\n")
+            flushMissing()
+        }
         return out.toString().trimEnd() + "\n"
     }
 

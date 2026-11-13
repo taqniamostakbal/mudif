@@ -168,7 +168,7 @@ class VncActivity : AppCompatActivity() {
                     val out = ScreenRecorder.stop(this)
                     ScreenRecorder.hideStopNotification(this)
                     runOnUiThread {
-                        binding.btnRecord.text = getString(R.string.record_start)
+                        binding.btnRecord.setImageResource(R.drawable.ic_record)
                         Toast.makeText(
                             this,
                             if (out != null) getString(R.string.record_saved, out.absolutePath)
@@ -186,7 +186,7 @@ class VncActivity : AppCompatActivity() {
                     val startedFile = ScreenRecorder.start(this)
                     runOnUiThread {
                         if (startedFile != null) {
-                            binding.btnRecord.text = getString(R.string.record_stop)
+                            binding.btnRecord.setImageResource(R.drawable.ic_stop)
                             ScreenRecorder.showStopNotification(this)
                             Toast.makeText(this, getString(R.string.record_running), Toast.LENGTH_SHORT).show()
                             X11Session.openViewer(this)
@@ -338,7 +338,11 @@ class VncActivity : AppCompatActivity() {
                     PulseAudio.stop(this)
                 }
                 runOnUiThread {
-                    binding.btnAudio.text =
+                    binding.btnAudio.imageTintList =
+                        android.content.res.ColorStateList.valueOf(
+                            if (nowEnabled) 0xFFFFFFFF.toInt() else 0xFF9E9E9E.toInt()
+                        )
+                    binding.btnAudio.contentDescription =
                         if (nowEnabled) getString(R.string.audio_on) else getString(R.string.audio_off)
                 }
             }.start()
@@ -374,17 +378,28 @@ class VncActivity : AppCompatActivity() {
      */
     override fun onResume() {
         super.onResume()
-        binding.btnAudio.text =
-            if (PulseAudio.isEnabled(this)) getString(R.string.audio_on)
-            else getString(R.string.audio_off)
+        binding.btnAudio.imageTintList =
+            android.content.res.ColorStateList.valueOf(
+                if (PulseAudio.isEnabled(this)) 0xFFFFFFFF.toInt() else 0xFF9E9E9E.toInt()
+            )
         Thread {
             val recording = ScreenRecorder.isRecording(this)
             runOnUiThread {
-                binding.btnRecord.text =
-                    if (recording) getString(R.string.record_stop)
-                    else getString(R.string.record_start)
+                binding.btnRecord.setImageResource(
+                    if (recording) R.drawable.ic_stop else R.drawable.ic_record
+                )
             }
         }.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // p22: collapse the floating panel when leaving this screen
+        // (HOME, viewer opens). The FAB stays — it floats over the
+        // viewer and is the reachable control there. The wide panel
+        // must not sit over the home screen blocking icons. onDestroy
+        // still removes everything.
+        viewerOverlay?.collapsePanel()
     }
 
     /**

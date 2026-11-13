@@ -47,6 +47,16 @@ if [ "$i" -gt 20 ]; then
     echo "ollama: NOT answering after 20 s (see $MUDIF_HOME/ollama.log)"
 fi
 
+# API keys for the cloud providers (written by the app from the
+# settings screen into keys.env). Sourced so opencode inherits
+# them; absent = local brain only.
+if [ -f "$MUDIF_HOME/keys.env" ]; then
+    set -a
+    . "$MUDIF_HOME/keys.env"
+    set +a
+    echo "keys.env: loaded"
+fi
+
 # OpenCode: the agent server. Flags proven on the rig
 # (opencode serve listening on http://127.0.0.1:4096).
 if ! pgrep -f "opencode serve" >/dev/null 2>&1; then

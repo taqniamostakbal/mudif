@@ -56,20 +56,20 @@ object DebianSystem {
     const val DEBIAN_VERSION = "13.1"
     private const val HF_BASE =
         "https://huggingface.co/datasets/855teche/mudif-images/resolve/main/"
-    private const val IMAGE_VERSION = "p21"
+    private const val IMAGE_VERSION = "p22"
     private const val READY_MARKER = ".mudif_ready"
 
-    // P21 image, hosted as 20 MB parts (every part is
+    // P22 image, hosted as 20 MB parts (every part is
     // 20,971,520 B except the last). Totals + sha256 verified
-    // 2026-11-12 (builder + independent verify-image.sh, both arches,
-    // 138 PASS / 0 FAIL each):
-    // x86_64 614,685,216 B (30 parts), aarch64 549,655,044 B (27 parts).
+    // 2026-11-13 (builder + independent verify-image.sh, both arches,
+    // x86_64 153 PASS / aarch64 ALL CHECKS PASSED):
+    // x86_64 614,712,068 B (30 parts), aarch64 549,573,136 B (27 parts).
     private const val SHA256_X86_64 =
-        "8fcfdd1d3bcee199e52171db0b5a8dae5f4152cb1d1a47a31cfb5c2bae8fc458"
+        "21dc7c5d0a5578fa3cb38bef1e8dedcf9631ec4481da2220ff7b209d779e102e"
     private const val SHA256_AARCH64 =
-        "eb1f30b4bb45af76ec63b61342083c6dba11ac2d9524a15aaf704d0aab3fa931"
-    private const val TOTAL_BYTES_X86_64 = 614685216L
-    private const val TOTAL_BYTES_AARCH64 = 549655044L
+        "54f4ba248adee3e95597b96b815ef790f5a6b8b594daaa05cd07ac8b41fe5fb3"
+    private const val TOTAL_BYTES_X86_64 = 614712068L
+    private const val TOTAL_BYTES_AARCH64 = 549573136L
     private const val PART_COUNT_X86_64 = 30
     private const val PART_COUNT_AARCH64 = 27
     private const val PART_SIZE = 20971520L
@@ -134,15 +134,25 @@ object DebianSystem {
      * file is verified against its total size + sha256 before any
      * extraction. Progress reports cumulative bytes against the full
      * image size, so the existing progress dialog works unchanged.
-     * A failed part deletes the partial tarball so a retry starts
-     * clean (download() already deletes a stale tarball at entry).
+     *
+     * p22 (§5): PER-PART retry. A part is downloaded to a temp file
+     * first and only appended to the tarball once its size verifies,
+     * so a transient failure (the "unexpected end of stream" on 4G)
+     * retries THAT part (up to 3 attempts, short backoff) instead of
+     * deleting the whole tarball and forcing a restart from part 1.
+     * A part that fails all attempts still aborts the download (and
+     * deletes the partial tarball, as before).
      */
+    private const val PART_MAX_ATTEMPTS = 3
+    private const val PART_RETRY_DELAY_MS = 2000L
+
     fun download(context: Context, onProgress: (done: Long, total: Long) -> Unit) {
         val out = tarball(context)
         if (out.exists()) out.delete()
         val total = expectedTotalBytes()
         val urls = partUrls()
         var done = 0L
+        val partTmp = File(context.filesDir, "mudif-part.tmp")
         try {
             out.outputStream().use { output ->
                 val buf = ByteArray(64 * 1024)
@@ -153,32 +163,44 @@ object DebianSystem {
                     val expectedPartSize =
                         if (index == urls.size - 1) total - (urls.size - 1) * PART_SIZE
                         else PART_SIZE
-                    val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 15000
-                        readTimeout = 30000
-                        instanceFollowRedirects = true
+                    var lastError: Exception? = null
+                    var ok = false
+                    for (attempt in 1..PART_MAX_ATTEMPTS) {
+                        try {
+                            downloadPart(url, partTmp, expectedPartSize) { partBytes ->
+                                onProgress(done + partBytes, total)
+                            }
+                            ok = true
+                            break
+                        } catch (e: Exception) {
+                            lastError = e
+                            try { partTmp.delete() } catch (ignored: Exception) { }
+                            if (attempt < PART_MAX_ATTEMPTS) {
+                                try { Thread.sleep(PART_RETRY_DELAY_MS * attempt) } catch (_: InterruptedException) { }
+                            }
+                        }
                     }
-                    conn.connect()
-                    if (conn.responseCode != HttpURLConnection.HTTP_OK)
-                        throw RuntimeException(context.getString(R.string.ui_dl_failed_part, index + 1, urls.size, conn.responseCode))
-                    var partDone = 0L
-                    conn.inputStream.use { input ->
+                    if (!ok) {
+                        throw lastError ?: RuntimeException(
+                            context.getString(R.string.ui_dl_failed_part, index + 1, urls.size, -1)
+                        )
+                    }
+                    // Verified part: append it to the tarball.
+                    partTmp.inputStream().use { input ->
                         while (true) {
                             val n = input.read(buf)
                             if (n < 0) break
                             output.write(buf, 0, n)
-                            partDone += n
-                            done += n
-                            onProgress(done, total)
                         }
                     }
-                    conn.disconnect()
-                    if (partDone != expectedPartSize)
-                        throw RuntimeException(context.getString(R.string.ui_dl_part_missing, index + 1, urls.size, partDone, expectedPartSize))
+                    try { partTmp.delete() } catch (ignored: Exception) { }
+                    done += expectedPartSize
+                    onProgress(done, total)
                 }
             }
         } catch (e: Exception) {
             try { out.delete() } catch (ignored: Exception) { }
+            try { partTmp.delete() } catch (ignored: Exception) { }
             throw e
         }
         if (out.length() != total)
@@ -191,6 +213,45 @@ object DebianSystem {
         val actual = sha256Hex(out)
         if (!actual.equals(expectedSha256(), ignoreCase = true))
             throw RuntimeException(context.getString(R.string.ui_dl_bad_hash))
+    }
+
+    /** Downloads ONE part to [dest] and verifies its size. Throws on
+     *  any failure (non-200, short read, size mismatch). Reports the
+     *  part's own byte count to [onPartProgress] as it lands. */
+    private fun downloadPart(
+        url: String,
+        dest: File,
+        expectedSize: Long,
+        onPartProgress: (partBytes: Long) -> Unit
+    ) {
+        if (dest.exists()) dest.delete()
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15000
+            readTimeout = 30000
+            instanceFollowRedirects = true
+        }
+        conn.connect()
+        if (conn.responseCode != HttpURLConnection.HTTP_OK)
+            throw RuntimeException("HTTP ${conn.responseCode}")
+        var partDone = 0L
+        try {
+            dest.outputStream().use { output ->
+                val buf = ByteArray(64 * 1024)
+                conn.inputStream.use { input ->
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        output.write(buf, 0, n)
+                        partDone += n
+                        onPartProgress(partDone)
+                    }
+                }
+            }
+        } finally {
+            conn.disconnect()
+        }
+        if (partDone != expectedSize)
+            throw RuntimeException("part size $partDone != $expectedSize")
     }
 
     private fun sha256Hex(file: File): String {

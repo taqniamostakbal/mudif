@@ -16,7 +16,6 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,6 +62,7 @@ class AgentFragment : Fragment() {
     private val adapter = AgentAdapter()
     private val messages = mutableListOf<AgentMessage>()
     private var replyLanguage: String = AgentMessage.REPLY_FUSHA
+    private var brainModel: String = BRAIN_LOCAL
     private var voiceOutOn: Boolean = false
     private var tts: TextToSpeech? = null
     private var ttsReady: Boolean = false
@@ -96,6 +96,7 @@ class AgentFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         replyLanguage = prefs().getString(KEY_REPLY_LANGUAGE, AgentMessage.REPLY_FUSHA)
             ?: AgentMessage.REPLY_FUSHA
+        brainModel = prefs().getString(KEY_BRAIN_MODEL, BRAIN_LOCAL) ?: BRAIN_LOCAL
         voiceOutOn = prefs().getBoolean(KEY_VOICE_OUT, false)
         sessionId = prefs().getString(KEY_SESSION_ID, null)
         messages.addAll(loadMessages())
@@ -105,8 +106,11 @@ class AgentFragment : Fragment() {
         binding.agentRecycler.adapter = adapter
         adapter.submitList(messages.toList())
         binding.agentRecycler.scrollToPosition(messages.size - 1)
+        binding.btnBrainDownload.setOnClickListener { startBrainDownload() }
+        checkBrainModelOnOpen()
 
         updateLanguageButton()
+        updateBrainButton()
         updateVoiceOutButton()
         initTts()
 
@@ -115,6 +119,7 @@ class AgentFragment : Fragment() {
         binding.agentAvatar.setOnClickListener { showAbout() }
         binding.agentIdentity.setOnClickListener { showAbout() }
         binding.btnReplyLanguage.setOnClickListener { showReplyLanguageMenu() }
+        binding.btnBrain.setOnClickListener { showBrainPicker() }
 
         binding.modeToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
@@ -203,9 +208,94 @@ class AgentFragment : Fragment() {
         sendMessage(text)
     }
 
+    // ------------------------------------------------- brain download (p22)
+
+    private var brainDownloadRunning = false
+
+    /** Shows the one-tap brain download card (model missing). */
+    private fun showBrainDownloadCard() {
+        binding.brainDownloadCard.visibility = View.VISIBLE
+        binding.brainDownloadProgress.visibility = View.GONE
+        binding.brainDownloadProgress.progress = 0
+        binding.brainDownloadText.text = getString(R.string.brain_download_title)
+        binding.btnBrainDownload.isEnabled = true
+    }
+
+    private fun hideBrainDownloadCard() {
+        binding.brainDownloadCard.visibility = View.GONE
+    }
+
+    /** Background check when the tab opens: if Ollama answers but the
+     *  model is missing, show the download card (no turn is started). */
+    private fun checkBrainModelOnOpen() {
+        Thread {
+            val has = AgentServer.hasBrainModel() ?: return@Thread
+            val act = activity ?: return@Thread
+            act.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                if (has) hideBrainDownloadCard() else showBrainDownloadCard()
+            }
+        }.start()
+    }
+
+    /** One-tap pull with a real progress bar (no terminal). */
+    private fun startBrainDownload() {
+        if (brainDownloadRunning) return
+        brainDownloadRunning = true
+        binding.btnBrainDownload.isEnabled = false
+        binding.brainDownloadProgress.visibility = View.VISIBLE
+        binding.brainDownloadProgress.progress = 0
+        val appContext = context?.applicationContext
+        if (appContext == null) {
+            brainDownloadRunning = false
+            binding.btnBrainDownload.isEnabled = true
+            return
+        }
+        Thread {
+            // The pull needs the servers up; ensureStarted is cheap
+            // when they already run (it returns immediately).
+            AgentServer.ensureStarted(appContext)
+            val ok = AgentServer.pullBrainModel { completed, total ->
+                val act = activity ?: return@pullBrainModel
+                act.runOnUiThread {
+                    if (_binding == null) return@runOnUiThread
+                    if (total > 0) {
+                        val pct = (completed * 100 / total).toInt().coerceIn(0, 100)
+                        binding.brainDownloadProgress.progress = pct
+                        binding.brainDownloadText.text =
+                            getString(R.string.brain_download_downloading, pct)
+                    }
+                }
+            }
+            val act = activity ?: return@Thread
+            act.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                brainDownloadRunning = false
+                binding.btnBrainDownload.isEnabled = true
+                if (ok) {
+                    hideBrainDownloadCard()
+                    Toast.makeText(
+                        requireContext(), R.string.brain_download_done, Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    binding.brainDownloadText.text =
+                        getString(R.string.brain_download_failed)
+                    binding.brainDownloadProgress.visibility = View.GONE
+                }
+            }
+        }.start()
+    }
+
     private fun sendMessage(rawText: String) {
         val text = rawText.trim()
-        if (text.isEmpty() || turnRunning) return
+        if (text.isEmpty()) return
+        if (turnRunning) {
+            // Never swallow a send silently: the button is disabled
+            // during a turn, but the keyboard send key and the quick
+            // chips can still reach here.
+            Toast.makeText(requireContext(), R.string.agent_thinking, Toast.LENGTH_SHORT).show()
+            return
+        }
         hideAgentAction()
         val userMessage = AgentMessage(AgentMessage.ROLE_USER, text, replyLanguage)
         appendMessage(userMessage)
@@ -254,6 +344,17 @@ class AgentFragment : Fragment() {
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
                     onTurnFailed(ensured.reason)
+                }
+                return@Thread
+            }
+            // p22: the servers are up, but the brain model may still
+            // be missing (fresh image). Never start a turn that can
+            // only fail — show the download card instead.
+            if (AgentServer.hasBrainModel() == false) {
+                act.runOnUiThread {
+                    if (_binding == null) return@runOnUiThread
+                    showBrainDownloadCard()
+                    endTurnUi()
                 }
                 return@Thread
             }
@@ -484,21 +585,149 @@ class AgentFragment : Fragment() {
     }
 
     private fun showReplyLanguageMenu() {
-        val popup = PopupMenu(requireContext(), binding.btnReplyLanguage)
-        popup.menu.add(0, 0, 0, R.string.language_fusha)
-        popup.menu.add(0, 1, 1, R.string.language_darija)
-        popup.menu.add(0, 2, 2, R.string.language_english)
-        popup.setOnMenuItemClickListener { item ->
-            replyLanguage = when (item.itemId) {
+        // Branded dialog (MudifDialog.select): the old PopupMenu was
+        // the classic unstyled system popup, clipped by the screen
+        // edge in RTL and overlapping the header (his screenshot).
+        val labels = listOf(
+            getString(R.string.language_fusha),
+            getString(R.string.language_darija),
+            getString(R.string.language_english)
+        )
+        val current = when (replyLanguage) {
+            AgentMessage.REPLY_DARIJA -> 1
+            AgentMessage.REPLY_EN -> 2
+            else -> 0
+        }
+        MudifDialog.select(
+            requireContext(),
+            getString(R.string.agent_reply_language),
+            labels,
+            current
+        ) { index ->
+            replyLanguage = when (index) {
                 1 -> AgentMessage.REPLY_DARIJA
                 2 -> AgentMessage.REPLY_EN
                 else -> AgentMessage.REPLY_FUSHA
             }
             prefs().edit().putString(KEY_REPLY_LANGUAGE, replyLanguage).apply()
             updateLanguageButton()
-            true
         }
-        popup.show()
+    }
+
+    private fun updateBrainButton() {
+        binding.btnBrain.text = brainLabelFor(brainModel)
+    }
+
+    /** Short label for the header button: Local, or the model name. */
+    private fun brainLabelFor(modelId: String): String {
+        if (modelId == BRAIN_LOCAL) return getString(R.string.agent_brain_local)
+        return loadBrainOptions().firstOrNull { it.id == modelId }?.label
+            ?: modelId.substringAfter("/", modelId)
+    }
+
+    /** One brain option: model id "provider/model", label, env var. */
+    private data class BrainOption(val id: String, val label: String, val env: String?)
+
+    /** Reads opencode-providers.json: Local first, then the cloud
+     *  models in a fixed provider order (groq, llm7, openrouter,
+     *  huggingface, opencode), models sorted by name. A missing or
+     *  unreadable asset means Local only — the chat still works. */
+    private fun loadBrainOptions(): List<BrainOption> {
+        val options = mutableListOf(
+            BrainOption(BRAIN_LOCAL, getString(R.string.agent_brain_local), null)
+        )
+        try {
+            val root = JSONObject(
+                requireContext().assets.open("opencode-providers.json")
+                    .bufferedReader().use { it.readText() }
+            ).optJSONObject("providers") ?: return options
+            val providerOrder = listOf("groq", "llm7", "openrouter", "huggingface", "opencode")
+            for (providerKey in providerOrder) {
+                val provider = root.optJSONObject(providerKey) ?: continue
+                val providerName = provider.optString("name", providerKey)
+                val env = provider.optJSONArray("env")?.optString(0)
+                val models = provider.optJSONObject("models") ?: continue
+                val modelKeys = mutableListOf<String>()
+                val it = models.keys()
+                while (it.hasNext()) modelKeys.add(it.next())
+                val sorted = modelKeys.sortedBy {
+                    models.optJSONObject(it)?.optString("name", it) ?: it
+                }
+                for (modelKey in sorted) {
+                    val modelName = models.optJSONObject(modelKey)
+                        ?.optString("name", modelKey) ?: modelKey
+                    options.add(
+                        BrainOption("$providerKey/$modelKey", "$providerName — $modelName", env)
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // Local only; the asset is bundled, so this is unexpected.
+        }
+        return options
+    }
+
+    /** Brain picker (p22): Local by default; a cloud model needs its
+     *  key in Settings (مفاتيح الذكاء الاصطناعي) or it fails at
+     *  runtime — the user is warned, not blocked. Picking a brain
+     *  writes it to opencode.json and restarts the server (only when
+     *  it is up); a turn in progress blocks the switch. */
+    private fun showBrainPicker() {
+        if (turnRunning) {
+            Toast.makeText(requireContext(), R.string.agent_thinking, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val options = loadBrainOptions()
+        val labels = options.map { it.label }
+        val current = options.indexOfFirst { it.id == brainModel }.coerceAtLeast(0)
+        MudifDialog.select(
+            requireContext(),
+            getString(R.string.agent_brain_title),
+            labels,
+            current
+        ) { index ->
+            val picked = options[index]
+            if (picked.id == brainModel) return@select
+            if (!AgentServer.setModel(requireContext(), picked.id)) {
+                Toast.makeText(requireContext(), R.string.agent_brain_failed, Toast.LENGTH_SHORT).show()
+                return@select
+            }
+            brainModel = picked.id
+            prefs().edit().putString(KEY_BRAIN_MODEL, brainModel).apply()
+            updateBrainButton()
+            // Cloud model without its key: warn (the model will fail
+            // until the key is added), but keep the choice.
+            if (picked.env != null) {
+                val prefKey = when (picked.env) {
+                    "GROQ_API_KEY" -> "agent_key_groq"
+                    "HF_TOKEN" -> "agent_key_hf"
+                    "LLM7_API_KEY" -> "agent_key_llm7"
+                    "OPENROUTER_API_KEY" -> "agent_key_openrouter"
+                    else -> null
+                }
+                val hasKey = prefKey != null &&
+                    !com.bolm.mudif.ui.settings.ViewerPrefs.prefs(requireContext())
+                        .getString(prefKey, "").isNullOrBlank()
+                if (!hasKey) {
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.agent_brain_key_missing, picked.env),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.agent_brain_changed, picked.label),
+                Toast.LENGTH_SHORT
+            ).show()
+            if (AgentServer.isUp()) {
+                Thread {
+                    AgentServer.stop(requireContext())
+                    AgentServer.ensureStarted(requireContext())
+                }.start()
+            }
+        }
     }
 
     // ---------------------------------------------------------- voice
@@ -682,7 +911,8 @@ class AgentFragment : Fragment() {
                     AgentMessage(
                         obj.optString("role", AgentMessage.ROLE_AGENT),
                         obj.optString("text", ""),
-                        obj.optString("lang", AgentMessage.REPLY_FUSHA)
+                        obj.optString("lang", AgentMessage.REPLY_FUSHA),
+                        obj.optLong("time", System.currentTimeMillis())
                     )
                 )
             }
@@ -700,6 +930,7 @@ class AgentFragment : Fragment() {
                     put("role", message.role)
                     put("text", message.text)
                     put("lang", message.replyLanguage)
+                    put("time", message.time)
                 }
             )
         }
@@ -719,6 +950,8 @@ class AgentFragment : Fragment() {
         private const val KEY_REPLY_LANGUAGE = "reply_language"
         private const val KEY_VOICE_OUT = "voice_out"
         private const val KEY_SESSION_ID = "session_id"
+        private const val KEY_BRAIN_MODEL = "brain_model"
+        private const val BRAIN_LOCAL = "ollama/qwen3:1.7b"
         private const val MAX_HISTORY = 100
         private const val UTTERANCE_ID = "mudif_agent_reply"
     }

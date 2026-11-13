@@ -49,6 +49,8 @@ object AgentServer {
     private const val OPENCODE_CONFIG_GUEST_PATH = "root/.config/opencode/opencode.json"
     private const val OPENCODE_CONFIG_BACKUP_GUEST_PATH =
         "root/.config/opencode/opencode.json.mudif-bak"
+    private const val PROVIDERS_ASSET = "opencode-providers.json"
+    private const val KEYS_ENV_GUEST_PATH = "root/.config/mudif/keys.env"
 
     /** Result of [ensureStarted]. `reason` is a machine key the chat
      *  maps to a real message; null means the server is up. */
@@ -83,6 +85,72 @@ object AgentServer {
         return false
     }
 
+    /** Local brain model (Ollama). The assistant cannot answer
+     *  without it; the image does not bake it (on-demand download). */
+    const val BRAIN_MODEL = "qwen3:1.7b"
+    private const val OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
+    private const val OLLAMA_PULL_URL = "http://127.0.0.1:11434/api/pull"
+    private const val PULL_READ_TIMEOUT_MS = 120_000
+
+    /** Is the brain model present in Ollama? Null = Ollama is not
+     *  reachable (unknown — the servers are not up yet). Never called
+     *  on the UI thread (network). */
+    fun hasBrainModel(): Boolean? {
+        return try {
+            val conn = java.net.URL(OLLAMA_TAGS_URL).openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = PROBE_TIMEOUT_MS
+            conn.readTimeout = PROBE_TIMEOUT_MS
+            if (conn.responseCode != 200) return null
+            val body = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val models = JSONObject(body).optJSONArray("models") ?: return false
+            for (i in 0 until models.length()) {
+                if (models.getJSONObject(i).optString("name") == BRAIN_MODEL) return true
+            }
+            false
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Downloads the brain model from Ollama (POST /api/pull, SSE
+     *  progress). [onProgress] gets (downloadedBytes, totalBytes)
+     *  on the calling thread; the caller posts to the UI thread.
+     *  Retries once on failure. Returns true when the model is
+     *  present afterwards. Never called on the UI thread. */
+    fun pullBrainModel(onProgress: (Long, Long) -> Unit): Boolean {
+        repeat(2) { attempt ->
+            try {
+                val conn = java.net.URL(OLLAMA_PULL_URL).openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = PROBE_TIMEOUT_MS
+                conn.readTimeout = PULL_READ_TIMEOUT_MS
+                val body = JSONObject().put("name", BRAIN_MODEL).put("stream", true).toString()
+                conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                if (conn.responseCode != 200) {
+                    Log.w(TAG, "pullBrainModel: HTTP ${conn.responseCode} (attempt ${attempt + 1})")
+                    return@repeat
+                }
+                conn.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        val obj = try { JSONObject(line ?: "") } catch (_: Exception) { continue }
+                        val status = obj.optString("status")
+                        if (status == "success") return true
+                        if (obj.has("completed") && obj.has("total")) {
+                            onProgress(obj.optLong("completed"), obj.optLong("total"))
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "pullBrainModel failed (attempt ${attempt + 1})", e)
+            }
+        }
+        return hasBrainModel() == true
+    }
+
     /**
      * Makes sure the brain server is running, starting it when it is
      * not. Never call on the UI thread: it boots the guest (up to
@@ -112,6 +180,14 @@ object AgentServer {
             mergeAgentConfig(context)
         } catch (e: Exception) {
             Log.w(TAG, "ensureStarted: opencode.json merge failed, continuing", e)
+        }
+        // Best-effort: the cloud keys (from settings) into keys.env,
+        // so agent-start.sh can export them to opencode before it
+        // starts. A missing keys.env simply means local only.
+        try {
+            writeKeysEnv(context)
+        } catch (e: Exception) {
+            Log.w(TAG, "ensureStarted: keys.env write failed, continuing", e)
         }
         if (!GuestSession.bootContainer(context)) {
             Log.e(TAG, "ensureStarted: guest boot failed: ${GuestSession.lastError}")
@@ -221,6 +297,42 @@ object AgentServer {
             // providers and point at the local model.
             config.put("model", "ollama/qwen3:1.7b")
         }
+        // p22 - free cloud providers: merge the 6 providers from the
+        // bundled opencode-providers.json (groq, huggingface, llm7,
+        // ollama, opencode, openrouter — 30 models, no keys in the
+        // asset; the keys come from settings via keys.env). Only the
+        // providers MISSING from the config are added, so the
+        // rig-proven local Ollama entry (with its npm package) and
+        // any provider the user added himself are never replaced.
+        // The asset uses "package"/"settings"; the rig-proven
+        // opencode shape is "npm"/"options", so those keys are
+        // renamed on the way in. The default model stays Local
+        // (ollama/qwen3:1.7b) unless the user picks another brain.
+        try {
+            val providersJson = JSONObject(
+                context.assets.open(PROVIDERS_ASSET).bufferedReader().use { it.readText() }
+            ).optJSONObject("providers")
+            if (providersJson != null) {
+                val providers = config.optJSONObject("provider") ?: JSONObject()
+                val names = providersJson.keys()
+                while (names.hasNext()) {
+                    val name = names.next()
+                    if (providers.has(name)) continue
+                    val entry = providersJson.optJSONObject(name) ?: continue
+                    val normalized = JSONObject(entry.toString())
+                    if (normalized.has("package") && !normalized.has("npm")) {
+                        normalized.put("npm", normalized.remove("package"))
+                    }
+                    if (normalized.has("settings") && !normalized.has("options")) {
+                        normalized.put("options", normalized.remove("settings"))
+                    }
+                    providers.put(name, normalized)
+                }
+                config.put("provider", providers)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "mergeAgentConfig: providers asset merge failed, continuing", e)
+        }
         // MCP: the Mudif bridge proxy, only when staged.
         val proxyFile = File(rootfs, MCP_PROXY_GUEST_PATH)
         if (proxyFile.exists() && proxyFile.length() > 0) {
@@ -256,6 +368,64 @@ object AgentServer {
         }
         configFile.writeText(config.toString(2))
         Log.d(TAG, "mergeAgentConfig: wrote ${configFile.absolutePath}")
+    }
+
+    /**
+     * API keys for the cloud providers, from the app settings.
+     * Written to the guest's keys.env (one KEY=value per line, only
+     * the keys the user actually entered). agent-start.sh sources it
+     * before starting opencode, so the providers can authenticate.
+     * The values are never logged. A missing/empty keys.env simply
+     * means local only.
+     */
+    fun writeKeysEnv(context: Context): Boolean {
+        return try {
+            val prefs = com.bolm.mudif.ui.settings.ViewerPrefs.prefs(context)
+            val lines = StringBuilder()
+            var count = 0
+            for ((prefKey, envKey) in listOf(
+                "agent_key_groq" to "GROQ_API_KEY",
+                "agent_key_hf" to "HF_TOKEN",
+                "agent_key_llm7" to "LLM7_API_KEY",
+                "agent_key_openrouter" to "OPENROUTER_API_KEY"
+            )) {
+                val v = prefs.getString(prefKey, "")?.trim() ?: ""
+                if (v.isNotEmpty()) {
+                    lines.append("$envKey=$v\n")
+                    count++
+                }
+            }
+            val dest = File(DebianSystem.debianRootfsDir(context), KEYS_ENV_GUEST_PATH)
+            dest.parentFile?.mkdirs()
+            dest.writeText(lines.toString())
+            Log.d(TAG, "writeKeysEnv: wrote $count keys")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "writeKeysEnv failed", e)
+            false
+        }
+    }
+
+    /**
+     * Switches the brain: writes the chosen model id
+     * (e.g. "groq/openai/gpt-oss-120b", "ollama/qwen3:1.7b") into
+     * opencode.json "model". The caller restarts opencode (stop +
+     * ensureStarted) for the change to take effect. Returns false
+     * when the config cannot be read or written.
+     */
+    fun setModel(context: Context, modelId: String): Boolean {
+        return try {
+            val configFile = File(DebianSystem.debianRootfsDir(context), OPENCODE_CONFIG_GUEST_PATH)
+            if (!configFile.exists()) return false
+            val config = JSONObject(configFile.readText())
+            config.put("model", modelId)
+            configFile.writeText(config.toString(2))
+            Log.d(TAG, "setModel: model=$modelId")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "setModel failed", e)
+            false
+        }
     }
 
     /**

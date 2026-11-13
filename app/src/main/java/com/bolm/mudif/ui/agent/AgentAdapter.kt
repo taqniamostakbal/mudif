@@ -11,6 +11,9 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemAgentMessageBinding
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * One chat line. `replyLanguage` is the reply-language choice the user
@@ -21,7 +24,8 @@ import com.bolm.mudif.databinding.ItemAgentMessageBinding
 data class AgentMessage(
     val role: String,
     val text: String,
-    val replyLanguage: String = REPLY_FUSHA
+    val replyLanguage: String = REPLY_FUSHA,
+    val time: Long = System.currentTimeMillis()
 ) {
     companion object {
         const val ROLE_USER = "user"
@@ -64,6 +68,7 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
         val ctx = holder.binding.root.context
         with(holder.binding) {
             messageText.text = message.text
+            messageTime.text = formatTime(message.time)
             if (message.role == AgentMessage.ROLE_USER) {
                 messageRow.gravity = Gravity.END
                 messageAvatar.visibility = View.GONE
@@ -91,4 +96,8 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
             )
         ) typedValue.data else Color.BLACK
     }
+
+    /** WhatsApp-style time under each bubble (HH:mm, device locale). */
+    private fun formatTime(time: Long): String =
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
 }

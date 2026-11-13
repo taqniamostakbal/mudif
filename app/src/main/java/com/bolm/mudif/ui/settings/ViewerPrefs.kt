@@ -294,6 +294,21 @@ object ViewerPrefs {
             ActionSetting("requestNotificationPermission",
                 R.string.vp_requestnotificationpermission_title,
                 R.string.vp_requestnotificationpermission_desc)
+        )),
+        // p22 - agent API keys (free cloud providers). The values are
+        // written to the guest's keys.env by AgentServer.writeKeysEnv
+        // and sourced by agent-start.sh before opencode starts. An
+        // empty key simply means that provider stays unavailable;
+        // the local brain always works without any key.
+        Section(R.string.vp_section_agent_keys, listOf(
+            text("agent_key_groq", R.string.vp_agent_key_groq_title,
+                R.string.vp_agent_key_groq_desc, ""),
+            text("agent_key_hf", R.string.vp_agent_key_hf_title,
+                R.string.vp_agent_key_hf_desc, ""),
+            text("agent_key_llm7", R.string.vp_agent_key_llm7_title,
+                R.string.vp_agent_key_llm7_desc, ""),
+            text("agent_key_openrouter", R.string.vp_agent_key_openrouter_title,
+                R.string.vp_agent_key_openrouter_desc, "")
         ))
     )
 }

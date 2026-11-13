@@ -144,7 +144,10 @@ object MudifDialog {
             .setCancelable(true)
             .create()
         view.findViewById<MaterialButton>(R.id.about_btn_github).setOnClickListener {
-            openLink(ctx, "https://github.com/taqniamostakbal/mudif")
+            // p22: the repo URL 404s for logged-out users because the
+            // mudif repo is PRIVATE; the public profile works for
+            // everyone. Switch back to .../mudif when the repo goes public.
+            openLink(ctx, "https://github.com/taqniamostakbal")
         }
         view.findViewById<MaterialButton>(R.id.about_btn_youtube).setOnClickListener {
             openLink(ctx, "https://www.youtube.com/@taqniaMostakbal")

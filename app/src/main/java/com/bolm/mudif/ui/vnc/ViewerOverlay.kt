@@ -80,9 +80,14 @@ class ViewerOverlay(private val context: Context) {
                 setPadding(dp(14), dp(14), dp(14), dp(14))
                 setOnClickListener { togglePanel() }
             }
-            // Draggable: a drag moves the FAB, a tap toggles the panel.
+            // Draggable: a drag moves the FAB (the open panel follows
+            // it, so the two can never overlap). A tap toggles the
+            // panel; a long-press hides the overlay entirely (it
+            // returns when the viewer screen is re-entered). On
+            // release the FAB snaps to the nearest screen edge.
             var downX = 0f
             var downY = 0f
+            var downTime = 0L
             var startX = 0
             var startY = 0
             var moved = false
@@ -91,6 +96,7 @@ class ViewerOverlay(private val context: Context) {
                     MotionEvent.ACTION_DOWN -> {
                         downX = event.rawX
                         downY = event.rawY
+                        downTime = System.currentTimeMillis()
                         startX = fabParams?.x ?: 0
                         startY = fabParams?.y ?: 0
                         moved = false
@@ -105,10 +111,23 @@ class ViewerOverlay(private val context: Context) {
                             p.y = startY + dy
                             try { wm.updateViewLayout(fab, p) } catch (_: Exception) { }
                         }
+                        repositionPanel()
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!moved) fab.performClick()
+                        if (!moved && System.currentTimeMillis() - downTime > 600) {
+                            hide()
+                        } else {
+                            if (!moved) fab.performClick()
+                            // Snap to the nearest edge; the panel follows.
+                            fabParams?.let { p ->
+                                val screenW = context.resources.displayMetrics.widthPixels
+                                p.x = if (p.x + dp(28) < screenW / 2) dp(16)
+                                    else screenW - dp(56) - dp(16)
+                                try { wm.updateViewLayout(fab, p) } catch (_: Exception) { }
+                            }
+                            repositionPanel()
+                        }
                         true
                     }
                     else -> false
@@ -146,6 +165,35 @@ class ViewerOverlay(private val context: Context) {
         expanded = false
     }
 
+    /** Collapse the panel, keeping the FAB. Called when the viewer
+     *  activity pauses (HOME / viewer opens): the wide panel must
+     *  not sit over the home screen blocking icons. */
+    fun collapsePanel() {
+        if (expanded) hidePanel()
+    }
+
+    /** Panel position next to the FAB: right of it when there is room,
+     *  left of it near the right edge (so it never runs off-screen).
+     *  The panel is ~192dp wide (3 x 48dp buttons + margins/padding). */
+    private fun panelPosition(): Pair<Int, Int> {
+        val fx = fabParams?.x ?: dp(16)
+        val fy = fabParams?.y ?: dp(120)
+        val screenW = context.resources.displayMetrics.widthPixels
+        val panelW = dp(192)
+        val x = if (fx + dp(64) + panelW > screenW) fx - panelW else fx + dp(64)
+        return Pair(x, fy)
+    }
+
+    /** Move the open panel to follow the FAB (drag / edge snap). */
+    private fun repositionPanel() {
+        val panel = panelView ?: return
+        val params = panelParams ?: return
+        val (x, y) = panelPosition()
+        params.x = x
+        params.y = y
+        try { wm.updateViewLayout(panel, params) } catch (_: Exception) { }
+    }
+
     private fun togglePanel() {
         if (expanded) hidePanel() else showPanel()
     }
@@ -168,8 +216,9 @@ class ViewerOverlay(private val context: Context) {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = (fabParams?.x ?: dp(16)) + dp(64)
-            y = fabParams?.y ?: dp(120)
+            val (px, py) = panelPosition()
+            x = px
+            y = py
         }
         try {
             wm.addView(panel, params)
