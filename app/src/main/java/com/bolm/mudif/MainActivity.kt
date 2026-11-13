@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.databinding.ActivityMainBinding
+import com.bolm.mudif.engine.AgentSupervisorService
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.settings.AppLanguage
 import com.bolm.mudif.ui.agent.AgentFragment
@@ -28,6 +29,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // p22 fix: start the agent servers in the background on app
+        // launch, so opencode (4096) is up without opening the agent
+        // tab. ensureStarted is a no-op when the engine is not ready.
+        AgentSupervisorService.start(this)
 
         // First run only: ask once which language the app speaks.
         // Safe here: it runs after setContentView, shows a plain
