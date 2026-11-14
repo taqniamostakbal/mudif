@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.mediarouter.app.MediaRouteChooserDialogFragment
 import com.bolm.mudif.R
@@ -107,6 +108,12 @@ class VncActivity : AppCompatActivity() {
 
         supportActionBar?.title = getString(R.string.mudif_system)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        // p28: BACK exits the viewer (returns to the app). Without
+        // this the VNC view swallows BACK and the user is trapped
+        // in the desktop with no way out except the Home gesture.
+        // The desktop session itself keeps running (see onDestroy).
+        onBackPressedDispatcher.addCallback(this) { finish() }
 
         // Phase 2: Cast init (main thread, guarded: no Play
         // Services on some devices means no Cast, never a crash).

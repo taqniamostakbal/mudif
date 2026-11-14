@@ -191,7 +191,17 @@ class StoreFragment : Fragment() {
             } catch (e: Exception) {
                 emptyList()
             }
-            val arch = if (DebianSystem.isReady(appCtx)) ProgramStore.guestArch(appCtx) else ""
+            // p28: the guest calls MUST NOT kill this thread. Before,
+            // guestArch() ran unguarded: if it threw (guest busy or
+            // unreachable) the thread died before the UI post, so the
+            // category counts stayed at the initial empty map (all 0)
+            // and the program list never populated. Now the UI post
+            // always runs and the counts always come from the catalog.
+            val arch = try {
+                if (DebianSystem.isReady(appCtx)) ProgramStore.guestArch(appCtx) else ""
+            } catch (e: Exception) {
+                ""
+            }
             uiHandler.post {
                 if (!isAdded) return@post
                 programs = loaded

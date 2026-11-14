@@ -414,6 +414,22 @@ object X11Session {
      */
     fun launchDesktop(context: Context, desktop: String): Boolean {
         val cmd = if (desktop == "xfce") "startxfce4" else "startlxqt"
+        // p28 ROOT FIX (desktop icon red "!"): Debian's libfm-qt
+        // checks the GIO attribute "metadata::trust" (NOT
+        // "metadata::trusted" — that is Ubuntu's patched name).
+        // The p22/p23 fixes set "metadata::trusted" (gio set in the
+        // image build, and the xattr user.metadata::trusted), which
+        // libfm-qt never reads, so the "!" stayed. Set the CORRECT
+        // attribute (user.metadata::trust) on the launcher before
+        // the desktop reads it, so pcmanfm-qt shows it trusted
+        // from the first launch. Idempotent; a failure here must
+        // never block the desktop, so it is best-effort.
+        try {
+            GuestSession.sendCommand(
+                "python3 -c \"import os; os.setxattr('/root/Desktop/mudif-launcher.desktop', 'user.metadata::trust', b'true')\" 2>/dev/null; " +
+                "python3 -c \"import os; os.setxattr('/usr/share/applications/mudif-launcher.desktop', 'user.metadata::trust', b'true')\" 2>/dev/null"
+            )
+        } catch (_: Exception) { }
         // P6.3.5: unique timestamped log per run. The P6.3.2/P6.3.4
         // tests believed the Terminal re-ran startxfce4 and overwrote
         // the log — a grep proves NO code re-runs it (only VncActivity

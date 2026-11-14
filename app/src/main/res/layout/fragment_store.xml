@@ -1,125 +1,138 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- P17.2: one scrolling page. Before, only the programs list scrolled
-     (weight=1) while the header + Debian card + search + chips were fixed
-     and swallowed every drag that started on them, so most of the screen
-     could not scroll the list and programs stayed hidden below. Now the
-     whole page scrolls as one: the programs list does not scroll itself
-     (nestedScrollingEnabled=false, wrap_content) and the outer
-     NestedScrollView carries the scroll. -->
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- p28 ROOT FIX (Store "All" crash): the programs list MUST NOT be
+     wrap_content inside a NestedScrollView. Before, programs_recycler
+     was wrap_content + nestedScrollingEnabled=false inside the outer
+     NestedScrollView, so tapping "All" (1,139 programs) forced the
+     RecyclerView to create + measure ALL 1,139 item views at once to
+     compute its height -> OutOfMemory / the app died. Now the top
+     section (distro + search + category cards) lives in its own
+     NestedScrollView, and programs_recycler is 0dp + weight=1 with
+     its own scrolling, so it only binds the visible items (real
+     RecyclerView recycling). The search and categories stay reachable
+     while browsing programs. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
+    android:orientation="vertical"
     android:background="?attr/colorSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/mudif_purple"
+        android:padding="24dp">
+
+        <ImageButton
+            android:id="@+id/menu_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_menu"
+            android:contentDescription="@string/ui_nav_menu_desc"
+            android:onClick="openDrawer" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="8dp">
+
+            <TextView style="@style/Widget.Mudif.HeaderTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tab_store"
+                android:textSize="28sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="@font/lifta" />
+
+            <TextView style="@style/Widget.Mudif.HeaderSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/store_subtitle"
+                android:textSize="14sp"
+                android:textColor="#DCD6FF"
+                android:fontFamily="@font/cairo" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@color/mudif_purple"
-            android:padding="24dp">
+            android:orientation="vertical">
 
-            <ImageButton
-                android:id="@+id/menu_button"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@android:color/transparent"
-                android:src="@drawable/ic_menu"
-                android:contentDescription="@string/ui_nav_menu_desc"
-                android:onClick="openDrawer" />
-
-            <LinearLayout
-                android:layout_width="0dp"
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recycler"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:paddingStart="8dp">
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:padding="12dp" />
 
-                <TextView style="@style/Widget.Mudif.HeaderTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/tab_store"
-                    android:textSize="28sp"
-                    android:textColor="@android:color/white"
-                    android:fontFamily="@font/lifta" />
+            <!-- P16.1: plain EditText, not TextInputEditText. The Material
+                 TextInputLayout wrapper broke the search field's input
+                 connection (focus worked, no keystroke arrived, mInputEditorInfo
+                 empty), so the box is a plain EditText on a rounded background. -->
+            <EditText style="@style/Widget.Mudif.SearchBox"
+                android:id="@+id/search_box"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/search_box_bg"
+                android:drawableStart="@android:drawable/ic_menu_search"
+                android:drawablePadding="8dp"
+                android:padding="12dp"
+                android:hint="@string/store_search_hint"
+                android:fontFamily="@font/cairo"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:maxLines="1" />
 
-                <TextView style="@style/Widget.Mudif.HeaderSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/store_subtitle"
-                    android:textSize="14sp"
-                    android:textColor="#DCD6FF"
-                    android:fontFamily="@font/cairo" />
-            </LinearLayout>
+            <!-- P19 Phase 1: category gradient cards (2-column grid) replace
+                 the plain filter chips. Same tap-to-filter behaviour. -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/category_recycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
         </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:nestedScrollingEnabled="false"
-            android:padding="12dp" />
+    <!-- The programs list scrolls on its own (weight=1 fills the rest
+         of the screen). It recycles views, so "All" (1,139 programs)
+         only binds the ~10 visible cards instead of all of them. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/programs_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:padding="12dp" />
 
-        <!-- P16.1: plain EditText, not TextInputEditText. The Material
-             TextInputLayout wrapper broke the search field's input
-             connection (focus worked, no keystroke arrived, mInputEditorInfo
-             empty), so the box is a plain EditText on a rounded background. -->
-        <EditText style="@style/Widget.Mudif.SearchBox"
-            android:id="@+id/search_box"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/search_box_bg"
-            android:drawableStart="@android:drawable/ic_menu_search"
-            android:drawablePadding="8dp"
-            android:padding="12dp"
-            android:hint="@string/store_search_hint"
-            android:fontFamily="@font/cairo"
-            android:inputType="text"
-            android:imeOptions="actionSearch"
-            android:maxLines="1" />
-
-        <!-- P19 Phase 1: category gradient cards (2-column grid) replace
-             the plain filter chips. Same tap-to-filter behaviour. -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/category_recycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:clipToPadding="false"
-            android:nestedScrollingEnabled="false"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/programs_recycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:nestedScrollingEnabled="false"
-            android:padding="12dp" />
-
-        <TextView style="@style/TextAppearance.Mudif.Caption"
-            android:id="@+id/empty_state"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:padding="32dp"
-            android:text="@string/store_no_results"
-            android:textSize="16sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:fontFamily="@font/cairo"
-            android:visibility="gone" />
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+    <TextView style="@style/TextAppearance.Mudif.Caption"
+        android:id="@+id/empty_state"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="32dp"
+        android:text="@string/store_no_results"
+        android:textSize="16sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:fontFamily="@font/cairo"
+        android:visibility="gone" />
+</LinearLayout>

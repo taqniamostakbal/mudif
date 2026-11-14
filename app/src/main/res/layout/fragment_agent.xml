@@ -3,23 +3,32 @@
      pattern as the other tabs (purple header + menu button):
      - Chat: native message list, quick-action chips, input + voice.
      - Console: WebView on the agent server (localhost only) with an
-       honest error state when the server is not running. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+       honest error state when the server is not running.
+     p28 ROOT FIX: the root was a vertical LinearLayout with nested
+     weights (chat_container 0dp+weight=1 holding agent_recycler
+     0dp+weight=1). On the rig the chat UI below the header never
+     rendered (only the header showed, filling the screen). A
+     ConstraintLayout pins every section explicitly, so the chat area
+     is guaranteed its space regardless of weight measurement. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="?attr/colorSurface">
 
     <!-- Header: clay-penguin avatar + agent name + reply-language switch.
          Tapping the avatar or the name shows the agent About text. -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/agent_header"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:background="@color/mudif_purple"
-        android:padding="16dp">
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <ImageButton
             android:id="@+id/menu_button"
@@ -91,14 +100,18 @@
 
     <!-- Mode toggle + clear history. -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/mode_row"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingTop="8dp"
-        android:paddingBottom="4dp">
+        android:paddingBottom="4dp"
+        app:layout_constraintTop_toBottomOf="@id/agent_header"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/mode_toggle"
@@ -143,10 +156,13 @@
     <!-- ================= Chat mode ================= -->
     <LinearLayout
         android:id="@+id/chat_container"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@id/mode_row"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <HorizontalScrollView
             android:id="@+id/chips_scroll"
@@ -366,10 +382,13 @@
     <!-- ================= Console mode (WebView) ================= -->
     <FrameLayout
         android:id="@+id/console_container"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:visibility="gone">
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/mode_row"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <WebView
             android:id="@+id/agent_webview"
@@ -415,4 +434,4 @@
                 app:cornerRadius="24dp" />
         </LinearLayout>
     </FrameLayout>
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
