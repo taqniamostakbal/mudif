@@ -25,7 +25,6 @@ import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.RootfsManager
 import com.bolm.mudif.engine.ScreenRecorder
 import com.bolm.mudif.engine.SystemDisplay
-import com.bolm.mudif.engine.TerminalSession
 import com.bolm.mudif.engine.TvStreamer
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
@@ -870,21 +869,23 @@ class VncActivity : AppCompatActivity() {
 
     /**
      * Real-computer #7, fast reattach. When the session is already
-     * alive, the guest is booted, TCP 6006 answers and lxqt-session
-     * is running, the desktop is up: open the viewer directly and
-     * skip the whole reboot-on-entry (PTY probe, kills, boot, X
-     * restart, sleeps). The check is ONE pgrep one-shot, so a dead
-     * desktop falls through to the cold start in ~seconds, not
-     * the ~43 s a full isDesktopRunning (2 attempts) would cost.
+     * alive, the guest is booted, TCP 6006 answers and a live
+     * lxqt-session plus openbox are running, the desktop is up: open
+     * the viewer directly and skip the whole reboot-on-entry (PTY
+     * probe, kills, boot, X restart, sleeps). p34g: the check is
+     * X11Session.isDesktopSessionAlive, ONE Debian one-shot, so a
+     * dead desktop still falls through to the cold start in
+     * ~seconds, not the ~43 s a full isDesktopRunning (2 attempts)
+     * would cost. A raw pgrep here matched zombie lxqt-session pids
+     * and attached the viewer to a dead desktop (p34f); the cold
+     * start it now falls through to kills the stale processes first
+     * (step 1a) and boots fresh.
      * Returns true when the viewer was opened.
      */
     private fun tryFastReattach(): Boolean {
         if (!GuestSession.alive || !GuestSession.booted) return false
         if (!X11Session.isTcpDisplayOpen()) return false
-        val r = TerminalSession.runCommandDebian(
-            this, "pgrep -f '[l]xqt-session' >/dev/null 2>&1 && echo RUNNING", 10, 20
-        )
-        if (!r.output.contains("RUNNING")) return false
+        if (!X11Session.isDesktopSessionAlive(this)) return false
         Log.d("VncActivity", "fast reattach: session healthy, opening viewer directly")
         // p21: the session survived, but the brain servers may not
         // have; ensureStarted is a no-op when they are already up.

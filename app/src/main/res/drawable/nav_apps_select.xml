@@ -13,4 +13,16 @@
     <target
         android:name="sq4"
         android:animation="@animator/avd_scale_in_d75" />
+    <target
+        android:name="sq1Path"
+        android:animation="@animator/avd_morph_apps_in" />
+    <target
+        android:name="sq2Path"
+        android:animation="@animator/avd_morph_apps_in" />
+    <target
+        android:name="sq3Path"
+        android:animation="@animator/avd_morph_apps_in" />
+    <target
+        android:name="sq4Path"
+        android:animation="@animator/avd_morph_apps_in" />
 </animated-vector>

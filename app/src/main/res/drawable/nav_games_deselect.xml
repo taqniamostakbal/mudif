@@ -7,4 +7,10 @@
     <target
         android:name="tri"
         android:animation="@animator/avd_scale_out" />
+    <target
+        android:name="discPath"
+        android:animation="@animator/avd_morph_games_disc_out" />
+    <target
+        android:name="triPath"
+        android:animation="@animator/avd_morph_games_tri_out" />
 </animated-vector>

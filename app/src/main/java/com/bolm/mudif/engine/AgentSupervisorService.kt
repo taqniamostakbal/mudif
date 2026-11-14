@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class AgentSupervisorService : Service() {
 
     companion object {
-        private const val TAG = "AgentSupervisor"
+        private const val TAG = "MudifAgent"
         private const val CHANNEL_ID = "mudif_agent"
         private const val NOTIF_ID = 4103
         private const val ACTION_START = "com.bolm.mudif.START_AGENT"
@@ -167,7 +167,8 @@ class AgentSupervisorService : Service() {
         val appCtx = applicationContext
         Thread {
             try {
-                AgentServer.stop(appCtx)
+                val stopped = AgentServer.stop(appCtx)
+                Log.i(TAG, "onDestroy: brain server stop result=$stopped")
             } catch (e: Exception) {
                 Log.w(TAG, "stop brain server failed", e)
             }
@@ -202,16 +203,26 @@ class AgentSupervisorService : Service() {
     }
 
     /** Phase 3 watchdog: while the service runs, probe the brain
-     *  (4096) and Ollama (11434) every 15 s. Two consecutive
-     *  failures trigger one restart via ensureStarted; if the
-     *  servers stay down, one broadcast carries the real reason to
-     *  the chat (with a Retry action there), once per outage. No
-     *  new service, no new screens. */
+     *  (4096) and Ollama (11434) independently every 15 s, each
+     *  with its own consecutive-failure counter. Two consecutive
+     *  failures of one server trigger a restart of THAT server:
+     *  opencode down restarts via ensureStarted, ollama down
+     *  while opencode is up restarts ollama alone via
+     *  ensureOllamaStarted (the old combined probe plus the
+     *  opencode-up short-circuit in ensureStarted meant a lone
+     *  ollama kill was never restarted). When both are down,
+     *  ensureStarted runs the start script once, which starts
+     *  whatever is missing, and the ollama-alone restart is
+     *  skipped that round to avoid a second start attempt in the
+     *  same tick. If the servers stay down, one broadcast carries
+     *  the real reason to the chat (with a Retry action there),
+     *  once per outage. No new service, no new screens. */
     private fun startWatchdog() {
         if (!watchdogStarted.compareAndSet(false, true)) return
         val appCtx = applicationContext
         Thread {
-            var consecutiveFailures = 0
+            var opencodeFailures = 0
+            var ollamaFailures = 0
             var downNotified = false
             while (running) {
                 try {
@@ -220,33 +231,68 @@ class AgentSupervisorService : Service() {
                     break
                 }
                 if (!running) break
-                val up = try {
-                    AgentServer.isUp() && AgentServer.isOllamaUp()
+                val agentUp = try {
+                    AgentServer.isUp()
                 } catch (_: Exception) {
                     false
                 }
-                if (up) {
-                    consecutiveFailures = 0
+                val ollamaUp = try {
+                    AgentServer.isOllamaUp()
+                } catch (_: Exception) {
+                    false
+                }
+                Log.i(TAG, "watchdog: probe opencode=$agentUp ollama=$ollamaUp")
+                if (agentUp && ollamaUp) {
+                    opencodeFailures = 0
+                    ollamaFailures = 0
                     downNotified = false
                     continue
                 }
-                consecutiveFailures++
-                if (consecutiveFailures < 2) continue
-                consecutiveFailures = 0
-                Log.w(TAG, "watchdog: servers down, restarting once")
-                val ensured = try {
-                    AgentServer.ensureStarted(appCtx)
-                } catch (e: Exception) {
-                    AgentServer.EnsureResult(false, e.message)
-                }
-                if (!ensured.up && !downNotified) {
-                    downNotified = true
-                    appCtx.sendBroadcast(
-                        Intent(ACTION_SERVERS_DOWN).putExtra(
-                            EXTRA_SERVERS_DOWN_REASON,
-                            ensured.reason ?: AgentServer.REASON_START_FAILED
+                if (agentUp) opencodeFailures = 0 else opencodeFailures++
+                if (ollamaUp) ollamaFailures = 0 else ollamaFailures++
+                if (opencodeFailures >= 2) {
+                    opencodeFailures = 0
+                    Log.i(TAG, "watchdog: opencode down twice, restarting via ensureStarted")
+                    val ensured = try {
+                        AgentServer.ensureStarted(appCtx)
+                    } catch (e: Exception) {
+                        AgentServer.EnsureResult(false, e.message)
+                    }
+                    Log.i(TAG, "watchdog: ensureStarted up=${ensured.up} reason=${ensured.reason}")
+                    if (!ensured.up && !downNotified) {
+                        downNotified = true
+                        appCtx.sendBroadcast(
+                            Intent(ACTION_SERVERS_DOWN).putExtra(
+                                EXTRA_SERVERS_DOWN_REASON,
+                                ensured.reason ?: AgentServer.REASON_START_FAILED
+                            )
                         )
-                    )
+                    }
+                }
+                if (ollamaFailures >= 2) {
+                    ollamaFailures = 0
+                    if (!agentUp) {
+                        Log.i(TAG, "watchdog: ollama down but opencode also down, start already attempted this round")
+                    } else if (AgentServer.isOllamaUp()) {
+                        Log.i(TAG, "watchdog: ollama recovered while opencode was restarting, no ollama restart needed")
+                    } else {
+                        Log.i(TAG, "watchdog: ollama down twice, opencode up, restarting ollama alone")
+                        val restarted = try {
+                            AgentServer.ensureOllamaStarted(appCtx)
+                        } catch (e: Exception) {
+                            AgentServer.EnsureResult(false, e.message)
+                        }
+                        Log.i(TAG, "watchdog: ensureOllamaStarted up=${restarted.up} reason=${restarted.reason}")
+                        if (!restarted.up && !downNotified) {
+                            downNotified = true
+                            appCtx.sendBroadcast(
+                                Intent(ACTION_SERVERS_DOWN).putExtra(
+                                    EXTRA_SERVERS_DOWN_REASON,
+                                    restarted.reason ?: AgentServer.REASON_START_FAILED
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }.apply { isDaemon = true }.start()

@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,6 +42,7 @@ class BrainProvidersAdapter(
         RecyclerView.ViewHolder(binding.root)
 
     companion object {
+        private const val TAG = "MudifAgent"
         private const val TYPE_PROVIDER = 0
         private const val TYPE_SEARCH = 1
     }
@@ -112,12 +116,7 @@ class BrainProvidersAdapter(
                 Toast.makeText(
                     ctx, R.string.brain_providers_key_saved, Toast.LENGTH_SHORT
                 ).show()
-                if (AgentServer.isUp()) {
-                    Thread {
-                        AgentServer.stop(ctx)
-                        AgentServer.ensureStarted(ctx)
-                    }.start()
-                }
+                restartServerAfterKeySave(ctx)
             }
             b.providerGetKey.setOnClickListener {
                 val url = provider.keyUrl ?: return@setOnClickListener
@@ -157,12 +156,61 @@ class BrainProvidersAdapter(
             Toast.makeText(
                 ctx, R.string.brain_providers_key_saved, Toast.LENGTH_SHORT
             ).show()
-            if (AgentServer.isUp()) {
-                Thread {
-                    AgentServer.stop(ctx)
-                    AgentServer.ensureStarted(ctx)
-                }.start()
+            restartServerAfterKeySave(ctx)
+        }
+    }
+
+    /**
+     * Restarts the brain server after a key save, on a background
+     * thread, and reports the honest outcome. The restart is
+     * verified, not assumed: the old pid is read before the stop,
+     * the stop result is checked, and success needs a new process
+     * confirmed up afterwards with a different pid. The Toast
+     * says "server restarted" only on that verified outcome,
+     * otherwise it says the restart failed and the key loads at
+     * the next start. Every step is logged (tag MudifAgent); the
+     * key value is never logged. Never call on the UI thread
+     * paths except through this thread: the full restart takes
+     * longer than 3 s (stop waits up to 15 s, start polls up to
+     * 30 s), so a fast pid check right after the save proves
+     * nothing either way.
+     */
+    private fun restartServerAfterKeySave(ctx: Context) {
+        val appCtx = ctx.applicationContext
+        Thread {
+            val portUp = AgentServer.isUp()
+            val oldPid = AgentServer.opencodePid(appCtx)
+            Log.i(TAG, "key save restart: start (port up=$portUp, old pid=$oldPid)")
+            if (!portUp && oldPid == null) {
+                Log.i(TAG, "key save restart: server was not running, no restart needed, key loads at next start")
+                showRestartToast(appCtx, "تم حفظ المفتاح، وسيُحمَّل عند تشغيل الخادم التالي")
+                return@Thread
             }
+            val stopped = AgentServer.stop(appCtx)
+            Log.i(TAG, "key save restart: stop result=$stopped (old pid=$oldPid)")
+            if (!stopped) {
+                Log.e(TAG, "key save restart: stop failed, old server still running, new key not loaded")
+                showRestartToast(appCtx, "فشلت إعادة التشغيل، وسيُحمَّل المفتاح عند التشغيل التالي")
+                return@Thread
+            }
+            val ensured = AgentServer.ensureStarted(appCtx)
+            val newPid = AgentServer.opencodePid(appCtx)
+            val pidChanged = oldPid == null || (newPid != null && newPid != oldPid)
+            Log.i(TAG, "key save restart: ensureStarted up=${ensured.up} reason=${ensured.reason} new pid=$newPid pidChanged=$pidChanged")
+            if (ensured.up && newPid != null && pidChanged) {
+                showRestartToast(appCtx, "تمت إعادة تشغيل الخادم")
+            } else {
+                Log.e(TAG, "key save restart: restart not verified (up=${ensured.up}, old pid=$oldPid, new pid=$newPid)")
+                showRestartToast(appCtx, "فشلت إعادة التشغيل، وسيُحمَّل المفتاح عند التشغيل التالي")
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    /** Toast from a background thread: posts to the main looper,
+     *  a worker thread has none. */
+    private fun showRestartToast(ctx: Context, text: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(ctx, text, Toast.LENGTH_LONG).show()
         }
     }
 }

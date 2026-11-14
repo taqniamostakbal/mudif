@@ -7,11 +7,13 @@
     <group android:name="icon">
         <group android:name="disc">
             <path
+                android:name="discPath"
                 android:fillColor="#000000"
                 android:pathData="M12,2C6.5,2 2,6.5 2,12s4.5,10 10,10 10,-4.5 10,-10S17.5,2 12,2z" />
         </group>
         <group android:name="tri">
             <path
+                android:name="triPath"
                 android:fillColor="#000000"
                 android:pathData="M10,16.5v-9l7.5,4.5z" />
         </group>

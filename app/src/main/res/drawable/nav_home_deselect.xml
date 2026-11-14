@@ -10,4 +10,10 @@
     <target
         android:name="icon"
         android:animation="@animator/avd_scale_out" />
+    <target
+        android:name="outlinePath"
+        android:animation="@animator/avd_morph_home_out" />
+    <target
+        android:name="fillPath"
+        android:animation="@animator/avd_morph_home_out" />
 </animated-vector>

@@ -771,6 +771,7 @@ class AgentFragment : Fragment() {
                 android.util.Log.w("AgentFragment", "supervisor start failed (best-effort)", e)
             }
             val ensured = AgentServer.ensureStarted(appContext)
+            Log.i("MudifAgent", "startTurn ensureStarted up=${ensured.up} reason=${ensured.reason} brainModel=$brainModel")
             val act = activity
             if (act == null) {
                 // Phase 3: no activity to post to; clear the flag
@@ -784,25 +785,40 @@ class AgentFragment : Fragment() {
                 failTurnInBackground(act, appContext, ensured.reason, null)
                 return@runTurnThread
             }
-            // p22: the servers are up, but the brain model may still
-            // be missing (fresh image). Never start a turn that can
-            // only fail, show the download card instead.
-            if (AgentServer.hasBrainModel() == false) {
+            // p34g fix 1: the missing-local-model gate applies ONLY
+            // to a local turn. A cloud brain needs no local model;
+            // the old unconditional gate killed every cloud turn on
+            // a rig without qwen3:1.7b, before any session existed.
+            val hasBrain = AgentServer.hasBrainModel()
+            Log.i("MudifAgent", "startTurn gate hasBrainModel=$hasBrain brainModel=$brainModel")
+            if (brainModel == BRAIN_LOCAL && hasBrain == false) {
                 // Phase 3: the flag clears in the background thread
                 // first; endTurnUi only runs when the view is alive.
                 turnRunning = false
                 currentTurn = null
                 streamingIndex = -1
+                // p34g fix 3: a failed turn, not a silent stop:
+                // persist it so Retry survives a relaunch. The
+                // download card stays as the model remedy.
+                markTurnFailed(appContext, false)
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
                     showBrainDownloadCard()
-                    endTurnUi()
+                    // p34g fix 3: endTurnUi would clear the stored
+                    // failure and hide the action button, so the
+                    // terminal tail is done here instead: the turn
+                    // is ended, the typing line hides, Send returns,
+                    // and Retry shows.
+                    endedTurnSeq = turnSeq
+                    showTurnFailedUi(null, null)
+                    hideSlowBrainChip()
                 }
                 return@runTurnThread
             }
             var sid = sessionId
             if (sid.isNullOrBlank()) {
                 sid = AgentClient.createSession()
+                Log.i("MudifAgent", "startTurn createSession ok=${!sid.isNullOrBlank()}")
                 if (sid.isNullOrBlank()) {
                     failTurnInBackground(act, appContext, null, null)
                     return@runTurnThread
@@ -900,6 +916,17 @@ class AgentFragment : Fragment() {
                             streamingIndex = -1
                             return@runOnUiThread
                         }
+                        // p34g: a late onError after the turn already
+                        // ended is stale, like the view-gone branch
+                        // above. A user Stop with zero tokens ends
+                        // the turn synchronously (agent_stopped +
+                        // endTurnUi), and the post thread's done("")
+                        // now routes through failed(), so without
+                        // this guard the Stop gains a second verdict
+                        // plus a durable Retry. A genuine failure
+                        // fires while turnRunning is still true and
+                        // still reaches onTurnFailed.
+                        if (!turnRunning) return@runOnUiThread
                         onTurnFailed(null, message)
                     }
                 }
@@ -1001,6 +1028,7 @@ class AgentFragment : Fragment() {
                 android.util.Log.w("AgentFragment", "supervisor start failed (best-effort)", e)
             }
             val ensured = AgentServer.ensureStarted(appContext)
+            Log.i("MudifAgent", "startVisionTurn ensureStarted up=${ensured.up} reason=${ensured.reason}")
             val act = activity
             if (act == null) {
                 // Phase 3: no activity to post to; clear the flag
@@ -1017,14 +1045,23 @@ class AgentFragment : Fragment() {
             }
             // Vision model gate: missing means the download card,
             // not a turn that can only fail.
-            if (AgentServer.hasModel(AgentServer.VISION_MODEL) == false) {
+            val hasVisionModel = AgentServer.hasModel(AgentServer.VISION_MODEL)
+            Log.i("MudifAgent", "startVisionTurn gate hasVisionModel=$hasVisionModel")
+            if (hasVisionModel == false) {
                 turnRunning = false
                 currentTurn = null
                 streamingIndex = -1
+                // p34g fix 3: persist the failure so Retry survives
+                // a relaunch; the retry re-runs the vision turn.
+                markTurnFailed(appContext, true)
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
                     showBrainDownloadCard(AgentServer.VISION_MODEL)
-                    endTurnUi()
+                    // p34g fix 3: endTurnUi would clear the stored
+                    // failure and hide the action button, so the
+                    // terminal tail is done here instead.
+                    endedTurnSeq = turnSeq
+                    showTurnFailedUi(null) { startVisionTurn(question) }
                     refreshVisionChip()
                 }
                 return@runTurnThread
@@ -1109,8 +1146,18 @@ class AgentFragment : Fragment() {
      *  disabled with the reason as its visible text. Background
      *  thread: the checks are TCP probes, never on the UI thread. */
     private fun refreshVisionChip() {
+        // p34g fix 4: the application context is captured here, on
+        // the UI thread, so the background probe never touches a
+        // detached fragment context.
+        val appContext = context?.applicationContext
         Thread {
-            val desktopUp = X11Session.isTcpDisplayOpen()
+            // p34g fix 4: the TCP probe alone stays open when
+            // lxqt-session is a zombie, so the chip read "ready"
+            // while the desktop was down. The session check runs
+            // second, only when the display socket answers.
+            val desktopUp = appContext != null &&
+                X11Session.isTcpDisplayOpen() &&
+                X11Session.isDesktopSessionAlive(appContext)
             val hasVision = AgentServer.hasModel(AgentServer.VISION_MODEL)
             val act = activity ?: return@Thread
             act.runOnUiThread {
@@ -1287,6 +1334,9 @@ class AgentFragment : Fragment() {
         detail: String? = null,
         onRetry: (() -> Unit)? = null
     ) {
+        // p34g logging: every failed turn is observable in logcat
+        // by its machine reason; the detail text is never logged.
+        Log.i("MudifAgent", "onTurnFailed reason=$reason")
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
@@ -1368,6 +1418,10 @@ class AgentFragment : Fragment() {
         detail: String?,
         onRetry: (() -> Unit)? = null
     ) {
+        // p34g logging: every background-path failure is observable
+        // in logcat by its machine reason; the detail text is never
+        // logged, only whether one was present.
+        Log.i("MudifAgent", "failTurnInBackground reason=$reason detailPresent=${!detail.isNullOrBlank()}")
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
@@ -1683,6 +1737,14 @@ class AgentFragment : Fragment() {
                 // it cannot be missed.
                 appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, warning, replyLanguage))
                 Toast.makeText(requireContext(), warning, Toast.LENGTH_LONG).show()
+                // p34g fix 3: a refused pick is a failed turn for
+                // Retry purposes: persist it and show Retry, so the
+                // user can re-send under the unchanged brain after
+                // adding the key. The updateBrainButton call below
+                // is skipped by the return, so the pill is untouched.
+                Log.i("MudifAgent", "applyBrainPick refused no key env=${picked.env} marked failed")
+                markTurnFailed(requireContext(), false)
+                if (_binding != null) showTurnFailedUi(null, null)
                 return
             }
         }

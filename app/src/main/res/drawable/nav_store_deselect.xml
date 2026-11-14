@@ -10,4 +10,10 @@
     <target
         android:name="icon"
         android:animation="@animator/avd_scale_out" />
+    <target
+        android:name="awningPath"
+        android:animation="@animator/avd_morph_store_awning_out" />
+    <target
+        android:name="bodyPath"
+        android:animation="@animator/avd_morph_store_body_out" />
 </animated-vector>

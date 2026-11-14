@@ -44,7 +44,7 @@ import org.json.JSONObject
  *   onDone/onError fire exactly once.
  */
 object AgentClient {
-    private const val TAG = "AgentClient"
+    private const val TAG = "MudifAgent"
     private const val BASE_URL = AgentServer.AGENT_SERVER_URL
 
     private const val CONNECT_TIMEOUT_MS = 5_000
@@ -118,7 +118,9 @@ object AgentClient {
             }
             val body = conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
             conn.disconnect()
-            JSONObject(body).optString("id", "").ifEmpty { null }
+            val id = JSONObject(body).optString("id", "").ifEmpty { null }
+            Log.i(TAG, "createSession: HTTP $code id=${id ?: "null"}")
+            id
         } catch (e: Exception) {
             Log.w(TAG, "createSession failed", e)
             null
@@ -138,9 +140,11 @@ object AgentClient {
             val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET", 5_000)
             val code = conn.responseCode
             conn.disconnect()
-            code in 200..299
+            val known = code in 200..299
+            Log.i(TAG, "sessionKnown: HTTP $code known=$known")
+            known
         } catch (e: Exception) {
-            Log.d(TAG, "sessionKnown failed", e)
+            Log.i(TAG, "sessionKnown failed: ${e.message}")
             false
         }
     }
@@ -179,20 +183,12 @@ object AgentClient {
         // Phase 4, fix 1: the id this turn actually uses. Re-created
         // below when blank or unknown to the server.
         var activeSessionId = sessionId
+        Log.i(TAG, "sendPrompt entry local=${localStop != null} session=${if (sessionId.isBlank()) "blank" else "supplied"}")
 
-        fun done(finalText: String) {
-            if (finished.compareAndSet(false, true)) {
-                turnDone.set(true)
-                try {
-                    handle.sseConnection?.disconnect()
-                } catch (_: Exception) {
-                }
-                callbacks.onDone(finalText)
-            }
-        }
         fun failed(message: String) {
             if (finished.compareAndSet(false, true)) {
                 turnDone.set(true)
+                Log.i(TAG, "failed: $message")
                 try {
                     handle.sseConnection?.disconnect()
                 } catch (_: Exception) {
@@ -213,16 +209,43 @@ object AgentClient {
                 callbacks.onError(message)
             }
         }
+        fun done(finalText: String) {
+            // p34g fix 2: a turn with zero agent tokens ends only
+            // through failed(), never as an empty success. The
+            // phase-2 Nemotron empty finish ended here as done(""),
+            // and the view-gone onDone path drops that silently
+            // with no stored verdict and no Retry.
+            if (finalText.isEmpty()) {
+                failed(if (handle.cancelled) "stopped before any reply" else "empty reply: server finished with no text")
+                return
+            }
+            if (finished.compareAndSet(false, true)) {
+                turnDone.set(true)
+                Log.i(TAG, "done: final text len=${finalText.length}")
+                try {
+                    handle.sseConnection?.disconnect()
+                } catch (_: Exception) {
+                }
+                callbacks.onDone(finalText)
+            }
+        }
 
         // Phase 4, fix 2: watchdog. Sleeps exactly TURN_TIMEOUT_MS
         // from the send, then fails the turn unless it already
         // ended. failed() is idempotent, so a late wake-up after a
         // normal end is a no-op. Covers createSession, the
         // session check, and a postPromptAsync that never returns.
+        Log.i(TAG, "timeout armed 300 s")
         Thread {
-            Thread.sleep(TURN_TIMEOUT_MS)
+            val interrupted = try {
+                Thread.sleep(TURN_TIMEOUT_MS)
+                false
+            } catch (_: InterruptedException) {
+                true
+            }
             if (!handle.cancelled && !turnDone.get()) {
-                failed("timeout: no reply within 300 s")
+                Log.i(TAG, "timeout firing interrupted=$interrupted")
+                failed(if (interrupted) "watchdog interrupted before reply" else "timeout: no reply within 300 s")
             }
         }.apply { isDaemon = true }.start()
 
@@ -239,6 +262,7 @@ object AgentClient {
             }
             activeSessionId = fresh
             handle.retargetSession(fresh)
+            Log.i(TAG, "session re-created id=$fresh")
         }
         if (turnDone.get()) return handle
 
@@ -360,18 +384,27 @@ object AgentClient {
                     put("system", systemPrompt)
                 }.toString()
                 var asyncCode = postPromptAsync(activeSessionId, body)
+                Log.i(TAG, "prompt_async code=$asyncCode")
                 // Phase 4, fix 1: 404 means the server does not know
                 // this session (it died between the check and the
                 // post). One fresh session and one re-post; the code
                 // below then decides on the retried code.
                 if (asyncCode == 404) {
                     val fresh = createSession()
-                    if (!fresh.isNullOrBlank() && fresh != activeSessionId) {
-                        activeSessionId = fresh
-                        handle.retargetSession(fresh)
-                        pollBaselineId = lastAssistantMessageId(activeSessionId)
-                        asyncCode = postPromptAsync(activeSessionId, body)
+                    if (fresh.isNullOrBlank()) {
+                        // p34g fix 1: the session is dead and no
+                        // fresh one exists. Fail now instead of
+                        // trying the blocking endpoint on a session
+                        // the server already rejected.
+                        Log.i(TAG, "prompt_async 404 re-create failed")
+                        failed("could not create session")
+                        return@Thread
                     }
+                    activeSessionId = fresh
+                    handle.retargetSession(fresh)
+                    pollBaselineId = lastAssistantMessageId(activeSessionId)
+                    asyncCode = postPromptAsync(activeSessionId, body)
+                    Log.i(TAG, "prompt_async retry code=$asyncCode")
                 }
                 // The watchdog may have fired while posting.
                 if (turnDone.get()) return@Thread
@@ -406,6 +439,7 @@ object AgentClient {
                         // stream dropped; a finished message with no
                         // new text for 2 polls ends the turn too.
                         if (unchangedPolls >= 2 && pollMessageFinished(activeSessionId, pollBaselineId)) {
+                            Log.i(TAG, "poll finished end len=${lastText.get().length}")
                             done(lastText.get())
                             return@Thread
                         }
@@ -422,6 +456,7 @@ object AgentClient {
                 if (asyncCode == 404 || asyncCode == 405) {
                     if (turnDone.get()) return@Thread
                     val finalText = postMessageBlocking(activeSessionId, body)
+                    Log.i(TAG, "blocking reply len=${finalText?.length ?: -1}")
                     if (turnDone.get()) return@Thread
                     if (handle.cancelled) done(lastText.get()) else {
                         val replyText = finalText ?: lastText.get()
@@ -479,7 +514,7 @@ object AgentClient {
         try {
             val system = JSONObject(body).optString("system", "")
             if (system.isNotEmpty()) {
-                Log.d(TAG, "prompt_async system: len=${system.length} head=${system.take(80)}")
+                Log.i(TAG, "prompt_async system: len=${system.length} head=${system.take(80)}")
             }
         } catch (_: Exception) {
         }

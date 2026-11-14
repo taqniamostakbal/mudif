@@ -742,6 +742,89 @@ object X11Session {
     }
 
     /**
+     * p34g: the one guest command behind isDesktopSessionAlive and
+     * the LXQt branch of isDesktopRunning. For each lxqt-session and
+     * openbox pid it reads /proc/<pid>/stat field 3 (the process
+     * state; both comm names have no spaces, so field 3 is the
+     * state) and requires a state other than Z. Prints SESSION_ALIVE
+     * only when a live session AND a live openbox both exist, else
+     * SESSION_DEAD with the per-process state (alive/zombie/missing)
+     * so the caller can log why. pgrep/ps alone cannot do this:
+     * both list a zombie pid as if it were running, with no state
+     * column to filter on. The [l]/[o] bracket trick keeps pgrep
+     * from matching this one-shot's own shell, and the openbox
+     * value travels under the token "wm": the literal word
+     * "openbox" must appear NOWHERE in the rendered command except
+     * inside the bracket pattern, because pgrep -f matches the
+     * invoking shell's own command line, and every literal
+     * "openbox" in it (variable names, echo text) makes the shell
+     * match itself as a live openbox. The session half is safe the
+     * same way: its echo text says "session=", never
+     * "lxqt-session".
+     */
+    private fun desktopAliveCommand(): String {
+        val d = "$"
+        return "session=missing; for pid in ${d}(pgrep -f '[l]xqt-session' 2>/dev/null); do " +
+            "state=${d}(awk '{print ${d}3}' /proc/${d}pid/stat 2>/dev/null); " +
+            "if [ \"${d}state\" = \"Z\" ]; then session=zombie; " +
+            "elif [ -n \"${d}state\" ]; then session=alive; break; fi; done; " +
+            "wm=missing; for pid in ${d}(pgrep -f '[o]penbox' 2>/dev/null); do " +
+            "state=${d}(awk '{print ${d}3}' /proc/${d}pid/stat 2>/dev/null); " +
+            "if [ \"${d}state\" = \"Z\" ]; then wm=zombie; " +
+            "elif [ -n \"${d}state\" ]; then wm=alive; break; fi; done; " +
+            "if [ \"${d}session\" = \"alive\" ] && [ \"${d}wm\" = \"alive\" ]; " +
+            "then echo SESSION_ALIVE; " +
+            "else echo \"SESSION_DEAD session=${d}session wm=${d}wm\"; fi"
+    }
+
+    /** Why the last desktop-alive probe reported dead, from the
+     * SESSION_DEAD line the guest command prints (wm = openbox).
+     * Nulls mean the guest produced no probe output at all (guest
+     * down). */
+    private fun parseDesktopDeadReason(output: String): String {
+        val session = Regex("session=(alive|zombie|missing)").find(output)?.groupValues?.getOrNull(1)
+        val wm = Regex("wm=(alive|zombie|missing)").find(output)?.groupValues?.getOrNull(1)
+        return when {
+            session == null && wm == null -> "guest down or no probe output"
+            session == "zombie" && wm == "zombie" -> "zombie lxqt-session and zombie openbox"
+            session == "zombie" -> "zombie lxqt-session"
+            session == "missing" -> "lxqt-session missing"
+            wm == "zombie" -> "zombie openbox"
+            wm == "missing" -> "openbox missing"
+            else -> "session=$session openbox=$wm"
+        }
+    }
+
+    /**
+     * p34g FIX 4, the desktop-up check the vision chip calls: true
+     * only when a NON-ZOMBIE lxqt-session AND a NON-ZOMBIE openbox
+     * are both alive in the Debian guest. A TCP probe
+     * (isTcpDisplayOpen) proves only that the X server listens on
+     * 6006, and pgrep/ps prove only that a pid exists: a killed
+     * lxqt-session lingers as a zombie (state Z) and both still
+     * report alive, which is the p34f chip gap (chip read ready
+     * while the desktop was down). One guest command, Debian guest
+     * only. Returns false, never throws, when the guest is down.
+     */
+    fun isDesktopSessionAlive(context: Context): Boolean {
+        val alive: Boolean
+        val reason: String
+        try {
+            val result = TerminalSession.runCommandDebian(
+                context, desktopAliveCommand(), idleTimeoutSec = 10, maxTimeoutSec = 20
+            )
+            alive = result.output.contains("SESSION_ALIVE")
+            reason = if (alive) "live lxqt-session and live openbox"
+            else parseDesktopDeadReason(result.output)
+        } catch (e: Exception) {
+            Log.i("MudifAgent", "isDesktopSessionAlive alive=false reason=guest down (${e.message})")
+            return false
+        }
+        Log.i("MudifAgent", "isDesktopSessionAlive alive=$alive reason=$reason")
+        return alive
+    }
+
+    /**
      * P6.1, is the desktop REALLY running? pgrep for the session
      * process in the target guest (same PID namespace, so a one-shot
      * sees the PTY session's processes, proven by P5.24's pkill).
@@ -749,7 +832,13 @@ object X11Session {
      * reported TCP true + sent true with no desktop at all (the X
      * server was borrowed from the surviving LXQt run). This check is
      * the ground truth. Polls twice (3 s apart) so a slow start is
-     * not a false negative. Falls back to ps if pgrep is absent.
+     * not a false negative. p34g: the LXQt branch is zombie-aware
+     * (non-zombie lxqt-session AND openbox, /proc/<pid>/stat state
+     * != Z); the ps fallback is removed because ps lists a defunct
+     * lxqt-session by its comm name, so a dead desktop reported
+     * RUNNING (p34f). There is no ps fallback anymore: when pgrep
+     * is absent the check fails closed (dead, triggers a fresh
+     * start) instead of guessing from ps.
      * The [x]/[l] bracket trick keeps pgrep/ps from matching the
      * one-shot's own shell, whose cmdline contains the pattern text.
      */
@@ -758,17 +847,18 @@ object X11Session {
         // P6.3.2 test had xfce4-session alive with NO xfwm4, NO panel,
         // NO xfdesktop, and the dialog still reported "desktop
         // running: true". For XFCE require the session AND the window
-        // manager AND the panel. LXQt keeps its session-only check
-        // (it passes as-is; do not touch what works).
+        // manager AND the panel. p34g: LXQt now follows the same
+        // discipline, non-zombie session AND non-zombie openbox, via
+        // the shared desktopAliveCommand (see isDesktopSessionAlive).
         val command = if (desktop == "xfce") {
             "if pgrep -f '[x]fce4-session' >/dev/null 2>&1 && " +
                 "pgrep -f '[x]fwm4' >/dev/null 2>&1 && " +
                 "pgrep -f '[x]fce4-panel' >/dev/null 2>&1; then echo RUNNING; fi"
         } else {
-            val proc = "[l]xqt-session"
-            "if pgrep -f '$proc' >/dev/null 2>&1; then echo RUNNING; " +
-                "elif ps -e 2>/dev/null | grep '$proc' >/dev/null 2>&1; then echo RUNNING; fi"
+            desktopAliveCommand()
         }
+        val aliveToken = if (desktop == "xfce") "RUNNING" else "SESSION_ALIVE"
+        var lastOutput = ""
         repeat(2) { attempt ->
             val result = if (debian) {
                 TerminalSession.runCommandDebian(
@@ -779,9 +869,16 @@ object X11Session {
                     context, command, idleTimeoutSec = 10, maxTimeoutSec = 20
                 )
             }
-            if (result.output.contains("RUNNING")) return true
+            lastOutput = result.output
+            if (result.output.contains(aliveToken)) {
+                Log.i("MudifAgent", "isDesktopRunning desktop=$desktop debian=$debian alive=true")
+                return true
+            }
             if (attempt == 0) Thread.sleep(3000)
         }
+        val reason = if (desktop == "xfce") "session, window manager or panel missing"
+        else parseDesktopDeadReason(lastOutput)
+        Log.i("MudifAgent", "isDesktopRunning desktop=$desktop debian=$debian alive=false reason=$reason")
         return false
     }
 

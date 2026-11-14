@@ -7,6 +7,7 @@
     <group android:name="icon">
         <group android:name="sparkle">
             <path
+                android:name="sparklePath"
                 android:fillColor="#000000"
                 android:pathData="M12,2L14,10L22,12L14,14L12,22L10,14L2,12L10,10z" />
         </group>

@@ -31,7 +31,7 @@ import org.json.JSONObject
  * chat cannot kill a brain that is mid-test or mid-task.
  */
 object AgentServer {
-    private const val TAG = "AgentServer"
+    private const val TAG = "MudifAgent"
 
     const val AGENT_SERVER_HOST = "127.0.0.1"
     const val AGENT_SERVER_PORT = 4096
@@ -220,7 +220,10 @@ object AgentServer {
      * with the real outcome; the caller shows the reason honestly.
      */
     fun ensureStarted(context: Context): EnsureResult {
-        if (isUp()) return EnsureResult(true)
+        if (isUp()) {
+            Log.i(TAG, "ensureStarted: opencode already up on 4096, no start needed")
+            return EnsureResult(true)
+        }
         if (!DebianSystem.isReady(context)) {
             Log.w(TAG, "ensureStarted: engine not ready")
             return EnsureResult(false, REASON_ENGINE_NOT_READY)
@@ -262,7 +265,7 @@ object AgentServer {
         val deadline = System.currentTimeMillis() + START_POLL_TIMEOUT_MS
         while (System.currentTimeMillis() < deadline) {
             if (isUp()) {
-                Log.d(TAG, "ensureStarted: server up on 4096")
+                Log.i(TAG, "ensureStarted: server up on 4096 after real start")
                 return EnsureResult(true)
             }
             try {
@@ -275,38 +278,149 @@ object AgentServer {
     }
 
     /**
-     * Stops the OpenCode server only (never Ollama: other features
-     * share it). Best-effort; the guest must be booted. Called when
-     * the agent is torn down, never during a turn.
-     *
-     * Returns only after the agent port stops answering (or the
-     * bounded wait expires): `pkill` only signals the process, so
-     * without this wait the restart right after this stop would see
-     * the old server still up and return without starting a new
-     * one, and the new keys would never load. Never on the UI
-     * thread: the wait alone can take up to 15 s.
+     * Makes sure Ollama alone is running, starting it when it is
+     * not. Runs the same idempotent agent-start.sh (it starts
+     * whatever is missing and never restarts a server that is
+     * already running), then polls /api/tags until Ollama answers
+     * or the 30 s budget runs out. Deliberately separate from
+     * [ensureStarted]: when only Ollama is down, opencode is
+     * still up, so the opencode-up short-circuit in
+     * [ensureStarted] must never be allowed to skip this restart.
+     * Never call on the UI thread.
      */
-    fun stop(context: Context) {
-        if (!GuestSession.booted) return
+    fun ensureOllamaStarted(context: Context): EnsureResult {
+        if (isOllamaUp()) {
+            Log.i(TAG, "ensureOllamaStarted: ollama already up on 11434, no start needed")
+            return EnsureResult(true)
+        }
+        if (!DebianSystem.isReady(context)) {
+            Log.w(TAG, "ensureOllamaStarted: engine not ready")
+            return EnsureResult(false, REASON_ENGINE_NOT_READY)
+        }
+        if (!stageStartScript(context)) {
+            Log.e(TAG, "ensureOllamaStarted: could not stage $START_SCRIPT_ASSET")
+            return EnsureResult(false, REASON_STAGE_FAILED)
+        }
+        if (!GuestSession.bootContainer(context)) {
+            Log.e(TAG, "ensureOllamaStarted: guest boot failed: ${GuestSession.lastError}")
+            return EnsureResult(false, REASON_BOOT_FAILED)
+        }
+        if (!GuestSession.sendCommand("sh /root/.config/mudif/agent-start.sh")) {
+            Log.e(TAG, "ensureOllamaStarted: could not send start command")
+            return EnsureResult(false, REASON_START_FAILED)
+        }
+        val deadline = System.currentTimeMillis() + START_POLL_TIMEOUT_MS
+        while (System.currentTimeMillis() < deadline) {
+            if (isOllamaUp()) {
+                Log.i(TAG, "ensureOllamaStarted: ollama up on 11434 after real start")
+                return EnsureResult(true)
+            }
+            try {
+                Thread.sleep(START_POLL_INTERVAL_MS)
+            } catch (_: InterruptedException) {
+            }
+        }
+        Log.e(TAG, "ensureOllamaStarted: ollama did not answer within 30 s")
+        return EnsureResult(false, REASON_START_FAILED)
+    }
+
+    /**
+     * Stops the OpenCode server only (never Ollama: other features
+     * share it). Called when the agent is torn down, never during
+     * a turn, and by the key-save restart path.
+     *
+     * Returns true only when the server is verified dead
+     * afterwards: port closed AND no `opencode serve` process left
+     * in the guest (pgrep check, not only the port probe, which
+     * can lie if the forward hiccups). Returns false when the
+     * process is still alive after SIGKILL, so the caller never
+     * claims a restart it did not get.
+     *
+     * No `GuestSession.booted` gate: booted only records whether
+     * THIS app process booted the guest PTY, while the server can
+     * outlive the process (restart, crash, system kill), so
+     * gating on it silently skipped the kill. The kill runs
+     * through a fresh one-shot proot, which needs only the
+     * engine/rootfs ready, not the PTY session. When nothing is
+     * running (port closed, no process), this returns true at
+     * once without signalling anything.
+     *
+     * Pattern note: the pkill/pgrep pattern is written
+     * `opencode serv[e]` on purpose. These commands run inside
+     * the guest as `/bin/sh -c ...`, and a literal `opencode
+     * serve` in that command line would match the invoking shell
+     * itself under `pgrep -f`. The bracket form still matches
+     * the real server command line but never the shell running
+     * the check.
+     *
+     * Never on the UI thread: the waits alone can take up to 15 s.
+     */
+    fun stop(context: Context): Boolean {
+        val portUp = isUp()
+        val pidBefore = opencodePid(context)
+        if (!portUp && pidBefore == null) {
+            Log.i(TAG, "stop: server already down (port closed, no process)")
+            return true
+        }
+        Log.i(TAG, "stop: stopping opencode (port up=$portUp, pid=$pidBefore)")
         try {
             TerminalSession.runCommandDebian(
-                context, "pkill -f 'opencode serve' || true", 10, 30
+                context, "pkill -f 'opencode serv[e]' || true", 10, 30
             )
         } catch (e: Exception) {
             Log.w(TAG, "stop: pkill failed", e)
         }
-        if (waitForDown(STOP_WAIT_TIMEOUT_MS)) return
+        if (waitForDown(STOP_WAIT_TIMEOUT_MS) && opencodePid(context) == null) {
+            Log.i(TAG, "stop: server stopped (port closed, no process)")
+            return true
+        }
         // Graceful stop did not kill it in time; force it, or the
         // restart after this stop starts nothing.
+        Log.i(TAG, "stop: graceful stop timed out, sending SIGKILL")
         try {
             TerminalSession.runCommandDebian(
-                context, "pkill -9 -f 'opencode serve' || true", 10, 30
+                context, "pkill -9 -f 'opencode serv[e]' || true", 10, 30
             )
         } catch (e: Exception) {
             Log.w(TAG, "stop: pkill -9 failed", e)
         }
-        if (!waitForDown(STOP_KILL_WAIT_TIMEOUT_MS)) {
-            Log.e(TAG, "stop: server still up after SIGKILL")
+        if (waitForDown(STOP_KILL_WAIT_TIMEOUT_MS)) {
+            val pidAfter = opencodePid(context)
+            if (pidAfter == null) {
+                Log.i(TAG, "stop: server stopped after SIGKILL (port closed, no process)")
+                return true
+            }
+            Log.e(TAG, "stop: port closed but process still alive after SIGKILL (pid=$pidAfter)")
+            return false
+        }
+        Log.e(TAG, "stop: server still up after SIGKILL (port up, pid=${opencodePid(context)})")
+        return false
+    }
+
+    /**
+     * Pid of the running `opencode serve` process in the guest,
+     * or null when no such process exists (or the guest probe
+     * itself failed; the failure is logged). Never throws. Uses
+     * the bracket pattern from [stop] so the check never matches
+     * its own shell. Never on the UI thread: one guest one-shot
+     * takes a few seconds.
+     */
+    fun opencodePid(context: Context): String? {
+        return try {
+            val result = TerminalSession.runCommandDebian(
+                context, "pgrep -f 'opencode serv[e]' | head -n 1", 10, 30
+            )
+            if (result.timedOut || result.exitCode == -1) {
+                Log.w(TAG, "opencodePid: guest probe failed (exit=${result.exitCode})")
+                null
+            } else {
+                result.output.lineSequence()
+                    .map { it.trim() }
+                    .firstOrNull { it.all { c -> c.isDigit() } && it.isNotEmpty() }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "opencodePid: probe failed", e)
+            null
         }
     }
 
