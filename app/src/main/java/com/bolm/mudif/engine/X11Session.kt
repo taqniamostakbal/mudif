@@ -313,7 +313,7 @@ object X11Session {
      * size the server runs at).
      */
     fun viewerResolution(context: Context): String {
-        val scale = DesktopScale.compute(context)
+        val scale = DesktopScaleCalculator.compute(context)
         return "${scale.guestWidth}x${scale.guestHeight}"
     }
 

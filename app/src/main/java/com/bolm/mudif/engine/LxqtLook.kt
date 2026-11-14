@@ -299,7 +299,7 @@ object LxqtLook {
         if (isApplied(context)) return true
         // p23: adaptive scale, computed once from this device's real
         // screen and threaded through every config writer below.
-        val scale = DesktopScale.compute(context)
+        val scale = DesktopScaleCalculator.compute(context)
         val rootfs = DebianSystem.debianRootfsDir(context)
 
         // Prereq: the apt set must have landed (startlxqt + the

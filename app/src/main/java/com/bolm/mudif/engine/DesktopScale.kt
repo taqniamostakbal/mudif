@@ -52,7 +52,7 @@ data class DesktopScale(
     val openboxPadding: Int,
 )
 
-object DesktopScale {
+object DesktopScaleCalculator {
     const val MIN_GUEST_HEIGHT = 480
     const val MAX_GUEST_HEIGHT = 720
     const val MIN_FONT_PT = 11

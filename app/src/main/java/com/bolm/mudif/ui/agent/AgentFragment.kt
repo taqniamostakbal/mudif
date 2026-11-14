@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
