@@ -10,8 +10,8 @@
      measured 0 or invisible. Root cause = nested weights / constraints
      never resolving, so children got 0 size. This version ELIMINATES
      both: a plain vertical LinearLayout root, header FIXED height, and
-     ONE single weight (agent_recycler, direct child of the root), the
-     same structure StoreFragment uses and the rig proves works. No
+     ONE single weight (agent_recycler_wrap, direct child of the root),
+     the same structure StoreFragment uses and the rig proves works. No
      nested weights, no ConstraintLayout, no 0dp children inside a 0dp
      parent. All view IDs preserved.
      p31 ROOMIER REDESIGN (Anas: the chat was "خايبة و ضيقة بزاف",
@@ -391,61 +391,92 @@
          p32: minHeight 100dp backstop, with the keyboard open the
          fixed stack (header + row + input + typing/action) used to
          squeeze this weight to 6px; the keyboard listener hides the
-         chrome, and this floor keeps the list from ever collapsing. -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/agent_recycler"
+         chrome, and this floor keeps the list from ever collapsing.
+         p34f: the wrapper is a FrameLayout so the brain-download card
+         can OVERLAY the bottom of the list instead of sitting in
+         flow under it. In flow it measured 264px and crushed the
+         keyboard-open list to 720x80 (6%); as an overlay the list
+         keeps its full weight height and the p33 bar (720x360
+         keyboard-open) holds even on a fresh install with the model
+         absent. One weight only, no nested weight inside. -->
+    <FrameLayout
+        android:id="@+id/agent_recycler_wrap"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:minHeight="100dp"
-        android:background="#F7F6FF"
-        android:clipToPadding="false"
-        android:padding="12dp" />
+        android:layout_weight="1">
 
-    <!-- Brain download card (p22): shown when Ollama answers but
-         the model is missing. One-tap pull with a real progress
-         bar, no terminal. Hidden once the model is present. -->
-    <LinearLayout
-        android:id="@+id/brain_download_card"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/search_box_bg"
-        android:padding="12dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginBottom="8dp"
-        android:visibility="gone">
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/agent_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:minHeight="100dp"
+            android:background="#F7F6FF"
+            android:clipToPadding="false"
+            android:padding="12dp" />
 
-        <TextView
-            android:id="@+id/brain_download_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/brain_download_title"
-            android:textSize="14sp"
-            android:textColor="?attr/colorOnSurface"
-            android:fontFamily="@font/cairo" />
-
-        <ProgressBar
-            android:id="@+id/brain_download_progress"
-            style="?android:attr/progressBarStyleHorizontal"
+        <!-- Brain download card (p22): shown when Ollama answers but
+             the model is missing. One-tap pull with a real progress
+             bar, no terminal. Hidden once the model is present.
+             p34f: a slim horizontal banner (~48dp) overlaid at the
+             bottom of the list, never in flow. The text and the
+             download button share one row; the progress bar only
+             appears while a download runs. The fragment lifts the
+             list's bottom padding while the banner shows, so the
+             newest message never hides behind it. -->
+        <LinearLayout
+            android:id="@+id/brain_download_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:max="100"
-            android:progress="0"
-            android:visibility="gone" />
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:background="@drawable/search_box_bg"
+            android:padding="8dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
 
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/btn_brain_download"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/brain_download_button"
-            android:fontFamily="@font/cairo"
-            android:textSize="14sp"
-            app:cornerRadius="22dp" />
-    </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/brain_download_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/brain_download_title"
+                    android:textSize="13sp"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="?attr/colorOnSurface"
+                    android:fontFamily="@font/cairo" />
+
+                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+                    android:id="@+id/btn_brain_download"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:minHeight="0dp"
+                    android:text="@string/brain_download_button"
+                    android:fontFamily="@font/cairo"
+                    android:textSize="13sp"
+                    app:cornerRadius="22dp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/brain_download_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:max="100"
+                android:progress="0"
+                android:visibility="gone" />
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- Loading state: shown while a turn runs. Text is set in
          code (starting server / thinking / running tool). -->

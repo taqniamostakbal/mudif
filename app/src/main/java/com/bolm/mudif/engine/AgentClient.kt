@@ -67,7 +67,7 @@ object AgentClient {
     }
 
     class TurnHandle internal constructor(
-        private val sessionId: String,
+        private var sessionId: String,
         // Phase 3: stops the local model when the turn ends by
         // timeout, error, or Stop. Null for cloud turns (there is
         // no local model to stop).
@@ -76,6 +76,12 @@ object AgentClient {
         @Volatile var cancelled: Boolean = false
             private set
         @Volatile internal var sseConnection: HttpURLConnection? = null
+
+        /** Phase 4: the turn re-created its session (stale id), so
+         *  Stop/abort must target the live id, not the stale one. */
+        internal fun retargetSession(id: String) {
+            sessionId = id
+        }
 
         /** Stops the turn: closes the SSE stream and asks the server
          *  to abort. Best-effort; the server may already be done. */
@@ -120,6 +126,26 @@ object AgentClient {
     }
 
     /**
+     * Phase 4: true when GET /session/{id}/message answers 2xx, so
+     * the server still knows this session. A live session answers
+     * 2xx (empty list when fresh); an unknown id answers 404.
+     * False on any failure: the caller re-creates instead of
+     * trusting a possibly dead id. Uses the existing history
+     * endpoint, no new protocol.
+     */
+    private fun sessionKnown(sessionId: String): Boolean {
+        return try {
+            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET", 5_000)
+            val code = conn.responseCode
+            conn.disconnect()
+            code in 200..299
+        } catch (e: Exception) {
+            Log.d(TAG, "sessionKnown failed", e)
+            false
+        }
+    }
+
+    /**
      * Sends one turn and streams the reply. Returns the handle at
      * once; the reply arrives through [callbacks]. The caller must
      * keep the handle to let the user stop the turn.
@@ -146,13 +172,13 @@ object AgentClient {
         val lastText = java.util.concurrent.atomic.AtomicReference("")
         val turnDone = AtomicBoolean(false)
         val assistantMessageId = java.util.concurrent.atomic.AtomicReference<String?>(null)
-        // Brain fix phase 3: the poll path replayed the previous
-        // turn's reply because it returned the last assistant message
-        // with no turn baseline. Snapshot the last assistant message
-        // id BEFORE the prompt is posted; the poll and the SSE gate
-        // only accept a DIFFERENT id. Null means no baseline (fresh
-        // session or unreadable history): the old behavior.
-        val pollBaselineId = lastAssistantMessageId(sessionId)
+        // Phase 4, fix 2: the deadline is armed HERE, when the turn
+        // starts, not after the prompt is posted. The watchdog below
+        // fires it even when the prompt never reaches a server.
+        val turnDeadline = System.currentTimeMillis() + TURN_TIMEOUT_MS
+        // Phase 4, fix 1: the id this turn actually uses. Re-created
+        // below when blank or unknown to the server.
+        var activeSessionId = sessionId
 
         fun done(finalText: String) {
             if (finished.compareAndSet(false, true)) {
@@ -173,7 +199,8 @@ object AgentClient {
                 }
                 // Brain fix: abort the turn server-side, or a timed-out
                 // turn keeps computing and slows the retried turn.
-                Thread { abort(sessionId) }.start()
+                // Phase 4: abort the live id, not a stale one.
+                Thread { abort(activeSessionId) }.start()
                 // Phase 3: the OpenCode abort does not stop the
                 // local model; a timed-out local turn keeps
                 // generating until Ollama is told to stop it.
@@ -186,6 +213,44 @@ object AgentClient {
                 callbacks.onError(message)
             }
         }
+
+        // Phase 4, fix 2: watchdog. Sleeps exactly TURN_TIMEOUT_MS
+        // from the send, then fails the turn unless it already
+        // ended. failed() is idempotent, so a late wake-up after a
+        // normal end is a no-op. Covers createSession, the
+        // session check, and a postPromptAsync that never returns.
+        Thread {
+            Thread.sleep(TURN_TIMEOUT_MS)
+            if (!handle.cancelled && !turnDone.get()) {
+                failed("timeout: no reply within 300 s")
+            }
+        }.apply { isDaemon = true }.start()
+
+        // Phase 4, fix 1: a live session must exist before the
+        // prompt is posted. Blank id, or an id the server no longer
+        // knows (restart, stale prefs), gets a fresh session here.
+        // A failed re-create fails the turn honestly instead of
+        // sending into a dead session.
+        if (activeSessionId.isBlank() || !sessionKnown(activeSessionId)) {
+            val fresh = createSession()
+            if (fresh.isNullOrBlank()) {
+                failed("could not create session")
+                return handle
+            }
+            activeSessionId = fresh
+            handle.retargetSession(fresh)
+        }
+        if (turnDone.get()) return handle
+
+        // Brain fix phase 3: the poll path replayed the previous
+        // turn's reply because it returned the last assistant message
+        // with no turn baseline. Snapshot the last assistant message
+        // id BEFORE the prompt is posted; the poll and the SSE gate
+        // only accept a DIFFERENT id. Null means no baseline (fresh
+        // session or unreadable history): the old behavior.
+        // Phase 4: snapshotted on the live id, after re-creation.
+        var pollBaselineId = lastAssistantMessageId(activeSessionId)
+        if (turnDone.get()) return handle
 
         // 1) SSE first: the stream is not replayable, so opening it
         // before the prompt is the only way not to miss early events.
@@ -213,7 +278,7 @@ object AgentClient {
                             val type = event.optString("type", "")
                             val props = event.optJSONObject("properties") ?: JSONObject()
                             val eventSession = props.optString("sessionID", "")
-                            if (eventSession.isNotEmpty() && eventSession != sessionId) continue
+                            if (eventSession.isNotEmpty() && eventSession != activeSessionId) continue
                             when (type) {
                                 "message.updated" -> {
                                     val info = props.optJSONObject("info") ?: continue
@@ -294,9 +359,26 @@ object AgentClient {
                     put("parts", parts)
                     put("system", systemPrompt)
                 }.toString()
-                val asyncCode = postPromptAsync(sessionId, body)
+                var asyncCode = postPromptAsync(activeSessionId, body)
+                // Phase 4, fix 1: 404 means the server does not know
+                // this session (it died between the check and the
+                // post). One fresh session and one re-post; the code
+                // below then decides on the retried code.
+                if (asyncCode == 404) {
+                    val fresh = createSession()
+                    if (!fresh.isNullOrBlank() && fresh != activeSessionId) {
+                        activeSessionId = fresh
+                        handle.retargetSession(fresh)
+                        pollBaselineId = lastAssistantMessageId(activeSessionId)
+                        asyncCode = postPromptAsync(activeSessionId, body)
+                    }
+                }
+                // The watchdog may have fired while posting.
+                if (turnDone.get()) return@Thread
                 if (asyncCode == 204) {
-                    val deadline = System.currentTimeMillis() + TURN_TIMEOUT_MS
+                    // Phase 4, fix 2: the deadline is the one armed
+                    // at send start, not a fresh 300 s from here.
+                    val deadline = turnDeadline
                     var lastPollText = ""
                     var unchangedPolls = 0
                     while (!handle.cancelled && !turnDone.get() &&
@@ -304,7 +386,7 @@ object AgentClient {
                     ) {
                         Thread.sleep(POLL_INTERVAL_MS)
                         if (turnDone.get() || handle.cancelled) break
-                        val polled = pollAssistantText(sessionId, pollBaselineId)
+                        val polled = pollAssistantText(activeSessionId, pollBaselineId)
                         if (polled != null && polled != lastPollText) {
                             lastPollText = polled
                             lastText.set(polled)
@@ -323,7 +405,7 @@ object AgentClient {
                         // The idle event may be missed if the SSE
                         // stream dropped; a finished message with no
                         // new text for 2 polls ends the turn too.
-                        if (unchangedPolls >= 2 && pollMessageFinished(sessionId, pollBaselineId)) {
+                        if (unchangedPolls >= 2 && pollMessageFinished(activeSessionId, pollBaselineId)) {
                             done(lastText.get())
                             return@Thread
                         }
@@ -338,8 +420,16 @@ object AgentClient {
                 // prompt_async absent in this server version: fall
                 // back to the blocking message endpoint.
                 if (asyncCode == 404 || asyncCode == 405) {
-                    val finalText = postMessageBlocking(sessionId, body)
-                    if (handle.cancelled) done(lastText.get()) else done(finalText ?: lastText.get())
+                    if (turnDone.get()) return@Thread
+                    val finalText = postMessageBlocking(activeSessionId, body)
+                    if (turnDone.get()) return@Thread
+                    if (handle.cancelled) done(lastText.get()) else {
+                        val replyText = finalText ?: lastText.get()
+                        // Phase 4: a null blocking reply used to end
+                        // the turn as an empty success. Fail honestly
+                        // instead, with the code that sent us here.
+                        if (replyText.isEmpty()) failed("server HTTP $asyncCode") else done(replyText)
+                    }
                     return@Thread
                 }
                 failed("server HTTP $asyncCode")

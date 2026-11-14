@@ -90,6 +90,10 @@ class AgentFragment : Fragment() {
     // waits here until the turn ends; the local-slow chip state.
     private var pendingBrainPick: String? = null
     private var turnSeq: Int = 0
+    // p34f fix 4: seq of the last turn that reached a terminal
+    // state (failed, finished, stopped). The post-call re-arm in
+    // startTurn must not revive it: a terminal state sticks.
+    private var endedTurnSeq: Int = 0
     private var firstTokenArrived: Boolean = false
     // Phase 3: true while a turn-setup thread runs (startTurn /
     // startVisionTurn). onViewCreated uses it to tell a turn that
@@ -311,6 +315,23 @@ class AgentFragment : Fragment() {
         } catch (e: Exception) {
             Log.w("AgentFragment", "servers-down receiver register failed", e)
         }
+        // p34f fix 4: a failed turn from before a relaunch still
+        // has its Retry; re-derive it from the stored state here.
+        restoreFailedTurnUi()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // p34f fix 6: the desktop / service state may have changed
+        // while the tab was away; re-check on every entry.
+        refreshVisionChip()
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        // p34f fix 6: show/hide navigation never calls onResume,
+        // so tab entry through it needs its own refresh.
+        if (!hidden) refreshVisionChip()
     }
 
     override fun onDestroyView() {
@@ -466,6 +487,39 @@ class AgentFragment : Fragment() {
 
     // ---------------------------------------------------------- chat
 
+    /** p34f fix 4: mark / clear the durable failed-turn state.
+     *  Takes a Context so the background failure path can persist
+     *  it without touching views. */
+    private fun markTurnFailed(ctx: Context, isVision: Boolean) {
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_LAST_TURN_FAILED, true)
+            .putBoolean(KEY_FAILED_TURN_VISION, isVision)
+            .apply()
+    }
+
+    private fun clearTurnFailed(ctx: Context) {
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_LAST_TURN_FAILED)
+            .remove(KEY_FAILED_TURN_VISION)
+            .apply()
+    }
+
+    /** p34f fix 4: re-derive Retry from the STORED failed turn when
+     *  the view is created. The last user message comes from the
+     *  stored messages, not the dead in-memory field; a vision
+     *  failure re-runs the vision turn, a plain one re-sends. */
+    private fun restoreFailedTurnUi() {
+        if (_binding == null) return
+        if (!prefs().getBoolean(KEY_LAST_TURN_FAILED, false)) return
+        val lastUser = messages.lastOrNull { it.role == AgentMessage.ROLE_USER } ?: return
+        lastUserMessage = lastUser
+        val isVision = prefs().getBoolean(KEY_FAILED_TURN_VISION, false)
+        showTurnFailedUi(
+            null,
+            if (isVision) ({ startVisionTurn(lastUser.text) }) else null
+        )
+    }
+
     private fun sendCurrentInput() {
         val text = binding.inputText.text.toString()
         if (text.isBlank()) return
@@ -495,6 +549,11 @@ class AgentFragment : Fragment() {
     private fun showBrainDownloadCard(model: String = AgentServer.BRAIN_MODEL) {
         downloadModel = model
         binding.brainDownloadCard.visibility = View.VISIBLE
+        // p34f fix 8: the banner overlays the list; lift the
+        // bottom padding so the newest message never hides behind it.
+        val pad = (12 * resources.displayMetrics.density).toInt()
+        val lift = (64 * resources.displayMetrics.density).toInt()
+        binding.agentRecycler.setPadding(pad, pad, pad, lift)
         binding.brainDownloadProgress.visibility = View.GONE
         binding.brainDownloadProgress.progress = 0
         val isVision = model == AgentServer.VISION_MODEL
@@ -511,6 +570,9 @@ class AgentFragment : Fragment() {
 
     private fun hideBrainDownloadCard() {
         binding.brainDownloadCard.visibility = View.GONE
+        // p34f fix 8: banner gone, the padding lift goes with it.
+        val pad = (12 * resources.displayMetrics.density).toInt()
+        binding.agentRecycler.setPadding(pad, pad, pad, pad)
     }
 
     /** Background check when the tab opens: if Ollama answers but
@@ -633,6 +695,8 @@ class AgentFragment : Fragment() {
      * as a second text part, observed context, never an instruction.
      */
     private fun startTurn(text: String, screenContext: String? = null) {
+        // p34f fix 4: a new turn starts, the old failure is spent.
+        clearTurnFailed(requireContext())
         turnRunning = true
         // Brain fix (plan section 11): the local brain is slow to
         // first token; after 60 s without one, offer a free cloud
@@ -864,6 +928,17 @@ class AgentFragment : Fragment() {
             )
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
+                // p34f fix 4: the terminal state sticks. This post
+                // runs after sendPrompt returns, but a terminal event
+                // can land first: a fast failure in sendPrompt's
+                // worker, or a Stop tapped between the pre-send
+                // guard and this post. Re-arming here would revive
+                // a dead turn, hide its Retry, and wedge the chat.
+                // View recreation alone never marks a turn ended,
+                // so the wedge-reset re-arm still works.
+                if (thisTurnSeq != turnSeq || endedTurnSeq == thisTurnSeq) {
+                    return@runOnUiThread
+                }
                 currentTurn = handle
                 // Phase 3: the view may have been recreated after a
                 // wedge reset while this turn was starting; the turn
@@ -1031,7 +1106,7 @@ class AgentFragment : Fragment() {
 
     /** Enables the "شوف الشاشة" chip only when vision can really
      *  run (desktop up AND qwen2.5vl:3b present); otherwise it stays
-     *  disabled with the reason in its description. Background
+     *  disabled with the reason as its visible text. Background
      *  thread: the checks are TCP probes, never on the UI thread. */
     private fun refreshVisionChip() {
         Thread {
@@ -1041,19 +1116,25 @@ class AgentFragment : Fragment() {
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 val enabled = desktopUp && hasVision == true
+                // Phase 3: three states, three reasons. hasModel
+                // returns null when Ollama is unreachable; that
+                // is a dead SERVICE, not a missing model.
+                val labelRes = when {
+                    !desktopUp -> R.string.agent_vision_chip_unavailable_desktop
+                    hasVision == null -> R.string.agent_vision_chip_unavailable_service
+                    hasVision == false -> R.string.agent_vision_chip_unavailable_model
+                    else -> R.string.agent_vision_chip
+                }
                 binding.chipVision.isEnabled = enabled
                 binding.chipVision.alpha = if (enabled) 1.0f else 0.4f
-                binding.chipVision.contentDescription = getString(
-                    // Phase 3: three states, three reasons. hasModel
-                    // returns null when Ollama is unreachable; that
-                    // is a dead SERVICE, not a missing model.
-                    when {
-                        !desktopUp -> R.string.agent_vision_chip_unavailable_desktop
-                        hasVision == null -> R.string.agent_vision_chip_unavailable_service
-                        hasVision == false -> R.string.agent_vision_chip_unavailable_model
-                        else -> R.string.agent_vision_chip
-                    }
-                )
+                // p34f fix 6: the state must be VISIBLE text, not
+                // only a contentDescription. The label never
+                // changed, so a disabled chip still read "See the
+                // screen" and looked ready, and the greyed disabled
+                // rendering read as a fourth state. No fourth state
+                // exists now: the text always names the state.
+                binding.chipVision.text = getString(labelRes)
+                binding.chipVision.contentDescription = getString(labelRes)
             }
         }.start()
     }
@@ -1163,6 +1244,12 @@ class AgentFragment : Fragment() {
     private fun endTurnUi() {
         turnRunning = false
         streamingIndex = -1
+        // p34f fix 4: this turn terminally ended (done or stopped);
+        // the post-call re-arm must not revive it.
+        endedTurnSeq = turnSeq
+        // p34f fix 4: the turn ended cleanly (done or stopped), so
+        // no stored failure may offer Retry afterwards.
+        if (isAdded) clearTurnFailed(requireContext())
         binding.agentTyping.visibility = View.GONE
         binding.btnSend.isEnabled = true
         hideAgentAction()
@@ -1203,9 +1290,15 @@ class AgentFragment : Fragment() {
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
+        // p34f fix 4: this turn terminally failed; the post-call
+        // re-arm must not revive it.
+        endedTurnSeq = turnSeq
         // Phase 3: the third turn-end path that never hid the chip;
         // the local-timeout failure left it stale over the list.
         hideSlowBrainChip()
+        // p34f fix 4: persist the failure, so Retry survives a
+        // relaunch. A vision retry is its own turn (onRetry set).
+        markTurnFailed(requireContext(), onRetry != null)
         val verdict = verdictFor(reason, detail, requireContext())
         appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, verdict, replyLanguage))
         showTurnFailedUi(reason, onRetry)
@@ -1280,6 +1373,9 @@ class AgentFragment : Fragment() {
         streamingIndex = -1
         val verdict = verdictFor(reason, detail, ctx)
         persistMessage(AgentMessage(AgentMessage.ROLE_AGENT, verdict, replyLanguage))
+        // p34f fix 4: same durable failure as onTurnFailed, from
+        // the background path. A vision retry is its own turn.
+        markTurnFailed(ctx, onRetry != null)
         act.runOnUiThread {
             if (_binding == null) return@runOnUiThread
             refreshMessagesUi()
@@ -1345,6 +1441,8 @@ class AgentFragment : Fragment() {
     private fun clearHistory() {
         messages.clear()
         saveMessages()
+        // p34f fix 4: no history, no failed turn to retry.
+        clearTurnFailed(requireContext())
         // p31: clearing the chat also drops the server session, so
         // the next turn starts fresh instead of inheriting a stale
         // thinking thread that asks for clarification.
@@ -1558,13 +1656,36 @@ class AgentFragment : Fragment() {
     /** Applies a brain picked on the provider screen: writes it to
      *  opencode.json and restarts the server (only when it is up).
      *  A cloud model needs its key in Settings (or on the provider
-     *  screen) or it fails at runtime, the user is warned, not
-     *  blocked. p31: switching brains also drops the server session,
+     *  screen): without the key the pick is refused with a visible
+     *  warning and the active brain does not change (p34f fix 3,
+     *  fail closed). p31: switching brains also drops the server session,
      *  so the next turn starts fresh under the new brain instead of
      *  inheriting the old brain's thinking thread. */
     private fun applyBrainPick(pickedId: String) {
         if (pickedId == brainModel) return
         val picked = loadBrainOptions().firstOrNull { it.id == pickedId } ?: return
+        // p34f fix 3: the key gate runs BEFORE any mutation. It
+        // used to run after setModel + the pill update, and its
+        // LONG warning Toast was at once replaced by the SHORT
+        // "brain changed" Toast, so a keyless Token Lab pick
+        // switched silently. No key now means a visible warning
+        // and no switch at all: no setModel, no pref, no restart.
+        if (picked.env != null) {
+            val prefKey = BrainProviders.prefKeyForEnv(picked.env)
+            val hasKey = prefKey != null &&
+                !com.bolm.mudif.ui.settings.ViewerPrefs.prefs(requireContext())
+                    .getString(prefKey, "").isNullOrBlank()
+            if (!hasKey) {
+                val warning = getString(R.string.agent_brain_key_missing, picked.env)
+                Log.w("AgentFragment", "brain pick refused, no key for ${picked.env}")
+                // A Toast alone is transient and was overwritten
+                // before; the warning also stays in the chat where
+                // it cannot be missed.
+                appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, warning, replyLanguage))
+                Toast.makeText(requireContext(), warning, Toast.LENGTH_LONG).show()
+                return
+            }
+        }
         if (!AgentServer.setModel(requireContext(), picked.id)) {
             Toast.makeText(requireContext(), R.string.agent_brain_failed, Toast.LENGTH_SHORT).show()
             return
@@ -1575,21 +1696,8 @@ class AgentFragment : Fragment() {
         sessionId = null
         prefs().edit().remove(KEY_SESSION_ID).apply()
         updateBrainButton()
-        // Cloud model without its key: warn (the model will fail
-        // until the key is added), but keep the choice.
-        if (picked.env != null) {
-            val prefKey = BrainProviders.prefKeyForEnv(picked.env)
-            val hasKey = prefKey != null &&
-                !com.bolm.mudif.ui.settings.ViewerPrefs.prefs(requireContext())
-                    .getString(prefKey, "").isNullOrBlank()
-            if (!hasKey) {
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.agent_brain_key_missing, picked.env),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
+        // p34f fix 3: the key gate moved above, before the switch.
+        // A pick reaching here has its key (or needs none).
         Toast.makeText(
             requireContext(),
             getString(R.string.agent_brain_changed, picked.label),
@@ -1829,6 +1937,11 @@ class AgentFragment : Fragment() {
         private const val KEY_VOICE_OUT = "voice_out"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_BRAIN_MODEL = "brain_model"
+        // p34f fix 4: a failed turn persists here, so Retry survives
+        // a relaunch. The flag alone is view state otherwise, and
+        // the last-user-message field dies with the process.
+        private const val KEY_LAST_TURN_FAILED = "last_turn_failed"
+        private const val KEY_FAILED_TURN_VISION = "failed_turn_vision"
         private const val BRAIN_LOCAL = "ollama/qwen3:1.7b"
         // Brain fix (plan section 11): first-token wait before the
         // local-slow chip offers a free cloud brain.

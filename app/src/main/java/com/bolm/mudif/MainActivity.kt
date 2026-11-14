@@ -2,8 +2,11 @@ package com.bolm.mudif
 
 import android.content.Intent
 import android.graphics.drawable.AnimatedVectorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
@@ -156,7 +159,7 @@ class MainActivity : AppCompatActivity() {
     // deselect AVD. The pill slide is the Material 3 built-in
     // indicator animation, not a custom animator. A re-tap on the
     // selected tab plays nothing. Setting the MenuItem icon swaps
-    // the drawable shown in the nav; the AVD starts right after.
+    // the drawable shown in the nav.
     private fun animateNavSelection(previousId: Int, selectedId: Int) {
         if (previousId == selectedId) return
         navAvdFor(previousId, deselect = true)?.let { playNavAvd(previousId, it) }
@@ -166,7 +169,28 @@ class MainActivity : AppCompatActivity() {
     private fun playNavAvd(itemId: Int, @DrawableRes avdRes: Int) {
         val drawable = ContextCompat.getDrawable(this, avdRes) ?: return
         binding.bottomNav.menu.findItem(itemId)?.icon = drawable
-        (drawable as? AnimatedVectorDrawable)?.start()
+        // Material 1.12.0 NavigationBarItemView.setIcon shows a copy
+        // of the icon (ConstantState.newDrawable()), never the
+        // instance given, so starting our instance animates nothing
+        // on screen. Start the copy the item's ImageView holds.
+        val shown = navIconDrawable(itemId) as? AnimatedVectorDrawable
+            ?: drawable as? AnimatedVectorDrawable
+        shown?.start()
+    }
+
+    // The drawable the bottom nav actually displays for itemId: the
+    // item view (id == itemId) holds one ImageView with the icon.
+    private fun navIconDrawable(itemId: Int): Drawable? {
+        val menuView = binding.bottomNav.getChildAt(0) as? ViewGroup ?: return null
+        for (i in 0 until menuView.childCount) {
+            val itemView = menuView.getChildAt(i)
+            if (itemView.id == itemId) {
+                return itemView.findViewById<ImageView>(
+                    com.google.android.material.R.id.navigation_bar_item_icon_view
+                )?.drawable
+            }
+        }
+        return null
     }
 
     @DrawableRes

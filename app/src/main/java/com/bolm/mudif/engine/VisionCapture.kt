@@ -27,7 +27,9 @@ object VisionCapture {
     /** Guest path of the shot (bind-mounted to the app's files/tmp). */
     const val SHOT_GUEST_PATH = "/tmp/mudif-shot.jpg"
 
-    /** Width the frame is downscaled to (keeps it ~100-250 KB). */
+    /** Width the frame is downscaled to when the desktop is wider
+     *  (keeps it ~100-250 KB). Desktops at or below this width are
+     *  captured at native size. */
     const val SHOT_WIDTH = 960
 
     sealed class CaptureResult {
@@ -58,9 +60,20 @@ object VisionCapture {
         } catch (e: Exception) {
             Log.w(TAG, "capture: could not clear old shot", e)
         }
-        val resolution = X11Session.viewerResolution(appCtx)
-        val cmd = "ffmpeg -y -f x11grab -video_size $resolution " +
-            "-i 127.0.0.1:6 -frames:v 1 -vf scale=$SHOT_WIDTH:-1 " +
+        // The requested viewer resolution can differ from the size
+        // the server actually settled at (rig: requested 960x540,
+        // server 848x480), and x11grab rejects a -video_size larger
+        // than the screen. Query the real size first; a failed query
+        // fails the capture, never a guessed size.
+        val actual = queryDisplaySize(appCtx) ?: run {
+            Log.w(TAG, "capture: could not read the real display size")
+            return CaptureResult.Failed(REASON_CAPTURE_FAILED)
+        }
+        val size = "${actual.first}x${actual.second}"
+        val scaleFilter =
+            if (actual.first > SHOT_WIDTH) " -vf scale=$SHOT_WIDTH:-1" else ""
+        val cmd = "ffmpeg -y -f x11grab -video_size $size " +
+            "-i 127.0.0.1:6 -frames:v 1$scaleFilter " +
             SHOT_GUEST_PATH
         val result = try {
             TerminalSession.runCommandDebian(appCtx, cmd, 30, 60)
@@ -73,7 +86,39 @@ object VisionCapture {
                 "shot exists=${shot.exists()} size=${shot.length()}")
             return CaptureResult.Failed(REASON_CAPTURE_FAILED)
         }
-        Log.d(TAG, "capture: ${shot.length()} bytes at $resolution")
+        Log.d(TAG, "capture: ${shot.length()} bytes at $size")
         return CaptureResult.Ok(shot, shot.length())
+    }
+
+    /** Real server size from xdpyinfo ("dimensions: 848x480 pixels"),
+     *  or null when it cannot be read. xdpyinfo is in the image's
+     *  x11-utils, same package as the xwininfo the plan already
+     *  relies on. */
+    private fun queryDisplaySize(context: Context): Pair<Int, Int>? {
+        val result = try {
+            TerminalSession.runCommandDebian(
+                context, "xdpyinfo -display 127.0.0.1:6", 10, 30
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "capture: xdpyinfo run failed", e)
+            return null
+        }
+        if (result.exitCode != 0) {
+            Log.w(TAG, "capture: xdpyinfo exit=${result.exitCode}")
+            return null
+        }
+        val match = Regex("""dimensions:\s*(\d+)x(\d+)\s*pixels""")
+            .find(result.output)
+        if (match == null) {
+            Log.w(TAG, "capture: xdpyinfo gave no dimensions line")
+            return null
+        }
+        val width = match.groupValues[1].toIntOrNull() ?: return null
+        val height = match.groupValues[2].toIntOrNull() ?: return null
+        if (width <= 0 || height <= 0) {
+            Log.w(TAG, "capture: xdpyinfo gave bad size ${width}x$height")
+            return null
+        }
+        return width to height
     }
 }

@@ -41,6 +41,8 @@ object AgentServer {
     private const val PROBE_ATTEMPTS = 3
     private const val START_POLL_TIMEOUT_MS = 30_000L
     private const val START_POLL_INTERVAL_MS = 500L
+    private const val STOP_WAIT_TIMEOUT_MS = 10_000L
+    private const val STOP_KILL_WAIT_TIMEOUT_MS = 5_000L
 
     private const val START_SCRIPT_ASSET = "mudif-agent/agent-start.sh"
     private const val START_SCRIPT_GUEST_PATH = "root/.config/mudif/agent-start.sh"
@@ -276,6 +278,13 @@ object AgentServer {
      * Stops the OpenCode server only (never Ollama: other features
      * share it). Best-effort; the guest must be booted. Called when
      * the agent is torn down, never during a turn.
+     *
+     * Returns only after the agent port stops answering (or the
+     * bounded wait expires): `pkill` only signals the process, so
+     * without this wait the restart right after this stop would see
+     * the old server still up and return without starting a new
+     * one, and the new keys would never load. Never on the UI
+     * thread: the wait alone can take up to 15 s.
      */
     fun stop(context: Context) {
         if (!GuestSession.booted) return
@@ -286,6 +295,34 @@ object AgentServer {
         } catch (e: Exception) {
             Log.w(TAG, "stop: pkill failed", e)
         }
+        if (waitForDown(STOP_WAIT_TIMEOUT_MS)) return
+        // Graceful stop did not kill it in time; force it, or the
+        // restart after this stop starts nothing.
+        try {
+            TerminalSession.runCommandDebian(
+                context, "pkill -9 -f 'opencode serve' || true", 10, 30
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "stop: pkill -9 failed", e)
+        }
+        if (!waitForDown(STOP_KILL_WAIT_TIMEOUT_MS)) {
+            Log.e(TAG, "stop: server still up after SIGKILL")
+        }
+    }
+
+    /** True when the agent port stops answering within [timeoutMs].
+     *  One confirming probe can itself take up to ~5 s ([isUp]
+     *  retries), so the wall time can exceed the timeout by that. */
+    private fun waitForDown(timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (!isUp()) return true
+            try {
+                Thread.sleep(START_POLL_INTERVAL_MS)
+            } catch (_: InterruptedException) {
+            }
+        }
+        return !isUp()
     }
 
     /**
