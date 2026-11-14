@@ -687,7 +687,7 @@ class AgentFragment : Fragment() {
             if (!ensured.up) {
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
-                    onTurnFailed(ensured.reason)
+                    onTurnFailed(ensured.reason) { startVisionTurn(question) }
                     refreshVisionChip()
                 }
                 return@Thread
@@ -715,7 +715,9 @@ class AgentFragment : Fragment() {
                                 R.string.agent_vision_desktop_down
                             else R.string.agent_vision_capture_failed
                         )
-                    )
+                    ) {
+                        startVisionTurn(question)
+                    }
                     refreshVisionChip()
                 }
                 return@Thread
@@ -727,6 +729,13 @@ class AgentFragment : Fragment() {
                 null
             }
             val description = jpeg?.let { VisionClient.describe(it) }
+            // Charter: the screenshot is deleted after the turn,
+            // success or failure; the bytes already live in memory.
+            val deleted = try { shot.delete() } catch (e: Exception) { false }
+            android.util.Log.d(
+                "AgentFragment",
+                "vision shot deleted after turn: $deleted"
+            )
             val seconds = (SystemClock.elapsedRealtime() - t0) / 1000.0
             android.util.Log.d(
                 "AgentFragment",
@@ -735,7 +744,12 @@ class AgentFragment : Fragment() {
             if (description.isNullOrBlank()) {
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
-                    onTurnFailed(null, getString(R.string.agent_vision_failed))
+                    // Retry re-runs the VISION turn, not a plain
+                    // brain turn: a plain retry would answer the
+                    // question without ever looking at the screen.
+                    onTurnFailed(null, getString(R.string.agent_vision_failed)) {
+                        startVisionTurn(question)
+                    }
                 }
                 return@Thread
             }
@@ -842,8 +856,14 @@ class AgentFragment : Fragment() {
 
     /** A turn failed: real error message in the chat plus a real
      *  action. `reason` is AgentServer's machine key (null = the
-     *  server was up but the turn itself failed). */
-    private fun onTurnFailed(reason: String?, detail: String? = null) {
+     *  server was up but the turn itself failed). `onRetry`, when
+     *  given, replaces the plain re-send: a vision failure retries
+     *  the vision turn, which is the only retry that can succeed. */
+    private fun onTurnFailed(
+        reason: String?,
+        detail: String? = null,
+        onRetry: (() -> Unit)? = null
+    ) {
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
@@ -865,7 +885,7 @@ class AgentFragment : Fragment() {
             binding.btnAgentAction.setOnClickListener { openDesktop() }
         } else {
             binding.btnAgentAction.text = getString(R.string.agent_server_retry)
-            binding.btnAgentAction.setOnClickListener { retryLastMessage() }
+            binding.btnAgentAction.setOnClickListener { (onRetry ?: ::retryLastMessage)() }
         }
         binding.btnAgentAction.visibility = View.VISIBLE
         speakAgent(verdict)
