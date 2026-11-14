@@ -109,7 +109,11 @@ object AgentServer {
             val body = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
             val models = JSONObject(body).optJSONArray("models") ?: return false
             for (i in 0 until models.length()) {
-                if (models.getJSONObject(i).optString("name") == model) return true
+                // Ollama stores a bare pull name with the implicit
+                // ":latest" tag ("moondream" -> "moondream:latest"),
+                // so an untagged query must match both spellings.
+                val name = models.getJSONObject(i).optString("name")
+                if (name == model || name == "$model:latest") return true
             }
             false
         } catch (e: Exception) {
