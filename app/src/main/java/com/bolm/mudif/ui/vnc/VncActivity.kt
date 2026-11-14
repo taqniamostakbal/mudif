@@ -2,13 +2,16 @@ package com.bolm.mudif.ui.vnc
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.AnimatedVectorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.mediarouter.app.MediaRouteChooserDialogFragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityVncBinding
@@ -191,7 +194,7 @@ class VncActivity : AppCompatActivity() {
                     val out = ScreenRecorder.stop(this)
                     ScreenRecorder.hideStopNotification(this)
                     runOnUiThread {
-                        binding.btnRecord.setImageResource(R.drawable.ic_record)
+                        setRecordIcon(R.drawable.avd_stop_to_record)
                         Toast.makeText(
                             this,
                             if (out != null) getString(R.string.record_saved, out.absolutePath)
@@ -209,7 +212,7 @@ class VncActivity : AppCompatActivity() {
                     val startedFile = ScreenRecorder.start(this)
                     runOnUiThread {
                         if (startedFile != null) {
-                            binding.btnRecord.setImageResource(R.drawable.ic_stop)
+                            setRecordIcon(R.drawable.avd_record_to_stop)
                             ScreenRecorder.showStopNotification(this)
                             Toast.makeText(this, getString(R.string.record_running), Toast.LENGTH_SHORT).show()
                             X11Session.openViewer(this)
@@ -391,6 +394,16 @@ class VncActivity : AppCompatActivity() {
         // A fresh launch request replaces any pending one.
         pendingLaunchApp = intent.getStringExtra(EXTRA_LAUNCH_APP)
         startDesktop()
+    }
+
+    // Record button icon morph (200ms): circle fades to square
+    // when recording starts, square back to circle when it stops.
+    // The onResume state restore keeps the static icon (no
+    // animation for a state the user did not just change).
+    private fun setRecordIcon(@DrawableRes avdRes: Int) {
+        val drawable = ContextCompat.getDrawable(this, avdRes) ?: return
+        binding.btnRecord.setImageDrawable(drawable)
+        (drawable as? AnimatedVectorDrawable)?.start()
     }
 
     /**

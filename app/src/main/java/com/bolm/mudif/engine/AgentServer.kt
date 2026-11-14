@@ -91,10 +91,49 @@ object AgentServer {
 
     /** Local vision model (Ollama): reads the desktop screenshot
      *  into text. Same on-demand rule as the brain. */
-    const val VISION_MODEL = "moondream"
+    const val VISION_MODEL = "qwen2.5vl:3b"
     private const val OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
+    private const val OLLAMA_PS_URL = "http://127.0.0.1:11434/api/ps"
     private const val OLLAMA_PULL_URL = "http://127.0.0.1:11434/api/pull"
     private const val PULL_READ_TIMEOUT_MS = 120_000
+    private const val STOP_VERIFY_DELAY_MS = 2_000L
+
+    /** Is Ollama answering on 11434? GET /api/tags, 200 means up.
+     *  Used by the watchdog; never throws. Never on the UI thread. */
+    fun isOllamaUp(): Boolean {
+        return try {
+            val conn = java.net.URL(OLLAMA_TAGS_URL).openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = PROBE_TIMEOUT_MS
+            conn.readTimeout = PROBE_TIMEOUT_MS
+            conn.responseCode == 200
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Models Ollama currently has loaded, from GET /api/ps. Empty
+     *  when Ollama is down or nothing is loaded. Never throws. */
+    fun runningLocalModels(): List<String> {
+        return try {
+            val conn = java.net.URL(OLLAMA_PS_URL).openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = PROBE_TIMEOUT_MS
+            conn.readTimeout = PROBE_TIMEOUT_MS
+            if (conn.responseCode != 200) return emptyList()
+            val body = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val models = JSONObject(body).optJSONArray("models") ?: return emptyList()
+            val out = mutableListOf<String>()
+            for (i in 0 until models.length()) {
+                val obj = models.getJSONObject(i)
+                val name = obj.optString("model", obj.optString("name", ""))
+                if (name.isNotEmpty()) out.add(name)
+            }
+            out
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
     /** Is the model present in Ollama? Null = Ollama is not
      *  reachable (unknown, the servers are not up yet). Never called
@@ -110,7 +149,7 @@ object AgentServer {
             val models = JSONObject(body).optJSONArray("models") ?: return false
             for (i in 0 until models.length()) {
                 // Ollama stores a bare pull name with the implicit
-                // ":latest" tag ("moondream" -> "moondream:latest"),
+                // ":latest" tag ("qwen2.5vl:3b" -> "qwen2.5vl:3b:latest"),
                 // so an untagged query must match both spellings.
                 val name = models.getJSONObject(i).optString("name")
                 if (name == model || name == "$model:latest") return true
@@ -247,6 +286,62 @@ object AgentServer {
         } catch (e: Exception) {
             Log.w(TAG, "stop: pkill failed", e)
         }
+    }
+
+    /**
+     * Stops a local model that is still generating after a turn
+     * timed out or was cancelled (phase 3: the OpenCode abort alone
+     * never stopped the llama-server, which kept computing at 66%
+     * CPU for 20 minutes after the timeout). [model] is the Ollama
+     * model name, or null to stop every loaded model. Only the
+     * named model is stopped, never the vision model or anything
+     * else sharing Ollama. Steps: `ollama stop` for each target,
+     * verify with /api/ps, and only as a last resort
+     * `pkill -f llama-server`. Returns the outcome, never throws:
+     * "stopped", "still running", "not running", "ollama down".
+     * The caller logs it; the timeout message stays honest about
+     * the turn, the model stop is a separate, verified step.
+     */
+    fun stopLocalModel(context: Context, model: String? = null): String {
+        val running = runningLocalModels()
+        if (running.isEmpty()) {
+            return if (isOllamaUp()) "not running" else "ollama down"
+        }
+        val targets = if (model == null) {
+            running
+        } else {
+            val bare = model.removeSuffix(":latest")
+            running.filter { it == model || it == "$model:latest" || it.removeSuffix(":latest") == bare }
+        }
+        if (targets.isEmpty()) return "not running"
+        try {
+            for (name in targets) {
+                TerminalSession.runCommandDebian(
+                    context, "ollama stop '${name.replace("'", "'\\''")}'", 10, 30
+                )
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "stopLocalModel: ollama stop failed", e)
+            return "ollama down"
+        }
+        try {
+            Thread.sleep(STOP_VERIFY_DELAY_MS)
+        } catch (_: InterruptedException) {
+        }
+        if (runningLocalModels().none { it in targets }) return "stopped"
+        // Last resort: the generate survived `ollama stop`.
+        try {
+            TerminalSession.runCommandDebian(
+                context, "pkill -f llama-server || true", 10, 30
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "stopLocalModel: pkill failed", e)
+        }
+        try {
+            Thread.sleep(STOP_VERIFY_DELAY_MS)
+        } catch (_: InterruptedException) {
+        }
+        return if (runningLocalModels().isEmpty()) "stopped" else "still running"
     }
 
     /**
@@ -471,7 +566,7 @@ object AgentServer {
      * his explicit tap.
      */
     const val SYSTEM_PROMPT_FUSHA =
-        "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف (ديبيان + LXQt على الهاتف). " +
+        "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
             "أجب بالعربية الفصحى وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
             "إن لم تعرف شيئا قل لا أعرف، ولا تخترع نتيجة. " +
             "لا تحذف أي شيء، ولا ترسل أي رسالة، ولا تدفع أي مبلغ، ولا تؤكد أي هوية نيابة عن المستخدم " +

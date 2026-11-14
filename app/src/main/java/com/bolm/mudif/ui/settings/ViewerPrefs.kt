@@ -25,8 +25,15 @@ object ViewerPrefs {
     fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
 
-    /** Mudif defaults (only written when the key is absent). */
-    fun applyMudifDefaults(context: Context, exactResolution: String) {
+    /** Mudif defaults (only written when the key is absent).
+     *  migrateExact: replace a stale stored exact resolution with
+     *  the adaptive one (p23). The TV path passes false: it must
+     *  never rewrite the phone's stored value. */
+    fun applyMudifDefaults(
+        context: Context,
+        exactResolution: String,
+        migrateExact: Boolean = true,
+    ) {
         val p = prefs(context)
         val e = p.edit()
         fun putStringIfAbsent(key: String, value: String) {
@@ -64,9 +71,33 @@ object ViewerPrefs {
             )
             e.putBoolean("extraKeysMigratedToCompact", true)
         }
+        // Adaptive scale (2026-11-14, p23): the guest resolution is
+        // computed from the real screen (DesktopScale), so a stored
+        // exact resolution from an old default must not survive.
+        // Only the three values Mudif itself ever wrote as a default
+        // are replaced (1280x1024 fork default, 1280x720 P6.5 pin,
+        // 640x360 halved default): any other stored value is a
+        // deliberate user choice in the settings screen and is never
+        // touched. Runs once (flag), never on every launch. The TV
+        // path passes migrateExact=false so it never rewrites the
+        // phone's value.
+        if (migrateExact && !p.getBoolean("exactMigratedToAdaptive", false)) {
+            if (p.getString("displayResolutionExact", null) in
+                setOf("1280x1024", "1280x720", "640x360")
+            ) {
+                e.putString("displayResolutionExact", exactResolution)
+            }
+            e.putBoolean("exactMigratedToAdaptive", true)
+        }
         putStringIfAbsent("touchMode", "2")              // Simulated touchscreen
         putStringIfAbsent("displayResolutionMode", "exact")
         putStringIfAbsent("displayResolutionExact", exactResolution)
+        // Upscale filter (2026-11-14, p23): the fork default is
+        // "nearest" (GL_NEAREST), which makes the 2.0x upscale
+        // blocky. "bilinear" maps to GL_LINEAR (LorieView.java:809),
+        // a smooth upscale. Only written when absent, so a user who
+        // deliberately picked nearest keeps it.
+        putStringIfAbsent("displayFilteringMode", "bilinear")
         putStringIfAbsent("forceOrientation", "landscape")
         putBooleanIfAbsent("adjustResolution", false)
         putBooleanIfAbsent("displayStretch", true)

@@ -1,9 +1,12 @@
 package com.bolm.mudif
 
 import android.content.Intent
+import android.graphics.drawable.AnimatedVectorDrawable
 import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import androidx.annotation.DrawableRes
+import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
@@ -24,6 +27,11 @@ import com.bolm.mudif.ui.store.StoreFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
+
+    // Bottom-nav icon morphs: the previously selected tab, so its
+    // icon can play the deselect AVD when another tab is tapped.
+    // Starts on nav_home, which is the tab shown on launch.
+    private var previousNavItemId: Int = R.id.nav_home
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,6 +65,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_profile -> ProfileFragment()
                 else -> HomeFragment()
             }
+            animateNavSelection(previousNavItemId, item.itemId)
+            previousNavItemId = item.itemId
             show(frag)
             true
         }
@@ -134,7 +144,38 @@ class MainActivity : AppCompatActivity() {
 
     private fun show(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                R.anim.fragment_fade_enter, R.anim.fragment_fade_exit
+            )
             .replace(R.id.nav_host, fragment)
             .commit()
+    }
+
+    // Bottom-nav icon morphs (200ms, values/motion.xml). The newly
+    // selected tab plays its select AVD, the previous tab its
+    // deselect AVD. The pill slide is the Material 3 built-in
+    // indicator animation, not a custom animator. A re-tap on the
+    // selected tab plays nothing. Setting the MenuItem icon swaps
+    // the drawable shown in the nav; the AVD starts right after.
+    private fun animateNavSelection(previousId: Int, selectedId: Int) {
+        if (previousId == selectedId) return
+        navAvdFor(previousId, deselect = true)?.let { playNavAvd(previousId, it) }
+        navAvdFor(selectedId, deselect = false)?.let { playNavAvd(selectedId, it) }
+    }
+
+    private fun playNavAvd(itemId: Int, @DrawableRes avdRes: Int) {
+        val drawable = ContextCompat.getDrawable(this, avdRes) ?: return
+        binding.bottomNav.menu.findItem(itemId)?.icon = drawable
+        (drawable as? AnimatedVectorDrawable)?.start()
+    }
+
+    @DrawableRes
+    private fun navAvdFor(itemId: Int, deselect: Boolean): Int? = when (itemId) {
+        R.id.nav_home -> if (deselect) R.drawable.nav_home_deselect else R.drawable.nav_home_select
+        R.id.nav_store -> if (deselect) R.drawable.nav_store_deselect else R.drawable.nav_store_select
+        R.id.nav_apps -> if (deselect) R.drawable.nav_apps_deselect else R.drawable.nav_apps_select
+        R.id.nav_games -> if (deselect) R.drawable.nav_games_deselect else R.drawable.nav_games_select
+        R.id.nav_agent -> if (deselect) R.drawable.nav_agent_deselect else R.drawable.nav_agent_select
+        else -> null
     }
 }

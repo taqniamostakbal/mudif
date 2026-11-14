@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="motion_duration_press">100</integer>
+    <integer name="motion_duration_morph">200</integer>
+    <integer name="motion_duration_indicator">250</integer>
+    <integer name="motion_duration_transition">180</integer>
+    <integer name="motion_duration_success">300</integer>
+</resources>

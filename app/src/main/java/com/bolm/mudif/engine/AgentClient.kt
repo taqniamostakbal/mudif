@@ -67,7 +67,11 @@ object AgentClient {
     }
 
     class TurnHandle internal constructor(
-        private val sessionId: String
+        private val sessionId: String,
+        // Phase 3: stops the local model when the turn ends by
+        // timeout, error, or Stop. Null for cloud turns (there is
+        // no local model to stop).
+        private val localStop: (() -> String)? = null
     ) {
         @Volatile var cancelled: Boolean = false
             private set
@@ -82,6 +86,15 @@ object AgentClient {
             } catch (_: Exception) {
             }
             Thread { AgentClient.abort(sessionId) }.start()
+            // Phase 3: the OpenCode abort does not stop a local
+            // model; a cancelled local turn keeps generating until
+            // Ollama is told to stop it.
+            localStop?.let { stop ->
+                Thread {
+                    val outcome = try { stop() } catch (e: Exception) { "error: ${e.message}" }
+                    Log.i(TAG, "local model stop: $outcome")
+                }.start()
+            }
         }
     }
 
@@ -122,13 +135,24 @@ object AgentClient {
         text: String,
         systemPrompt: String,
         callbacks: TurnCallbacks,
-        screenContext: String? = null
+        screenContext: String? = null,
+        // Phase 3: stops the local model on timeout, error, or Stop.
+        // The caller supplies it only for local-brain turns; cloud
+        // turns pass null (no local model to stop).
+        localStop: (() -> String)? = null
     ): TurnHandle {
-        val handle = TurnHandle(sessionId)
+        val handle = TurnHandle(sessionId, localStop)
         val finished = AtomicBoolean(false)
         val lastText = java.util.concurrent.atomic.AtomicReference("")
         val turnDone = AtomicBoolean(false)
         val assistantMessageId = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        // Brain fix phase 3: the poll path replayed the previous
+        // turn's reply because it returned the last assistant message
+        // with no turn baseline. Snapshot the last assistant message
+        // id BEFORE the prompt is posted; the poll and the SSE gate
+        // only accept a DIFFERENT id. Null means no baseline (fresh
+        // session or unreadable history): the old behavior.
+        val pollBaselineId = lastAssistantMessageId(sessionId)
 
         fun done(finalText: String) {
             if (finished.compareAndSet(false, true)) {
@@ -150,6 +174,15 @@ object AgentClient {
                 // Brain fix: abort the turn server-side, or a timed-out
                 // turn keeps computing and slows the retried turn.
                 Thread { abort(sessionId) }.start()
+                // Phase 3: the OpenCode abort does not stop the
+                // local model; a timed-out local turn keeps
+                // generating until Ollama is told to stop it.
+                localStop?.let { stop ->
+                    Thread {
+                        val outcome = try { stop() } catch (e: Exception) { "error: ${e.message}" }
+                        Log.i(TAG, "local model stop: $outcome")
+                    }.start()
+                }
                 callbacks.onError(message)
             }
         }
@@ -185,7 +218,13 @@ object AgentClient {
                                 "message.updated" -> {
                                     val info = props.optJSONObject("info") ?: continue
                                     if (info.optString("role", "") == "assistant") {
-                                        assistantMessageId.set(info.optString("id", "").ifEmpty { null })
+                                        val id = info.optString("id", "").ifEmpty { null }
+                                        // Phase 3: a replayed update for
+                                        // the PREVIOUS turn's message
+                                        // must not become the new id.
+                                        if (id != null && id != pollBaselineId) {
+                                            assistantMessageId.set(id)
+                                        }
                                     }
                                 }
                                 "message.part.updated" -> {
@@ -265,7 +304,7 @@ object AgentClient {
                     ) {
                         Thread.sleep(POLL_INTERVAL_MS)
                         if (turnDone.get() || handle.cancelled) break
-                        val polled = pollAssistantText(sessionId)
+                        val polled = pollAssistantText(sessionId, pollBaselineId)
                         if (polled != null && polled != lastPollText) {
                             lastPollText = polled
                             lastText.set(polled)
@@ -284,7 +323,7 @@ object AgentClient {
                         // The idle event may be missed if the SSE
                         // stream dropped; a finished message with no
                         // new text for 2 polls ends the turn too.
-                        if (unchangedPolls >= 2 && pollMessageFinished(sessionId)) {
+                        if (unchangedPolls >= 2 && pollMessageFinished(sessionId, pollBaselineId)) {
                             done(lastText.get())
                             return@Thread
                         }
@@ -342,6 +381,18 @@ object AgentClient {
 
     /** POST prompt_async. Returns the HTTP code (204 = accepted). */
     private fun postPromptAsync(sessionId: String, body: String): Int {
+        // Phase 3, prompt-delivery check (code side only): log the
+        // system prompt's length + first 80 chars so the rig can
+        // prove whether the prompt v2 rule actually reaches the
+        // server. NEVER user text: only the "system" field is read,
+        // never "parts". The rule is NOT moved without rig proof.
+        try {
+            val system = JSONObject(body).optString("system", "")
+            if (system.isNotEmpty()) {
+                Log.d(TAG, "prompt_async system: len=${system.length} head=${system.take(80)}")
+            }
+        } catch (_: Exception) {
+        }
         val conn = openConnection("$BASE_URL/session/$sessionId/prompt_async", "POST")
         return try {
             conn.outputStream.use { it.write(body.toByteArray(StandardCharsets.UTF_8)) }
@@ -421,11 +472,15 @@ object AgentClient {
         }
     }
 
-    /** Latest assistant text from GET /session/{id}/message, or null
-     *  when the history cannot be read. */
-    private fun pollAssistantText(sessionId: String): String? {
+    /** Newest assistant message in GET /session/{id}/message, or
+     *  null when the history cannot be read or has none. One read,
+     *  shared by the baseline snapshot and both poll functions. */
+    private fun latestAssistantMessage(
+        sessionId: String,
+        readTimeoutMs: Int = POLL_READ_TIMEOUT_MS
+    ): JSONObject? {
         return try {
-            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET", POLL_READ_TIMEOUT_MS)
+            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET", readTimeoutMs)
             val code = conn.responseCode
             if (code !in 200..299) {
                 conn.disconnect()
@@ -438,40 +493,44 @@ object AgentClient {
                 val item = messages.optJSONObject(i) ?: continue
                 val info = item.optJSONObject("info") ?: continue
                 if (info.optString("role", "") != "assistant") continue
-                val text = extractTextFromMessageJson(item)
-                if (text.isNotEmpty()) return text
+                return item
             }
             null
         } catch (e: Exception) {
-            Log.d(TAG, "pollAssistantText failed", e)
+            Log.d(TAG, "latestAssistantMessage failed", e)
             null
         }
     }
 
-    /** True when the latest assistant message reports a finish state
-     *  (used as the fallback end-of-turn signal if the SSE stream
-     *  dropped the idle event). */
-    private fun pollMessageFinished(sessionId: String): Boolean {
-        return try {
-            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET", POLL_READ_TIMEOUT_MS)
-            val code = conn.responseCode
-            if (code !in 200..299) {
-                conn.disconnect()
-                return false
-            }
-            val raw = conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
-            conn.disconnect()
-            val messages = JSONArray(raw)
-            for (i in messages.length() - 1 downTo 0) {
-                val item = messages.optJSONObject(i) ?: continue
-                val info = item.optJSONObject("info") ?: continue
-                if (info.optString("role", "") != "assistant") continue
-                return info.optString("finish", "").isNotEmpty()
-            }
-            false
-        } catch (e: Exception) {
-            false
-        }
+    /** Id of the newest assistant message, or null. Short read
+     *  timeout: the turn must not wait on it. */
+    private fun lastAssistantMessageId(sessionId: String): String? {
+        val msg = latestAssistantMessage(sessionId, 5_000) ?: return null
+        return msg.optJSONObject("info")?.optString("id", "")?.ifEmpty { null }
+    }
+
+    /** Text of the CURRENT turn's assistant message, or null when it
+     *  does not exist yet or has no text. Phase 3: a message whose id
+     *  is the turn baseline (the previous turn's reply) is never
+     *  returned, so the poll cannot replay it. */
+    private fun pollAssistantText(sessionId: String, baselineId: String? = null): String? {
+        val msg = latestAssistantMessage(sessionId) ?: return null
+        val info = msg.optJSONObject("info") ?: return null
+        if (baselineId != null && info.optString("id", "") == baselineId) return null
+        val text = extractTextFromMessageJson(msg)
+        return text.ifEmpty { null }
+    }
+
+    /** True when the CURRENT turn's assistant message reports a
+     *  finish state (used as the fallback end-of-turn signal if the
+     *  SSE stream dropped the idle event). Phase 3: gated on the
+     *  turn baseline like the text poll, so a previous turn's
+     *  finished message cannot end this turn early. */
+    private fun pollMessageFinished(sessionId: String, baselineId: String? = null): Boolean {
+        val msg = latestAssistantMessage(sessionId) ?: return false
+        val info = msg.optJSONObject("info") ?: return false
+        if (baselineId != null && info.optString("id", "") == baselineId) return false
+        return info.optString("finish", "").isNotEmpty()
     }
 
     /** Concatenates the text parts of one message JSON object
@@ -504,7 +563,7 @@ object AgentClient {
         val safetyEn =
             "Never delete anything, send any message, pay anything, or confirm any identity on the user's behalf without his explicit approval."
         return when (replyLanguage) {
-            "darija" -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف (ديبيان + LXQt على الهاتف). " +
+            "darija" -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
                 "جاوب بالدارجة المغربية وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
                 "إلا ما عرفتيش شي حاجة قول ما عرفتش، وما تخترعش نتيجة. " +
                 "قاعدة الشكل: ردك خاصو يبدا بالنتيجة النهائية بوحدها فالسطر اللول، وما تكتب حتى حاجة قبلها. " +
@@ -518,7 +577,7 @@ object AgentClient {
                 "قاعدة الأدوات: استعمل أداة وحدة فكل مرة، وقرا النتيجة ديالها قبل الأداة اللي من بعدها. ما تعيطش لجوج أدوات على التوالي بلا قراءة. " +
                 "ما تستعملش webfetch ولا websearch المدمجين؛ أدوات مضيف للبحث والقراءة هوما الوحيدين. $safetyDarija"
             "en" -> "You are Mudif Assistant, the Arabic assistant inside the Mudif system " +
-                "(Debian + LXQt on the phone). Answer in English, briefly. Carry out tasks with " +
+                "on the phone. Answer in English, briefly. Carry out tasks with " +
                 "the tools available, and tell only the truth: if you do not know something, say " +
                 "so, never invent a result. FORMAT RULE: your reply MUST begin with the final " +
                 "answer alone on the first line. Nothing may come before it: no 'The calculation', " +
@@ -537,7 +596,7 @@ object AgentClient {
                 "its result before the next tool. Never call two tools in a row without reading. " +
                 "Do not use the built-in webfetch or websearch; the Mudif search and reading " +
                 "tools are the only ones. $safetyEn"
-            else -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف (ديبيان + LXQt على الهاتف). " +
+            else -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
                 "أجب بالعربية الفصحى وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
                 "إن لم تعرف شيئا قل لا أعرف، ولا تخترع نتيجة. " +
                 "قاعدة الشكل: يجب أن يبدأ ردك بالنتيجة النهائية وحدها في السطر الأول، ولا تكتب أي شيء قبلها. " +

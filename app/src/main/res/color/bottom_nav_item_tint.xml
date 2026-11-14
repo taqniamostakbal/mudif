@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Bottom-nav item tint: purple when selected, the theme's muted
-     on-surface tone otherwise (adapts to dark mode). -->
+<!-- Bottom-nav item tint: purple when selected, #757575
+     otherwise (the shared design token; the old default was the
+     theme muted tone, which varied by mode). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:color="@color/mudif_purple" android:state_checked="true" />
     <item android:color="@color/mudif_purple" android:state_selected="true" />
-    <item android:color="?attr/colorOnSurfaceVariant" />
+    <item android:color="@color/mudif_unselected" />
 </selector>

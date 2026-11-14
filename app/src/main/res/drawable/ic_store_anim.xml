@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group android:name="icon">
+        <group android:name="awning">
+            <path
+                android:fillColor="#000000"
+                android:pathData="M3,9l1.5,-5h15L21,9z" />
+        </group>
+        <group android:name="body">
+            <path
+                android:fillColor="#000000"
+                android:pathData="M5,10h14v10H5z" />
+        </group>
+    </group>
+</vector>

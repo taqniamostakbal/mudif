@@ -56,6 +56,13 @@ class AgentSupervisorService : Service() {
         private const val ACTION_START = "com.bolm.mudif.START_AGENT"
         private const val ACTION_STOP = "com.bolm.mudif.STOP_AGENT"
         private const val WAKELOCK_TIMEOUT_MS = 2 * 60 * 60 * 1000L
+        // Phase 3: watchdog probe interval; two consecutive
+        // failures (30 s) trigger one restart attempt.
+        private const val WATCHDOG_INTERVAL_MS = 15_000L
+        /** Broadcast when the watchdog restarts the servers and
+         *  they stay down: the chat shows it with a Retry action. */
+        const val ACTION_SERVERS_DOWN = "com.bolm.mudif.SERVERS_DOWN"
+        const val EXTRA_SERVERS_DOWN_REASON = "reason"
 
         private val lock = Any()
         private var refCount = 0
@@ -113,6 +120,7 @@ class AgentSupervisorService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private val startupStarted = AtomicBoolean(false)
+    private val watchdogStarted = AtomicBoolean(false)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -125,6 +133,7 @@ class AgentSupervisorService : Service() {
             acquire(WAKELOCK_TIMEOUT_MS)
         }
         createChannel()
+        startWatchdog()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -148,6 +157,7 @@ class AgentSupervisorService : Service() {
         running = false
         instance = null
         startupStarted.set(false)
+        watchdogStarted.set(false)
         try {
             MudifBridge.stop()
         } catch (_: Exception) {
@@ -187,6 +197,57 @@ class AgentSupervisorService : Service() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "supervisor startup failed", e)
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    /** Phase 3 watchdog: while the service runs, probe the brain
+     *  (4096) and Ollama (11434) every 15 s. Two consecutive
+     *  failures trigger one restart via ensureStarted; if the
+     *  servers stay down, one broadcast carries the real reason to
+     *  the chat (with a Retry action there), once per outage. No
+     *  new service, no new screens. */
+    private fun startWatchdog() {
+        if (!watchdogStarted.compareAndSet(false, true)) return
+        val appCtx = applicationContext
+        Thread {
+            var consecutiveFailures = 0
+            var downNotified = false
+            while (running) {
+                try {
+                    Thread.sleep(WATCHDOG_INTERVAL_MS)
+                } catch (_: InterruptedException) {
+                    break
+                }
+                if (!running) break
+                val up = try {
+                    AgentServer.isUp() && AgentServer.isOllamaUp()
+                } catch (_: Exception) {
+                    false
+                }
+                if (up) {
+                    consecutiveFailures = 0
+                    downNotified = false
+                    continue
+                }
+                consecutiveFailures++
+                if (consecutiveFailures < 2) continue
+                consecutiveFailures = 0
+                Log.w(TAG, "watchdog: servers down, restarting once")
+                val ensured = try {
+                    AgentServer.ensureStarted(appCtx)
+                } catch (e: Exception) {
+                    AgentServer.EnsureResult(false, e.message)
+                }
+                if (!ensured.up && !downNotified) {
+                    downNotified = true
+                    appCtx.sendBroadcast(
+                        Intent(ACTION_SERVERS_DOWN).putExtra(
+                            EXTRA_SERVERS_DOWN_REASON,
+                            ensured.reason ?: AgentServer.REASON_START_FAILED
+                        )
+                    )
+                }
             }
         }.apply { isDaemon = true }.start()
     }

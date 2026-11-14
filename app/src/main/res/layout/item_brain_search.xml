@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 3: "بحث" footer on the provider-selection screen.
+     Search-key rows for Exa + Tavily (the master plan's search
+     providers): paste the key + save; the save rewrites keys.env
+     like the provider key rows. No "Get free key" button: no
+     verified key URL exists in the codebase for either. Plain
+     vertical LinearLayout on the white rounded card (same card as
+     the provider cards). The save button text is the same hardcoded
+     "حفظ" as the provider key rows on this screen. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_white_rounded"
+    android:elevation="2dp"
+    android:padding="14dp"
+    android:layout_marginBottom="12dp">
+
+    <TextView
+        android:id="@+id/search_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/brain_providers_search_title"
+        android:textSize="18sp"
+        android:textColor="?attr/colorOnSurface"
+        android:fontFamily="@font/lifta" />
+
+    <!-- Exa key row: the hint names the provider, like the
+         provider key rows. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <EditText
+            android:id="@+id/search_exa_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/search_box_bg"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="#8A8A8A"
+            android:fontFamily="@font/cairo"
+            android:textSize="13sp"
+            android:padding="10dp"
+            android:inputType="textPassword"
+            android:maxLines="1" />
+
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+            android:id="@+id/search_exa_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="حفظ"
+            android:fontFamily="@font/cairo"
+            android:textSize="13sp"
+            app:cornerRadius="18dp" />
+    </LinearLayout>
+
+    <!-- Tavily key row, same shape. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <EditText
+            android:id="@+id/search_tavily_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/search_box_bg"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="#8A8A8A"
+            android:fontFamily="@font/cairo"
+            android:textSize="13sp"
+            android:padding="10dp"
+            android:inputType="textPassword"
+            android:maxLines="1" />
+
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+            android:id="@+id/search_tavily_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="حفظ"
+            android:fontFamily="@font/cairo"
+            android:textSize="13sp"
+            app:cornerRadius="18dp" />
+    </LinearLayout>
+</LinearLayout>

@@ -7,7 +7,7 @@
     <string name="tab_games">Games</string>
     <string name="tab_profile">Profile</string>
     <string name="tab_terminal">Terminal</string>
-    <string name="terminal_subtitle">Mudif system (Debian) commands, direct</string>
+    <string name="terminal_subtitle">Mudif system commands, direct</string>
     <string name="terminal_hint">Type a command…</string>
     <string name="terminal_send">Run</string>
     <string name="terminal_clear">Clear</string>
@@ -95,7 +95,7 @@
     <string name="about_avatar_desc">Mudif picture</string>
     <string name="about_system_name">Mudif system</string>
     <string name="about_tagline">You are the host, and Linux is your guest</string>
-    <string name="about_oneliner">Full Debian inside your Android phone, no root, no computer</string>
+    <string name="about_oneliner">The full Mudif system inside your Android phone, no root, no computer</string>
     <string name="about_credit">مشروع تقنية المستقبل | Exploring Tech</string>
     <string name="control_center">Control center</string>
     <string name="engine_check">Engine check</string>
@@ -114,7 +114,7 @@
     <string name="already_installed">Alpine already installed ✓</string>
     <string name="install_done">Alpine installed successfully ✓</string>
     <string name="mudif_system">Mudif system</string>
-    <string name="mudif_system_desc">Full Debian, the app\'s one system</string>
+    <string name="mudif_system_desc">A complete system, one system for all your apps</string>
     <string name="debian_booting">Starting the Mudif system…</string>
     <string name="debian_install_done">Mudif system installed successfully ✓</string>
     <string name="system_install_title">System installation</string>
@@ -122,7 +122,7 @@
     <string name="shared_folder_title">Shared folder</string>
     <string name="shared_folder_copied">Folder path copied ✓</string>
     <string name="system_update_title">System update</string>
-    <string name="system_update_desc">Update Debian packages from inside the app, without reinstalling</string>
+    <string name="system_update_desc">Update Mudif system packages from inside the app, without reinstalling</string>
     <string name="system_update_running">Updating the system…</string>
     <string name="system_update_done">System updated ✓</string>
     <string name="system_update_failed_title">Update failed</string>
@@ -359,7 +359,7 @@
     <string name="ui_vnc_status_boot_failed">Could not start the Mudif system.\n%1$s</string>
     <string name="ui_vnc_status_clean_install">Cleaning stuck install processes…</string>
     <string name="ui_vnc_status_verify_system">Verifying the Mudif system…</string>
-    <string name="ui_vnc_status_look">Installing the Deepin look…</string>
+    <string name="ui_vnc_status_look">Installing the Mudif look…</string>
     <string name="ui_vnc_status_incomplete">The Mudif system is incomplete.\nThe image has no desktop, reinstall the system.</string>
     <string name="ui_vnc_status_restart_x">Restarting the X server…</string>
     <string name="ui_vnc_status_check_xkb">Checking keyboard data…</string>
@@ -441,7 +441,7 @@
     <string name="ui_boot_no_engine">Engine missing or system incomplete</string>
     <string name="ui_boot_no_output">Exited with no output (code=%1$d)</string>
     <string name="ui_boot_failed">Boot failed (code=%1$d):\n%2$s</string>
-    <string name="ui_boot_ok_debian">دبيان خدام ✓\nالإصدار: %1$s</string>
+    <string name="ui_boot_ok_debian">نظام مضيف خدام ✓\nالإصدار: %1$s</string>
     <string name="ui_boot_ok_alpine">Alpine خدام ✓\nالإصدار: %1$s</string>
     <string name="ui_engine_missing_lib">Not found: libtiny_proot.so is not in the native library</string>
     <string name="ui_engine_no_output">Exited with no output (%1$s)</string>
@@ -532,7 +532,7 @@
     <string name="ui_home_free_storage">Free storage</string>
     <string name="ui_home_stat_installed">Installed ✓</string>
     <string name="ui_home_stat_not_installed">Not installed</string>
-    <string name="ui_profile_distro">Debian</string>
+    <string name="ui_profile_distro">Mudif</string>
     <string name="ui_nav_menu_desc">Menu</string>
     <string name="ui_term_system_not_installed">System not installed, install the Mudif system from Profile first</string>
     <string name="ui_term_container_failed">Could not start the container: %1$s</string>
@@ -565,6 +565,9 @@
     <string name="agent_tool_running">Running: %1$s</string>
     <string name="agent_server_not_running">The assistant server is not running, open the desktop first</string>
     <string name="agent_server_retry">Retry</string>
+    <string name="brain_providers_search_title">Search</string>
+    <string name="agent_servers_down">The assistant servers are down and the automatic restart failed, try again</string>
+    <string name="agent_servers_restarted">The assistant servers are back</string>
     <string name="agent_mode_chat">Chat</string>
     <string name="agent_mode_console">Console</string>
     <string name="agent_reply_language">Reply language</string>
@@ -585,7 +588,8 @@
     <string name="agent_vision_failed">Could not read the screen, try again</string>
     <string name="agent_vision_chip_unavailable_desktop">See the screen, unavailable: the desktop is not running</string>
     <string name="agent_vision_chip_unavailable_model">See the screen, unavailable: the vision model is not downloaded</string>
-    <string name="vision_download_title">The vision model is not downloaded, download it here (about 1.7 GB, on Wi-Fi)</string>
+    <string name="agent_vision_chip_unavailable_service">See the screen, unavailable: the vision service is down</string>
+    <string name="vision_download_title">The vision model (qwen2.5vl:3b) is not downloaded, download it here (about 3.2 GB, on Wi-Fi)</string>
     <string name="vision_download_button">Download the vision model</string>
     <string name="vision_download_downloading">Downloading the vision model… %1$d%%</string>
     <string name="vision_download_done">Vision model downloaded, the assistant can now see the screen</string>

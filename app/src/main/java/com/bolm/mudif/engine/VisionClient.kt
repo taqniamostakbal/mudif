@@ -18,15 +18,15 @@ import org.json.JSONObject
  * is TEXT; the reasoning brain receives it as observed context, the
  * vision model never does tool calls.
  *
- * The prompt is short and fixed on purpose (moondream has a 2K
- * context) and forbids reading passwords / codes aloud.
+ * The prompt is short and fixed on purpose (the vision model
+ * reads one frame in one pass) and forbids reading passwords / codes aloud.
  */
 object VisionClient {
     private const val TAG = "VisionClient"
 
     private const val OLLAMA_CHAT_URL = "http://127.0.0.1:11434/api/chat"
     private const val CONNECT_TIMEOUT_MS = 5_000
-    /** A 1.7B vision model on a phone CPU is slow: allow 5 minutes. */
+    /** A 3B vision model on a phone CPU is slow: allow 5 minutes. */
     private const val READ_TIMEOUT_MS = 300_000
 
     const val VISION_PROMPT =

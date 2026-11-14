@@ -2,10 +2,13 @@ package com.bolm.mudif.ui.agent
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Rect
+import android.graphics.drawable.AnimatedVectorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
@@ -23,6 +26,8 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bolm.mudif.MainActivity
@@ -85,12 +90,17 @@ class AgentFragment : Fragment() {
     private var pendingBrainPick: String? = null
     private var turnSeq: Int = 0
     private var firstTokenArrived: Boolean = false
+    // Phase 3: true while a turn-setup thread runs (startTurn /
+    // startVisionTurn). onViewCreated uses it to tell a turn that
+    // is still starting apart from a wedged flag.
+    @Volatile private var turnSetupRunning: Boolean = false
     // p32: keyboard state (the layout listener updates it). While
     // the keyboard is open the header + scroll row + divider + card
     // hide so the message list keeps a usable height (they used to
     // squeeze agent_recycler to 6px); they return when it closes.
     private var keyboardOpen: Boolean = false
     private var layoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
+    private var serversDownReceiver: BroadcastReceiver? = null
 
     private val voiceInputLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -152,6 +162,19 @@ class AgentFragment : Fragment() {
         binding.agentRecycler.adapter = adapter
         adapter.submitList(messages.toList())
         binding.agentRecycler.scrollToPosition(messages.size - 1)
+        // Phase 3: re-sync after a wedge. A turn whose terminal
+        // callback was dropped while the view was destroyed left
+        // turnRunning true with no handle and no setup thread; that
+        // flag is stale and must not block the next send. A live turn
+        // always has a handle (or is still starting), so it is never
+        // reset here.
+        if (turnRunning && currentTurn == null && !turnSetupRunning) {
+            turnRunning = false
+            streamingIndex = -1
+            binding.btnSend.isEnabled = true
+            binding.agentTyping.visibility = View.GONE
+            hideAgentAction()
+        }
         updateProfileCardVisibility()
         binding.btnBrainDownload.setOnClickListener { startBrainDownload() }
         checkBrainModelOnOpen()
@@ -257,6 +280,36 @@ class AgentFragment : Fragment() {
             }
         }
         binding.root.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
+
+        // Phase 3: the watchdog broadcasts when the servers died
+        // and its one restart failed; the chat shows it with a
+        // Retry action that retries the restart.
+        val appCtx = requireContext().applicationContext
+        serversDownReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (_binding == null) return
+                if (turnRunning) return
+                appendMessage(
+                    AgentMessage(
+                        AgentMessage.ROLE_AGENT,
+                        getString(R.string.agent_servers_down),
+                        replyLanguage
+                    )
+                )
+                binding.btnAgentAction.text = getString(R.string.agent_server_retry)
+                binding.btnAgentAction.setOnClickListener { retryServerRestart() }
+                binding.btnAgentAction.visibility = View.VISIBLE
+            }
+        }
+        try {
+            ContextCompat.registerReceiver(
+                appCtx, serversDownReceiver!!,
+                IntentFilter(AgentSupervisorService.ACTION_SERVERS_DOWN),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        } catch (e: Exception) {
+            Log.w("AgentFragment", "servers-down receiver register failed", e)
+        }
     }
 
     override fun onDestroyView() {
@@ -270,6 +323,22 @@ class AgentFragment : Fragment() {
         layoutListener = null
         currentTurn?.cancel()
         currentTurn = null
+        // Phase 3: the turn is cancelled with the view; the flag
+        // must not survive it, or the next send is dropped silently
+        // (the wedge: every terminal callback posts behind a
+        // _binding guard that now drops it). The callbacks finalise
+        // the reply in the list even with the view gone (below).
+        turnRunning = false
+        streamingIndex = -1
+        // Phase 3: the watchdog receiver belongs to this view; a
+        // stale registration would fire into a dead binding.
+        serversDownReceiver?.let { receiver ->
+            try {
+                requireContext().unregisterReceiver(receiver)
+            } catch (_: Exception) {
+            }
+        }
+        serversDownReceiver = null
         tts?.stop()
         tts?.shutdown()
         tts = null
@@ -354,8 +423,14 @@ class AgentFragment : Fragment() {
             // A failed turn (Retry) is NOT hidden: turnRunning is
             // false then, and the user needs the Retry button.
             if (turnRunning) {
+                // Phase 3: the typing line hides (the list needs the
+                // room), but a running turn must never have zero
+                // abort controls: the compact Stop button stays.
+                // It is always the Stop button here (Retry only
+                // shows when turnRunning is false); its label and
+                // action are armed up front in startTurn.
                 binding.agentTyping.visibility = View.GONE
-                binding.btnAgentAction.visibility = View.GONE
+                binding.btnAgentAction.visibility = View.VISIBLE
             }
         } else {
             activity?.setBottomNavVisible(true)
@@ -394,7 +469,17 @@ class AgentFragment : Fragment() {
         val text = binding.inputText.text.toString()
         if (text.isBlank()) return
         binding.inputText.setText("")
+        playSendIcon(R.drawable.avd_send)
         sendMessage(text)
+    }
+
+    // Send button icon animation: the plane flies on tap (200ms),
+    // the check draws itself on a successful reply (300ms) and the
+    // plane returns 100ms later. No text or logic changes.
+    private fun playSendIcon(@DrawableRes res: Int) {
+        val drawable = ContextCompat.getDrawable(requireContext(), res) ?: return
+        binding.btnSend.setImageDrawable(drawable)
+        (drawable as? AnimatedVectorDrawable)?.start()
     }
 
     // ------------------------------------------------- brain download (p22)
@@ -527,6 +612,11 @@ class AgentFragment : Fragment() {
         val last = lastUserMessage ?: return
         if (turnRunning) return
         hideAgentAction()
+        // Phase 3: the retry re-sends visibly, as a user message of
+        // its own, so the user can tell it re-sent anything.
+        val userMessage = AgentMessage(AgentMessage.ROLE_USER, last.text, replyLanguage)
+        appendMessage(userMessage)
+        lastUserMessage = userMessage
         startTurn(last.text)
     }
 
@@ -551,7 +641,11 @@ class AgentFragment : Fragment() {
         firstTokenArrived = false
         hideSlowBrainChip()
         binding.root.postDelayed({
-            if (_binding != null && thisTurnSeq == turnSeq && turnRunning && !firstTokenArrived) {
+            // Phase 3: the chip names the LOCAL brain ("المحلي
+            // بطيء"); a cloud turn must never show it.
+            if (_binding != null && thisTurnSeq == turnSeq && turnRunning && !firstTokenArrived &&
+                brainModel == BRAIN_LOCAL
+            ) {
                 showSlowBrainChip()
             }
         }, LOCAL_SLOW_CHIP_DELAY_MS)
@@ -563,13 +657,19 @@ class AgentFragment : Fragment() {
             binding.agentTyping.visibility = View.VISIBLE
         }
         binding.btnSend.isEnabled = false
+        // Phase 3: the Stop button is armed up front, so it is a
+        // valid abort control for the whole turn, keyboard open or
+        // not (applyChromeVisibility shows it while typing).
+        binding.btnAgentAction.text = getString(R.string.agent_stop)
+        binding.btnAgentAction.setOnClickListener { stopCurrentTurn() }
+        applyChromeVisibility()
         // Application context: the thread outlives the view, and
         // requireContext() would throw if the fragment detaches.
         val appContext = context?.applicationContext ?: run {
             onTurnFailed(null)
             return
         }
-        Thread {
+        runTurnThread {
             // Brain fix (plan section 10): user-pasted URLs join the
             // fetch allowlist so the brain may open them. Best-effort,
             // never blocks the turn on failure.
@@ -597,36 +697,50 @@ class AgentFragment : Fragment() {
             // idempotent; starting it again while it runs is a no-op.
             // ensureStarted below still runs so this turn gets the
             // real up/down verdict for its error message.
-            AgentSupervisorService.start(appContext)
+            // Phase 3: best-effort; on Android 12+ this throws when
+            // the app is backgrounded, and an uncaught throw here
+            // wedged the chat with turnRunning stuck true.
+            try {
+                AgentSupervisorService.start(appContext)
+            } catch (e: Exception) {
+                android.util.Log.w("AgentFragment", "supervisor start failed (best-effort)", e)
+            }
             val ensured = AgentServer.ensureStarted(appContext)
-            val act = activity ?: return@Thread
+            val act = activity
+            if (act == null) {
+                // Phase 3: no activity to post to; clear the flag
+                // here or the chat wedges with no error.
+                turnRunning = false
+                currentTurn = null
+                streamingIndex = -1
+                return@runTurnThread
+            }
             if (!ensured.up) {
-                act.runOnUiThread {
-                    if (_binding == null) return@runOnUiThread
-                    onTurnFailed(ensured.reason)
-                }
-                return@Thread
+                failTurnInBackground(act, appContext, ensured.reason, null)
+                return@runTurnThread
             }
             // p22: the servers are up, but the brain model may still
             // be missing (fresh image). Never start a turn that can
             // only fail, show the download card instead.
             if (AgentServer.hasBrainModel() == false) {
+                // Phase 3: the flag clears in the background thread
+                // first; endTurnUi only runs when the view is alive.
+                turnRunning = false
+                currentTurn = null
+                streamingIndex = -1
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
                     showBrainDownloadCard()
                     endTurnUi()
                 }
-                return@Thread
+                return@runTurnThread
             }
             var sid = sessionId
             if (sid.isNullOrBlank()) {
                 sid = AgentClient.createSession()
                 if (sid.isNullOrBlank()) {
-                    act.runOnUiThread {
-                        if (_binding == null) return@runOnUiThread
-                        onTurnFailed(null)
-                    }
-                    return@Thread
+                    failTurnInBackground(act, appContext, null, null)
+                    return@runTurnThread
                 }
                 sessionId = sid
                 appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -635,7 +749,29 @@ class AgentFragment : Fragment() {
             val callbacks = object : AgentClient.TurnCallbacks {
                 override fun onText(fullText: String) {
                     act.runOnUiThread {
-                        if (_binding == null) return@runOnUiThread
+                        if (_binding == null) {
+                            // Phase 3: view gone (tab switch). A turn
+                            // already ended drops late text, like
+                            // showStreamingText does when alive; a
+                            // live turn keeps the text in the list
+                            // so the reply survives the switch.
+                            if (!turnRunning) return@runOnUiThread
+                            if (streamingIndex < 0) {
+                                messages.add(
+                                    AgentMessage(
+                                        AgentMessage.ROLE_AGENT, fullText, replyLanguage
+                                    )
+                                )
+                                streamingIndex = messages.size - 1
+                            } else {
+                                messages[streamingIndex] =
+                                    AgentMessage(
+                                        AgentMessage.ROLE_AGENT, fullText, replyLanguage
+                                    )
+                            }
+                            saveMessages()
+                            return@runOnUiThread
+                        }
                         firstTokenArrived = true
                         hideSlowBrainChip()
                         showStreamingText(fullText)
@@ -657,39 +793,91 @@ class AgentFragment : Fragment() {
 
                 override fun onDone(finalText: String) {
                     act.runOnUiThread {
-                        if (_binding == null) return@runOnUiThread
+                        if (_binding == null) {
+                            // Phase 3: view gone. A turn already
+                            // ended drops the late done, like
+                            // finishTurn does when alive; a live turn
+                            // keeps its reply, then clears the flags.
+                            if (!turnRunning) return@runOnUiThread
+                            if (streamingIndex < 0 && finalText.isNotEmpty()) {
+                                persistMessage(
+                                    AgentMessage(
+                                        AgentMessage.ROLE_AGENT, finalText, replyLanguage
+                                    )
+                                )
+                            }
+                            turnRunning = false
+                            currentTurn = null
+                            streamingIndex = -1
+                            return@runOnUiThread
+                        }
                         finishTurn(finalText)
                     }
                 }
 
                 override fun onError(message: String) {
                     act.runOnUiThread {
-                        if (_binding == null) return@runOnUiThread
+                        if (_binding == null) {
+                            // Phase 3: view gone. A turn already
+                            // ended drops the late error; a live turn
+                            // keeps its verdict, then clears the
+                            // flags, so the next send can start.
+                            if (!turnRunning) return@runOnUiThread
+                            persistMessage(
+                                AgentMessage(
+                                    AgentMessage.ROLE_AGENT,
+                                    verdictFor(null, message, act),
+                                    replyLanguage
+                                )
+                            )
+                            turnRunning = false
+                            currentTurn = null
+                            streamingIndex = -1
+                            return@runOnUiThread
+                        }
                         onTurnFailed(null, message)
                     }
                 }
             }
+            // Phase 3: the user may have stopped the turn while the
+            // server was starting (Stop is armed up front now); a
+            // stopped turn must not post a prompt it will only drop.
+            if (!turnRunning) return@runTurnThread
+            // Phase 3: a local turn's model must be stopped when the
+            // turn times out or is cancelled; the OpenCode abort
+            // alone never stopped it. Cloud turns pass no stopper.
+            val localStop: (() -> String)? =
+                if (brainModel == BRAIN_LOCAL) {
+                    {
+                        AgentServer.stopLocalModel(
+                            appContext,
+                            brainModel.removePrefix("ollama/")
+                        )
+                    }
+                } else {
+                    null
+                }
             val handle = AgentClient.sendPrompt(
                 sid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
-                screenContext
+                screenContext, localStop
             )
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 currentTurn = handle
-                // p33: the Stop button stays hidden while the keyboard
-                // is open (it returns when the keyboard closes); the
-                // thinking line is set the same way by startTurn.
+                // Phase 3: the view may have been recreated after a
+                // wedge reset while this turn was starting; the turn
+                // is running now, so the flag must be true again.
+                turnRunning = true
+                // The Stop button was armed up front in startTurn;
+                // only the thinking line is (re)set here, and the
+                // chrome is re-synced for the keyboard state.
                 if (!keyboardOpen) {
                     binding.agentTyping.text = getString(R.string.agent_thinking)
-                    binding.btnAgentAction.text = getString(R.string.agent_stop)
-                    binding.btnAgentAction.setOnClickListener { stopCurrentTurn() }
-                    binding.btnAgentAction.visibility = View.VISIBLE
-                } else {
-                    binding.btnAgentAction.text = getString(R.string.agent_stop)
-                    binding.btnAgentAction.setOnClickListener { stopCurrentTurn() }
+                    binding.agentTyping.visibility = View.VISIBLE
                 }
+                applyChromeVisibility()
             }
-        }.start()
+        }
     }
 
     // ---------------------------------------------------------- vision (increment 1)
@@ -712,7 +900,7 @@ class AgentFragment : Fragment() {
     /**
      * Vision increment 1 flow (background thread, UI posts only):
      * servers up -> vision model present -> capture one frame ->
-     * moondream describes it -> the description is shown in the
+     * qwen2.5vl:3b describes it -> the description is shown in the
      * chat -> the brain answers with it as observed context.
      * Every failure ends the turn with the real reason; nothing is
      * faked and no stale frame is ever read as new.
@@ -728,47 +916,56 @@ class AgentFragment : Fragment() {
             onTurnFailed(null)
             return
         }
-        Thread {
-            AgentSupervisorService.start(appContext)
+        runTurnThread {
+            // Phase 3: best-effort (see startTurn: an uncaught
+            // throw here wedged the chat with turnRunning stuck).
+            try {
+                AgentSupervisorService.start(appContext)
+            } catch (e: Exception) {
+                android.util.Log.w("AgentFragment", "supervisor start failed (best-effort)", e)
+            }
             val ensured = AgentServer.ensureStarted(appContext)
-            val act = activity ?: return@Thread
+            val act = activity
+            if (act == null) {
+                // Phase 3: no activity to post to; clear the flag
+                // here or the chat wedges with no error.
+                turnRunning = false
+                currentTurn = null
+                streamingIndex = -1
+                return@runTurnThread
+            }
             if (!ensured.up) {
-                act.runOnUiThread {
-                    if (_binding == null) return@runOnUiThread
-                    onTurnFailed(ensured.reason) { startVisionTurn(question) }
-                    refreshVisionChip()
-                }
-                return@Thread
+                failTurnInBackground(act, appContext, ensured.reason, null) { startVisionTurn(question) }
+                refreshVisionChip()
+                return@runTurnThread
             }
             // Vision model gate: missing means the download card,
             // not a turn that can only fail.
             if (AgentServer.hasModel(AgentServer.VISION_MODEL) == false) {
+                turnRunning = false
+                currentTurn = null
+                streamingIndex = -1
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
                     showBrainDownloadCard(AgentServer.VISION_MODEL)
                     endTurnUi()
                     refreshVisionChip()
                 }
-                return@Thread
+                return@runTurnThread
             }
             val t0 = SystemClock.elapsedRealtime()
             val capture = VisionCapture.capture(appContext)
             if (capture is VisionCapture.CaptureResult.Failed) {
-                act.runOnUiThread {
-                    if (_binding == null) return@runOnUiThread
-                    onTurnFailed(
-                        null,
-                        getString(
-                            if (capture.reason == VisionCapture.REASON_DESKTOP_DOWN)
-                                R.string.agent_vision_desktop_down
-                            else R.string.agent_vision_capture_failed
-                        )
-                    ) {
-                        startVisionTurn(question)
-                    }
-                    refreshVisionChip()
-                }
-                return@Thread
+                failTurnInBackground(
+                    act, appContext, null,
+                    appContext.getString(
+                        if (capture.reason == VisionCapture.REASON_DESKTOP_DOWN)
+                            R.string.agent_vision_desktop_down
+                        else R.string.agent_vision_capture_failed
+                    )
+                ) { startVisionTurn(question) }
+                refreshVisionChip()
+                return@runTurnThread
             }
             val shot = (capture as VisionCapture.CaptureResult.Ok).file
             val jpeg = try {
@@ -790,21 +987,35 @@ class AgentFragment : Fragment() {
                 "vision read: capture+describe took ${"%.1f".format(seconds)} s"
             )
             if (description.isNullOrBlank()) {
-                act.runOnUiThread {
-                    if (_binding == null) return@runOnUiThread
-                    // Retry re-runs the VISION turn, not a plain
-                    // brain turn: a plain retry would answer the
-                    // question without ever looking at the screen.
-                    onTurnFailed(null, getString(R.string.agent_vision_failed)) {
-                        startVisionTurn(question)
-                    }
-                }
-                return@Thread
+                // Retry re-runs the VISION turn, not a plain
+                // brain turn: a plain retry would answer the
+                // question without ever looking at the screen.
+                failTurnInBackground(
+                    act, appContext, null,
+                    appContext.getString(R.string.agent_vision_failed)
+                ) { startVisionTurn(question) }
+                return@runTurnThread
             }
             // The agent shows what it saw, then the brain answers
             // with it. startTurn runs on the UI thread here.
             act.runOnUiThread {
-                if (_binding == null) return@runOnUiThread
+                if (_binding == null) {
+                    // Phase 3: view gone. The description text is
+                    // kept in the list, the brain answer cannot
+                    // start without a view, and the flags clear so
+                    // the chat never wedges.
+                    persistMessage(
+                        AgentMessage(
+                            AgentMessage.ROLE_AGENT,
+                            appContext.getString(R.string.agent_vision_saw, description),
+                            replyLanguage
+                        )
+                    )
+                    turnRunning = false
+                    currentTurn = null
+                    streamingIndex = -1
+                    return@runOnUiThread
+                }
                 appendMessage(
                     AgentMessage(
                         AgentMessage.ROLE_AGENT,
@@ -814,11 +1025,11 @@ class AgentFragment : Fragment() {
                 )
                 startTurn(question, description)
             }
-        }.start()
+        }
     }
 
     /** Enables the "شوف الشاشة" chip only when vision can really
-     *  run (desktop up AND moondream present); otherwise it stays
+     *  run (desktop up AND qwen2.5vl:3b present); otherwise it stays
      *  disabled with the reason in its description. Background
      *  thread: the checks are TCP probes, never on the UI thread. */
     private fun refreshVisionChip() {
@@ -832,9 +1043,13 @@ class AgentFragment : Fragment() {
                 binding.chipVision.isEnabled = enabled
                 binding.chipVision.alpha = if (enabled) 1.0f else 0.4f
                 binding.chipVision.contentDescription = getString(
+                    // Phase 3: three states, three reasons. hasModel
+                    // returns null when Ollama is unreachable; that
+                    // is a dead SERVICE, not a missing model.
                     when {
                         !desktopUp -> R.string.agent_vision_chip_unavailable_desktop
-                        hasVision != true -> R.string.agent_vision_chip_unavailable_model
+                        hasVision == null -> R.string.agent_vision_chip_unavailable_service
+                        hasVision == false -> R.string.agent_vision_chip_unavailable_model
                         else -> R.string.agent_vision_chip
                     }
                 )
@@ -848,11 +1063,17 @@ class AgentFragment : Fragment() {
      *  stops the turn and opens the provider screen; applying the
      *  pick is the user's tap in that screen. */
     private fun showSlowBrainChip() {
+        // Phase 3: the chip replaces the typing line as the status
+        // (it must not stack with it and crush the list).
+        _binding?.agentTyping?.visibility = View.GONE
         _binding?.chipSlowBrain?.apply {
             visibility = View.VISIBLE
             setOnClickListener {
                 hideSlowBrainChip()
-                stopCurrentTurn()
+                // Phase 3: do nothing about stopping when no turn
+                // is running; a stale chip must never store a
+                // spurious "توقّف الرد" or clear Retry.
+                if (turnRunning) stopCurrentTurn()
                 openBrainProviders()
             }
         }
@@ -931,6 +1152,10 @@ class AgentFragment : Fragment() {
         streamingIndex = -1
         currentTurn = null
         endTurnUi()
+        playSendIcon(R.drawable.avd_check)
+        binding.root.postDelayed({
+            if (_binding != null) binding.btnSend.setImageResource(R.drawable.ic_send)
+        }, 400)
         if (spoken.isNotEmpty()) speakAgent(spoken)
     }
 
@@ -948,6 +1173,22 @@ class AgentFragment : Fragment() {
         if (pending != null) applyBrainPick(pending)
     }
 
+    /** The visible verdict for a failed turn, from a machine reason
+     *  or a detail string. Takes a Context so the background thread
+     *  can compute (and persist) it when the view is gone. */
+    private fun verdictFor(reason: String?, detail: String?, ctx: Context): String {
+        return when (reason) {
+            AgentServer.REASON_ENGINE_NOT_READY ->
+                ctx.getString(R.string.agent_engine_not_ready)
+            AgentServer.REASON_STAGE_FAILED,
+            AgentServer.REASON_BOOT_FAILED,
+            AgentServer.REASON_START_FAILED ->
+                ctx.getString(R.string.agent_server_start_failed)
+            else -> detail?.takeIf { it.isNotBlank() }
+                ?: ctx.getString(R.string.agent_error)
+        }
+    }
+
     /** A turn failed: real error message in the chat plus a real
      *  action. `reason` is AgentServer's machine key (null = the
      *  server was up but the turn itself failed). `onRetry`, when
@@ -961,19 +1202,56 @@ class AgentFragment : Fragment() {
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
+        // Phase 3: the third turn-end path that never hid the chip;
+        // the local-timeout failure left it stale over the list.
+        hideSlowBrainChip()
+        val verdict = verdictFor(reason, detail, requireContext())
+        appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, verdict, replyLanguage))
+        showTurnFailedUi(reason, onRetry)
+        speakAgent(verdict)
+    }
+
+    /** Phase 3: the watchdog's restart failed; retries it from the
+     *  action button, then shows the honest outcome. Never
+     *  fabricates; a still-down server keeps the Retry button. */
+    private fun retryServerRestart() {
+        val bindingNow = _binding ?: return
+        bindingNow.btnAgentAction.visibility = View.GONE
+        val appContext = context?.applicationContext ?: return
+        Thread {
+            val result = AgentServer.ensureStarted(appContext)
+            bindingNow.root.post {
+                val view = _binding ?: return@post
+                Toast.makeText(
+                    appContext,
+                    if (result.up) {
+                        appContext.getString(R.string.agent_servers_restarted)
+                    } else {
+                        appContext.getString(R.string.agent_servers_down)
+                    },
+                    Toast.LENGTH_LONG
+                ).show()
+                if (!result.up) {
+                    // Keep the Retry button: the servers are
+                    // still down, and silently dropping it would
+                    // leave the user with no way to retry.
+                    view.btnAgentAction.text =
+                        appContext.getString(R.string.agent_server_retry)
+                    view.btnAgentAction.setOnClickListener {
+                        retryServerRestart()
+                    }
+                    view.btnAgentAction.visibility = View.VISIBLE
+                }
+            }
+        }.start()
+    }
+
+    /** View-only part of a failed turn (typing line, Send, action
+     *  button). Split out so a background thread can fail a turn
+     *  without touching views. */
+    private fun showTurnFailedUi(reason: String?, onRetry: (() -> Unit)?) {
         binding.agentTyping.visibility = View.GONE
         binding.btnSend.isEnabled = true
-        val verdict = when (reason) {
-            AgentServer.REASON_ENGINE_NOT_READY ->
-                getString(R.string.agent_engine_not_ready)
-            AgentServer.REASON_STAGE_FAILED,
-            AgentServer.REASON_BOOT_FAILED,
-            AgentServer.REASON_START_FAILED ->
-                getString(R.string.agent_server_start_failed)
-            else -> detail?.takeIf { it.isNotBlank() }
-                ?: getString(R.string.agent_error)
-        }
-        appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, verdict, replyLanguage))
         if (reason == AgentServer.REASON_ENGINE_NOT_READY) {
             binding.btnAgentAction.text = getString(R.string.agent_quick_desktop)
             binding.btnAgentAction.setOnClickListener { openDesktop() }
@@ -982,20 +1260,72 @@ class AgentFragment : Fragment() {
             binding.btnAgentAction.setOnClickListener { (onRetry ?: ::retryLastMessage)() }
         }
         binding.btnAgentAction.visibility = View.VISIBLE
-        speakAgent(verdict)
+    }
+
+    /** Fails a turn from a background thread: the flag reset and
+     *  the verdict persistence run HERE, never only inside a
+     *  _binding-guarded lambda (a view destroyed at that moment
+     *  wedged the chat and lost the error). The posted lambda only
+     *  refreshes the views. */
+    private fun failTurnInBackground(
+        act: Activity,
+        ctx: Context,
+        reason: String?,
+        detail: String?,
+        onRetry: (() -> Unit)? = null
+    ) {
+        turnRunning = false
+        currentTurn = null
+        streamingIndex = -1
+        val verdict = verdictFor(reason, detail, ctx)
+        persistMessage(AgentMessage(AgentMessage.ROLE_AGENT, verdict, replyLanguage))
+        act.runOnUiThread {
+            if (_binding == null) return@runOnUiThread
+            refreshMessagesUi()
+            showTurnFailedUi(reason, onRetry)
+            speakAgent(verdict)
+        }
+    }
+
+    /** View-only tail of appendMessage: re-renders the list from
+     *  the persisted messages. */
+    private fun refreshMessagesUi() {
+        adapter.submitList(messages.toList())
+        binding.agentRecycler.scrollToPosition(messages.size - 1)
+        updateProfileCardVisibility()
     }
 
     private fun hideAgentAction() {
         binding.btnAgentAction.visibility = View.GONE
     }
 
-    private fun appendMessage(message: AgentMessage) {
+    /** List-only part of appendMessage: no view access, safe from
+     *  any thread. Terminal callbacks use it when the view is gone
+     *  so a reply or an error verdict survives a tab switch. */
+    private fun persistMessage(message: AgentMessage) {
         messages.add(message)
         while (messages.size > MAX_HISTORY) messages.removeAt(0)
         saveMessages()
-        adapter.submitList(messages.toList())
-        binding.agentRecycler.scrollToPosition(messages.size - 1)
-        updateProfileCardVisibility()
+    }
+
+    /** Runs a turn-setup body on a background thread and tracks
+     *  it, so onViewCreated can tell a turn that is still starting
+     *  apart from a wedged flag. The flag clears in a finally even
+     *  if the body throws. */
+    private fun runTurnThread(body: () -> Unit) {
+        turnSetupRunning = true
+        Thread {
+            try {
+                body()
+            } finally {
+                turnSetupRunning = false
+            }
+        }.start()
+    }
+
+    private fun appendMessage(message: AgentMessage) {
+        persistMessage(message)
+        refreshMessagesUi()
     }
 
     private fun ensureGreeting() {
@@ -1143,9 +1473,9 @@ class AgentFragment : Fragment() {
 
     /** Reads opencode-providers.json: Local first, then the cloud
      *  models in a fixed provider order (groq, llm7, openrouter,
-     *  huggingface, opencode, google, cohere, mistral), models sorted
-     *  by name. A missing or unreadable asset means Local only, the
-     *  chat still works. */
+     *  huggingface, opencode, google, cohere, mistral, tokenlab),
+     *  models sorted by name. A missing or unreadable asset means
+     *  Local only, the chat still works. */
     private fun loadBrainOptions(): List<BrainOption> {
         val options = mutableListOf(
             BrainOption(BRAIN_LOCAL, getString(R.string.agent_brain_local), null)
@@ -1157,7 +1487,7 @@ class AgentFragment : Fragment() {
             ).optJSONObject("providers") ?: return options
             val providerOrder = listOf(
                 "groq", "llm7", "openrouter", "huggingface", "opencode",
-                "google", "cohere", "mistral"
+                "google", "cohere", "mistral", "tokenlab"
             )
             for (providerKey in providerOrder) {
                 val provider = root.optJSONObject(providerKey) ?: continue

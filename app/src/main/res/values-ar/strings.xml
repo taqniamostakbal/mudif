@@ -7,7 +7,7 @@
     <string name="tab_games">الألعاب</string>
     <string name="tab_profile">حسابي</string>
     <string name="tab_terminal">الطرفية</string>
-    <string name="terminal_subtitle">أوامر نظام مضيف (دبيان) مباشرة</string>
+    <string name="terminal_subtitle">أوامر نظام مضيف مباشرة</string>
     <string name="terminal_hint">اكتب أمرا…</string>
     <string name="terminal_send">تنفيذ</string>
     <string name="terminal_clear">مسح</string>
@@ -95,7 +95,7 @@
     <string name="about_avatar_desc">صورة مضيف</string>
     <string name="about_system_name">نظام مضيف</string>
     <string name="about_tagline">أنت المضيف، ولينكس ضيفك</string>
-    <string name="about_oneliner">دبيان كامل داخل هاتفك الأندرويد، بلا روت، بلا حاسوب</string>
+    <string name="about_oneliner">نظام مضيف الكامل داخل هاتفك الأندرويد، بلا روت، بلا حاسوب</string>
     <string name="about_credit">مشروع تقنية المستقبل | Exploring Tech</string>
     <string name="control_center">مركز التحكم</string>
     <string name="engine_check">فحص المحرك</string>
@@ -114,7 +114,7 @@
     <string name="already_installed">ألباين مثبت مسبقاً ✓</string>
     <string name="install_done">تم تثبيت ألباين بنجاح ✓</string>
     <string name="mudif_system">نظام مضيف</string>
-    <string name="mudif_system_desc">دبيان كامل، نظام التطبيق الواحد</string>
+    <string name="mudif_system_desc">نظام كامل، نظام واحد لكل التطبيقات</string>
     <string name="debian_booting">جاري تشغيل نظام مضيف…</string>
     <string name="debian_install_done">تم تثبيت نظام مضيف بنجاح ✓</string>
     <string name="system_install_title">تثبيت النظام</string>
@@ -122,7 +122,7 @@
     <string name="shared_folder_title">المجلد المشترك</string>
     <string name="shared_folder_copied">تم نسخ مسار المجلد ✓</string>
     <string name="system_update_title">تحديث النظام</string>
-    <string name="system_update_desc">تحديث حزم دبيان من داخل التطبيق، بلا إعادة تثبيت</string>
+    <string name="system_update_desc">تحديث حزم نظام مضيف من داخل التطبيق، بلا إعادة تثبيت</string>
     <string name="system_update_running">جار تحديث النظام…</string>
     <string name="system_update_done">تم تحديث النظام ✓</string>
     <string name="system_update_failed_title">فشل التحديث</string>
@@ -359,7 +359,7 @@
     <string name="ui_vnc_status_boot_failed">تعذّر تشغيل نظام مضيف.\n%1$s</string>
     <string name="ui_vnc_status_clean_install">جاري تنظيف عمليات التثبيت العالقة…</string>
     <string name="ui_vnc_status_verify_system">جاري التحقق من نظام مضيف…</string>
-    <string name="ui_vnc_status_look">جاري تثبيت الشكل ديال Deepin…</string>
+    <string name="ui_vnc_status_look">جاري تثبيت شكل نظام مضيف…</string>
     <string name="ui_vnc_status_incomplete">نظام مضيف غير مكتمل.\nالصورة ما فيهاش سطح المكتب، عاود تثبيت النظام من جديد.</string>
     <string name="ui_vnc_status_restart_x">جاري إعادة تشغيل خادم X من جديد…</string>
     <string name="ui_vnc_status_check_xkb">جاري فحص بيانات لوحة المفاتيح…</string>
@@ -441,7 +441,7 @@
     <string name="ui_boot_no_engine">المحرك غير موجود أو النظام غير مكتمل</string>
     <string name="ui_boot_no_output">خرج بلا مخرجات (code=%1$d)</string>
     <string name="ui_boot_failed">الإقلاع فشل (code=%1$d):\n%2$s</string>
-    <string name="ui_boot_ok_debian">دبيان خدام ✓\nالإصدار: %1$s</string>
+    <string name="ui_boot_ok_debian">نظام مضيف خدام ✓\nالإصدار: %1$s</string>
     <string name="ui_boot_ok_alpine">Alpine خدام ✓\nالإصدار: %1$s</string>
     <string name="ui_engine_missing_lib">غير موجود: libtiny_proot.so ماشي فالمكتبة الأصلية</string>
     <string name="ui_engine_no_output">خرج بلا مخرجات (%1$s)</string>
@@ -532,7 +532,7 @@
     <string name="ui_home_free_storage">تخزين حر</string>
     <string name="ui_home_stat_installed">مثبت ✓</string>
     <string name="ui_home_stat_not_installed">غير مثبت</string>
-    <string name="ui_profile_distro">دبيان</string>
+    <string name="ui_profile_distro">نظام مضيف</string>
     <string name="ui_nav_menu_desc">القائمة</string>
     <string name="ui_term_system_not_installed">النظام غير مثبت، ثبّت نظام مضيف من حسابي أولا</string>
     <string name="ui_term_container_failed">تعذّر تشغيل الحاوية: %1$s</string>
@@ -565,6 +565,9 @@
     <string name="agent_tool_running">ينفّذ: %1$s</string>
     <string name="agent_server_not_running">خادم المساعد غير مشغّل، افتح سطح المكتب أولا</string>
     <string name="agent_server_retry">إعادة المحاولة</string>
+    <string name="brain_providers_search_title">بحث</string>
+    <string name="agent_servers_down">خوادم المساعد متوقفة، وفشلت إعادة التشغيل التلقائية، أعد المحاولة</string>
+    <string name="agent_servers_restarted">عادت خوادم المساعد للعمل</string>
     <string name="agent_mode_chat">المحادثة</string>
     <string name="agent_mode_console">وحدة التحكم</string>
     <string name="agent_reply_language">لغة الرد</string>
@@ -585,7 +588,8 @@
     <string name="agent_vision_failed">تعذّرت قراءة الشاشة، أعد المحاولة</string>
     <string name="agent_vision_chip_unavailable_desktop">شوف الشاشة، غير متوفر: سطح المكتب متوقف</string>
     <string name="agent_vision_chip_unavailable_model">شوف الشاشة، غير متوفر: نموذج الرؤية غير محمّل</string>
-    <string name="vision_download_title">نموذج الرؤية غير محمّل، حمّله من هنا (حوالي 1.7GB، على الواي فاي)</string>
+    <string name="agent_vision_chip_unavailable_service">شوف الشاشة، غير متوفر: خدمة الرؤية متوقفة</string>
+    <string name="vision_download_title">نموذج الرؤية (qwen2.5vl:3b) غير محمّل، حمّله من هنا (حوالي 3.2GB، على الواي فاي)</string>
     <string name="vision_download_button">تحميل نموذج الرؤية</string>
     <string name="vision_download_downloading">جارٍ تحميل نموذج الرؤية… %1$d%%</string>
     <string name="vision_download_done">تم تحميل نموذج الرؤية، صار المساعد يرى الشاشة</string>

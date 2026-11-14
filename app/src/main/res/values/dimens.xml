@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="radius_pill">24dp</dimen>
+    <dimen name="radius_card">16dp</dimen>
+    <dimen name="radius_button">12dp</dimen>
+    <dimen name="nav_indicator_width">64dp</dimen>
+    <dimen name="nav_indicator_height">32dp</dimen>
+</resources>

@@ -262,7 +262,12 @@ object LxqtLook {
     // first boot, existing rootfs must re-apply the current look to
     // pick up the maximize rule, padding 4 and DesktopIconSize=64.
     // The p22 APK and the p22 image must ship from the same snapshot.
-    const val MARKER_VERSION = "p22"
+    // P23: adaptive scale (2026-11-14). The font, panel, icons,
+    // terminal and Openbox sizes are computed from the device's real
+    // screen (DesktopScale), so an existing rootfs must re-apply to
+    // pick them up. The p23 APK and the p23 image must ship from the
+    // same snapshot.
+    const val MARKER_VERSION = "p23"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -292,6 +297,9 @@ object LxqtLook {
      */
     fun ensureLxqtLook(context: Context): Boolean {
         if (isApplied(context)) return true
+        // p23: adaptive scale, computed once from this device's real
+        // screen and threaded through every config writer below.
+        val scale = DesktopScale.compute(context)
         val rootfs = DebianSystem.debianRootfsDir(context)
 
         // Prereq: the apt set must have landed (startlxqt + the
@@ -333,11 +341,11 @@ object LxqtLook {
             }
             val lxqtDir = File(rootfs, "root/.config/lxqt")
             lxqtDir.mkdirs()
-            File(lxqtDir, "lxqt.conf").writeText(LXQT_CONF)
+            File(lxqtDir, "lxqt.conf").writeText(lxqtConf(scale))
             File(lxqtDir, "session.conf").writeText(SESSION_CONF)
             val pcmanfmDir = File(rootfs, "root/.config/pcmanfm-qt/lxqt")
             pcmanfmDir.mkdirs()
-            File(pcmanfmDir, "settings.conf").writeText(PCMANFM_SETTINGS_CONF)
+            File(pcmanfmDir, "settings.conf").writeText(pcmanfmSettingsConf(scale))
             // P8 - Arabic: Cairo font + fontconfig + Arabic CLI.
             // Cairo cannot come from apt (no fonts-cairo in trixie,
             // P8-READINESS §1.1): bundle the variable TTF as an app
@@ -423,6 +431,13 @@ object LxqtLook {
             // themes all use relative urls. The P9FIX5 base #Spacer
             // rule is kept.
             extractZipAsset(context, THEME_ZIP_ASSET, rootfs)
+            // p23: adaptive scale for the window manager. The zip
+            // ships the p21 base (title/menu fonts 11, OSD 9,
+            // padding 4); the runtime rewrite replaces them with
+            // the computed sizes so the title bars, menus and OSD
+            // read big on this device. Only the two font sizes the
+            // zip ships and the one padding key are touched.
+            rewriteOpenboxScale(rootfs, scale)
             // P9FIX - build the icon-theme cache for `mudif`.
             // The P9 test proved all 10 mudif icon overrides fall
             // back to bloom-dark defaults, and the one verified
@@ -482,11 +497,11 @@ object LxqtLook {
                     File(rootfs, "etc/xdg/lxqt/panel.conf").readText()
                 else -> null
             }
-            panelConf.writeText(mergePanelConf(existingPanelConf))
+            panelConf.writeText(mergePanelConf(existingPanelConf, scale))
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
-            qterminalIni.writeText(mergeQterminalIni(existingIni))
+            qterminalIni.writeText(mergeQterminalIni(existingIni, scale))
             val bashrc = File(rootfs, "root/.bashrc")
             val bashrcText = if (bashrc.exists()) bashrc.readText() else ""
             if (!bashrcText.contains("# mudif-arabic-cli")) {
@@ -515,7 +530,7 @@ object LxqtLook {
             gtkDir.mkdirs()
             val gtkSettings = File(gtkDir, "settings.ini")
             val existingGtk = if (gtkSettings.exists()) gtkSettings.readText() else null
-            gtkSettings.writeText(mergeGtkCursorSettings(existingGtk))
+            gtkSettings.writeText(mergeGtkCursorSettings(existingGtk, scale))
             // p22 - screensaver: the image ships
             // lxqt-xscreensaver-autostart (it tries to start a
             // screensaver that is NOT installed), and any lock
@@ -566,6 +581,15 @@ object LxqtLook {
     // the `mudif` icon theme stays installed as the last fallback
     // in WhiteSur-light's Inherits chain, for the penguin/purple
     // names only it provides). theme stays mudif.
+    // P23: font=Cairo,17 (LXQt convention: lxqt-config-appearance
+    // writes the shell font to lxqt.conf [General] as font=Family,pt;
+    // the LXQt platform theme reads it). 17 is the Nova 9 adaptive
+    // output (3.0 mm on the glass); a small phone gets 19, a tablet
+    // 11. The image base below carries the Nova 9 value; a real
+    // device writes its own via lxqtConf(scale). If the rig shows
+    // the shell font did not change, this key is wrong and the fix
+    // is to find the key the platform theme actually reads, not to
+    // guess another one. RIG MUST CONFIRM.
     private const val LXQT_CONF = """[General]
 __userfile__=true
 icon_theme=WhiteSur-light
@@ -573,6 +597,7 @@ theme=mudif
 palette=Mudif
 cursor_theme=WhiteSur-cursors
 cursor_size=48
+font=Cairo,17
 
 [Palette]
 window_color=#232323
@@ -586,6 +611,20 @@ link_visited_color=#C9B8FF
 tooltip_base_color=#232323
 tooltip_text_color=#b8b8b8
 """
+
+    // p23: runtime adaptive path. LXQT_CONF above is the IMAGE base
+    // (Nova 9 outputs; extract-look.py reads it by regex into the
+    // p23 image). On a real device ensureLxqtLook writes the same
+    // text with this device's computed font, so a small phone and a
+    // tablet get their own size from the same build. The require
+    // fails the look loudly (caught by ensureLxqtLook, returns
+    // false) if the base ever changes without this line, instead of
+    // silently shipping the wrong size.
+    private fun lxqtConf(scale: DesktopScale): String {
+        val out = LXQT_CONF.replace("font=Cairo,17", "font=Cairo,${scale.fontPt}")
+        require(out != LXQT_CONF) { "LXQT_CONF base font changed, update lxqtConf" }
+        return out
+    }
 
     // Openbox is LXQt's window manager. The Environment section is
     // what the session exports to every Qt/GTK app: Fusion is the Qt
@@ -629,11 +668,25 @@ XCURSOR_SIZE=48
     // P21: DesktopIconSize=64 (pcmanfm-qt Settings.cpp: the
     // [Desktop] DesktopIconSize key, default 48). Bigger desktop
     // icons for the big-desktop look.
+    // P23: DesktopIconSize=93 (Nova 9 adaptive output, 12.0 mm on
+    // the glass); the image base carries it, a real device writes
+    // its own via pcmanfmSettingsConf(scale).
     private const val PCMANFM_SETTINGS_CONF = """[Desktop]
 Wallpaper=/usr/share/backgrounds/mudif-wallpaper-pomegranate.png
 WallpaperMode=stretch
-DesktopIconSize=64
+DesktopIconSize=93
 """
+
+    // p23: runtime adaptive path (same pattern as lxqtConf above).
+    private fun pcmanfmSettingsConf(scale: DesktopScale): String {
+        val out = PCMANFM_SETTINGS_CONF.replace(
+            "DesktopIconSize=93", "DesktopIconSize=${scale.iconPx}"
+        )
+        require(out != PCMANFM_SETTINGS_CONF) {
+            "PCMANFM_SETTINGS_CONF base icon size changed, update pcmanfmSettingsConf"
+        }
+        return out
+    }
 
     // P8 - fontconfig: Cairo is the preferred sans-serif and serif
     // font, and Arabic text prefers Cairo (Noto Sans Arabic is the
@@ -689,11 +742,13 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // خط كايرو"), not DejaVu Sans Mono. DejaVu Sans Mono has its
     // own Arabic glyphs, so the Arabic rendered in DejaVu, not
     // Cairo - that is why his screenshot showed no Cairo.
-    private fun mergeQterminalIni(existing: String?): String {
+    private fun mergeQterminalIni(existing: String?, scale: DesktopScale): String {
         val keys = linkedMapOf(
             "colorScheme" to "Mudif",
             "fontFamily" to "Cairo",
-            "fontSize" to "13",
+            // p23: terminal font is the shell font + 2 (19 on the
+            // Nova 9, 21 on a small phone, 13 on a tablet).
+            "fontSize" to scale.terminalPt.toString(),
             "enabledBidiSupport" to "true"
         )
         val out = StringBuilder()
@@ -809,7 +864,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // section also gains the Fancy Menu favorites array (see
     // mainmenuKeys). The merge still runs once per marker
     // version, so it does not fight later user edits.
-    private fun mergePanelConf(existing: String?): String {
+    private fun mergePanelConf(existing: String?, scale: DesktopScale): String {
         // P14: Fancy Menu favorites. The menu reads them via
         // readArray("favorites") from its own [mainmenu] section:
         // favorites\N\desktopFile + favorites\size=N (the same
@@ -860,9 +915,10 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             "apps\\size" to "5"
         )
         // P21: explicit panel height. lxqt-panel reads panelSize
-        // from [panel1] (default 32 when absent); 48px matches the
-        // big-desktop scale (eploringtech uses 41px).
-        val panel1Keys = linkedMapOf("panelSize" to "48")
+        // from [panel1] (default 32 when absent).
+        // P23: adaptive (8.0 mm on the glass): 62px on the Nova 9,
+        // 67 on a small phone, 48 on a tablet (the clamp floor).
+        val panel1Keys = linkedMapOf("panelSize" to scale.panelPx.toString())
         // P14: the reference panel layout (mockups, mirrored for
         // RTL). Removed from the P13 list: showdesktop,
         // desktopswitch (the 4 3 2 1 pager), kbindicator (US S N C),
@@ -1078,21 +1134,56 @@ Name=lxqt-xscreensaver-autostart
 Hidden=true
 """
 
-    /** Merge the two cursor keys into gtk-3.0/settings.ini, preserving
-     *  every key already present. If the file does not exist, a
-     *  [Settings] section is created. A key already present is
-     *  replaced in place (one copy only). */
-    private fun mergeGtkCursorSettings(existing: String?): String {
+    // p23: rewrite the two Openbox font sizes and the window padding
+    // in the EXTRACTED files (the zip ships the p21 base: title/menu
+    // fonts 11, OSD 9, padding 4). Only exact <size>11</size> and
+    // <size>9</size> font blocks are touched: the <size> in the
+    // moveresize block has no number on its line, so it is never
+    // matched, and window.client.padding.width is left alone.
+    // A missing file is silently skipped (a missing rc.xml is the
+    // theme's problem, not this rewrite's). OSD is fontPt - 2 (15 on
+    // the Nova 9): the OSD is a transient label, it stays one step
+    // smaller than the window text.
+    private fun rewriteOpenboxScale(rootfs: File, scale: DesktopScale) {
+        val rc = File(rootfs, "root/.config/openbox/rc.xml")
+        if (rc.exists()) {
+            var text = rc.readText()
+            text = text.replace("<size>11</size>", "<size>${scale.fontPt}</size>")
+            text = text.replace("<size>9</size>", "<size>${scale.fontPt - 2}</size>")
+            rc.writeText(text)
+        }
+        val themerc = File(rootfs, "usr/share/themes/mudif/openbox-3/themerc")
+        if (themerc.exists()) {
+            var text = themerc.readText()
+            text = text.replace(
+                "padding.width: 4", "padding.width: ${scale.openboxPadding}"
+            )
+            themerc.writeText(text)
+        }
+    }
+
+    /** Merge the two cursor keys and the GTK font key into
+     *  gtk-3.0/settings.ini, preserving every key already present.
+     *  If the file does not exist, a [Settings] section is created.
+     *  A key already present is replaced in place (one copy only).
+     *  P23: gtk-font-name=Cairo <fontPt> (GTK reads it directly, so
+     *  GTK apps get the adaptive font even if the LXQt shell font
+     *  key turns out wrong). The cursor keys are NOT the pointer
+     *  size: they are the GTK cursor theme, left at 48. */
+    private fun mergeGtkCursorSettings(existing: String?, scale: DesktopScale): String {
         val out = StringBuilder()
         var inSettings = false
         var settingsSeen = false
         var nameSeen = false
         var sizeSeen = false
+        var fontSeen = false
         fun flushMissing() {
             if (!nameSeen) out.append("gtk-cursor-theme-name=WhiteSur-cursors\n")
             if (!sizeSeen) out.append("gtk-cursor-theme-size=48\n")
+            if (!fontSeen) out.append("gtk-font-name=Cairo ${scale.fontPt}\n")
             nameSeen = true
             sizeSeen = true
+            fontSeen = true
         }
         for (line in (existing?.lines() ?: emptyList())) {
             val trimmed = line.trim()
@@ -1111,6 +1202,11 @@ Hidden=true
             if (inSettings && trimmed.startsWith("gtk-cursor-theme-size=")) {
                 out.append("gtk-cursor-theme-size=48\n")
                 sizeSeen = true
+                continue
+            }
+            if (inSettings && trimmed.startsWith("gtk-font-name=")) {
+                out.append("gtk-font-name=Cairo ${scale.fontPt}\n")
+                fontSeen = true
                 continue
             }
             out.append(line).append("\n")

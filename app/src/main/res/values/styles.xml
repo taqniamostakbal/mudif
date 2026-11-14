@@ -12,7 +12,7 @@
     <!-- Cards: surface background (adapts to dark mode). -->
     <style name="Widget.Mudif.Card" parent="Widget.Material3.CardView.Elevated">
         <item name="cardBackgroundColor">?attr/colorSurface</item>
-        <item name="cardCornerRadius">16dp</item>
+        <item name="cardCornerRadius">@dimen/radius_card</item>
         <item name="cardElevation">2dp</item>
     </style>
 
@@ -33,14 +33,14 @@
         <item name="android:fontFamily">@font/cairo</item>
         <item name="android:textColor">@android:color/white</item>
         <item name="backgroundTint">@color/mudif_purple</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">@dimen/radius_button</item>
     </style>
 
     <style name="Widget.Mudif.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:fontFamily">@font/cairo</item>
         <item name="android:textColor">@color/mudif_purple</item>
         <item name="strokeColor">@color/mudif_purple</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">@dimen/radius_button</item>
     </style>
 
     <style name="Widget.Mudif.Button.Text" parent="Widget.Material3.Button.TextButton">
@@ -54,7 +54,7 @@
         <item name="android:fontFamily">@font/cairo</item>
         <item name="android:textColor">@color/mudif_purple</item>
         <item name="backgroundTint">@android:color/white</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">@dimen/radius_button</item>
     </style>
 
     <!-- Text: title 20sp / body 16sp / caption 13sp, Cairo, theme colors.
@@ -120,12 +120,32 @@
         <item name="android:background">@drawable/search_box_bg</item>
     </style>
 
-    <!-- Bottom navigation: purple when selected, muted otherwise. -->
+    <!-- Bottom navigation: purple when selected, #757575 otherwise.
+         Flat (0dp elevation, surface background). The active
+         indicator is a 64x32dp pill in #E4DEFF; its slide between
+         tabs is the Material 3 NavigationBarView built-in animation
+         (material 1.12.0), no custom ValueAnimator on the internal
+         pill view. Icon morphs are AnimatedVectorDrawables wired in
+         MainActivity, durations from values/motion.xml. -->
     <style name="Widget.Mudif.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
         <item name="android:background">?attr/colorSurface</item>
+        <item name="android:elevation">0dp</item>
         <item name="itemIconTint">@color/bottom_nav_item_tint</item>
         <item name="itemTextColor">@color/bottom_nav_item_tint</item>
         <item name="labelVisibilityMode">labeled</item>
+        <item name="itemActiveIndicatorWidth">@dimen/nav_indicator_width</item>
+        <item name="itemActiveIndicatorHeight">@dimen/nav_indicator_height</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Mudif.BottomNavigation.ActiveIndicator</item>
+    </style>
+
+    <style name="Widget.Mudif.BottomNavigation.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/mudif_pill</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Mudif.Pill</item>
+    </style>
+
+    <style name="ShapeAppearance.Mudif.Pill" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
     </style>
 
     <!-- Drawer navigation view: purple icons, on-surface text. -->
