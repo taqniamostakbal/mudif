@@ -123,6 +123,15 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNav.selectedItemId = itemId
     }
 
+    /** p33: let a fragment hide the bottom nav (the agent tab hides
+     *  it while the keyboard is open — the nav is activity chrome
+     *  the fragment never owned, and on Anas's phone it sat between
+     *  the input bar and the keyboard, eating ~110px of the message
+     *  list). Restored when the keyboard closes. */
+    fun setBottomNavVisible(visible: Boolean) {
+        binding.bottomNav.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
     private fun show(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
             .replace(R.id.nav_host, fragment)

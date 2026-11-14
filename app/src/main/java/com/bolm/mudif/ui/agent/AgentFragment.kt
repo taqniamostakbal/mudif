@@ -123,7 +123,15 @@ class AgentFragment : Fragment() {
         messages.addAll(loadMessages())
         ensureGreeting()
 
-        binding.agentRecycler.layoutManager = LinearLayoutManager(requireContext())
+        binding.agentRecycler.layoutManager = LinearLayoutManager(requireContext()).apply {
+            // p33: stack from the end, so the TAIL of the last reply
+            // stays visible. scrollToPosition(last) only shows the
+            // TOP of the last item; when the reply is taller than the
+            // viewport (the "15% of 200" steps) the 30 stayed below
+            // the fold on Anas's phone. With stackFromEnd the list
+            // anchors to the bottom edge, like a normal chat app.
+            stackFromEnd = true
+        }
         binding.agentRecycler.adapter = adapter
         adapter.submitList(messages.toList())
         binding.agentRecycler.scrollToPosition(messages.size - 1)
@@ -212,12 +220,27 @@ class AgentFragment : Fragment() {
             if (open != keyboardOpen) {
                 keyboardOpen = open
                 applyChromeVisibility()
+                // p33: when the keyboard opens the list resizes; pin
+                // it to the newest message so its tail is visible
+                // without the user scrolling (stackFromEnd anchors
+                // it, this re-pins after the resize settles).
+                if (open) {
+                    b.agentRecycler.post {
+                        if (_binding != null && messages.isNotEmpty()) {
+                            b.agentRecycler.scrollToPosition(messages.size - 1)
+                        }
+                    }
+                }
             }
         }
         binding.root.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
     }
 
     override fun onDestroyView() {
+        // p33: the fragment may have hidden the activity bottom nav
+        // while the keyboard was open; restore it here or the next
+        // tab would open without a nav.
+        (activity as? MainActivity)?.setBottomNavVisible(true)
         layoutListener?.let {
             binding.root.viewTreeObserver.removeOnGlobalLayoutListener(it)
         }
@@ -280,20 +303,25 @@ class AgentFragment : Fragment() {
 
     /** p32: one place that decides the chrome (header, scroll row,
      *  divider, profile card, Clear button) from the current mode
-     *  and the keyboard state. Keyboard open -> the chrome hides so
-     *  the message list keeps its height; keyboard closed -> it
-     *  returns (divider + card + Clear only in chat mode). */
+     *  and the keyboard state. p33: the HEADER STAYS VISIBLE while
+     *  typing — p32 hid it and Anas reports it gone (his verdict:
+     *  a chat header must stay pinned, like Rami's). What hides
+     *  instead is the activity BOTTOM NAV (via MainActivity; it is
+     *  activity chrome the fragment never owned and it sat between
+     *  the input bar and the keyboard, eating ~110px) plus the
+     *  scroll row / divider / profile card, so the message list
+     *  still gets most of the visible area. */
     private fun applyChromeVisibility() {
         if (_binding == null) return
         val consoleMode = binding.consoleContainer.visibility == View.VISIBLE
+        val activity = activity as? MainActivity
         if (keyboardOpen) {
-            binding.agentHeader.visibility = View.GONE
+            activity?.setBottomNavVisible(false)
             binding.chipsScroll.visibility = View.GONE
             binding.agentTodayDivider.visibility = View.GONE
             binding.agentProfileCard.visibility = View.GONE
-            binding.btnClearHistory.visibility = View.GONE
         } else {
-            binding.agentHeader.visibility = View.VISIBLE
+            activity?.setBottomNavVisible(true)
             binding.chipsScroll.visibility = View.VISIBLE
             binding.btnClearHistory.visibility =
                 if (consoleMode) View.GONE else View.VISIBLE
