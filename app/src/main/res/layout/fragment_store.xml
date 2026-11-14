@@ -114,7 +114,6 @@
                 android:nestedScrollingEnabled="false"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp" />
-        </LinearLayout>
     </LinearLayout>
 
     <!-- The programs list scrolls on its own (weight=1 fills the rest
