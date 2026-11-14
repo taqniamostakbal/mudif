@@ -1,8 +1,5 @@
 package com.bolm.mudif.ui.agent
 
-import android.content.Context
-import android.graphics.Color
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -46,6 +43,11 @@ data class AgentMessage(
  * p30 KissaKoti redesign: the timestamp sits INSIDE the bubble, on the
  * side the bubble is aligned to (agent = START, user = END); the
  * background is set on message_bubble, not on the text view.
+ * The text color is NOT set here: it comes from the layout
+ * (?attr/colorOnSurface, dark on the light bubbles). Resolving
+ * textColorPrimary in code via TypedValue.data is unreliable (it is a
+ * ColorStateList in Material3, so .data is not the color) and rendered
+ * the text invisible on the rig (white on white, zero dark pixels).
  */
 class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
 
@@ -68,7 +70,6 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val message = items[position]
-        val ctx = holder.binding.root.context
         with(holder.binding) {
             messageText.text = message.text
             messageTime.text = formatTime(message.time)
@@ -77,13 +78,11 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
                 messageRow.gravity = Gravity.END
                 messageAvatar.visibility = View.GONE
                 messageBubble.setBackgroundResource(R.drawable.agent_bubble_user)
-                messageText.setTextColor(resolveOnSurfaceColor(ctx))
                 timeParams.gravity = Gravity.END
             } else {
                 messageRow.gravity = Gravity.START
                 messageAvatar.visibility = View.VISIBLE
                 messageBubble.setBackgroundResource(R.drawable.agent_bubble_agent)
-                messageText.setTextColor(resolveOnSurfaceColor(ctx))
                 timeParams.gravity = Gravity.START
             }
             messageTime.layoutParams = timeParams
@@ -91,16 +90,6 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
     }
 
     override fun getItemCount() = items.size
-
-    /** Agent-bubble text: the theme's primary text color, so the bubble
-     *  stays readable in DayNight light and dark modes. */
-    private fun resolveOnSurfaceColor(ctx: Context): Int {
-        val typedValue = TypedValue()
-        return if (ctx.theme.resolveAttribute(
-                android.R.attr.textColorPrimary, typedValue, true
-            )
-        ) typedValue.data else Color.BLACK
-    }
 
     /** WhatsApp-style time under each bubble (HH:mm, device locale). */
     private fun formatTime(time: Long): String =
