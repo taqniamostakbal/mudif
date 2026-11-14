@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p31: one free-model row inside a provider card (inflated by
+     BrainProvidersAdapter). Tapping it selects that model as the
+     brain. The current model is filled purple in code. -->
+<com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.Mudif.Button.Secondary"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="6dp"
+    android:fontFamily="@font/cairo"
+    android:textSize="13sp"
+    app:cornerRadius="14dp" />

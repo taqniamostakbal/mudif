@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p31: one card per free AI platform on the provider-selection
+     screen. Name + free badge + "current" badge + 1-line description
+     + the platform's free models (added programmatically into
+     provider_models) + a key row (paste key + save + "Get free key"
+     button that opens the provider's key page) or a "no key needed"
+     note. Plain vertical LinearLayout on the white rounded card
+     (same card as the agent profile card). No weights inside the
+     card except the key EditText (single weight, parent is a
+     horizontal row with a definite width). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_white_rounded"
+    android:elevation="2dp"
+    android:padding="14dp"
+    android:layout_marginBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/provider_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="18sp"
+            android:textColor="?attr/colorOnSurface"
+            android:fontFamily="@font/lifta" />
+
+        <TextView
+            android:id="@+id/provider_current_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/badge_purple_solid"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:text="@string/brain_providers_current"
+            android:textSize="11sp"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/cairo"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/provider_free_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/badge_green"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:textSize="11sp"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/cairo" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/provider_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textSize="13sp"
+        android:textColor="#6B6B6B"
+        android:fontFamily="@font/cairo" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/brain_providers_models"
+        android:textSize="12sp"
+        android:textColor="@color/mudif_purple"
+        android:fontFamily="@font/cairo" />
+
+    <!-- Free models, one row each (added in code). Tapping a model
+         selects it as the brain. -->
+    <LinearLayout
+        android:id="@+id/provider_models"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="4dp" />
+
+    <!-- Key row: only for providers that need a key. The EditText
+         is pre-filled with the saved key (if any). -->
+    <LinearLayout
+        android:id="@+id/provider_key_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <EditText
+            android:id="@+id/provider_key_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/search_box_bg"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="#8A8A8A"
+            android:fontFamily="@font/cairo"
+            android:textSize="13sp"
+            android:padding="10dp"
+            android:inputType="textPassword"
+            android:maxLines="1" />
+
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+            android:id="@+id/provider_key_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="حفظ"
+            android:fontFamily="@font/cairo"
+            android:textSize="13sp"
+            app:cornerRadius="18dp" />
+    </LinearLayout>
+
+    <!-- Opens the provider's free-key page in the browser. Only for
+         providers that need a key. -->
+    <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+        android:id="@+id/provider_get_key"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/brain_providers_get_key"
+        android:fontFamily="@font/cairo"
+        android:textSize="13sp"
+        app:icon="@drawable/ic_key"
+        app:iconGravity="textStart"
+        app:cornerRadius="18dp" />
+
+    <!-- Shown instead of the key row for providers that need no key. -->
+    <TextView
+        android:id="@+id/provider_no_key"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/brain_providers_no_key"
+        android:textSize="13sp"
+        android:textColor="#22C55E"
+        android:fontFamily="@font/cairo"
+        android:visibility="gone" />
+</LinearLayout>

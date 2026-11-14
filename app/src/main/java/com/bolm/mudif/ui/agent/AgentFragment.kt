@@ -1,5 +1,6 @@
 package com.bolm.mudif.ui.agent
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -84,6 +85,18 @@ class AgentFragment : Fragment() {
             }
         }
 
+    // p31: the provider-selection screen returns the picked model id;
+    // the fragment applies it through the existing setModel backend.
+    private val brainProvidersLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK && _binding != null) {
+                val picked = result.data
+                    ?.getStringExtra(BrainProvidersActivity.EXTRA_PICKED_MODEL)
+                    ?: return@registerForActivityResult
+                applyBrainPick(picked)
+            }
+        }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -106,12 +119,12 @@ class AgentFragment : Fragment() {
         binding.agentRecycler.adapter = adapter
         adapter.submitList(messages.toList())
         binding.agentRecycler.scrollToPosition(messages.size - 1)
+        updateProfileCardVisibility()
         binding.btnBrainDownload.setOnClickListener { startBrainDownload() }
         checkBrainModelOnOpen()
 
         updateLanguageButton()
         updateBrainButton()
-        updateVoiceOutButton()
         initTts()
 
         // Header: avatar + name open the agent About text.
@@ -119,7 +132,10 @@ class AgentFragment : Fragment() {
         binding.agentAvatar.setOnClickListener { showAbout() }
         binding.agentIdentity.setOnClickListener { showAbout() }
         binding.btnReplyLanguage.setOnClickListener { showReplyLanguageMenu() }
-        binding.btnBrain.setOnClickListener { showBrainPicker() }
+        // p31: the brain pill and the profile card both open the
+        // provider-selection screen (9 free platforms).
+        binding.btnBrain.setOnClickListener { openBrainProviders() }
+        binding.agentProfileCard.setOnClickListener { openBrainProviders() }
 
         binding.modeToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
@@ -163,7 +179,10 @@ class AgentFragment : Fragment() {
                 getString(R.string.agent_voice_in_unavailable)
         }
         binding.btnVoiceIn.setOnClickListener { startVoiceInput() }
-        binding.btnVoiceOut.setOnClickListener { toggleVoiceOut() }
+        // p31: the paperclip opens the voice menu (voice input +
+        // voice-output toggle); the speaker button is gone from the
+        // input row so the field stays wide.
+        binding.btnAttach.setOnClickListener { showAttachMenu() }
 
         binding.btnConsoleRetry.setOnClickListener {
             consoleLoaded = false
@@ -193,15 +212,20 @@ class AgentFragment : Fragment() {
     // (both are weight=1 direct children; only one is visible at a time).
     private fun showChat() {
         binding.chipsScroll.visibility = View.VISIBLE
+        setChatRowItemsVisible(true)
         binding.agentTodayDivider.visibility = View.VISIBLE
-        binding.agentProfileCard.visibility = View.VISIBLE
+        updateProfileCardVisibility()
         binding.agentRecycler.visibility = View.VISIBLE
         binding.inputRow.visibility = View.VISIBLE
         binding.consoleContainer.visibility = View.GONE
     }
 
     private fun showConsole() {
-        binding.chipsScroll.visibility = View.GONE
+        // p31: the scroll row itself stays visible (the mode toggle
+        // must always be able to switch back); only the chat items
+        // inside it hide.
+        binding.chipsScroll.visibility = View.VISIBLE
+        setChatRowItemsVisible(false)
         binding.agentTodayDivider.visibility = View.GONE
         binding.agentProfileCard.visibility = View.GONE
         binding.agentRecycler.visibility = View.GONE
@@ -209,6 +233,30 @@ class AgentFragment : Fragment() {
         binding.consoleContainer.visibility = View.VISIBLE
         binding.modeToggle.check(R.id.mode_console)
         if (!consoleLoaded) loadConsole()
+    }
+
+    /** The chat-only items inside the single scroll row (language,
+     *  chips, clear). The mode toggle is not one of them: it stays
+     *  visible in console mode so the user can switch back. */
+    private fun setChatRowItemsVisible(visible: Boolean) {
+        val v = if (visible) View.VISIBLE else View.GONE
+        binding.btnReplyLanguage.visibility = v
+        binding.chipDesktop.visibility = v
+        binding.chipApps.visibility = v
+        binding.chipHelp.visibility = v
+        binding.chipSearch.visibility = v
+        binding.chipOpenApp.visibility = v
+        binding.chipSettings.visibility = v
+        binding.btnClearHistory.visibility = v
+    }
+
+    /** p31: the profile card shows only while the chat is still just
+     *  the greeting. Once the user has a real exchange it hides, so
+     *  it stops eating 155px of the message list forever. */
+    private fun updateProfileCardVisibility() {
+        if (_binding == null) return
+        binding.agentProfileCard.visibility =
+            if (messages.size <= 1) View.VISIBLE else View.GONE
     }
 
     // ---------------------------------------------------------- chat
@@ -518,6 +566,7 @@ class AgentFragment : Fragment() {
         saveMessages()
         adapter.submitList(messages.toList())
         binding.agentRecycler.scrollToPosition(messages.size - 1)
+        updateProfileCardVisibility()
     }
 
     private fun ensureGreeting() {
@@ -536,10 +585,16 @@ class AgentFragment : Fragment() {
     private fun clearHistory() {
         messages.clear()
         saveMessages()
+        // p31: clearing the chat also drops the server session, so
+        // the next turn starts fresh instead of inheriting a stale
+        // thinking thread that asks for clarification.
+        sessionId = null
+        prefs().edit().remove(KEY_SESSION_ID).apply()
         hideAgentAction()
         ensureGreeting()
         adapter.submitList(messages.toList())
         binding.agentRecycler.scrollToPosition(messages.size - 1)
+        updateProfileCardVisibility()
         Toast.makeText(
             requireContext(),
             R.string.agent_history_cleared,
@@ -627,7 +682,9 @@ class AgentFragment : Fragment() {
     }
 
     private fun updateBrainButton() {
-        binding.btnBrain.text = brainLabelFor(brainModel)
+        // p31: the chevron marks the pill as a tappable dropdown
+        // (it opens the provider-selection screen).
+        binding.btnBrain.text = brainLabelFor(brainModel) + " ▼"
         // p30 KissaKoti profile card: full model label + status.
         binding.agentProfileModel.text =
             "${brainFullLabelFor(brainModel)} • ${getString(R.string.agent_subtitle)}"
@@ -657,8 +714,9 @@ class AgentFragment : Fragment() {
 
     /** Reads opencode-providers.json: Local first, then the cloud
      *  models in a fixed provider order (groq, llm7, openrouter,
-     *  huggingface, opencode), models sorted by name. A missing or
-     *  unreadable asset means Local only — the chat still works. */
+     *  huggingface, opencode, google, cohere, mistral), models sorted
+     *  by name. A missing or unreadable asset means Local only — the
+     *  chat still works. */
     private fun loadBrainOptions(): List<BrainOption> {
         val options = mutableListOf(
             BrainOption(BRAIN_LOCAL, getString(R.string.agent_brain_local), null)
@@ -668,7 +726,10 @@ class AgentFragment : Fragment() {
                 requireContext().assets.open("opencode-providers.json")
                     .bufferedReader().use { it.readText() }
             ).optJSONObject("providers") ?: return options
-            val providerOrder = listOf("groq", "llm7", "openrouter", "huggingface", "opencode")
+            val providerOrder = listOf(
+                "groq", "llm7", "openrouter", "huggingface", "opencode",
+                "google", "cohere", "mistral"
+            )
             for (providerKey in providerOrder) {
                 val provider = root.optJSONObject(providerKey) ?: continue
                 val providerName = provider.optString("name", providerKey)
@@ -694,66 +755,67 @@ class AgentFragment : Fragment() {
         return options
     }
 
-    /** Brain picker (p22): Local by default; a cloud model needs its
-     *  key in Settings (مفاتيح الذكاء الاصطناعي) or it fails at
-     *  runtime — the user is warned, not blocked. Picking a brain
-     *  writes it to opencode.json and restarts the server (only when
-     *  it is up); a turn in progress blocks the switch. */
-    private fun showBrainPicker() {
+    /** p31: opens the provider-selection screen (9 free platforms).
+     *  The screen returns the picked model id; applyBrainPick applies
+     *  it through the existing setModel backend. A turn in progress
+     *  blocks the switch. */
+    private fun openBrainProviders() {
         if (turnRunning) {
             Toast.makeText(requireContext(), R.string.agent_thinking, Toast.LENGTH_SHORT).show()
             return
         }
-        val options = loadBrainOptions()
-        val labels = options.map { it.label }
-        val current = options.indexOfFirst { it.id == brainModel }.coerceAtLeast(0)
-        MudifDialog.select(
+        brainProvidersLauncher.launch(
+            Intent(requireContext(), BrainProvidersActivity::class.java).apply {
+                putExtra(BrainProvidersActivity.EXTRA_CURRENT_MODEL, brainModel)
+            }
+        )
+    }
+
+    /** Applies a brain picked on the provider screen: writes it to
+     *  opencode.json and restarts the server (only when it is up).
+     *  A cloud model needs its key in Settings (or on the provider
+     *  screen) or it fails at runtime — the user is warned, not
+     *  blocked. p31: switching brains also drops the server session,
+     *  so the next turn starts fresh under the new brain instead of
+     *  inheriting the old brain's thinking thread. */
+    private fun applyBrainPick(pickedId: String) {
+        if (pickedId == brainModel) return
+        val picked = loadBrainOptions().firstOrNull { it.id == pickedId } ?: return
+        if (!AgentServer.setModel(requireContext(), picked.id)) {
+            Toast.makeText(requireContext(), R.string.agent_brain_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        brainModel = picked.id
+        prefs().edit().putString(KEY_BRAIN_MODEL, brainModel).apply()
+        // p31: fresh session under the new brain.
+        sessionId = null
+        prefs().edit().remove(KEY_SESSION_ID).apply()
+        updateBrainButton()
+        // Cloud model without its key: warn (the model will fail
+        // until the key is added), but keep the choice.
+        if (picked.env != null) {
+            val prefKey = BrainProviders.prefKeyForEnv(picked.env)
+            val hasKey = prefKey != null &&
+                !com.bolm.mudif.ui.settings.ViewerPrefs.prefs(requireContext())
+                    .getString(prefKey, "").isNullOrBlank()
+            if (!hasKey) {
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.agent_brain_key_missing, picked.env),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+        Toast.makeText(
             requireContext(),
-            getString(R.string.agent_brain_title),
-            labels,
-            current
-        ) { index ->
-            val picked = options[index]
-            if (picked.id == brainModel) return@select
-            if (!AgentServer.setModel(requireContext(), picked.id)) {
-                Toast.makeText(requireContext(), R.string.agent_brain_failed, Toast.LENGTH_SHORT).show()
-                return@select
-            }
-            brainModel = picked.id
-            prefs().edit().putString(KEY_BRAIN_MODEL, brainModel).apply()
-            updateBrainButton()
-            // Cloud model without its key: warn (the model will fail
-            // until the key is added), but keep the choice.
-            if (picked.env != null) {
-                val prefKey = when (picked.env) {
-                    "GROQ_API_KEY" -> "agent_key_groq"
-                    "HF_TOKEN" -> "agent_key_hf"
-                    "LLM7_API_KEY" -> "agent_key_llm7"
-                    "OPENROUTER_API_KEY" -> "agent_key_openrouter"
-                    else -> null
-                }
-                val hasKey = prefKey != null &&
-                    !com.bolm.mudif.ui.settings.ViewerPrefs.prefs(requireContext())
-                        .getString(prefKey, "").isNullOrBlank()
-                if (!hasKey) {
-                    Toast.makeText(
-                        requireContext(),
-                        getString(R.string.agent_brain_key_missing, picked.env),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-            Toast.makeText(
-                requireContext(),
-                getString(R.string.agent_brain_changed, picked.label),
-                Toast.LENGTH_SHORT
-            ).show()
-            if (AgentServer.isUp()) {
-                Thread {
-                    AgentServer.stop(requireContext())
-                    AgentServer.ensureStarted(requireContext())
-                }.start()
-            }
+            getString(R.string.agent_brain_changed, picked.label),
+            Toast.LENGTH_SHORT
+        ).show()
+        if (AgentServer.isUp()) {
+            Thread {
+                AgentServer.stop(requireContext())
+                AgentServer.ensureStarted(requireContext())
+            }.start()
         }
     }
 
@@ -822,25 +884,39 @@ class AgentFragment : Fragment() {
                 }
             }
             ttsReady = true
-            if (_binding != null) updateVoiceOutButton()
         })
     }
 
     private fun setTtsAvailable(available: Boolean) {
         ttsReady = available
         if (_binding == null) return
-        if (!available) {
-            binding.btnVoiceOut.isEnabled = false
-            binding.btnVoiceOut.alpha = 0.4f
-            binding.btnVoiceOut.contentDescription =
-                getString(R.string.agent_voice_out_unavailable)
-        }
         context?.let {
             Toast.makeText(
                 it,
                 R.string.agent_voice_out_unavailable,
                 Toast.LENGTH_LONG
             ).show()
+        }
+    }
+
+    /** p31: the paperclip menu. Voice input (one tap, same as the
+     *  mic inside the field) and the voice-output toggle. The label
+     *  shows the current voice-output state. */
+    private fun showAttachMenu() {
+        val voiceOutLabel = getString(
+            if (voiceOutOn) R.string.agent_attach_voice_out_off
+            else R.string.agent_attach_voice_out_on
+        )
+        MudifDialog.select(
+            requireContext(),
+            getString(R.string.agent_attach_title),
+            listOf(getString(R.string.agent_attach_voice_in), voiceOutLabel),
+            -1
+        ) { index ->
+            when (index) {
+                0 -> startVoiceInput()
+                1 -> toggleVoiceOut()
+            }
         }
     }
 
@@ -855,7 +931,6 @@ class AgentFragment : Fragment() {
         }
         voiceOutOn = !voiceOutOn
         prefs().edit().putBoolean(KEY_VOICE_OUT, voiceOutOn).apply()
-        updateVoiceOutButton()
         if (voiceOutOn) {
             // Speak the last agent message so the toggle proves
             // itself at once instead of waiting for the next reply.
@@ -864,14 +939,6 @@ class AgentFragment : Fragment() {
         } else {
             tts?.stop()
         }
-    }
-
-    private fun updateVoiceOutButton() {
-        binding.btnVoiceOut.alpha = if (voiceOutOn) 1.0f else 0.45f
-        binding.btnVoiceOut.contentDescription = getString(
-            if (voiceOutOn) R.string.agent_voice_out_on
-            else R.string.agent_voice_out_off
-        )
     }
 
     private fun speakAgent(text: String) {

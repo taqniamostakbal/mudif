@@ -4,7 +4,6 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemAgentMessageBinding
@@ -73,19 +72,21 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
         with(holder.binding) {
             messageText.text = message.text
             messageTime.text = formatTime(message.time)
-            val timeParams = messageTime.layoutParams as LinearLayout.LayoutParams
             if (message.role == AgentMessage.ROLE_USER) {
                 messageRow.gravity = Gravity.END
                 messageAvatar.visibility = View.GONE
                 messageBubble.setBackgroundResource(R.drawable.agent_bubble_user)
-                timeParams.gravity = Gravity.END
             } else {
                 messageRow.gravity = Gravity.START
                 messageAvatar.visibility = View.VISIBLE
                 messageBubble.setBackgroundResource(R.drawable.agent_bubble_agent)
-                timeParams.gravity = Gravity.START
             }
-            messageTime.layoutParams = timeParams
+            // p31: the timestamp is always bottom-right inside the
+            // bubble (KissaKoti). message_time is match_parent with
+            // gravity=end in the layout, so no per-role gravity is
+            // set here any more: a layout_gravity on the time view
+            // inside a wrap_content bubble is the prime suspect for
+            // the short-agent-message full-width bubble.
         }
     }
 

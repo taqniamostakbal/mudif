@@ -7,14 +7,26 @@
      p29 ROOT FIX: p28 used a ConstraintLayout root and p27 a LinearLayout
      with nested weights. BOTH failed identically on the rig: only the
      header rendered (stretched to fill the screen) and every other view
-     measured 0 or invisible (logcat AccessibilityNodeInfoDumper proves
-     chat_container 0x0, agent_identity 0 wide, mode_row invisible).
-     Root cause = nested weights / constraints never resolving, so children
-     got 0 size. This version ELIMINATES both: a plain vertical LinearLayout
-     root, header FIXED height, and ONE single weight (agent_recycler,
-     direct child of the root) — the same structure StoreFragment uses
-     and the rig proves works. No nested weights, no ConstraintLayout,
-     no 0dp children inside a 0dp parent. All view IDs preserved. -->
+     measured 0 or invisible. Root cause = nested weights / constraints
+     never resolving, so children got 0 size. This version ELIMINATES
+     both: a plain vertical LinearLayout root, header FIXED height, and
+     ONE single weight (agent_recycler, direct child of the root) — the
+     same structure StoreFragment uses and the rig proves works. No
+     nested weights, no ConstraintLayout, no 0dp children inside a 0dp
+     parent. All view IDs preserved.
+     p31 ROOMIER REDESIGN (Anas: the chat was "خايبة و ضيقة بزاف",
+     keyboard hard, bubble wrong): header 88dp -> 64dp ONE compact row
+     (menu + penguin avatar + name/status + brain pill with a chevron);
+     the reply-language button moves out of the header into the scroll
+     row; mode toggle + language + chips + clear merge into ONE
+     horizontal scroll row (was two rows); the profile card hides once
+     the chat has more than the greeting (it no longer eats 155px
+     forever) and taps through to the provider screen; the input bar is
+     KissaKoti-like (paperclip + WIDE field with the mic inside its edge
+     + round purple send). The message list now takes ~64% of the
+     screen once the card is hidden. The scroll row stays visible in
+     console mode (only the chat items inside it hide) so the mode
+     toggle can always switch back. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -22,22 +34,28 @@
     android:orientation="vertical"
     android:background="#F7F6FF">
 
-    <!-- Header: clay-penguin avatar + agent name + reply-language switch.
-         FIXED height (88dp) so the header can never stretch to fill the
-         screen. Tapping the avatar or the name shows the agent About text. -->
+    <!-- Header: ONE compact row, 64dp. Clay-penguin avatar + agent name
+         (18sp, single line, ellipsized) + status + brain pill. The
+         brain pill shows the current brain's short name + a chevron
+         (set in code) so it reads as a tappable dropdown; tapping it
+         opens the provider-selection screen. Tapping the avatar or the
+         name shows the agent About text. -->
     <LinearLayout
         android:id="@+id/agent_header"
         android:layout_width="match_parent"
-        android:layout_height="88dp"
+        android:layout_height="64dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:background="@color/mudif_purple"
-        android:padding="16dp">
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
 
         <ImageButton
             android:id="@+id/menu_button"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="@android:color/transparent"
             android:src="@drawable/ic_menu"
             android:contentDescription="@string/ui_nav_menu_desc"
@@ -45,8 +63,8 @@
 
         <ImageView
             android:id="@+id/agent_avatar"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginStart="8dp"
             android:src="@drawable/avatar_mudif"
             android:contentDescription="@string/agent_name" />
@@ -72,13 +90,15 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/agent_name"
-                    android:textSize="22sp"
+                    android:textSize="18sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     android:textColor="@android:color/white"
                     android:fontFamily="@font/lifta" />
 
                 <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/dot_online"
                     android:src="@drawable/ic_check"
@@ -103,126 +123,96 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="@string/agent_subtitle"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:textColor="#DCD6FF"
                     android:fontFamily="@font/cairo" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- p30: the two pills are stacked vertically, not side by side.
-             Side by side they measured wider than the 360dp screen
-             (menu + avatar + name + two long pills), so the weighted
-             agent_identity got 0px and the agent name was invisible
-             (p29 rig dump). Stacked, the column is only as wide as the
-             widest pill, so the name always has room. The pills are
-             capped + ellipsized so a long cloud-model label can never
-             push the name out again. -->
-        <LinearLayout
+        <!-- Brain picker (p22, p31 screen): the model the agent answers
+             with. Local (Ollama Qwen3 1.7B) by default; the cloud models
+             come from opencode-providers.json. The button shows the
+             current brain's short name + a chevron; tapping it opens
+             the provider-selection screen (all 9 free platforms). -->
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
+            android:id="@+id/btn_brain"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center">
-
-            <!-- Brain picker (p22): the model the agent answers with.
-                 Local (Ollama Qwen3 1.7B) by default; the cloud models
-                 come from opencode-providers.json. The button shows the
-                 current brain's short name. -->
-            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
-                android:id="@+id/btn_brain"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxWidth="120dp"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:contentDescription="@string/agent_brain_title"
-                android:fontFamily="@font/cairo"
-                android:textSize="13sp"
-                app:cornerRadius="20dp" />
-
-            <!-- Reply language for the agent (Fusha default / Darija /
-                 English). Stored, and carried with every message. -->
-            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
-                android:id="@+id/btn_reply_language"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:maxWidth="120dp"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:contentDescription="@string/agent_reply_language"
-                android:fontFamily="@font/cairo"
-                android:textSize="13sp"
-                app:cornerRadius="20dp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Mode toggle + clear history. Direct child of the root, so it is
-         always laid out (never inside a 0-height container). -->
-    <LinearLayout
-        android:id="@+id/mode_row"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="4dp">
-
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/mode_toggle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:checkedButton="@id/mode_chat"
-            app:singleSelection="true">
-
-            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                android:id="@+id/mode_chat"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/agent_mode_chat"
-                android:fontFamily="@font/cairo"
-                android:textSize="13sp"
-                app:cornerRadius="16dp" />
-
-            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                android:id="@+id/mode_console"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/agent_mode_console"
-                android:fontFamily="@font/cairo"
-                android:textSize="13sp"
-                app:cornerRadius="16dp" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Text"
-            android:id="@+id/btn_clear_history"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/agent_clear_history"
+            android:maxWidth="120dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:contentDescription="@string/brain_providers_tap_to_change"
             android:fontFamily="@font/cairo"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            app:cornerRadius="20dp" />
     </LinearLayout>
 
     <!-- ================= Chat mode (direct children of the root) ================= -->
-    <!-- Quick-action chips. -->
+    <!-- p31: ONE horizontal scroll row for mode toggle + reply language
+         + quick-action chips + clear history. Was two rows (mode_row +
+         chips_scroll, ~100px); now one (~44px). The row itself stays
+         visible in console mode (AgentFragment hides only the chat
+         items inside it) so the Chat/Console toggle can always switch
+         back. Direct child of the root, so it is always laid out. -->
     <HorizontalScrollView
         android:id="@+id/chips_scroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:scrollbars="none"
         android:paddingStart="12dp"
-        android:paddingEnd="12dp">
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/mode_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                app:checkedButton="@id/mode_chat"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                    android:id="@+id/mode_chat"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/agent_mode_chat"
+                    android:fontFamily="@font/cairo"
+                    android:textSize="13sp"
+                    app:cornerRadius="16dp" />
+
+                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                    android:id="@+id/mode_console"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/agent_mode_console"
+                    android:fontFamily="@font/cairo"
+                    android:textSize="13sp"
+                    app:cornerRadius="16dp" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <!-- Reply language for the agent (Fusha default / Darija /
+                 English). Stored, and carried with every message.
+                 p31: moved out of the header (it made the header two
+                 rows tall) into this scroll row, Secondary style on
+                 the cream background. -->
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                android:id="@+id/btn_reply_language"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:contentDescription="@string/agent_reply_language"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="16dp" />
 
             <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
                 android:id="@+id/chip_desktop"
@@ -283,6 +273,14 @@
                 android:fontFamily="@font/cairo"
                 android:textSize="13sp"
                 app:cornerRadius="16dp" />
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Text"
+                android:id="@+id/btn_clear_history"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/agent_clear_history"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp" />
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -291,7 +289,10 @@
          messages). Both are chat-mode views: hidden in console mode
          (see AgentFragment showChat/showConsole). The card shows the
          agent name in Lifta + the current brain model and status; the
-         model line is set in code (updateBrainButton). -->
+         model line is set in code (updateBrainButton). p31: the card
+         hides once the chat has more than the greeting (it no longer
+         eats 155px forever) and tapping it opens the provider screen
+         (the "تغيير" hint says so). -->
     <TextView
         android:id="@+id/agent_today_divider"
         android:layout_width="match_parent"
@@ -315,7 +316,9 @@
         android:padding="12dp"
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <ImageView
             android:layout_width="48dp"
@@ -348,11 +351,19 @@
                 android:textColor="#8A8A8A"
                 android:fontFamily="@font/cairo" />
         </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="تغيير"
+            android:textSize="13sp"
+            android:textColor="@color/mudif_purple"
+            android:fontFamily="@font/cairo" />
     </LinearLayout>
 
     <!-- Message list. THE single weight in this layout, direct child of
          the root (same proven pattern as StoreFragment's programs list).
-         It fills whatever space is left after header + mode + chips +
+         It fills whatever space is left after header + scroll row +
          input, and recycles its rows. -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/agent_recycler"
@@ -437,7 +448,14 @@
         android:visibility="gone"
         app:cornerRadius="16dp" />
 
-    <!-- Input row: voice in, text, voice out, send. -->
+    <!-- Input row: paperclip, wide field (mic inside its edge), send.
+         p31 KissaKoti style: ONE round attachment button (paperclip,
+         opens the voice menu) + a WIDE white rounded field (the
+         FrameLayout is the single weight here; the EditText inside is
+         match_parent so there is no nested weight) with the mic button
+         overlaid at its end edge + the round purple send button. The
+         voice-output toggle moved into the paperclip menu (it was a
+         third round button crowding the field). -->
     <LinearLayout
         android:id="@+id/input_row"
         android:layout_width="match_parent"
@@ -448,56 +466,63 @@
         android:paddingEnd="12dp"
         android:paddingBottom="12dp">
 
-        <!-- p30 KissaKoti redesign: light circle + purple mic icon
-             (was a purple circle with a white icon). -->
         <ImageButton
-            android:id="@+id/btn_voice_in"
+            android:id="@+id/btn_attach"
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:background="@drawable/circle_light_bg"
-            android:src="@drawable/ic_mic"
-            android:tint="@color/mudif_purple"
-            android:contentDescription="@string/agent_voice_in_desc"
+            android:src="@drawable/ic_attach"
+            android:contentDescription="@string/agent_attach_title"
             android:padding="10dp" />
 
-        <EditText
-            android:id="@+id/input_text"
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
             android:background="@drawable/search_box_bg"
-            android:hint="@string/agent_hint"
-            android:textColor="?attr/colorOnSurface"
-            android:textColorHint="#8A8A8A"
-            android:fontFamily="@font/cairo"
-            android:textSize="15sp"
-            android:padding="12dp"
-            android:inputType="text"
-            android:imeOptions="actionSend"
-            android:maxLines="4" />
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp">
 
-        <!-- p30 KissaKoti redesign: light circle + purple speaker icon
-             (was a purple circle with a white icon). -->
-        <ImageButton
-            android:id="@+id/btn_voice_out"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@drawable/circle_light_bg"
-            android:src="@drawable/ic_audio"
-            android:tint="@color/mudif_purple"
-            android:contentDescription="@string/agent_voice_out_off"
-            android:padding="10dp" />
+            <EditText
+                android:id="@+id/input_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:hint="@string/agent_hint"
+                android:textColor="?attr/colorOnSurface"
+                android:textColorHint="#8A8A8A"
+                android:fontFamily="@font/cairo"
+                android:textSize="15sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="40dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:inputType="text"
+                android:imeOptions="actionSend"
+                android:maxLines="4" />
+
+            <ImageButton
+                android:id="@+id/btn_voice_in"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="4dp"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_mic"
+                android:tint="@color/mudif_purple"
+                android:contentDescription="@string/agent_voice_in_desc"
+                android:padding="4dp" />
+        </FrameLayout>
 
         <!-- p30 KissaKoti redesign: round purple send button with a
-             paper-plane icon (was a text button). Same ID, so the
-             fragment code (click listener + isEnabled) is unchanged. -->
+             paper-plane icon. Same ID, so the fragment code (click
+             listener + isEnabled) is unchanged. -->
         <ImageButton
             android:id="@+id/btn_send"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_marginStart="8dp"
             android:background="@drawable/circle_bg"
             android:src="@drawable/ic_send"
             android:padding="12dp"

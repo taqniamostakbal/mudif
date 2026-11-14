@@ -297,13 +297,14 @@ object AgentServer {
             // providers and point at the local model.
             config.put("model", "ollama/qwen3:1.7b")
         }
-        // p22 - free cloud providers: merge the 6 providers from the
+        // p22 - free cloud providers: merge the 9 providers from the
         // bundled opencode-providers.json (groq, huggingface, llm7,
-        // ollama, opencode, openrouter — 30 models, no keys in the
-        // asset; the keys come from settings via keys.env). Only the
-        // providers MISSING from the config are added, so the
-        // rig-proven local Ollama entry (with its npm package) and
-        // any provider the user added himself are never replaced.
+        // ollama, opencode, openrouter, google, cohere, mistral —
+        // 41 models, no keys in the asset; the keys come from
+        // settings via keys.env). Only the providers MISSING from
+        // the config are added, so the rig-proven local Ollama entry
+        // (with its npm package) and any provider the user added
+        // himself are never replaced.
         // The asset uses "package"/"settings"; the rig-proven
         // opencode shape is "npm"/"options", so those keys are
         // renamed on the way in. The default model stays Local
@@ -326,6 +327,11 @@ object AgentServer {
                     if (normalized.has("settings") && !normalized.has("options")) {
                         normalized.put("options", normalized.remove("settings"))
                     }
+                    // UI-only fields for the provider screen; the
+                    // guest opencode.json must not carry them.
+                    normalized.remove("keyUrl")
+                    normalized.remove("description")
+                    normalized.remove("freeNote")
                     providers.put(name, normalized)
                 }
                 config.put("provider", providers)
@@ -387,7 +393,10 @@ object AgentServer {
                 "agent_key_groq" to "GROQ_API_KEY",
                 "agent_key_hf" to "HF_TOKEN",
                 "agent_key_llm7" to "LLM7_API_KEY",
-                "agent_key_openrouter" to "OPENROUTER_API_KEY"
+                "agent_key_openrouter" to "OPENROUTER_API_KEY",
+                "agent_key_gemini" to "GEMINI_API_KEY",
+                "agent_key_cohere" to "CO_API_KEY",
+                "agent_key_mistral" to "MISTRAL_API_KEY"
             )) {
                 val v = prefs.getString(prefKey, "")?.trim() ?: ""
                 if (v.isNotEmpty()) {

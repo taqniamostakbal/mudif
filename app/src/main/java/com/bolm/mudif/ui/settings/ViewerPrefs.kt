@@ -325,7 +325,15 @@ object ViewerPrefs {
             text("agent_key_llm7", R.string.vp_agent_key_llm7_title,
                 R.string.vp_agent_key_llm7_desc, ""),
             text("agent_key_openrouter", R.string.vp_agent_key_openrouter_title,
-                R.string.vp_agent_key_openrouter_desc, "")
+                R.string.vp_agent_key_openrouter_desc, ""),
+            // p31 - the three new free providers (Gemini, Cohere,
+            // Mistral). Same shape as the four above.
+            text("agent_key_gemini", R.string.vp_agent_key_gemini_title,
+                R.string.vp_agent_key_gemini_desc, ""),
+            text("agent_key_cohere", R.string.vp_agent_key_cohere_title,
+                R.string.vp_agent_key_cohere_desc, ""),
+            text("agent_key_mistral", R.string.vp_agent_key_mistral_title,
+                R.string.vp_agent_key_mistral_desc, "")
         ))
     )
 }

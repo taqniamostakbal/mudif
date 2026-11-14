@@ -217,6 +217,12 @@
     <string name="vp_agent_key_llm7_desc">مفتاح LLM7 المجاني — لنموذج Grok 4.7 وغيره من النماذج السحابية</string>
     <string name="vp_agent_key_openrouter_title">مفتاح OpenRouter</string>
     <string name="vp_agent_key_openrouter_desc">مفتاح OpenRouter (openrouter.ai/keys) — للنماذج المجانية مثل Nemotron</string>
+    <string name="vp_agent_key_gemini_title">مفتاح Google AI Studio (Gemini)</string>
+    <string name="vp_agent_key_gemini_desc">مفتاح Gemini المجاني (aistudio.google.com/apikey) — بدون بطاقة بنكية</string>
+    <string name="vp_agent_key_cohere_title">مفتاح Cohere</string>
+    <string name="vp_agent_key_cohere_desc">مفتاح Cohere التجريبي المجاني (dashboard.cohere.com/api-keys) — 1000 مكالمة شهريا</string>
+    <string name="vp_agent_key_mistral_title">مفتاح Mistral AI</string>
+    <string name="vp_agent_key_mistral_desc">مفتاح Mistral المجاني (console.mistral.ai/api-keys) — وضع مجاني بدون بطاقة</string>
     <string name="vp_displayresolutionmode_title">وضع دقة العرض</string>
     <string name="vp_displayresolutionmode_desc">كيف يحدد القارئ دقة سطح المكتب</string>
     <string name="vp_displayscale_title">مقياس العرض</string>
@@ -593,6 +599,20 @@
     <string name="agent_brain_changed">تم تغيير العقل إلى %1$s — جار إعادة تشغيل المساعد</string>
     <string name="agent_brain_key_missing">هذا النموذج يحتاج مفتاح %1$s — أضفه من الإعدادات (مفاتيح الذكاء الاصطناعي)</string>
     <string name="agent_brain_failed">تعذر تغيير العقل</string>
+    <!-- p31: provider-selection screen -->
+    <string name="brain_providers_title">منصات الذكاء الاصطناعي</string>
+    <string name="brain_providers_subtitle">اختر العقل — كلها مجانية وبدون بطاقة بنكية</string>
+    <string name="brain_providers_get_key">احصل على مفتاح مجاني</string>
+    <string name="brain_providers_key_hint">الصق مفتاح %1$s هنا</string>
+    <string name="brain_providers_key_saved">تم حفظ المفتاح</string>
+    <string name="brain_providers_no_key">بدون مفتاح — يعمل مباشرة</string>
+    <string name="brain_providers_current">الحالي</string>
+    <string name="brain_providers_models">النماذج</string>
+    <string name="brain_providers_tap_to_change">اضغط لتغيير العقل</string>
+    <string name="agent_attach_voice_in">إدخال صوتي</string>
+    <string name="agent_attach_voice_out_on">تشغيل الصوت</string>
+    <string name="agent_attach_voice_out_off">إيقاف الصوت</string>
+    <string name="agent_attach_title">الصوت</string>
     <string name="agent_reply_pending">واجهة المحادثة جاهزة، لكن الاتصال بخادم المساعد لم يتم بعد.</string>
     <string name="agent_quick_desktop">افتح سطح المكتب</string>
     <string name="agent_quick_apps">ما البرامج المثبتة؟</string>

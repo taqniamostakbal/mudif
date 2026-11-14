@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p31: provider-selection screen. One card per free AI platform
+     (9 platforms, 41 models from opencode-providers.json): name +
+     1-line description + its free models + a "Get free key" button
+     that opens the provider's key page in the browser. Selecting a
+     model returns it to the chat (the existing setModel backend).
+     Same header pattern as SettingsActivity (purple header + back
+     chevron + Lifta title). Plain vertical LinearLayout, ONE weight
+     (the RecyclerView) — the p29 rule. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F7F6FF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/mudif_purple"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/providers_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="‹"
+            android:textSize="36sp"
+            android:textColor="@android:color/white"
+            android:paddingEnd="16dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView style="@style/Widget.Mudif.HeaderTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/brain_providers_title"
+                android:textSize="24sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="@font/lifta" />
+
+            <TextView style="@style/Widget.Mudif.HeaderSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/brain_providers_subtitle"
+                android:textSize="13sp"
+                android:textColor="#DCD6FF"
+                android:fontFamily="@font/cairo" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/providers_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#F7F6FF"
+        android:clipToPadding="false"
+        android:padding="12dp" />
+</LinearLayout>
