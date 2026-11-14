@@ -70,7 +70,14 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val message = items[position]
         with(holder.binding) {
-            messageText.text = message.text
+            // p32: the brain's replies carry raw markdown (`2 + 2`,
+            // **4**) and the bubbles show it raw. Strip the bold /
+            // code markers for display only (the stored text keeps
+            // the original) so the result reads plainly. User
+            // messages show exactly what was typed.
+            messageText.text =
+                if (message.role == AgentMessage.ROLE_AGENT) stripMarkdown(message.text)
+                else message.text
             messageTime.text = formatTime(message.time)
             if (message.role == AgentMessage.ROLE_USER) {
                 messageRow.gravity = Gravity.END
@@ -95,4 +102,9 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
     /** WhatsApp-style time under each bubble (HH:mm, device locale). */
     private fun formatTime(time: Long): String =
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
+
+    /** p32: strips the bold/code markers the brain emits (`**`, `__`,
+     *  backticks) so a reply reads plainly. Display only. */
+    private fun stripMarkdown(text: String): String =
+        text.replace("**", "").replace("__", "").replace("`", "")
 }

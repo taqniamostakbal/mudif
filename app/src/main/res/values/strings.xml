@@ -613,6 +613,9 @@
     <string name="agent_attach_voice_out_on">تشغيل الصوت</string>
     <string name="agent_attach_voice_out_off">إيقاف الصوت</string>
     <string name="agent_attach_title">الصوت</string>
+    <!-- p32: the paperclip button's content-desc (it is an attachment,
+         not voice); the dialog title above stays "الصوت" (voice menu). -->
+    <string name="agent_attach_desc">إرفاق</string>
     <string name="agent_reply_pending">واجهة المحادثة جاهزة، لكن الاتصال بخادم المساعد لم يتم بعد.</string>
     <string name="agent_quick_desktop">افتح سطح المكتب</string>
     <string name="agent_quick_apps">ما البرامج المثبتة؟</string>
@@ -621,5 +624,7 @@
     <string name="agent_quick_open_app">افتح برنامج</string>
     <string name="agent_quick_settings">بدّل الإعدادات</string>
     <string name="agent_clear_history">مسح المحادثة</string>
+    <!-- p32: short label for the Clear button in the chat header. -->
+    <string name="agent_clear_history_short">مسح</string>
     <string name="agent_history_cleared">تم مسح المحادثة</string>
 </resources>

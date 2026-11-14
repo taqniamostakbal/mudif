@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
 import android.speech.RecognizerIntent
@@ -12,6 +13,7 @@ import android.speech.tts.TextToSpeech
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -73,6 +75,12 @@ class AgentFragment : Fragment() {
     private var sessionId: String? = null
     private var currentTurn: AgentClient.TurnHandle? = null
     private var streamingIndex: Int = -1
+    // p32: keyboard state (the layout listener updates it). While
+    // the keyboard is open the header + scroll row + divider + card
+    // hide so the message list keeps a usable height (they used to
+    // squeeze agent_recycler to 6px); they return when it closes.
+    private var keyboardOpen: Boolean = false
+    private var layoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
 
     private val voiceInputLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -188,9 +196,32 @@ class AgentFragment : Fragment() {
             consoleLoaded = false
             loadConsole()
         }
+
+        // p32: when the keyboard opens, hide the chrome (header +
+        // scroll row + divider + profile card) so the message list
+        // keeps a usable height above the keyboard; restore it when
+        // the keyboard closes. The 15% threshold separates the
+        // keyboard from smaller resizes.
+        layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+            val b = _binding ?: return@OnGlobalLayoutListener
+            val rect = Rect()
+            b.root.getWindowVisibleDisplayFrame(rect)
+            val screenHeight = b.root.rootView.height
+            if (screenHeight <= 0) return@OnGlobalLayoutListener
+            val open = screenHeight - rect.bottom > screenHeight * 0.15
+            if (open != keyboardOpen) {
+                keyboardOpen = open
+                applyChromeVisibility()
+            }
+        }
+        binding.root.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
     }
 
     override fun onDestroyView() {
+        layoutListener?.let {
+            binding.root.viewTreeObserver.removeOnGlobalLayoutListener(it)
+        }
+        layoutListener = null
         currentTurn?.cancel()
         currentTurn = null
         tts?.stop()
@@ -211,33 +242,31 @@ class AgentFragment : Fragment() {
     // individually. The console container takes the recycler's space
     // (both are weight=1 direct children; only one is visible at a time).
     private fun showChat() {
-        binding.chipsScroll.visibility = View.VISIBLE
         setChatRowItemsVisible(true)
-        binding.agentTodayDivider.visibility = View.VISIBLE
-        updateProfileCardVisibility()
         binding.agentRecycler.visibility = View.VISIBLE
         binding.inputRow.visibility = View.VISIBLE
         binding.consoleContainer.visibility = View.GONE
+        applyChromeVisibility()
     }
 
     private fun showConsole() {
         // p31: the scroll row itself stays visible (the mode toggle
         // must always be able to switch back); only the chat items
         // inside it hide.
-        binding.chipsScroll.visibility = View.VISIBLE
         setChatRowItemsVisible(false)
-        binding.agentTodayDivider.visibility = View.GONE
-        binding.agentProfileCard.visibility = View.GONE
         binding.agentRecycler.visibility = View.GONE
         binding.inputRow.visibility = View.GONE
         binding.consoleContainer.visibility = View.VISIBLE
+        applyChromeVisibility()
         binding.modeToggle.check(R.id.mode_console)
         if (!consoleLoaded) loadConsole()
     }
 
     /** The chat-only items inside the single scroll row (language,
-     *  chips, clear). The mode toggle is not one of them: it stays
-     *  visible in console mode so the user can switch back. */
+     *  chips). The mode toggle is not one of them: it stays
+     *  visible in console mode so the user can switch back. p32:
+     *  Clear moved to the header; its visibility is owned by
+     *  applyChromeVisibility, not this row. */
     private fun setChatRowItemsVisible(visible: Boolean) {
         val v = if (visible) View.VISIBLE else View.GONE
         binding.btnReplyLanguage.visibility = v
@@ -247,16 +276,45 @@ class AgentFragment : Fragment() {
         binding.chipSearch.visibility = v
         binding.chipOpenApp.visibility = v
         binding.chipSettings.visibility = v
-        binding.btnClearHistory.visibility = v
+    }
+
+    /** p32: one place that decides the chrome (header, scroll row,
+     *  divider, profile card, Clear button) from the current mode
+     *  and the keyboard state. Keyboard open -> the chrome hides so
+     *  the message list keeps its height; keyboard closed -> it
+     *  returns (divider + card + Clear only in chat mode). */
+    private fun applyChromeVisibility() {
+        if (_binding == null) return
+        val consoleMode = binding.consoleContainer.visibility == View.VISIBLE
+        if (keyboardOpen) {
+            binding.agentHeader.visibility = View.GONE
+            binding.chipsScroll.visibility = View.GONE
+            binding.agentTodayDivider.visibility = View.GONE
+            binding.agentProfileCard.visibility = View.GONE
+            binding.btnClearHistory.visibility = View.GONE
+        } else {
+            binding.agentHeader.visibility = View.VISIBLE
+            binding.chipsScroll.visibility = View.VISIBLE
+            binding.btnClearHistory.visibility =
+                if (consoleMode) View.GONE else View.VISIBLE
+            if (consoleMode) {
+                binding.agentTodayDivider.visibility = View.GONE
+                binding.agentProfileCard.visibility = View.GONE
+            } else {
+                binding.agentTodayDivider.visibility = View.VISIBLE
+                binding.agentProfileCard.visibility =
+                    if (messages.size <= 1) View.VISIBLE else View.GONE
+            }
+        }
     }
 
     /** p31: the profile card shows only while the chat is still just
      *  the greeting. Once the user has a real exchange it hides, so
-     *  it stops eating 155px of the message list forever. */
+     *  it stops eating 155px of the message list forever. p32: the
+     *  card also stays hidden while the keyboard is open (chrome);
+     *  this now goes through applyChromeVisibility. */
     private fun updateProfileCardVisibility() {
-        if (_binding == null) return
-        binding.agentProfileCard.visibility =
-            if (messages.size <= 1) View.VISIBLE else View.GONE
+        applyChromeVisibility()
     }
 
     // ---------------------------------------------------------- chat
