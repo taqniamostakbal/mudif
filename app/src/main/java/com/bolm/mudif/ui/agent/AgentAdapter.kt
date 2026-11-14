@@ -104,7 +104,18 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
 
     /** p32: strips the bold/code markers the brain emits (`**`, `__`,
-     *  backticks) so a reply reads plainly. Display only. */
-    private fun stripMarkdown(text: String): String =
-        text.replace("**", "").replace("__", "").replace("`", "")
+     *  backticks) so a reply reads plainly. Display only. p32b: the
+     *  brain also emits LaTeX for math ($...$, \boxed{30}, \frac{a}{b},
+     *  \times, \%) — strip those wrappers too so the result reads
+     *  plainly (30, not $$\boxed{30}$$). */
+    private fun stripMarkdown(text: String): String {
+        var out = text.replace("**", "").replace("__", "").replace("`", "")
+        out = out.replace("$$", "").replace("$", "")
+        out = Regex("""\\boxed\{([^}]*)\}""").replace(out) { it.groupValues[1] }
+        out = Regex("""\\frac\{([^}]*)\}\{([^}]*)\}""").replace(out) {
+            "${it.groupValues[1]}/${it.groupValues[2]}"
+        }
+        out = out.replace("\\times", "×").replace("\\%", "%")
+        return out
+    }
 }
