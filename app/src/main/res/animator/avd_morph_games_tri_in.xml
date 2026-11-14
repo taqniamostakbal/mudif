@@ -4,5 +4,5 @@
     android:propertyName="pathData"
     android:valueType="pathType"
     android:valueFrom="M10,16.5v-9l7.5,4.5z"
-    android:valueTo="M12,18v-12l6,6z"
+    android:valueTo="M8,18v-12l10,6z"
     android:interpolator="@android:anim/decelerate_interpolator" />

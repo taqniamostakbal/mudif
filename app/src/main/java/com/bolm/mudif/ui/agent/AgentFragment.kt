@@ -317,6 +317,9 @@ class AgentFragment : Fragment() {
         }
         // p34f fix 4: a failed turn from before a relaunch still
         // has its Retry; re-derive it from the stored state here.
+        // p34h: logged so the verifier can prove this runs on the
+        // force-stop relaunch path.
+        Log.i("MudifAgent", "onViewCreated calling restoreFailedTurnUi")
         restoreFailedTurnUi()
     }
 
@@ -494,6 +497,19 @@ class AgentFragment : Fragment() {
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_LAST_TURN_FAILED, true)
             .putBoolean(KEY_FAILED_TURN_VISION, isVision)
+            .remove(KEY_FAILED_TURN_PICK)
+            .apply()
+    }
+
+    /** p34h: a refused brain pick is the only failure with no chat
+     *  turn behind it (a model pick is not a turn, so no user
+     *  message exists to re-send). Its re-runnable payload is the
+     *  picked model id; Retry re-applies the pick. */
+    private fun markRefusedPick(ctx: Context, pickedId: String) {
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_LAST_TURN_FAILED, true)
+            .putBoolean(KEY_FAILED_TURN_VISION, false)
+            .putString(KEY_FAILED_TURN_PICK, pickedId)
             .apply()
     }
 
@@ -501,16 +517,31 @@ class AgentFragment : Fragment() {
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .remove(KEY_LAST_TURN_FAILED)
             .remove(KEY_FAILED_TURN_VISION)
+            .remove(KEY_FAILED_TURN_PICK)
             .apply()
     }
 
     /** p34f fix 4: re-derive Retry from the STORED failed turn when
      *  the view is created. The last user message comes from the
      *  stored messages, not the dead in-memory field; a vision
-     *  failure re-runs the vision turn, a plain one re-sends. */
+     *  failure re-runs the vision turn, a plain one re-sends.
+     *  p34h: a refused brain pick restores from its picked model
+     *  id instead; it has no user message to re-send. */
     private fun restoreFailedTurnUi() {
         if (_binding == null) return
-        if (!prefs().getBoolean(KEY_LAST_TURN_FAILED, false)) return
+        val failed = prefs().getBoolean(KEY_LAST_TURN_FAILED, false)
+        val pick = prefs().getString(KEY_FAILED_TURN_PICK, null)
+        Log.i("MudifAgent", "restoreFailedTurnUi failed=$failed pick=$pick")
+        if (!failed) return
+        // p34h: a refused brain pick has no stored user message
+        // (a model pick is not a turn), so the message lookup
+        // below would exit and Retry would never come back after
+        // a relaunch. The pick restores from its own payload.
+        if (!pick.isNullOrBlank()) {
+            val retryPick: String = pick
+            showTurnFailedUi(null) { applyBrainPick(retryPick) }
+            return
+        }
         val lastUser = messages.lastOrNull { it.role == AgentMessage.ROLE_USER } ?: return
         lastUserMessage = lastUser
         val isVision = prefs().getBoolean(KEY_FAILED_TURN_VISION, false)
@@ -1739,12 +1770,15 @@ class AgentFragment : Fragment() {
                 Toast.makeText(requireContext(), warning, Toast.LENGTH_LONG).show()
                 // p34g fix 3: a refused pick is a failed turn for
                 // Retry purposes: persist it and show Retry, so the
-                // user can re-send under the unchanged brain after
-                // adding the key. The updateBrainButton call below
-                // is skipped by the return, so the pill is untouched.
+                // user can re-apply the pick after adding the key.
+                // p34h: the pick itself is the payload (a model pick
+                // is not a chat turn, so there is no user message
+                // to re-send); Retry re-applies it. The updateBrainButton
+                // call below is skipped by the return, so the pill
+                // is untouched.
                 Log.i("MudifAgent", "applyBrainPick refused no key env=${picked.env} marked failed")
-                markTurnFailed(requireContext(), false)
-                if (_binding != null) showTurnFailedUi(null, null)
+                markRefusedPick(requireContext(), picked.id)
+                if (_binding != null) showTurnFailedUi(null) { applyBrainPick(picked.id) }
                 return
             }
         }
@@ -1754,6 +1788,13 @@ class AgentFragment : Fragment() {
         }
         brainModel = picked.id
         prefs().edit().putString(KEY_BRAIN_MODEL, brainModel).apply()
+        // p34h: this pick completes a pending refused pick of the
+        // same model; its Retry is spent, or it would offer to
+        // re-apply a pick that already applied.
+        if (prefs().getString(KEY_FAILED_TURN_PICK, null) == picked.id) {
+            clearTurnFailed(requireContext())
+            if (_binding != null) hideAgentAction()
+        }
         // p31: fresh session under the new brain.
         sessionId = null
         prefs().edit().remove(KEY_SESSION_ID).apply()
@@ -2004,6 +2045,10 @@ class AgentFragment : Fragment() {
         // the last-user-message field dies with the process.
         private const val KEY_LAST_TURN_FAILED = "last_turn_failed"
         private const val KEY_FAILED_TURN_VISION = "failed_turn_vision"
+        // p34h: the picked model id of a refused brain pick; the
+        // re-runnable payload for a failure that has no user
+        // message to re-send.
+        private const val KEY_FAILED_TURN_PICK = "failed_turn_pick"
         private const val BRAIN_LOCAL = "ollama/qwen3:1.7b"
         // Brain fix (plan section 11): first-token wait before the
         // local-slow chip offers a free cloud brain.

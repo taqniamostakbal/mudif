@@ -3,6 +3,6 @@
     android:duration="@integer/motion_duration_morph"
     android:propertyName="pathData"
     android:valueType="pathType"
-    android:valueFrom="M12,2L14,10L22,12L14,14L12,22L10,14L2,12L10,10z"
+    android:valueFrom="M12,5L13.5,10.5L19,12L13.5,13.5L12,19L10.5,13.5L5,12L10.5,10.5z"
     android:valueTo="M12,1L14.5,9.5L23,12L14.5,14.5L12,23L9.5,14.5L1,12L9.5,9.5z"
     android:interpolator="@android:anim/decelerate_interpolator" />

@@ -9,13 +9,13 @@
             <path
                 android:name="awningPath"
                 android:fillColor="#000000"
-                android:pathData="M3,9l1.5,-5h15L21,9z" />
+                android:pathData="M4,9l2,-4h12l2,4z" />
         </group>
         <group android:name="body">
             <path
                 android:name="bodyPath"
                 android:fillColor="#000000"
-                android:pathData="M5,10h14v10H5z" />
+                android:pathData="M6,10h12v9H6z" />
         </group>
     </group>
 </vector>
