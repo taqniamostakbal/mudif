@@ -133,12 +133,12 @@
         <item name="itemIconTint">@color/bottom_nav_item_tint</item>
         <item name="itemTextColor">@color/bottom_nav_item_tint</item>
         <item name="labelVisibilityMode">labeled</item>
-        <item name="itemActiveIndicatorWidth">@dimen/nav_indicator_width</item>
-        <item name="itemActiveIndicatorHeight">@dimen/nav_indicator_height</item>
         <item name="itemActiveIndicatorStyle">@style/Widget.Mudif.BottomNavigation.ActiveIndicator</item>
     </style>
 
     <style name="Widget.Mudif.BottomNavigation.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:width">@dimen/nav_indicator_width</item>
+        <item name="android:height">@dimen/nav_indicator_height</item>
         <item name="android:color">@color/mudif_pill</item>
         <item name="shapeAppearance">@style/ShapeAppearance.Mudif.Pill</item>
     </style>
