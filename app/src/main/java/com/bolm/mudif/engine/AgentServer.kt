@@ -320,8 +320,8 @@ object AgentServer {
         }
         // p22 - free cloud providers: merge the 9 providers from the
         // bundled opencode-providers.json (groq, huggingface, llm7,
-        // ollama, opencode, openrouter, google, cohere, mistral ,
-        // 41 models, no keys in the asset; the keys come from
+        // ollama, opencode, openrouter, google, cohere, mistral, tokenlab,
+        // 45 models, no keys in the asset; the keys come from
         // settings via keys.env). Only the providers MISSING from
         // the config are added, so the rig-proven local Ollama entry
         // (with its npm package) and any provider the user added
@@ -417,7 +417,10 @@ object AgentServer {
                 "agent_key_openrouter" to "OPENROUTER_API_KEY",
                 "agent_key_gemini" to "GEMINI_API_KEY",
                 "agent_key_cohere" to "CO_API_KEY",
-                "agent_key_mistral" to "MISTRAL_API_KEY"
+                "agent_key_mistral" to "MISTRAL_API_KEY",
+                "agent_key_tokenlab" to "TOKENLAB_API_KEY",
+                "agent_key_exa" to "EXA_API_KEY",
+                "agent_key_tavily" to "TAVILY_API_KEY"
             )) {
                 val v = prefs.getString(prefKey, "")?.trim() ?: ""
                 if (v.isNotEmpty()) {

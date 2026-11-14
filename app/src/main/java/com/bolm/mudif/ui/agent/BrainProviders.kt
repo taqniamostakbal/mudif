@@ -17,7 +17,7 @@ data class BrainProvider(
 
 data class BrainModel(val id: String, val name: String)
 
-/** The 9 free platforms from opencode-providers.json, in display
+/** The 10 free platforms from opencode-providers.json, in display
  *  order: local first, then the no-key free models, then the keyed
  *  platforms. The same asset the chat labels (AgentFragment) and the
  *  guest config (AgentServer) read, so the screen, the picker labels
@@ -25,7 +25,7 @@ data class BrainModel(val id: String, val name: String)
 object BrainProviders {
     val ORDER = listOf(
         "ollama", "opencode", "openrouter", "groq", "llm7",
-        "huggingface", "google", "cohere", "mistral"
+        "huggingface", "google", "cohere", "mistral", "tokenlab"
     )
 
     /** Settings pref key for a provider's API key env var. */
@@ -37,6 +37,7 @@ object BrainProviders {
         "GEMINI_API_KEY" -> "agent_key_gemini"
         "CO_API_KEY" -> "agent_key_cohere"
         "MISTRAL_API_KEY" -> "agent_key_mistral"
+        "TOKENLAB_API_KEY" -> "agent_key_tokenlab"
         else -> null
     }
 

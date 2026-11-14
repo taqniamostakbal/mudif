@@ -366,6 +366,38 @@
           }
         }
       }
+    },
+    "tokenlab": {
+      "package": "@ai-sdk/openai-compatible",
+      "settings": {
+        "baseURL": "https://api.tokenlab.amd.com/v1",
+        "apiKey": "{env:TOKENLAB_API_KEY}"
+      },
+      "env": [
+        "TOKENLAB_API_KEY"
+      ],
+      "models": {
+        "DeepSeek-V4.1-Flash-1017": {
+          "name": "DeepSeek V4.1 Flash (Token Lab)"
+        },
+        "DeepSeek-V4-Flash": {
+          "name": "DeepSeek V4 Flash (Token Lab)"
+        },
+        "Qwen3.8-27B": {
+          "name": "Qwen 3.8 27B (Token Lab)"
+        },
+        "Gemma-4-31B-IT": {
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          },
+          "name": "Gemma 4 31B IT (Token Lab)"
+        }
+      },
+      "name": "AMD Token Lab",
+      "keyUrl": "https://notebooks.amd.com/tokenlab",
+      "description": "نماذج مجانية من AMD: 10 رصيد لمدة 30 يوما، بلا بطاقة، 20 طلبا في الدقيقة.",
+      "freeNote": "10 رصيد مجاني، 30 يوما"
     }
   }
 }

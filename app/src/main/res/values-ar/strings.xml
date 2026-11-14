@@ -589,6 +589,14 @@
     <string name="vision_download_button">تحميل نموذج الرؤية</string>
     <string name="vision_download_downloading">جارٍ تحميل نموذج الرؤية… %1$d%%</string>
     <string name="vision_download_done">تم تحميل نموذج الرؤية، صار المساعد يرى الشاشة</string>
+    <!-- Brain fix phase 2: empty reply, brain switch mid-turn, slow-brain chip. -->
+    <string name="agent_empty_reply">المودل ما رجع حتى جواب. بدل المودل ولا عاود المحاولة.</string>
+    <string name="agent_brain_switch_title">تبديل المخ وسط الدور</string>
+    <string name="agent_brain_switch_message">الدور باقي خدام. بدل ملي يسالي ولا وقف الدور وبدل دابا.</string>
+    <string name="agent_brain_switch_stop">وقف الدور وبدل</string>
+    <string name="agent_brain_switch_wait">بدل ملي يسالي الدور</string>
+    <string name="agent_brain_switch_pending">غادي يتبدل ملي يسالي الدور</string>
+    <string name="agent_slow_brain">المحلي بطيء، بدل لمودل مجاني سحابي؟</string>
     <string name="agent_clear_history">مسح المحادثة</string>
     <string name="agent_history_cleared">تم مسح المحادثة</string>
 </resources>

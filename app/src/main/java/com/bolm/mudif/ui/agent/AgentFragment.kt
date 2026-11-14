@@ -33,6 +33,7 @@ import com.bolm.mudif.engine.AgentServer
 import com.bolm.mudif.engine.AgentSupervisorService
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.engine.TerminalSession
 import com.bolm.mudif.engine.VisionCapture
 import com.bolm.mudif.engine.VisionClient
 import com.bolm.mudif.engine.X11Session
@@ -79,6 +80,11 @@ class AgentFragment : Fragment() {
     private var sessionId: String? = null
     private var currentTurn: AgentClient.TurnHandle? = null
     private var streamingIndex: Int = -1
+    // Brain fix (plan sections 5 and 11): a brain picked mid-turn
+    // waits here until the turn ends; the local-slow chip state.
+    private var pendingBrainPick: String? = null
+    private var turnSeq: Int = 0
+    private var firstTokenArrived: Boolean = false
     // p32: keyboard state (the layout listener updates it). While
     // the keyboard is open the header + scroll row + divider + card
     // hide so the message list keeps a usable height (they used to
@@ -105,7 +111,14 @@ class AgentFragment : Fragment() {
                 val picked = result.data
                     ?.getStringExtra(BrainProvidersActivity.EXTRA_PICKED_MODEL)
                     ?: return@registerForActivityResult
-                applyBrainPick(picked)
+                // Brain fix (plan section 5): a pick during a turn
+                // cannot apply at once (it restarts opencode and
+                // kills the turn), so ask: stop now or wait.
+                if (turnRunning) {
+                    showBrainSwitchDialog(picked)
+                } else {
+                    applyBrainPick(picked)
+                }
             }
         }
 
@@ -154,7 +167,7 @@ class AgentFragment : Fragment() {
         binding.agentIdentity.setOnClickListener { showAbout() }
         binding.btnReplyLanguage.setOnClickListener { showReplyLanguageMenu() }
         // p31: the brain pill and the profile card both open the
-        // provider-selection screen (9 free platforms).
+        // provider-selection screen (10 free platforms).
         binding.btnBrain.setOnClickListener { openBrainProviders() }
         binding.agentProfileCard.setOnClickListener { openBrainProviders() }
 
@@ -530,6 +543,18 @@ class AgentFragment : Fragment() {
      */
     private fun startTurn(text: String, screenContext: String? = null) {
         turnRunning = true
+        // Brain fix (plan section 11): the local brain is slow to
+        // first token; after 60 s without one, offer a free cloud
+        // brain. The check no-ops when the turn already ended.
+        turnSeq++
+        val thisTurnSeq = turnSeq
+        firstTokenArrived = false
+        hideSlowBrainChip()
+        binding.root.postDelayed({
+            if (_binding != null && thisTurnSeq == turnSeq && turnRunning && !firstTokenArrived) {
+                showSlowBrainChip()
+            }
+        }, LOCAL_SLOW_CHIP_DELAY_MS)
         // p33: while the keyboard is open the thinking line + action
         // button stay hidden (applyChromeVisibility owns them then);
         // showing them here would re-squeeze the message list.
@@ -545,6 +570,27 @@ class AgentFragment : Fragment() {
             return
         }
         Thread {
+            // Brain fix (plan section 10): user-pasted URLs join the
+            // fetch allowlist so the brain may open them. Best-effort,
+            // never blocks the turn on failure.
+            try {
+                val pasted = PASTED_URL_REGEX.findAll(text)
+                    .map { it.value.trimEnd(',', '.', ';', ':', '!', '?', ')', '"', '\'') }
+                    .filter { it.isNotEmpty() }.toList()
+                if (pasted.isNotEmpty()) {
+                    val epoch = System.currentTimeMillis() / 1000
+                    val args = pasted.joinToString(" ") { url ->
+                        "'$epoch\t${url.replace("'", "'\\''")}'"
+                    }
+                    TerminalSession.runCommandDebian(
+                        appContext,
+                        "printf '%s\\n' $args >> /tmp/mudif-allowed-urls.txt",
+                        10L, 30L
+                    )
+                }
+            } catch (_: Exception) {
+                // Best-effort only; the turn continues without it.
+            }
             // Supervise the turn: the foreground service keeps the
             // bridge and the brain server alive while the agent
             // works (Android 12+ phantom killer / Doze). It is
@@ -590,6 +636,8 @@ class AgentFragment : Fragment() {
                 override fun onText(fullText: String) {
                     act.runOnUiThread {
                         if (_binding == null) return@runOnUiThread
+                        firstTokenArrived = true
+                        hideSlowBrainChip()
                         showStreamingText(fullText)
                     }
                 }
@@ -794,6 +842,26 @@ class AgentFragment : Fragment() {
         }.start()
     }
 
+    /** Brain fix (plan section 11): the local-slow chip. It
+     *  offers a switch to a free cloud brain (Nemotron Free, Token
+     *  Lab DeepSeek V4.1 Flash) after 60 s without a first token. It
+     *  stops the turn and opens the provider screen; applying the
+     *  pick is the user's tap in that screen. */
+    private fun showSlowBrainChip() {
+        _binding?.chipSlowBrain?.apply {
+            visibility = View.VISIBLE
+            setOnClickListener {
+                hideSlowBrainChip()
+                stopCurrentTurn()
+                openBrainProviders()
+            }
+        }
+    }
+
+    private fun hideSlowBrainChip() {
+        _binding?.chipSlowBrain?.visibility = View.GONE
+    }
+
     /** Stops the running turn (user tapped إيقاف). The partial reply
      *  stays as it is: a real partial result, not a fake. */
     private fun stopCurrentTurn() {
@@ -836,6 +904,26 @@ class AgentFragment : Fragment() {
         // appends a second copy of the reply, and a stopped turn
         // would speak its aborted text.
         if (!turnRunning) return
+        // Brain fix (plan section 3): an empty final text is a
+        // failure, never a silent success. The Nemotron empty reply
+        // used to end the turn with no message and no Retry.
+        val emptyReply = (streamingIndex < 0 && finalText.isEmpty()) ||
+            (streamingIndex >= 0 && messages[streamingIndex].text.isEmpty())
+        if (emptyReply) {
+            currentTurn = null
+            // The empty streaming bubble is already in messages (and
+            // in prefs: showStreamingText saves on every update), so
+            // drop it, or the empty reply stays stored as a blank
+            // bubble.
+            if (streamingIndex >= 0) {
+                messages.removeAt(streamingIndex)
+                saveMessages()
+                adapter.submitList(messages.toList())
+            }
+            streamingIndex = -1
+            onTurnFailed(null, getString(R.string.agent_empty_reply))
+            return
+        }
         if (streamingIndex < 0 && finalText.isNotEmpty()) {
             appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, finalText, replyLanguage))
         }
@@ -852,6 +940,12 @@ class AgentFragment : Fragment() {
         binding.agentTyping.visibility = View.GONE
         binding.btnSend.isEnabled = true
         hideAgentAction()
+        hideSlowBrainChip()
+        // Brain fix (plan section 5): a brain picked mid-turn applies
+        // now that the turn ended.
+        val pending = pendingBrainPick
+        pendingBrainPick = null
+        if (pending != null) applyBrainPick(pending)
     }
 
     /** A turn failed: real error message in the chat plus a real
@@ -1090,15 +1184,39 @@ class AgentFragment : Fragment() {
         return options
     }
 
-    /** p31: opens the provider-selection screen (9 free platforms).
+    /** Brain fix (plan section 5): a brain picked while a turn
+     *  runs. Two honest choices, never a silent switch: wait for the
+     *  turn to end, or stop the turn and switch now. */
+    private fun showBrainSwitchDialog(pickedId: String) {
+        MudifDialog.info(
+            requireContext(),
+            getString(R.string.agent_brain_switch_title),
+            getString(R.string.agent_brain_switch_message),
+            getString(R.string.agent_brain_switch_stop),
+            onPositive = {
+                stopCurrentTurn()
+                applyBrainPick(pickedId)
+            },
+            negative = getString(R.string.agent_brain_switch_wait),
+            onNegative = {
+                pendingBrainPick = pickedId
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.agent_brain_switch_pending),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+    }
+
+    /** p31: opens the provider-selection screen (10 free platforms).
      *  The screen returns the picked model id; applyBrainPick applies
-     *  it through the existing setModel backend. A turn in progress
-     *  blocks the switch. */
+     *  it through the existing setModel backend. A pick during a turn
+     *  asks first (stop now or wait for the turn to end). */
     private fun openBrainProviders() {
-        if (turnRunning) {
-            Toast.makeText(requireContext(), R.string.agent_thinking, Toast.LENGTH_SHORT).show()
-            return
-        }
+        // Brain fix (plan section 5): the screen opens mid-turn
+        // (browse only). A pick during a turn is deferred or stops
+        // the turn first; see brainProvidersLauncher.
         brainProvidersLauncher.launch(
             Intent(requireContext(), BrainProvidersActivity::class.java).apply {
                 putExtra(BrainProvidersActivity.EXTRA_CURRENT_MODEL, brainModel)
@@ -1381,6 +1499,12 @@ class AgentFragment : Fragment() {
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_BRAIN_MODEL = "brain_model"
         private const val BRAIN_LOCAL = "ollama/qwen3:1.7b"
+        // Brain fix (plan section 11): first-token wait before the
+        // local-slow chip offers a free cloud brain.
+        private const val LOCAL_SLOW_CHIP_DELAY_MS = 60_000L
+        // Brain fix (plan section 10): user-pasted URLs, appended to
+        // the fetch allowlist so the brain may open them.
+        private val PASTED_URL_REGEX = Regex("https?://\\S+")
         private const val MAX_HISTORY = 100
         private const val UTTERANCE_ID = "mudif_agent_reply"
     }

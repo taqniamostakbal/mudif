@@ -589,6 +589,14 @@
     <string name="vision_download_button">Download the vision model</string>
     <string name="vision_download_downloading">Downloading the vision model… %1$d%%</string>
     <string name="vision_download_done">Vision model downloaded, the assistant can now see the screen</string>
+    <!-- Brain fix phase 2: empty reply, brain switch mid-turn, slow-brain chip. -->
+    <string name="agent_empty_reply">The model returned no answer. Try another brain or retry.</string>
+    <string name="agent_brain_switch_title">Switch brain during a turn</string>
+    <string name="agent_brain_switch_message">A turn is still running. Switch when it ends, or stop the turn and switch now.</string>
+    <string name="agent_brain_switch_stop">Stop turn and switch</string>
+    <string name="agent_brain_switch_wait">Switch when the turn ends</string>
+    <string name="agent_brain_switch_pending">Will switch when the turn ends</string>
+    <string name="agent_slow_brain">Local is slow, switch to a free cloud brain?</string>
     <string name="agent_clear_history">Clear chat</string>
     <string name="agent_history_cleared">Chat cleared</string>
 </resources>

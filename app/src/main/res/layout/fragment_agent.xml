@@ -149,7 +149,7 @@
              with. Local (Ollama Qwen3 1.7B) by default; the cloud models
              come from opencode-providers.json. The button shows the
              current brain's short name + a chevron; tapping it opens
-             the provider-selection screen (all 9 free platforms). -->
+             the provider-selection screen (all 10 free platforms). -->
         <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
             android:id="@+id/btn_brain"
             android:layout_width="wrap_content"
@@ -460,6 +460,24 @@
         android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/cairo"
         android:visibility="gone" />
+
+    <!-- Brain fix phase 2: the local-slow chip. Hidden until a
+         local turn runs 60 s without a first token; tapping it stops
+         the turn and opens the provider screen. -->
+    <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+        android:id="@+id/chip_slow_brain"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
+        android:fontFamily="@font/cairo"
+        android:textSize="13sp"
+        android:text="@string/agent_slow_brain"
+        android:contentDescription="@string/agent_slow_brain"
+        android:visibility="gone"
+        app:cornerRadius="16dp" />
 
     <!-- Action after a send: Stop while a turn runs, Retry when
          a turn failed, or "open desktop" when the engine is not

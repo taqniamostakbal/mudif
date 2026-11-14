@@ -333,7 +333,15 @@ object ViewerPrefs {
             text("agent_key_cohere", R.string.vp_agent_key_cohere_title,
                 R.string.vp_agent_key_cohere_desc, ""),
             text("agent_key_mistral", R.string.vp_agent_key_mistral_title,
-                R.string.vp_agent_key_mistral_desc, "")
+                R.string.vp_agent_key_mistral_desc, ""),
+            // Brain fix phase 2: AMD Token Lab (free key, 10 credits, 30 days).
+            text("agent_key_tokenlab", R.string.vp_agent_key_tokenlab_title,
+                R.string.vp_agent_key_tokenlab_desc, ""),
+            // Brain fix phase 2: search keys for the agent's own browser.
+            text("agent_key_exa", R.string.vp_agent_key_exa_title,
+                R.string.vp_agent_key_exa_desc, ""),
+            text("agent_key_tavily", R.string.vp_agent_key_tavily_title,
+                R.string.vp_agent_key_tavily_desc, "")
         ))
     )
 }

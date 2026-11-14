@@ -223,6 +223,12 @@
     <string name="vp_agent_key_cohere_desc">مفتاح Cohere التجريبي المجاني (dashboard.cohere.com/api-keys)، 1000 مكالمة شهريا</string>
     <string name="vp_agent_key_mistral_title">مفتاح Mistral AI</string>
     <string name="vp_agent_key_mistral_desc">مفتاح Mistral المجاني (console.mistral.ai/api-keys)، وضع مجاني بدون بطاقة</string>
+    <string name="vp_agent_key_tokenlab_title">مفتاح AMD Token Lab</string>
+    <string name="vp_agent_key_tokenlab_desc">مفتاح AMD Token Lab المجاني (notebooks.amd.com/tokenlab)، 10 رصيد لمدة 30 يوما بدون بطاقة</string>
+    <string name="vp_agent_key_exa_title">مفتاح Exa</string>
+    <string name="vp_agent_key_exa_desc">مفتاح بحث Exa المجاني، يستخدمه المساعد للبحث في الإنترنت</string>
+    <string name="vp_agent_key_tavily_title">مفتاح Tavily</string>
+    <string name="vp_agent_key_tavily_desc">مفتاح بحث Tavily المجاني، يستخدمه المساعد للبحث في الإنترنت</string>
     <string name="vp_displayresolutionmode_title">وضع دقة العرض</string>
     <string name="vp_displayresolutionmode_desc">كيف يحدد القارئ دقة سطح المكتب</string>
     <string name="vp_displayscale_title">مقياس العرض</string>
@@ -599,6 +605,14 @@
     <string name="agent_brain_changed">تم تغيير العقل إلى %1$s، جار إعادة تشغيل المساعد</string>
     <string name="agent_brain_key_missing">هذا النموذج يحتاج مفتاح %1$s، أضفه من الإعدادات (مفاتيح الذكاء الاصطناعي)</string>
     <string name="agent_brain_failed">تعذر تغيير العقل</string>
+    <!-- Brain fix phase 2: empty reply, brain switch mid-turn, slow-brain chip. -->
+    <string name="agent_empty_reply">المودل رجع بلا جواب. جرّب مودل آخر أو أعد المحاولة.</string>
+    <string name="agent_brain_switch_title">تبديل العقل أثناء الدور</string>
+    <string name="agent_brain_switch_message">الدور ما زال خداما. بدّل بعد انتهاء الدور أو أوقف الدور وبدّل الآن.</string>
+    <string name="agent_brain_switch_stop">إيقاف الدور والتبديل</string>
+    <string name="agent_brain_switch_wait">التبديل بعد انتهاء الدور</string>
+    <string name="agent_brain_switch_pending">سيتم التبديل عند انتهاء الدور</string>
+    <string name="agent_slow_brain">المحلي بطيء، بدّل لمودل مجاني سحابي؟</string>
     <!-- p31: provider-selection screen -->
     <string name="brain_providers_title">منصات الذكاء الاصطناعي</string>
     <string name="brain_providers_subtitle">اختر العقل، كلها مجانية وبدون بطاقة بنكية</string>

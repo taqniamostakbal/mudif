@@ -50,6 +50,9 @@ object AgentClient {
     private const val CONNECT_TIMEOUT_MS = 5_000
     private const val TURN_TIMEOUT_MS = 300_000L
     private const val POLL_INTERVAL_MS = 1_500L
+    // Brain fix: one poll read may wait at most 30 s, so the 300 s
+    // turn deadline is checked after every poll, never much later.
+    private const val POLL_READ_TIMEOUT_MS = 30_000
 
     /** Callbacks run on background threads; the caller posts to UI. */
     interface TurnCallbacks {
@@ -125,6 +128,7 @@ object AgentClient {
         val finished = AtomicBoolean(false)
         val lastText = java.util.concurrent.atomic.AtomicReference("")
         val turnDone = AtomicBoolean(false)
+        val assistantMessageId = java.util.concurrent.atomic.AtomicReference<String?>(null)
 
         fun done(finalText: String) {
             if (finished.compareAndSet(false, true)) {
@@ -143,6 +147,9 @@ object AgentClient {
                     handle.sseConnection?.disconnect()
                 } catch (_: Exception) {
                 }
+                // Brain fix: abort the turn server-side, or a timed-out
+                // turn keeps computing and slows the retried turn.
+                Thread { abort(sessionId) }.start()
                 callbacks.onError(message)
             }
         }
@@ -175,8 +182,23 @@ object AgentClient {
                             val eventSession = props.optString("sessionID", "")
                             if (eventSession.isNotEmpty() && eventSession != sessionId) continue
                             when (type) {
+                                "message.updated" -> {
+                                    val info = props.optJSONObject("info") ?: continue
+                                    if (info.optString("role", "") == "assistant") {
+                                        assistantMessageId.set(info.optString("id", "").ifEmpty { null })
+                                    }
+                                }
                                 "message.part.updated" -> {
                                     val part = props.optJSONObject("part") ?: continue
+                                    // Brain fix: part events are session-wide; the
+                                    // user message's own parts arrive here too and
+                                    // would be shown as the agent's reply (echo).
+                                    // Only parts of the known assistant message
+                                    // may become bubble text (the poll path is
+                                    // the fallback if the id is never learned).
+                                    val partMessageId = part.optString("messageID", "")
+                                    if (assistantMessageId.get() == null) continue
+                                    if (partMessageId.isNotEmpty() && partMessageId != assistantMessageId.get()) continue
                                     when (part.optString("type", "")) {
                                         "text" -> {
                                             val t = part.optString("text", "")
@@ -252,6 +274,13 @@ object AgentClient {
                         } else {
                             unchangedPolls++
                         }
+                        // Brain fix: the deadline is checked right after
+                        // each poll returns, so a slow poll cannot push
+                        // the timeout past one 30 s read.
+                        if (!turnDone.get() && System.currentTimeMillis() >= deadline) {
+                            failed("timeout: no reply within 300 s")
+                            return@Thread
+                        }
                         // The idle event may be missed if the SSE
                         // stream dropped; a finished message with no
                         // new text for 2 polls ends the turn too.
@@ -300,11 +329,11 @@ object AgentClient {
 
     // ------------------------------------------------------------ HTTP
 
-    private fun openConnection(url: String, method: String): HttpURLConnection {
+    private fun openConnection(url: String, method: String, readTimeoutMs: Int = TURN_TIMEOUT_MS.toInt()): HttpURLConnection {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.requestMethod = method
         conn.connectTimeout = CONNECT_TIMEOUT_MS
-        conn.readTimeout = TURN_TIMEOUT_MS.toInt()
+        conn.readTimeout = readTimeoutMs
         conn.setRequestProperty("Accept", "application/json")
         conn.setRequestProperty("Content-Type", "application/json")
         if (method == "POST") conn.doOutput = true
@@ -332,7 +361,7 @@ object AgentClient {
     /** Blocking POST /session/{id}/message. Returns the reply text,
      *  or null when the response cannot be read as a reply. */
     private fun postMessageBlocking(sessionId: String, body: String): String? {
-        val conn = openConnection("$BASE_URL/session/$sessionId/message", "POST")
+        val conn = openConnection("$BASE_URL/session/$sessionId/message", "POST", POLL_READ_TIMEOUT_MS)
         return try {
             conn.outputStream.use { it.write(body.toByteArray(StandardCharsets.UTF_8)) }
             val code = conn.responseCode
@@ -341,7 +370,30 @@ object AgentClient {
                 return null
             }
             val contentType = conn.getHeaderField("Content-Type") ?: ""
-            val raw = conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+            // Brain fix: the blocking fallback used to read the whole
+            // body with readText(), and a trickling SSE stream resets
+            // the per-read timeout on every heartbeat, so it could
+            // block forever. Read line by line with a 300 s total
+            // deadline and keep what arrived.
+            val startedAt = System.currentTimeMillis()
+            val rawBuilder = StringBuilder()
+            try {
+                conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { reader ->
+                    var line: String?
+                    while (System.currentTimeMillis() - startedAt < TURN_TIMEOUT_MS) {
+                        line = try {
+                            reader.readLine()
+                        } catch (_: java.net.SocketTimeoutException) {
+                            break
+                        } ?: break
+                        rawBuilder.append(line).append('\n')
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "postMessageBlocking read failed", e)
+            }
+            val raw = rawBuilder.toString()
+            if (raw.isEmpty()) return null
             if (contentType.contains("text/event-stream")) {
                 // SSE body: take the last full text part seen.
                 var last: String? = null
@@ -373,7 +425,7 @@ object AgentClient {
      *  when the history cannot be read. */
     private fun pollAssistantText(sessionId: String): String? {
         return try {
-            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET")
+            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET", POLL_READ_TIMEOUT_MS)
             val code = conn.responseCode
             if (code !in 200..299) {
                 conn.disconnect()
@@ -401,7 +453,7 @@ object AgentClient {
      *  dropped the idle event). */
     private fun pollMessageFinished(sessionId: String): Boolean {
         return try {
-            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET")
+            val conn = openConnection("$BASE_URL/session/$sessionId/message", "GET", POLL_READ_TIMEOUT_MS)
             val code = conn.responseCode
             if (code !in 200..299) {
                 conn.disconnect()
@@ -438,10 +490,12 @@ object AgentClient {
 
     // ------------------------------------------------------ prompts
 
-    /** Per-message system prompt: identity + reply language + the
-     *  safety rules (the user's standing 4-click rule). Short on
-     *  purpose: the small local brain fails in long contexts (rig
-     *  rounds 1-2). `replyLanguage` is "fusha" / "darija" / "en". */
+    /** Per-message system prompt, v2 (brain fix): identity + reply
+     *  language + result-first + search-first + the fetch allowlist
+     *  rule + one tool per turn + the standing 4-click safety rule.
+     *  Short on purpose: the small local brain fails in long
+     *  contexts (rig rounds 1-2). `replyLanguage` is "fusha" /
+     *  "darija" / "en". */
     fun systemPrompt(replyLanguage: String): String {
         val safetyFusha =
             "لا تحذف أي شيء، ولا ترسل أي رسالة، ولا تدفع أي مبلغ، ولا تؤكد أي هوية نيابة عن المستخدم إلا بعد موافقته الصريحة."
@@ -456,25 +510,46 @@ object AgentClient {
                 "قاعدة الشكل: ردك خاصو يبدا بالنتيجة النهائية بوحدها فالسطر اللول، وما تكتب حتى حاجة قبلها. " +
                 "ممنوع تبدا بـ «الحساب» ولا «الخطوة» ولا أي مقدمة. مثال: «15% من 200» السطر اللول ديالك هو «30» بوحدو. " +
                 "غير من بعد النتيجة تقدر تزيد شرح قصير. عطي النتيجة هي اللولة، وما تطلبش توضيح إلا إلا كان السؤال ناقص بالصح. " +
-                "وما تعتبر حتى سؤال عنوان ويب، وما تحاولش تفتح حتى رابط إلا إلا المستخدم لصق رابط. $safetyDarija"
+                "قاعدة الروابط: ما تفتح حتى رابط من خيالك. الروابط الوحيدين اللي مسموح تفتحهم هوما اللي رجعاتهم أداة البحث، ولا رابط لصقو المستخدم. " +
+                "إلا البحث ما رجع حتى رابط قول ما عرفتش، وما تخترعش رابط. " +
+                "قاعدة البحث: أي سؤال على خبر ولا ثمن ولا إصدار ولا عرض من بعد التاريخ اللي عارف: استعمل أداة البحث هي اللولة، وقرا صفحة وحدة على الأقل، ومن بعد جاوب من اللي قريتي وذكر المصدر بالرابط. " +
+                "ما تجاوبش من ذاكرتك على أحداث جارية. " +
+                "قاعدة المصدر: أي ادعاء على العالم الخارجي خاصو مصدر مقري. ما تذكر حتى رقم ولا تاريخ ولا رابط ما قريتيهش فالنتيجة ولا الصفحة. " +
+                "قاعدة الأدوات: استعمل أداة وحدة فكل مرة، وقرا النتيجة ديالها قبل الأداة اللي من بعدها. ما تعيطش لجوج أدوات على التوالي بلا قراءة. " +
+                "ما تستعملش webfetch ولا websearch المدمجين؛ أدوات مضيف للبحث والقراءة هوما الوحيدين. $safetyDarija"
             "en" -> "You are Mudif Assistant, the Arabic assistant inside the Mudif system " +
                 "(Debian + LXQt on the phone). Answer in English, briefly. Carry out tasks with " +
                 "the tools available, and tell only the truth: if you do not know something, say " +
                 "so, never invent a result. FORMAT RULE: your reply MUST begin with the final " +
                 "answer alone on the first line. Nothing may come before it: no 'The calculation', " +
-                "no 'Step 1', no preamble of any kind. Example: user '15% of 200' , your first " +
+                "no 'Step 1', no preamble of any kind. Example: user '15% of 200', your first " +
                 "line is exactly '30'. Only after the answer may you add a short explanation. " +
-                "Give the result first; only ask for clarification " +
-                "if the question is genuinely incomplete. " +
-                "Never treat a question as a web address and never try to fetch " +
-                "a URL unless the user pasted a link. $safetyEn"
+                "Give the result first; only ask for clarification if the question is genuinely " +
+                "incomplete. LINK RULE: never open a URL from your imagination. The only URLs " +
+                "you may open are URLs the search tool returned, or a link the user pasted. " +
+                "If the search returned no link, say you do not know, never invent a link. " +
+                "SEARCH RULE: any question about news, a price, a release, or an offer after " +
+                "your knowledge date: use the search tool first, read at least one page, then " +
+                "answer from what you read and cite the source with its link. Never answer " +
+                "about current events from memory. SOURCE RULE: every claim about the outside " +
+                "world needs a read source. Never state a number, a date, or a link you did not " +
+                "read in a search result or a page. TOOL RULE: use one tool at a time and read " +
+                "its result before the next tool. Never call two tools in a row without reading. " +
+                "Do not use the built-in webfetch or websearch; the Mudif search and reading " +
+                "tools are the only ones. $safetyEn"
             else -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف (ديبيان + LXQt على الهاتف). " +
                 "أجب بالعربية الفصحى وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
                 "إن لم تعرف شيئا قل لا أعرف، ولا تخترع نتيجة. " +
                 "قاعدة الشكل: يجب أن يبدأ ردك بالنتيجة النهائية وحدها في السطر الأول، ولا تكتب أي شيء قبلها. " +
                 "ممنوع أن تبدأ بـ «الحساب» أو «الخطوة» أو أي مقدمة. مثال: «15% من 200» سطرك الأول هو «30» وحدها. " +
                 "بعد النتيجة فقط يمكنك إضافة شرح قصير. أعطِ النتيجة أولا، ولا تطلب توضيحا إلا إذا كان السؤال ناقصا فعلا. " +
-                "ولا تعتبر أي سؤال عنوان ويب، ولا تحاول فتح أي رابط إلا إذا ألصق المستخدم رابطا. $safetyFusha"
+                "قاعدة الروابط: لا تفتح أي رابط من خيالك. الروابط الوحيدة المسموح بفتحها هي روابط أعادتها أداة البحث، أو رابط ألصقه المستخدم. " +
+                "إن لم يعد البحث أي رابط فقل لا أعرف، ولا تخترع رابطا. " +
+                "قاعدة البحث: أي سؤال عن خبر أو سعر أو إصدار أو عرض بعد تاريخ معرفتك: استعمل أداة البحث أولا، ثم اقرأ صفحة واحدة على الأقل، ثم أجب مما قرأت واذكر المصدر بالرابط. " +
+                "لا تجب من ذاكرتك عن أحداث جارية. " +
+                "قاعدة المصدر: كل ادعاء عن العالم الخارجي يحتاج مصدرا مقروءا. لا تذكر رقما ولا تاريخا ولا رابطا لم تقرأه في نتيجة بحث أو صفحة. " +
+                "قاعدة الأدوات: استعمل أداة واحدة في كل مرة، واقرأ نتيجتها قبل الأداة التالية. لا تستدعي أداتين على التوالي بلا قراءة. " +
+                "لا تستعمل webfetch ولا websearch المدمجتين؛ أدوات مضيف للبحث والقراءة هي الوحيدة. $safetyFusha"
         }
     }
 }
