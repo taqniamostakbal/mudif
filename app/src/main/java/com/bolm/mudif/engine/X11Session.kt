@@ -424,8 +424,15 @@ object X11Session {
         // the desktop reads it, so pcmanfm-qt shows it trusted
         // from the first launch. Idempotent; a failure here must
         // never block the desktop, so it is best-effort.
+        // p29: the p28 xattr alone did NOT clear the "!" on the rig
+        // (gio info confirmed both xattrs true, icon still "!").
+        // The freedesktop trust rule also requires the .desktop file
+        // itself to be executable, so chmod +x both copies as well.
+        // If this still does not clear it, the trust lives in the
+        // gvfs-metadata store (needs gvfsd running), not in xattrs.
         try {
             GuestSession.sendCommand(
+                "chmod +x /root/Desktop/mudif-launcher.desktop /usr/share/applications/mudif-launcher.desktop 2>/dev/null; " +
                 "python3 -c \"import os; os.setxattr('/root/Desktop/mudif-launcher.desktop', 'user.metadata::trust', b'true')\" 2>/dev/null; " +
                 "python3 -c \"import os; os.setxattr('/usr/share/applications/mudif-launcher.desktop', 'user.metadata::trust', b'true')\" 2>/dev/null"
             )

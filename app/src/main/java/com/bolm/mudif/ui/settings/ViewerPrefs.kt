@@ -47,6 +47,23 @@ object ViewerPrefs {
             }
             e.putBoolean("touchModeMigratedToSimulated", true)
         }
+        // Keys-bar fix (2026-11-14, Anas's order): the Termux:X11 default
+        // extra-keys bar is TWO tall rows (16 keys: ESC / HOME UP END
+        // PGUP / TAB CTRL ALT arrows PGDN). He showed it and ordered it
+        // replaced by a professional, modern, COMPACT bar. One single row
+        // with only the essentials (ESC, CTRL, ALT, TAB, 4 arrows, soft
+        // keyboard toggle) makes the bar half as tall. One-time migration
+        // (flag) so it applies to existing installs too, but a later user
+        // edit in the settings screen (extra_keys_config) is never
+        // overwritten. Format = TermuxX11ExtraKeys DEFAULT_IVALUE_EXTRA_KEYS
+        // (single-quoted rows); one outer element = one row.
+        if (!p.getBoolean("extraKeysMigratedToCompact", false)) {
+            e.putString(
+                "extra_keys_config",
+                "[['ESC','CTRL','ALT','TAB','LEFT','UP','DOWN','RIGHT','KEYBOARD']]"
+            )
+            e.putBoolean("extraKeysMigratedToCompact", true)
+        }
         putStringIfAbsent("touchMode", "2")              // Simulated touchscreen
         putStringIfAbsent("displayResolutionMode", "exact")
         putStringIfAbsent("displayResolutionExact", exactResolution)

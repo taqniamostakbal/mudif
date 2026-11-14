@@ -60,15 +60,19 @@
         </LinearLayout>
     </LinearLayout>
 
-    <androidx.core.widget.NestedScrollView
+    <!-- p29 ROOT FIX (Store "All" list invisible): the top section was in
+         a wrap_content NestedScrollView, which measured its tall category
+         grid and consumed ALL vertical space, leaving the weight=1
+         programs_recycler 0px (logcat: programs_recycler 0 height,
+         visible:false). The top section is short fixed content (one distro
+         row + search + 8 category cards) and needs NO scrolling of its
+         own, so it is a plain LinearLayout now. programs_recycler (weight=1,
+         direct child of the root) gets all remaining space, same proven
+         pattern as the other tabs. -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fillViewport="true">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+        android:orientation="vertical">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler"
@@ -111,7 +115,7 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp" />
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+    </LinearLayout>
 
     <!-- The programs list scrolls on its own (weight=1 fills the rest
          of the screen). It recycles views, so "All" (1,139 programs)

@@ -34,7 +34,7 @@
       "apt": "chromium",
       "binary": "chromium",
       "icon": "chromium.png",
-      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage"
+      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage --password-store=basic"
     },
     {
       "id": "transmission",
@@ -4446,7 +4446,7 @@
       "binary": "falkon",
       "icon": "falkon.png",
       "tested": null,
-      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage"
+      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage --password-store=basic"
     },
     {
       "id": "konqueror",
@@ -4531,7 +4531,7 @@
       "binary": "angelfish",
       "icon": "angelfish.png",
       "tested": null,
-      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage"
+      "flags": "--no-sandbox --disable-gpu --disable-dev-shm-usage --password-store=basic"
     },
     {
       "id": "kristall",

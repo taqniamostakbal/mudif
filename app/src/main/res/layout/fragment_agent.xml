@@ -4,31 +4,35 @@
      - Chat: native message list, quick-action chips, input + voice.
      - Console: WebView on the agent server (localhost only) with an
        honest error state when the server is not running.
-     p28 ROOT FIX: the root was a vertical LinearLayout with nested
-     weights (chat_container 0dp+weight=1 holding agent_recycler
-     0dp+weight=1). On the rig the chat UI below the header never
-     rendered (only the header showed, filling the screen). A
-     ConstraintLayout pins every section explicitly, so the chat area
-     is guaranteed its space regardless of weight measurement. -->
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     p29 ROOT FIX: p28 used a ConstraintLayout root and p27 a LinearLayout
+     with nested weights. BOTH failed identically on the rig: only the
+     header rendered (stretched to fill the screen) and every other view
+     measured 0 or invisible (logcat AccessibilityNodeInfoDumper proves
+     chat_container 0x0, agent_identity 0 wide, mode_row invisible).
+     Root cause = nested weights / constraints never resolving, so children
+     got 0 size. This version ELIMINATES both: a plain vertical LinearLayout
+     root, header FIXED height, and ONE single weight (agent_recycler,
+     direct child of the root) — the same structure StoreFragment uses
+     and the rig proves works. No nested weights, no ConstraintLayout,
+     no 0dp children inside a 0dp parent. All view IDs preserved. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="?attr/colorSurface">
 
     <!-- Header: clay-penguin avatar + agent name + reply-language switch.
-         Tapping the avatar or the name shows the agent About text. -->
+         FIXED height (88dp) so the header can never stretch to fill the
+         screen. Tapping the avatar or the name shows the agent About text. -->
     <LinearLayout
         android:id="@+id/agent_header"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="88dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:background="@color/mudif_purple"
-        android:padding="16dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:padding="16dp">
 
         <ImageButton
             android:id="@+id/menu_button"
@@ -98,20 +102,18 @@
             app:cornerRadius="20dp" />
     </LinearLayout>
 
-    <!-- Mode toggle + clear history. -->
+    <!-- Mode toggle + clear history. Direct child of the root, so it is
+         always laid out (never inside a 0-height container). -->
     <LinearLayout
         android:id="@+id/mode_row"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingTop="8dp"
-        android:paddingBottom="4dp"
-        app:layout_constraintTop_toBottomOf="@id/agent_header"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:paddingBottom="4dp">
 
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/mode_toggle"
@@ -153,242 +155,240 @@
             android:textSize="13sp" />
     </LinearLayout>
 
-    <!-- ================= Chat mode ================= -->
-    <LinearLayout
-        android:id="@+id/chat_container"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/mode_row"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+    <!-- ================= Chat mode (direct children of the root) ================= -->
+    <!-- Quick-action chips. -->
+    <HorizontalScrollView
+        android:id="@+id/chips_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
 
-        <HorizontalScrollView
-            android:id="@+id/chips_scroll"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="none"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                    android:id="@+id/chip_desktop"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/agent_quick_desktop"
-                    android:fontFamily="@font/cairo"
-                    android:textSize="13sp"
-                    app:cornerRadius="16dp" />
-
-                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                    android:id="@+id/chip_apps"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/agent_quick_apps"
-                    android:fontFamily="@font/cairo"
-                    android:textSize="13sp"
-                    app:cornerRadius="16dp" />
-
-                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                    android:id="@+id/chip_help"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/agent_quick_help"
-                    android:fontFamily="@font/cairo"
-                    android:textSize="13sp"
-                    app:cornerRadius="16dp" />
-
-                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                    android:id="@+id/chip_search"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/agent_quick_search"
-                    android:fontFamily="@font/cairo"
-                    android:textSize="13sp"
-                    app:cornerRadius="16dp" />
-
-                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                    android:id="@+id/chip_open_app"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/agent_quick_open_app"
-                    android:fontFamily="@font/cairo"
-                    android:textSize="13sp"
-                    app:cornerRadius="16dp" />
-
-                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-                    android:id="@+id/chip_settings"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/agent_quick_settings"
-                    android:fontFamily="@font/cairo"
-                    android:textSize="13sp"
-                    app:cornerRadius="16dp" />
-            </LinearLayout>
-        </HorizontalScrollView>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/agent_recycler"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:background="#F6F3FF"
-            android:clipToPadding="false"
-            android:padding="12dp" />
-
-        <!-- Brain download card (p22): shown when Ollama answers but
-             the model is missing. One-tap pull with a real progress
-             bar — no terminal. Hidden once the model is present. -->
         <LinearLayout
-            android:id="@+id/brain_download_card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/search_box_bg"
-            android:padding="12dp"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="8dp"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/brain_download_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/brain_download_title"
-                android:textSize="14sp"
-                android:textColor="?attr/colorOnSurface"
-                android:fontFamily="@font/cairo" />
-
-            <ProgressBar
-                android:id="@+id/brain_download_progress"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:max="100"
-                android:progress="0"
-                android:visibility="gone" />
-
-            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
-                android:id="@+id/btn_brain_download"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/brain_download_button"
-                android:fontFamily="@font/cairo"
-                android:textSize="14sp"
-                app:cornerRadius="22dp" />
-        </LinearLayout>
-
-        <!-- Loading state: shown while a turn runs. Text is set in
-             code (starting server / thinking / running tool). -->
-        <TextView
-            android:id="@+id/agent_typing"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginBottom="4dp"
-            android:text="@string/agent_thinking"
-            android:textSize="13sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:fontFamily="@font/cairo"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                android:id="@+id/chip_desktop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/agent_quick_desktop"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="16dp" />
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                android:id="@+id/chip_apps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/agent_quick_apps"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="16dp" />
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                android:id="@+id/chip_help"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/agent_quick_help"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="16dp" />
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                android:id="@+id/chip_search"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/agent_quick_search"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="16dp" />
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                android:id="@+id/chip_open_app"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/agent_quick_open_app"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="16dp" />
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                android:id="@+id/chip_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/agent_quick_settings"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="16dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Message list. THE single weight in this layout, direct child of
+         the root (same proven pattern as StoreFragment's programs list).
+         It fills whatever space is left after header + mode + chips +
+         input, and recycles its rows. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/agent_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#F6F3FF"
+        android:clipToPadding="false"
+        android:padding="12dp" />
+
+    <!-- Brain download card (p22): shown when Ollama answers but
+         the model is missing. One-tap pull with a real progress
+         bar — no terminal. Hidden once the model is present. -->
+    <LinearLayout
+        android:id="@+id/brain_download_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/search_box_bg"
+        android:padding="12dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/brain_download_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/brain_download_title"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurface"
+            android:fontFamily="@font/cairo" />
+
+        <ProgressBar
+            android:id="@+id/brain_download_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="100"
+            android:progress="0"
             android:visibility="gone" />
 
-        <!-- Action after a send: Stop while a turn runs, Retry when
-             a turn failed, or "open desktop" when the engine is not
-             installed. Label and action are set in code; hidden
-             until a turn runs or fails. -->
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
-            android:id="@+id/btn_agent_action"
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+            android:id="@+id/btn_brain_download"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="8dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/brain_download_button"
             android:fontFamily="@font/cairo"
-            android:textSize="13sp"
-            android:visibility="gone"
-            app:cornerRadius="16dp" />
+            android:textSize="14sp"
+            app:cornerRadius="22dp" />
+    </LinearLayout>
 
-        <!-- Input row: voice in, text, voice out, send. -->
-        <LinearLayout
-            android:layout_width="match_parent"
+    <!-- Loading state: shown while a turn runs. Text is set in
+         code (starting server / thinking / running tool). -->
+    <TextView
+        android:id="@+id/agent_typing"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginBottom="4dp"
+        android:text="@string/agent_thinking"
+        android:textSize="13sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:fontFamily="@font/cairo"
+        android:visibility="gone" />
+
+    <!-- Action after a send: Stop while a turn runs, Retry when
+         a turn failed, or "open desktop" when the engine is not
+         installed. Label and action are set in code; hidden
+         until a turn runs or fails. -->
+    <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+        android:id="@+id/btn_agent_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp"
+        android:fontFamily="@font/cairo"
+        android:textSize="13sp"
+        android:visibility="gone"
+        app:cornerRadius="16dp" />
+
+    <!-- Input row: voice in, text, voice out, send. -->
+    <LinearLayout
+        android:id="@+id/input_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="12dp">
+
+        <ImageButton
+            android:id="@+id/btn_voice_in"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/circle_bg"
+            android:src="@drawable/ic_mic"
+            android:contentDescription="@string/agent_voice_in_desc"
+            android:padding="10dp" />
+
+        <EditText
+            android:id="@+id/input_text"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="12dp">
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/search_box_bg"
+            android:hint="@string/agent_hint"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="#8A8A8A"
+            android:fontFamily="@font/cairo"
+            android:textSize="15sp"
+            android:padding="12dp"
+            android:inputType="text"
+            android:imeOptions="actionSend"
+            android:maxLines="4" />
 
-            <ImageButton
-                android:id="@+id/btn_voice_in"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/circle_bg"
-                android:src="@drawable/ic_mic"
-                android:contentDescription="@string/agent_voice_in_desc"
-                android:padding="10dp" />
+        <ImageButton
+            android:id="@+id/btn_voice_out"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/circle_bg"
+            android:src="@drawable/ic_audio"
+            android:contentDescription="@string/agent_voice_out_off"
+            android:padding="10dp" />
 
-            <EditText
-                android:id="@+id/input_text"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/search_box_bg"
-                android:hint="@string/agent_hint"
-                android:textColor="?attr/colorOnSurface"
-                android:textColorHint="#8A8A8A"
-                android:fontFamily="@font/cairo"
-                android:textSize="15sp"
-                android:padding="12dp"
-                android:inputType="text"
-                android:imeOptions="actionSend"
-                android:maxLines="4" />
-
-            <ImageButton
-                android:id="@+id/btn_voice_out"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/circle_bg"
-                android:src="@drawable/ic_audio"
-                android:contentDescription="@string/agent_voice_out_off"
-                android:padding="10dp" />
-
-            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
-                android:id="@+id/btn_send"
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:layout_marginStart="8dp"
-                android:text="@string/agent_send"
-                android:fontFamily="@font/cairo"
-                android:textSize="14sp"
-                app:cornerRadius="22dp" />
-        </LinearLayout>
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+            android:id="@+id/btn_send"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/agent_send"
+            android:fontFamily="@font/cairo"
+            android:textSize="14sp"
+            app:cornerRadius="22dp" />
     </LinearLayout>
 
     <!-- ================= Console mode (WebView) ================= -->
+    <!-- Hidden by default (chat is the default mode). When console mode
+         is chosen, AgentFragment hides the chat views (chips, recycler,
+         input row) and shows this container instead. It is a direct child
+         of the root with weight=1 so it fills the same space the chat
+         list used. -->
     <FrameLayout
         android:id="@+id/console_container"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/mode_row"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_weight="1"
+        android:visibility="gone">
 
         <WebView
             android:id="@+id/agent_webview"
@@ -434,4 +434,4 @@
                 app:cornerRadius="24dp" />
         </LinearLayout>
     </FrameLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

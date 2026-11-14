@@ -187,13 +187,21 @@ class AgentFragment : Fragment() {
 
     // ---------------------------------------------------------- modes
 
+    // p29: chat_container wrapper removed (it measured 0x0). The chat
+    // views are direct children of the root now, so show/hide them
+    // individually. The console container takes the recycler's space
+    // (both are weight=1 direct children; only one is visible at a time).
     private fun showChat() {
-        binding.chatContainer.visibility = View.VISIBLE
+        binding.chipsScroll.visibility = View.VISIBLE
+        binding.agentRecycler.visibility = View.VISIBLE
+        binding.inputRow.visibility = View.VISIBLE
         binding.consoleContainer.visibility = View.GONE
     }
 
     private fun showConsole() {
-        binding.chatContainer.visibility = View.GONE
+        binding.chipsScroll.visibility = View.GONE
+        binding.agentRecycler.visibility = View.GONE
+        binding.inputRow.visibility = View.GONE
         binding.consoleContainer.visibility = View.VISIBLE
         binding.modeToggle.check(R.id.mode_console)
         if (!consoleLoaded) loadConsole()

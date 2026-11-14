@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.addCallback
@@ -98,6 +99,21 @@ class VncActivity : AppCompatActivity() {
      */
     private var viewerOverlay: ViewerOverlay? = null
     private var overlayPermissionPrompted = false
+
+    // p29: BACK exits the viewer. The p28 onBackPressedDispatcher callback
+    // never fired on the rig (pressed 3x, viewer stayed) because the
+    // Termux:X11 view consumes the BACK key at the View level before it
+    // reaches the Activity's onBackPressed. dispatchKeyEvent runs before
+    // the view sees the key, so intercepting KEYCODE_BACK here (ACTION_DOWN)
+    // and finishing is the only reliable path. The desktop session itself
+    // keeps running (see onDestroy).
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN) {
+            finish()
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
