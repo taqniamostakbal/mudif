@@ -320,9 +320,28 @@ class AgentFragment : Fragment() {
             binding.chipsScroll.visibility = View.GONE
             binding.agentTodayDivider.visibility = View.GONE
             binding.agentProfileCard.visibility = View.GONE
+            // p33 follow-up (keyboard CROWDS the app): with the
+            // keyboard open the message list measured only 720x183
+            // on the rig, the "thinking" line + Stop button took
+            // ~145px of the ~640px visible window. While a turn runs
+            // AND the keyboard is open, those two hide: the streaming
+            // bubble itself shows progress, and Stop returns the
+            // moment the keyboard closes (BACK), or the turn ends.
+            // A failed turn (Retry) is NOT hidden: turnRunning is
+            // false then, and the user needs the Retry button.
+            if (turnRunning) {
+                binding.agentTyping.visibility = View.GONE
+                binding.btnAgentAction.visibility = View.GONE
+            }
         } else {
             activity?.setBottomNavVisible(true)
             binding.chipsScroll.visibility = View.VISIBLE
+            // A turn running while the keyboard closes gets its
+            // "thinking" line + Stop button back.
+            if (turnRunning) {
+                binding.agentTyping.visibility = View.VISIBLE
+                binding.btnAgentAction.visibility = View.VISIBLE
+            }
             binding.btnClearHistory.visibility =
                 if (consoleMode) View.GONE else View.VISIBLE
             if (consoleMode) {
@@ -467,8 +486,13 @@ class AgentFragment : Fragment() {
      */
     private fun startTurn(text: String) {
         turnRunning = true
-        binding.agentTyping.text = getString(R.string.agent_starting_server)
-        binding.agentTyping.visibility = View.VISIBLE
+        // p33: while the keyboard is open the thinking line + action
+        // button stay hidden (applyChromeVisibility owns them then);
+        // showing them here would re-squeeze the message list.
+        if (!keyboardOpen) {
+            binding.agentTyping.text = getString(R.string.agent_starting_server)
+            binding.agentTyping.visibility = View.VISIBLE
+        }
         binding.btnSend.isEnabled = false
         // Application context: the thread outlives the view, and
         // requireContext() would throw if the fragment detaches.
@@ -529,6 +553,10 @@ class AgentFragment : Fragment() {
                 override fun onTool(tool: String) {
                     act.runOnUiThread {
                         if (_binding == null) return@runOnUiThread
+                        // p33: hidden while the keyboard is open (the
+                        // message list needs the room); it returns
+                        // when the keyboard closes.
+                        if (keyboardOpen) return@runOnUiThread
                         binding.agentTyping.text =
                             getString(R.string.agent_tool_running, tool)
                         binding.agentTyping.visibility = View.VISIBLE
@@ -555,10 +583,18 @@ class AgentFragment : Fragment() {
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 currentTurn = handle
-                binding.agentTyping.text = getString(R.string.agent_thinking)
-                binding.btnAgentAction.text = getString(R.string.agent_stop)
-                binding.btnAgentAction.setOnClickListener { stopCurrentTurn() }
-                binding.btnAgentAction.visibility = View.VISIBLE
+                // p33: the Stop button stays hidden while the keyboard
+                // is open (it returns when the keyboard closes); the
+                // thinking line is set the same way by startTurn.
+                if (!keyboardOpen) {
+                    binding.agentTyping.text = getString(R.string.agent_thinking)
+                    binding.btnAgentAction.text = getString(R.string.agent_stop)
+                    binding.btnAgentAction.setOnClickListener { stopCurrentTurn() }
+                    binding.btnAgentAction.visibility = View.VISIBLE
+                } else {
+                    binding.btnAgentAction.text = getString(R.string.agent_stop)
+                    binding.btnAgentAction.setOnClickListener { stopCurrentTurn() }
+                }
             }
         }.start()
     }

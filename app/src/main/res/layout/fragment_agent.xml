@@ -449,13 +449,18 @@
     <!-- Action after a send: Stop while a turn runs, Retry when
          a turn failed, or "open desktop" when the engine is not
          installed. Label and action are set in code; hidden
-         until a turn runs or fails. -->
+         until a turn runs or fails.
+         p33: minHeight 0dp, a MaterialButton defaults to 48dp
+         (96px at this density) and that height came straight out
+         of the message list while the keyboard was open. -->
     <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
         android:id="@+id/btn_agent_action"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="8dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
         android:fontFamily="@font/cairo"
         android:textSize="13sp"
         android:visibility="gone"
@@ -477,7 +482,7 @@
         android:gravity="center_vertical"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
-        android:paddingBottom="12dp">
+        android:paddingBottom="8dp">
 
         <ImageButton
             android:id="@+id/btn_attach"
