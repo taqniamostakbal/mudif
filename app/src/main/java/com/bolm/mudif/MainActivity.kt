@@ -124,7 +124,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** p33: let a fragment hide the bottom nav (the agent tab hides
-     *  it while the keyboard is open — the nav is activity chrome
+     *  it while the keyboard is open, the nav is activity chrome
      *  the fragment never owned, and on Anas's phone it sat between
      *  the input bar and the keyboard, eating ~110px of the message
      *  list). Restored when the keyboard closes. */

@@ -86,8 +86,8 @@ class HomeFragment : Fragment() {
             val act = activity ?: return@Thread
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
-                binding.statPrograms.text = if (count > 0) "$count" else "—"
-                binding.statStorage.text = if (freeGb >= 0) "%.1f GB".format(freeGb) else "—"
+                binding.statPrograms.text = if (count > 0) "$count" else "…"
+                binding.statStorage.text = if (freeGb >= 0) "%.1f GB".format(freeGb) else "…"
             }
         }.start()
     }

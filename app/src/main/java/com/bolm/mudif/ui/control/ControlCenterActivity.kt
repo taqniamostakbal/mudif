@@ -133,7 +133,7 @@ class ControlCenterActivity : AppCompatActivity() {
         binding.batteryState.text = if (pct >= 0) {
             "$pct% " + if (charging) getString(R.string.ui_cc_charging) else ""
         } else {
-            "—"
+            "…"
         }
 
         Thread {

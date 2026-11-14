@@ -217,7 +217,7 @@ object RootfsManager {
     }
 
     /**
-     * P5.22 (RADICAL REBUILD — Tiny Container's boot_command, adapted).
+     * P5.22 (RADICAL REBUILD, Tiny Container's boot_command, adapted).
      * Single source of truth for the proot invocation, usable BOTH as a
      * ProcessBuilder (one-shot installs via TerminalSession) and as a
      * shell command string (PTY boot script in GuestSession).
@@ -375,9 +375,9 @@ object RootfsManager {
     }
 
     /**
-     * P5.22 — the BOOT argv: the TC boot command. The guest command is
+     * P5.22, the BOOT argv: the TC boot command. The guest command is
      * `/usr/bin/env -i` with an explicit clean environment + the guest
-     * login shell. DISPLAY is set here (127.0.0.1:6, TCP — Mudif's
+     * login shell. DISPLAY is set here (127.0.0.1:6, TCP, Mudif's
      * proven InstaBox workaround for the broken Unix-socket connect),
      * so every guest command inherits it and no per-command DISPLAY
      * prefix is needed anywhere. TC runs /bin/bash -l as user `tiny`;
@@ -421,7 +421,7 @@ object RootfsManager {
     }
 
     /**
-     * P5.22 — Tiny Container's PTY 4096-byte line-limit workaround:
+     * P5.22, Tiny Container's PTY 4096-byte line-limit workaround:
      * the resolved boot command is written to a file as `exec <proot
      * ...>` and the PTY session `source`s it. The `exec` replaces the
      * host shell with proot. Returns the script file, or null if the
@@ -446,7 +446,7 @@ object RootfsManager {
     /**
      * Builds a proot ProcessBuilder for running [guestCommand] inside the Alpine
      * rootfs. Returns null if the engine, rootfs, or loader is missing.
-     * Shared by firstBoot() and TerminalSession — single source of truth for
+     * Shared by firstBoot() and TerminalSession, single source of truth for
      * the proot invocation (flags + environment).
      */
     fun prootBuilder(context: Context, guestCommand: List<String>): ProcessBuilder? =
@@ -468,7 +468,7 @@ object RootfsManager {
      * P6.1 FIX (proven by the P6 test, 2026-11-07): the old check
      * ("contains nameserver") accepted Debian's shipped stub
      * `nameserver 127.0.0.53` (systemd-resolved), which resolves
-     * NOTHING under proot — apt then failed on every name and the
+     * NOTHING under proot, apt then failed on every name and the
      * whole XFCE install died. Only a REAL (non-loopback) nameserver
      * counts as working DNS; a stub/loopback-only file is overwritten.
      * A genuine non-loopback nameserver (e.g. the user's own) is left alone.

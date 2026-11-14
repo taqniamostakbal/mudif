@@ -14,7 +14,7 @@ import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.gms.cast.framework.SessionProvider
 
 /**
- * Phase 2 — Google Cast sender (live HLS, Default Media Receiver).
+ * Phase 2, Google Cast sender (live HLS, Default Media Receiver).
  *
  * The Cast SDK has NO screen-mirroring API for third-party apps:
  * Remote Display (CastRemoteDisplayLocalService) was deprecated
@@ -24,10 +24,10 @@ import com.google.android.gms.cast.framework.SessionProvider
  * the desktop to H.264 and serves an HLS playlist on the LAN,
  * and this object loads that URL with STREAM_TYPE_LIVE on the
  * Default Media Receiver (no custom receiver, no invented Cast
- * application ID — a production custom receiver would need a
+ * application ID, a production custom receiver would need a
  * registered application ID from the Cast developer console).
  *
- * Flow: init() once (main thread, guarded — no Play Services
+ * Flow: init() once (main thread, guarded, no Play Services
  * means no Cast, never a crash) registers a session listener.
  * setPendingHlsUrl(url) + loadNow(url) are called when the user
  * picks "بث لاسلكي": if a Cast session is already connected the

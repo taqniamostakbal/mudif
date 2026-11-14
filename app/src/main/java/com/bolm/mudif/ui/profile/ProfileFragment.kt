@@ -37,7 +37,7 @@ class ProfileFragment : Fragment() {
     private val binding get() = _binding!!
 
     /**
-     * Real-computer #2 — restore picker (SAF). The user picks a
+     * Real-computer #2, restore picker (SAF). The user picks a
      * .tar.xz backup file; runRestore copies it to a temp file and
      * verifies its CONTENT before wiping the system.
      */
@@ -65,7 +65,7 @@ class ProfileFragment : Fragment() {
             (requireActivity() as? AppCompatActivity)?.let { AppLanguage.showPicker(it) }
         }
         binding.rowAbout.setOnClickListener(soon)
-        // P18.3 — Viewer settings screen (Fusha, Mudif style).
+        // P18.3, Viewer settings screen (Fusha, Mudif style).
         binding.rowViewerSettings.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), SettingsActivity::class.java))
         }
@@ -90,12 +90,12 @@ class ProfileFragment : Fragment() {
         binding.rowTerminal.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), TerminalActivity::class.java))
         }
-        // P6.4 — نظام مضيف is the ONLY system in this app (the
+        // P6.4, نظام مضيف is the ONLY system in this app (the
         // user's order 2026-11-07). The Alpine desktop rows
         // (row_vnc LXQt, row_vnc_xfce XFCE) and the Alpine boot
-        // test (row_boot) are GONE — nothing else launches a
+        // test (row_boot) are GONE, nothing else launches a
         // desktop from this tab.
-        // P6 — نظام مضيف: the ONE system (Debian 13.1 + LXQt). First
+        // P6, نظام مضيف: the ONE system (Debian 13.1 + LXQt). First
         // tap downloads + extracts Debian (35 MB, hash-verified),
         // later taps go straight to the desktop.
         binding.rowVncMudif.setOnClickListener {
@@ -129,7 +129,7 @@ class ProfileFragment : Fragment() {
             startActivity(android.content.Intent(requireContext(), LogViewerActivity::class.java))
         }
 
-        // Real-computer #3 — shared files folder. The row shows the
+        // Real-computer #3, shared files folder. The row shows the
         // Android path; tap copies it to the clipboard. Inside the
         // guest the same folder is /mnt/mudif-shared (bound at boot).
         binding.textSharedFolderPath.text =
@@ -143,10 +143,10 @@ class ProfileFragment : Fragment() {
             ).show()
         }
 
-        // Real-computer #4 — in-app system update (apt update +
+        // Real-computer #4, in-app system update (apt update +
         // upgrade, no image reinstall). Runs off the UI thread; the
         // progress dialog shows the live apt output, and the result
-        // dialog shows the real tail of it — never a fake "done".
+        // dialog shows the real tail of it, never a fake "done".
         binding.rowSystemUpdate.setOnClickListener {
             val ctx = requireContext()
             val progress = MudifDialog.progress(ctx, getString(R.string.system_update_title))
@@ -174,7 +174,7 @@ class ProfileFragment : Fragment() {
             }.start()
         }
 
-        // Real-computer #2 — backup / restore. Backup stops the
+        // Real-computer #2, backup / restore. Backup stops the
         // desktop first (a live system cannot be tarred safely);
         // restore goes through the file picker and is verified by
         // content, not by name.
@@ -191,16 +191,16 @@ class ProfileFragment : Fragment() {
             )
         }
 
-        // Real-computer #10 — guest task manager (processes + kill).
+        // Real-computer #10, guest task manager (processes + kill).
         binding.rowTaskManager.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), TaskManagerActivity::class.java))
         }
     }
 
     /**
-     * Real-computer #2 — create a backup. If the desktop is running
+     * Real-computer #2, create a backup. If the desktop is running
      * it is stopped first, after a confirm (a live rootfs cannot be
-     * tarred safely — files change under the walk). The progress bar
+     * tarred safely, files change under the walk). The progress bar
      * is real bytes/total; the result dialog shows the real file.
      */
     private fun runBackup() {
@@ -264,7 +264,7 @@ class ProfileFragment : Fragment() {
     }
 
     /**
-     * Real-computer #2 — restore from a picked file. The confirm
+     * Real-computer #2, restore from a picked file. The confirm
      * says plainly that the current system is wiped. The desktop
      * is stopped first (the confirm covers it: the system is being
      * replaced). The file is copied to a temp file first because
@@ -341,16 +341,16 @@ class ProfileFragment : Fragment() {
     }
 
     /**
-     * P6.1 — the counters were hardcoded "0" in the layout while
+     * P6.1, the counters were hardcoded "0" in the layout while
      * Alpine + Firefox + LibreOffice were already installed (the tabs
      * test proved it). They now read real state.
      * P6.2 FIX (P6.1 test): /usr/bin/soffice is an ABSOLUTE symlink
      * to /usr/lib/libreoffice/program/soffice, which does NOT resolve
      * on the Android host (File.exists follows the link against the
-     * host's /usr/lib) — so the apps counter read 1 instead of 2
+     * host's /usr/lib), so the apps counter read 1 instead of 2
      * while LibreOffice IS installed. Check the real target path
      * inside each rootfs as well.
-     * P6.4 — نظام مضيف is the ONLY system: the counters read the
+     * P6.4, نظام مضيف is the ONLY system: the counters read the
      * Debian rootfs only (Alpine is gone from the app).
      */
     private fun refreshCounters() {

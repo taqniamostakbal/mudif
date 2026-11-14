@@ -93,7 +93,7 @@ object AgentServer {
     private const val PULL_READ_TIMEOUT_MS = 120_000
 
     /** Is the brain model present in Ollama? Null = Ollama is not
-     *  reachable (unknown — the servers are not up yet). Never called
+     *  reachable (unknown, the servers are not up yet). Never called
      *  on the UI thread (network). */
     fun hasBrainModel(): Boolean? {
         return try {
@@ -299,7 +299,7 @@ object AgentServer {
         }
         // p22 - free cloud providers: merge the 9 providers from the
         // bundled opencode-providers.json (groq, huggingface, llm7,
-        // ollama, opencode, openrouter, google, cohere, mistral —
+        // ollama, opencode, openrouter, google, cohere, mistral ,
         // 41 models, no keys in the asset; the keys come from
         // settings via keys.env). Only the providers MISSING from
         // the config are added, so the rig-proven local Ollama entry

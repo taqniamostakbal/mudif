@@ -14,7 +14,7 @@ import com.bolm.mudif.ui.store.StoreProgram
 
 /**
  * Installed-apps list (P18.5 rebuild): the items are real StorePrograms
- * the guest reports as installed — no hardcoded list anymore. Each card
+ * the guest reports as installed, no hardcoded list anymore. Each card
  * shows the store icon (or the P19 letter tile on the category
  * gradient when the icon is missing) and two working actions:
  * Launch and Uninstall. The P19 look is kept (squircle tile, pill

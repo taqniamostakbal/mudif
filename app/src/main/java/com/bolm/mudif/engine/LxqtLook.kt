@@ -251,15 +251,15 @@ object LxqtLook {
     // P16: public so the version toast + diagnostic report always show
     // the CURRENT marker (never a stale hardcoded "P8" again).
     // P17: bumped again because the rootfs is now the pre-built
-    // image — the look still runs once after extraction (it rebuilds
+    // image, the look still runs once after extraction (it rebuilds
     // the mudif icon cache inside the guest), so a fresh rootfs must
     // receive it.
     // P21: WhiteSur-light icon theme + 48px panel + launcher
-    // quicklaunch + 64px desktop icons — existing rootfs must
+    // quicklaunch + 64px desktop icons, existing rootfs must
     // re-apply the look to pick them up.
     // P22: bumped again because the p21 APK bundled a STALE look
     // (2026-11-07 theme) and clobbered the p21 image's fixed look on
-    // first boot — existing rootfs must re-apply the current look to
+    // first boot, existing rootfs must re-apply the current look to
     // pick up the maximize rule, padding 4 and DesktopIconSize=64.
     // The p22 APK and the p22 image must ship from the same snapshot.
     const val MARKER_VERSION = "p22"
@@ -557,7 +557,7 @@ object LxqtLook {
     // theme installed by extractZipAsset above). Before P9 this was
     // theme=dark + icon_theme=bloom-dark.
     // P15: the palette lives HERE, in a [Palette] group (lxqt-qtplugin
-    // builds it solely from lxqt.conf [Palette] — proven live,
+    // builds it solely from lxqt.conf [Palette], proven live,
     // PALETTE-PROOF.md: Fusion + this group gives Window #232323 /
     // Highlight #593BFE on all ten roles). The `palette=Mudif` key and
     // the file /usr/share/lxqt/palettes/Mudif are DEAD (nothing reads
@@ -590,7 +590,7 @@ tooltip_text_color=#b8b8b8
     // Openbox is LXQt's window manager. The Environment section is
     // what the session exports to every Qt/GTK app: Fusion is the Qt
     // widget style (P15: Adwaita-Dark was dropped because it provides
-    // its own palette which MASKS the platform-theme palette — the
+    // its own palette which MASKS the platform-theme palette, the
     // leave dialog stayed #353535 under it; Fusion respects the
     // [Palette] group in lxqt.conf, proven live PALETTE-PROOF.md.
     // Fusion is built-in, so no P6.6 "invalid style override" risk),

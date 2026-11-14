@@ -32,7 +32,7 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.switchmaterial.SwitchMaterial
 
 /**
- * P18.3 — Viewer settings screen (Termux:X11), Fusha Arabic, Mudif style.
+ * P18.3, Viewer settings screen (Termux:X11), Fusha Arabic, Mudif style.
  * Every change is saved immediately to the same prefs file the viewer reads
  * (com.bolm.mudif_preferences); the viewer's OnSharedPreferenceChangeListener
  * applies it live, no restart needed.

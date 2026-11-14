@@ -6,7 +6,7 @@ import com.bolm.mudif.R
 
 /**
  * Full-screen terminal. Launched from the Profile tab (engine section).
- * Hosts TerminalFragment — kept separate from MainActivity because
+ * Hosts TerminalFragment, kept separate from MainActivity because
  * BottomNavigationView supports a maximum of 5 items.
  */
 class TerminalActivity : AppCompatActivity() {

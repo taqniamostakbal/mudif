@@ -7,7 +7,7 @@ import android.util.Log
 import com.bolm.mudif.R
 
 /**
- * P18.3 — Viewer settings (Termux:X11) in Fusha Arabic, Mudif style.
+ * P18.3, Viewer settings (Termux:X11) in Fusha Arabic, Mudif style.
  *
  * Single source of truth for the viewer preferences:
  * - The viewer (fork) reads PreferenceManager.getDefaultSharedPreferences,
@@ -18,7 +18,7 @@ import com.bolm.mudif.R
  *   dependency, so the file is opened directly by name.)
  * - Mudif defaults are applied ONLY when a pref is absent (first launch).
  *   The user's choice always wins afterwards (openViewer used to overwrite
- *   them on every launch — that silently erased user choices).
+ *   them on every launch, that silently erased user choices).
  */
 object ViewerPrefs {
 

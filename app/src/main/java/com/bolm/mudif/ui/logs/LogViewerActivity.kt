@@ -11,7 +11,7 @@ import com.bolm.mudif.databinding.ActivityLogViewerBinding
 import com.bolm.mudif.engine.DesktopDiagnostics
 
 /**
- * P5.8 — detailed log viewer (the "very detailed log" button the user
+ * P5.8, detailed log viewer (the "very detailed log" button the user
  * ordered). One screen, everything in one place: Hypothesis-1, X server
  * state, PTY container session state, openbox state + log, filtered
  * logcat. Copyable (نسخ) and refreshable (تحديث).

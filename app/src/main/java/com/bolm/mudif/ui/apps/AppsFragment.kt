@@ -21,7 +21,7 @@ import com.google.android.material.snackbar.Snackbar
 /**
  * Installed-apps tab (P18.5 rebuild). The old hardcoded 8-app list
  * and its dead placeholder button are gone: the list is built
- * live from the guest — catalog programs (with a binary) that
+ * live from the guest, catalog programs (with a binary) that
  * ProgramStore.batchStatus reports as installed, exactly like the
  * store derives its states. Each card launches or uninstalls its
  * program for real. Empty state links to the Store.
@@ -140,7 +140,7 @@ class AppsFragment : Fragment() {
     }
 
     /**
-     * Launch via the shared path (AppLauncher — the same code the
+     * Launch via the shared path (AppLauncher, the same code the
      * Games tab uses). The old inline copy of this logic is gone;
      * see AppLauncher for the GUI/CLI decision, the PTY launch, and
      * the pgrep verify.

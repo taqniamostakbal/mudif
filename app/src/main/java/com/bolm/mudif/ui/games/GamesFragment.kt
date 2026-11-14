@@ -32,7 +32,7 @@ import com.google.android.material.snackbar.Snackbar
  *
  * "جهّز محطة الألعاب" installs every game entry sequentially, with
  * a real progress bar (one step per program actually installed and
- * verified — never a timer), then runs the guest setup script
+ * verified, never a timer), then runs the guest setup script
  * (setup-arcade.sh: ~/Games folders + desktop shortcuts for the
  * installed binaries only). The end report lists every program as
  * succeeded / failed / already installed plus the setup-script
@@ -297,7 +297,7 @@ class GamesFragment : Fragment() {
      * per program); already-installed entries are skipped, not
      * re-installed, and still advance the count. The setup script
      * runs even if some installs failed, so the folders and
-     * shortcuts cover whatever IS installed — its own result is
+     * shortcuts cover whatever IS installed, its own result is
      * reported separately, never folded into the install count.
      * The per-install stage stream is intentionally not shown here:
      * the dialog status is the real count line (program + x/N), and

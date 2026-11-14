@@ -16,7 +16,7 @@ import java.net.Socket
 import java.util.Collections
 
 /**
- * Phase 2 — wireless TV: the shared sender pipeline.
+ * Phase 2, wireless TV: the shared sender pipeline.
  *
  * HYPOTHESIS (original, DISPROVEN by reading X11Session.kt):
  * "The app can feed its own VNC view into a MediaCodec encoder
@@ -28,16 +28,16 @@ import java.util.Collections
  * there is no app-owned Surface to feed an encoder.
  *
  * CORRECTED pipeline (reuses the PROVEN path): the guest ffmpeg
- * grabs the X display with x11grab over 127.0.0.1:6 — exactly like
+ * grabs the X display with x11grab over 127.0.0.1:6, exactly like
  * ScreenRecorder, whose command was verified live on the rig
  * (ffmpeg PID 4150, ~10 s, SIGINT clean stop). One ffmpeg process
  * encodes once (libx264 ultrafast, 15 fps) and splits the output
  * with the tee muxer into:
  *  (a) HLS segments (ffmpeg's native HLS muxer, 2 s segments) in
- *      the shared folder, served by the tiny HTTP server below —
+ *      the shared folder, served by the tiny HTTP server below ,
  *      this is what Google Cast loads (Default Media Receiver).
  *  (b) MPEG-TS over HTTP PUT/POST to the same server
- *      (/live.ts), re-broadcast chunked to TV clients — the
+ *      (/live.ts), re-broadcast chunked to TV clients, the
  *      low-latency path the companion TV app plays (< 1 s target).
  * No MediaProjection (would need a per-session consent dialog plus
  * a mediaProjection foreground service on API 34, would capture the
@@ -48,7 +48,7 @@ import java.util.Collections
  *
  * UNVERIFIED until rig/phone test: the tee muxer in the guest
  * ffmpeg build; the exact LL behaviour (this ships standard HLS
- * with short 2 s segments, NOT LL-HLS partial segments — the
+ * with short 2 s segments, NOT LL-HLS partial segments, the
  * research's 2-5 s LL-HLS figure is the protocol range, not a
  * measurement of this app); LAN reachability of the server port.
  * start() verifies at runtime that stream.m3u8 appears, and fails
@@ -154,7 +154,7 @@ object TvStreamer {
      * and the server answers. Call from a background thread.
      * Order matters: the HTTP server starts FIRST (ffmpeg's TS
      * output PUTs to it at startup; a failed ingest must not kill
-     * the HLS output — the tee slave carries onfail=ignore).
+     * the HLS output, the tee slave carries onfail=ignore).
      */
     @Synchronized
     fun start(context: Context): Boolean {
@@ -351,15 +351,15 @@ object TvStreamer {
      * standalone object. It reads the streamer's live state via
      * TvStreamer.state / TvStreamer.lanIp for the status page.
      * Serves, on the LAN:
-     *  GET /stream.m3u8 — live HLS playlist (no-cache).
-     *  GET /seg_*.ts — HLS segments.
-     *  GET /live.ts — progressive MPEG-TS, chunked, low latency:
+     *  GET /stream.m3u8, live HLS playlist (no-cache).
+     *  GET /seg_*.ts, HLS segments.
+     *  GET /live.ts, progressive MPEG-TS, chunked, low latency:
      *    the handler registers the client stream and blocks until
      *    the client disconnects; the ingest handler broadcasts
      *    every TS chunk to all registered clients.
-     *  PUT/POST /live.ts — TS ingest from guest ffmpeg (body may
+     *  PUT/POST /live.ts, TS ingest from guest ffmpeg (body may
      *    be chunked or Content-Length; both are decoded).
-     *  GET / — minimal status page.
+     *  GET /, minimal status page.
      * Path traversal is rejected: only basenames inside the
      * segments dir are served (canonical-path check).
      */

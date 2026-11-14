@@ -288,7 +288,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- P18.3 — Viewer settings (Termux:X11), Fusha, Mudif style. -->
+            <!-- P18.3, Viewer settings (Termux:X11), Fusha, Mudif style. -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
                 android:id="@+id/row_viewer_settings"
                 android:layout_width="match_parent"

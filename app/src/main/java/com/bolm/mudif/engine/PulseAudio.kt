@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Real-computer #1 — audio passthrough: guest apps produce sound
+ * Real-computer #1, audio passthrough: guest apps produce sound
  * on the phone.
  *
  * How it works (no fork change, no host pulseaudio binary):
@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong
  *   Android client can never hang the guest daemon (the FIFO
  *   alternative would block pulseaudio's startup on open).
  * - The Android side is a plain TCP client on the shared loopback
- *   (proot shares the network namespace — the same reason the guest
+ *   (proot shares the network namespace, the same reason the guest
  *   reaches the X server on 127.0.0.1:6006). It reads s16le stereo
  *   44100 Hz PCM and feeds an AudioTrack (STREAM_MUSIC, so the
  *   control-center volume slider already governs it).
@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicLong
  * Honest limits: this is wiring, verified by a byte-flow probe
  * (probe() plays a tone in the guest and counts the PCM bytes that
  * reach the Android side). Nobody has HEARD it on a real phone
- * yet — that is the acceptance test, not a claim.
+ * yet, that is the acceptance test, not a claim.
  */
 object PulseAudio {
 
@@ -75,7 +75,7 @@ object PulseAudio {
 
     /**
      * Writes the guest pulseaudio config into the rootfs (host-side
-     * file write — the app owns the rootfs). Idempotent: the same
+     * file write, the app owns the rootfs). Idempotent: the same
      * bytes every time.
      */
     fun ensureGuestConfig(context: Context) {
@@ -228,7 +228,7 @@ object PulseAudio {
      * Returns a one-line evidence string. Requires audio started.
      */
     fun probe(context: Context): String {
-        if (!pumpRunning.get()) return "probe: audio not running — start it first"
+        if (!pumpRunning.get()) return "probe: audio not running, start it first"
         val before = bytesReceived.get()
         peakSample.set(0)
         val ok = GuestSession.sendCommand(
@@ -240,8 +240,8 @@ object PulseAudio {
         val after = bytesReceived.get()
         val peak = peakSample.get()
         return "probe: tone played, PCM bytes +${after - before}, peak sample=$peak " +
-            if (peak > 1000) "(real sound flowing ✓ — now listen on the phone)"
-            else "(silence — the guest daemon is not feeding the stream)"
+            if (peak > 1000) "(real sound flowing ✓, now listen on the phone)"
+            else "(silence, the guest daemon is not feeding the stream)"
     }
 }
 

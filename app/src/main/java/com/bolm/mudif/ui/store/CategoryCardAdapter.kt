@@ -47,7 +47,7 @@ class CategoryCardAdapter(
         val category = categories[position]
         val selected = category.key == selectedKey
         // Honest counts: "الكل" counts only real programs (entries
-        // with a launchable binary). Fonts are not programs — they
+        // with a launchable binary). Fonts are not programs, they
         // are counted on their own card as خطوط, never as برامج.
         val count = if (category == StoreCategory.ALL) {
             counts.entries

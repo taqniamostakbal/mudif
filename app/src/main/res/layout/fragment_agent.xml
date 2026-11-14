@@ -10,7 +10,7 @@
      measured 0 or invisible. Root cause = nested weights / constraints
      never resolving, so children got 0 size. This version ELIMINATES
      both: a plain vertical LinearLayout root, header FIXED height, and
-     ONE single weight (agent_recycler, direct child of the root) — the
+     ONE single weight (agent_recycler, direct child of the root), the
      same structure StoreFragment uses and the rig proves works. No
      nested weights, no ConstraintLayout, no 0dp children inside a 0dp
      parent. All view IDs preserved.
@@ -373,7 +373,7 @@
          the root (same proven pattern as StoreFragment's programs list).
          It fills whatever space is left after header + scroll row +
          input, and recycles its rows.
-         p32: minHeight 100dp backstop — with the keyboard open the
+         p32: minHeight 100dp backstop, with the keyboard open the
          fixed stack (header + row + input + typing/action) used to
          squeeze this weight to 6px; the keyboard listener hides the
          chrome, and this floor keeps the list from ever collapsing. -->
@@ -389,7 +389,7 @@
 
     <!-- Brain download card (p22): shown when Ollama answers but
          the model is missing. One-tap pull with a real progress
-         bar — no terminal. Hidden once the model is present. -->
+         bar, no terminal. Hidden once the model is present. -->
     <LinearLayout
         android:id="@+id/brain_download_card"
         android:layout_width="match_parent"

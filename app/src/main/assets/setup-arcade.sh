@@ -28,7 +28,7 @@ SKIPPED=0
 # The Exec line carries the ABSOLUTE binary path: Debian game packages
 # install to /usr/games, which is not on root's PATH, so a bare binary
 # name would silently fail to launch from the desktop even though the
-# program is installed (command -v misses it too — hence the fallback).
+# program is installed (command -v misses it too, hence the fallback).
 mkshortcut() {
     _name="$1"; _bin="$2"; _icon="$3"
     _path="$(command -v "$_bin" 2>/dev/null || true)"
@@ -82,5 +82,5 @@ mkshortcut "Freeciv"        "freeciv-gtk3.22" "freeciv"
 echo "== done =="
 echo "shortcuts_created=$CREATED"
 echo "shortcuts_skipped=$SKIPPED"
-echo "ROMs go in $GAMES_HOME/ROMs/<system>/ — bring your own legal copies."
+echo "ROMs go in $GAMES_HOME/ROMs/<system>/, bring your own legal copies."
 echo "Vita3K needs your own PS Vita firmware + Vulkan; likely slow under llvmpipe."

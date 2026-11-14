@@ -3,7 +3,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- P19: office — briefcase (body + handle). -->
+    <!-- P19: office, briefcase (body + handle). -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M4,9h16v11H4zM9,5h6v2H9zM9,5h1v4H9zM14,5h1v4h-1z" />

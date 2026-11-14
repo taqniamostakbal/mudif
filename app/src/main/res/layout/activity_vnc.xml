@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="#1A1A2E">
 
-    <!-- Status + icon actions (p22: icons, not text buttons — the
+    <!-- Status + icon actions (p22: icons, not text buttons, the
          user's order: "ايقونات ماشي كتبة"). Two rows of large circular
          icon buttons; state (record/audio) is shown by the icon/tint,
          never by text. IDs are unchanged so the Kotlin listeners

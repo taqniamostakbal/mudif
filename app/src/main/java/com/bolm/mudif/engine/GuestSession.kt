@@ -12,13 +12,13 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * P5.22 RADICAL REBUILD — Tiny Container's mechanism, exactly.
+ * P5.22 RADICAL REBUILD, Tiny Container's mechanism, exactly.
  *
  * ONE NetHunter PTY session running the HOST shell (/system/bin/sh).
  * The container boots by writing the proot invocation into
  * boot_mudif.sh as `exec <proot ...>` and `source`-ing it in that
  * host shell. The `exec` REPLACES the host shell with proot running
- * a guest login shell — from that moment the same session IS the
+ * a guest login shell, from that moment the same session IS the
  * container. Every later command (desktop launch, checks) is just
  * sendCommand: bytes written to the PTY master. The desktop is ONE
  * backgrounded command after the X socket appears.
@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
  * This DELETES the P5.16 pipe session (ContainerSession.kt). The pipe
  * had no controlling terminal, no job control and no delivery
  * guarantee: bytes could sit unread in the pipe buffer while
- * sendCommand returned true — exactly the P5.21 symptom (LXQt command
+ * sendCommand returned true, exactly the P5.21 symptom (LXQt command
  * "sent", lxqt.log never created; round 2 all checks false while the
  * processes were alive). A PTY delivers bytes to the shell as typed
  * input, so a sent command is an executed command.
@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
  * proves the PTY delivers to the host shell (marker file), and
  * bootContainer() proves it delivers to the guest shell (guest marker).
  * If the PTY truly cannot be created on this x86_64 device, ensure()
- * fails fast with lastError set — no silent false progress.
+ * fails fast with lastError set, no silent false progress.
  *
  * Lifecycle (Tiny Container): clean slate on every entry.
  * bootContainer() finishes any old session and boots fresh. Leaving
@@ -65,11 +65,11 @@ object GuestSession {
     var booted = false
         private set
 
-    /** P6 — which system the PTY session is booting (one system: Debian). */
+    /** P6, which system the PTY session is booting (one system: Debian). */
     enum class GuestSystem { ALPINE, DEBIAN }
 
     /** The system of the current (or last) boot. The Terminal tab re-boots this one.
-     * P6.4 — the default is DEBIAN: نظام مضيف is the ONLY system in
+     * P6.4, the default is DEBIAN: نظام مضيف is the ONLY system in
      * this app, so a fresh start must never boot Alpine. */
     @Volatile
     var currentSystem = GuestSystem.DEBIAN
@@ -139,7 +139,7 @@ object GuestSession {
      * session on the main thread. This function now does the same:
      * if the caller has no Looper, the construction runs on the main
      * thread and the caller waits for it (10s max). Only the
-     * construction moves — sendCommand/write from worker threads
+     * construction moves, sendCommand/write from worker threads
      * stays as it is (TC sends commands from coroutines too).
      */
     fun ensure(context: Context): Boolean {
@@ -178,7 +178,7 @@ object GuestSession {
         return ok
     }
 
-    /** The actual construction — always runs on a Looper thread. */
+    /** The actual construction, always runs on a Looper thread. */
     @Synchronized
     private fun createSession(app: Context): Boolean {
         if (alive && session != null) return true
@@ -238,7 +238,7 @@ object GuestSession {
     /**
      * Write a command to the PTY session (command + newline).
      * The PTY delivers it as typed input to the shell. Returns false
-     * if there is no live session — the caller must treat that as a
+     * if there is no live session, the caller must treat that as a
      * hard failure, never as "sent".
      */
     @Synchronized
@@ -257,7 +257,7 @@ object GuestSession {
     }
 
     /**
-     * STEP 0 — PTY smoke test. Proves the PTY delivers bytes to the
+     * STEP 0, PTY smoke test. Proves the PTY delivers bytes to the
      * HOST shell: sends an echo that writes a marker file straight
      * into filesDir/tmp, then polls for it. If this fails, the PTY
      * itself is dead on this device and nothing else can be built on
@@ -304,12 +304,12 @@ object GuestSession {
      * session, creates a fresh host shell, exports the environment,
      * writes the boot script (`exec <proot ...>`) and sources it. The
      * `exec` replaces the host shell with proot running the guest
-     * login shell — the session IS the container from then on.
+     * login shell, the session IS the container from then on.
      * Proof: a marker echo sent right after the source, written by
      * the GUEST shell into the shared /tmp bind. Returns true only
      * if that marker appears.
      *
-     * P6: [system] selects the guest — ALPINE (the old system) or
+     * P6: [system] selects the guest, ALPINE (the old system) or
      * DEBIAN (نظام مضيف). The fast-path only applies when the live
      * session is already the requested system; switching systems
      * always reboots fresh.

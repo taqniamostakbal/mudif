@@ -6,7 +6,7 @@ import android.provider.Settings
 import android.util.Log
 
 /**
- * Phase 2 — system wireless display (Miracast fallback).
+ * Phase 2, system wireless display (Miracast fallback).
  *
  * A third-party app CANNOT initiate Miracast on stock Android:
  * the Wi-Fi Display APIs are hidden and need the system-level

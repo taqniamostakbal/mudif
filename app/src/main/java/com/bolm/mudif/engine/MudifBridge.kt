@@ -24,13 +24,13 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Phase 6 — the Android layer's control plane for the agent.
+ * Phase 6, the Android layer's control plane for the agent.
  *
  * A tiny stdlib HTTP server (ServerSocket, no new dependency) bound
  * to 127.0.0.1:18080 ONLY, never 0.0.0.0: an unrooted phone has no
  * firewall, so a wildcard bind would expose the control plane to
  * the whole Wi-Fi. The Debian guest reaches it on the shared
- * loopback (proot shares Android's network namespace — the same
+ * loopback (proot shares Android's network namespace, the same
  * path the X server on 6006 already uses).
  *
  * Auth: every endpoint requires `Authorization: Bearer <token>`.
@@ -38,11 +38,11 @@ import java.util.concurrent.TimeUnit
  * in the private SharedPreferences "mudif_bridge" (key "token"), and
  * also written to filesDir/tmp/mudif-bridge-token so the guest sees
  * it at /tmp/mudif-bridge-token (the guest /tmp is bind-mounted over
- * the app's files/tmp — see ProgramStore.stageAssetToGuest). Missing
+ * the app's files/tmp, see ProgramStore.stageAssetToGuest). Missing
  * or wrong token answers 401 with a JSON error, never the data.
  * The token is never written to the bridge log and never logged.
  *
- * Endpoints — ONLY what has a real call path. Anything without one
+ * Endpoints, ONLY what has a real call path. Anything without one
  * is omitted, not faked:
  *
  * - GET  /state             engine/desktop/agent/bridge/battery/a11y snapshot
@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit
  *                           it does NOT start the X11 desktop
  * - POST /store/install     {id} -> real catalog lookup + ProgramStore
  *                           install + verify; synchronous, can take
- *                           minutes — the MCP proxy must use a long
+ *                           minutes, the MCP proxy must use a long
  *                           read timeout (see the Python proxy)
  * - POST /settings          {key, value}; whitelist is exactly the
  *                           settable ViewerPrefs.SECTIONS keys
@@ -62,11 +62,11 @@ import java.util.concurrent.TimeUnit
  *                           connected Cast session; when no TV is
  *                           connected it reports
  *                           reason=no_cast_session and the stream
- *                           URL — the bridge cannot pick a TV itself
+ *                           URL, the bridge cannot pick a TV itself
  *                           (that needs the Cast chooser dialog)
  * - GET  /android/ui, POST /android/tap {x,y}, POST /android/type
  *        {text}, POST /android/swipe {x1,y1,x2,y2},
- *        GET  /android/screenshot — all delegated to
+ *        GET  /android/screenshot, all delegated to
  *        MudifAccessibilityService; when the service is not
  *        enabled/connected they answer 503, never a fake tree
  * - GET  /logs              last 100 lines of the bridge's own log
@@ -308,7 +308,7 @@ object MudifBridge {
     /**
      * Live snapshot. desktop_running uses the same check VncActivity
      * uses (X11Session.isDesktopRunning with DESKTOP_LXQT, the
-     * desktop value callers actually pass — DESKTOP_MUDIF is only an
+     * desktop value callers actually pass, DESKTOP_MUDIF is only an
      * intent extra, never a desktop name). Cost: when the desktop is
      * DOWN the check polls twice and can take up to ~40 s; when it
      * is up it answers on the first probe. Callers must allow a
@@ -345,7 +345,7 @@ object MudifBridge {
      * Installs one catalog program, then verifies it for real.
      * Synchronous: apt/deb installs can take minutes (the deb path
      * allows up to 60 min). The caller must use a long read timeout
-     * and must not retry on timeout — a timed-out request may still
+     * and must not retry on timeout, a timed-out request may still
      * be installing in the guest.
      */
     private fun storeInstall(appCtx: Context, req: Request): Pair<Int, JSONObject> {
@@ -473,7 +473,7 @@ object MudifBridge {
      * open) + CastManager.loadNow on the HLS URL. A Cast session
      * must ALREADY be connected for the picture to reach a TV: when
      * none is, the stream still starts (the HLS URL is returned)
-     * but ok=false with reason=no_cast_session — picking a TV needs
+     * but ok=false with reason=no_cast_session, picking a TV needs
      * the Cast chooser dialog, which a headless bridge cannot show.
      */
     private fun castStart(appCtx: Context): JSONObject {

@@ -16,13 +16,13 @@
     <string name="welcome_text">Open the desktop and work as if on a real computer, and install programs from the store.</string>
     <string name="browse_store">Browse the store</string>
     <string name="version_title">Version 0.1.0</string>
-    <string name="version_text">Phase 1 — the core structure works</string>
-    <string name="home_system_installed">Installed ✓ — ready to use</string>
+    <string name="version_text">Phase 1, the core structure works</string>
+    <string name="home_system_installed">Installed ✓, ready to use</string>
     <string name="home_system_not_installed">Not installed yet</string>
     <string name="home_open_desktop">Open the desktop</string>
     <string name="home_install_system">Install the system</string>
     <string name="coming_soon">Coming soon</string>
-    <string name="coming_soon_long">This section is under construction — coming soon</string>
+    <string name="coming_soon_long">This section is under construction, coming soon</string>
     <string name="store_subtitle">Free programs for the Mudif system, install with one tap</string>
     <string name="store_search_hint">Search for a program…</string>
     <string name="store_program_icon_desc">Program icon</string>
@@ -52,15 +52,15 @@
     <string name="store_arch_unknown">Could not detect the system architecture, try again</string>
     <string name="install">Install</string>
     <string name="install_soon">Real installation is coming soon</string>
-    <string name="apps_subtitle">Your installed programs — launch with one tap</string>
+    <string name="apps_subtitle">Your installed programs, launch with one tap</string>
     <string name="apps_empty_title">No programs installed yet</string>
     <string name="apps_empty_text">Install programs from the store and they will appear here to launch with one tap.</string>
-    <string name="apps_system_not_ready">The Mudif system is not installed yet — install it from the store first</string>
+    <string name="apps_system_not_ready">The Mudif system is not installed yet, install it from the store first</string>
     <string name="apps_go_to_store">Browse the store</string>
     <string name="apps_launch">Launch</string>
     <string name="apps_launching">Launching %1$s…</string>
-    <string name="apps_launched">%1$s launched — check the desktop</string>
-    <string name="apps_launch_failed">%1$s did not open — the program did not start. Try again or reinstall it from the store.</string>
+    <string name="apps_launched">%1$s launched, check the desktop</string>
+    <string name="apps_launch_failed">%1$s did not open, the program did not start. Try again or reinstall it from the store.</string>
     <string name="games_subtitle">Open-source emulators and games, install with one tap</string>
     <string name="games_setup_station">Set up the game station</string>
     <string name="games_setup_title">Setting up the game station</string>
@@ -79,9 +79,9 @@
     <string name="games_install_action">Install</string>
     <string name="profile_subtitle">Your information and settings</string>
     <string name="profile_guest_name">Mudif user</string>
-    <string name="profile_guest_mode">Guest mode — no account</string>
+    <string name="profile_guest_mode">Guest mode, no account</string>
     <string name="viewer_settings_title">Viewer settings</string>
-    <string name="viewer_settings_subtitle">Desktop viewer settings — saved instantly and applied immediately</string>
+    <string name="viewer_settings_subtitle">Desktop viewer settings, saved instantly and applied immediately</string>
     <string name="viewer_settings_row_title">Viewer settings</string>
     <string name="viewer_settings_row_subtitle">Display, pointer, keyboard, key bar</string>
     <string name="viewer_settings_mouse_hint">Mouse click: one finger = left button, two fingers = right button, three fingers = middle button. For on-screen buttons, enable “On-screen mouse buttons” in the Pointer section.</string>
@@ -95,7 +95,7 @@
     <string name="about_avatar_desc">Mudif picture</string>
     <string name="about_system_name">Mudif system</string>
     <string name="about_tagline">You are the host, and Linux is your guest</string>
-    <string name="about_oneliner">Full Debian inside your Android phone — no root, no computer</string>
+    <string name="about_oneliner">Full Debian inside your Android phone, no root, no computer</string>
     <string name="about_credit">مشروع تقنية المستقبل | Exploring Tech</string>
     <string name="control_center">Control center</string>
     <string name="engine_check">Engine check</string>
@@ -114,7 +114,7 @@
     <string name="already_installed">Alpine already installed ✓</string>
     <string name="install_done">Alpine installed successfully ✓</string>
     <string name="mudif_system">Mudif system</string>
-    <string name="mudif_system_desc">Full Debian — the app\'s one system</string>
+    <string name="mudif_system_desc">Full Debian, the app\'s one system</string>
     <string name="debian_booting">Starting the Mudif system…</string>
     <string name="debian_install_done">Mudif system installed successfully ✓</string>
     <string name="system_install_title">System installation</string>
@@ -136,11 +136,11 @@
     <string name="backup_failed_title">Backup failed</string>
     <string name="backup_restore_confirm">Restoring will wipe the current system and replace it with the copy. Are you sure?</string>
     <string name="backup_restore_running">Restoring the copy…</string>
-    <string name="backup_restore_done">Restore done ✓ — reopen the desktop</string>
+    <string name="backup_restore_done">Restore done ✓, reopen the desktop</string>
     <string name="backup_restore_failed_title">Restore failed</string>
-    <string name="backup_desktop_running">The desktop is running now — the backup will stop it temporarily. Are you sure?</string>
+    <string name="backup_desktop_running">The desktop is running now, the backup will stop it temporarily. Are you sure?</string>
     <string name="task_manager_title">Task manager</string>
-    <string name="task_manager_desc">Processes running in the guest — view them and stop any you want</string>
+    <string name="task_manager_desc">Processes running in the guest, view them and stop any you want</string>
     <string name="task_manager_empty">No processes</string>
     <string name="task_manager_kill_confirm">Stop process %1$s?</string>
     <string name="task_manager_killed">Process stopped ✓</string>
@@ -165,11 +165,11 @@
     <string name="tv_miracast_unavailable">Could not open the system wireless display settings</string>
     <string name="tv_miracast_body">This is the system display (Miracast): the app cannot connect to the TV itself; you will pick the TV from the system settings. It only works with a TV that supports Miracast.</string>
     <string name="tv_miracast_open_button">Open system settings</string>
-    <string name="tv_choose_body">Choose how to show on the TV:\n\n• Wireless cast: shows the desktop on a TV with Chromecast or a Chromecast device, with no cable. It lags a few seconds — for showing, not for fast control.\n\n• System display: shows on a display connected to the system (Smart View, DeX, or HDMI) if there is one, otherwise it opens the system wireless display settings.</string>
+    <string name="tv_choose_body">Choose how to show on the TV:\n\n• Wireless cast: shows the desktop on a TV with Chromecast or a Chromecast device, with no cable. It lags a few seconds, for showing, not for fast control.\n\n• System display: shows on a display connected to the system (Smart View, DeX, or HDMI) if there is one, otherwise it opens the system wireless display settings.</string>
     <string name="tv_choose_cast">Wireless cast</string>
     <string name="tv_choose_system">System display</string>
     <string name="tv_cast_starting">Starting wireless cast…</string>
-    <string name="tv_cast_started">Cast is running — pick the TV from the list</string>
+    <string name="tv_cast_started">Cast is running, pick the TV from the list</string>
     <string name="tv_cast_failed">Could not start wireless cast</string>
     <string name="tv_cast_no_play_services">Google services are not available on this phone, so wireless cast is not possible</string>
     <string name="tv_cast_running">Wireless cast is running. You can stop it here.</string>
@@ -341,7 +341,7 @@
     <string name="vp_opt_send_volume_down">Send volume down</string>
     <string name="vp_opt_send_media_action">Send media action</string>
     <string name="ui_vnc_starting">Starting the desktop…</string>
-    <string name="ui_vnc_desktop_not_ready">The desktop is not ready yet — wait until it finishes</string>
+    <string name="ui_vnc_desktop_not_ready">The desktop is not ready yet, wait until it finishes</string>
     <string name="ui_vnc_audio_starts_later">Audio will start once the desktop opens</string>
     <string name="ui_vnc_overlay_title">Floating buttons over the desktop</string>
     <string name="ui_vnc_overlay_body">To show the record, TV, and audio buttons over the desktop, enable “Display over other apps” for Mudif.</string>
@@ -349,7 +349,7 @@
     <string name="ui_vnc_overlay_later">Later</string>
     <string name="ui_vnc_app_launched">App launched ✓</string>
     <string name="ui_vnc_desktop_running">Desktop is running ✓</string>
-    <string name="ui_vnc_desktop_failed">Desktop did not start — check the logs</string>
+    <string name="ui_vnc_desktop_failed">Desktop did not start, check the logs</string>
     <string name="ui_vnc_desktop_starting">The desktop is starting now, wait a moment</string>
     <string name="ui_vnc_status_pty_check">Checking the PTY session…</string>
     <string name="ui_vnc_status_pty_missing">The PTY session was not created on this device.\n%1$s</string>
@@ -360,7 +360,7 @@
     <string name="ui_vnc_status_clean_install">Cleaning stuck install processes…</string>
     <string name="ui_vnc_status_verify_system">Verifying the Mudif system…</string>
     <string name="ui_vnc_status_look">Installing the Deepin look…</string>
-    <string name="ui_vnc_status_incomplete">The Mudif system is incomplete.\nThe image has no desktop — reinstall the system.</string>
+    <string name="ui_vnc_status_incomplete">The Mudif system is incomplete.\nThe image has no desktop, reinstall the system.</string>
     <string name="ui_vnc_status_restart_x">Restarting the X server…</string>
     <string name="ui_vnc_status_check_xkb">Checking keyboard data…</string>
     <string name="ui_vnc_status_xkb_missing">Keyboard data (xkb) is missing in the Mudif system.\nReinstall the system from the store, then reopen the desktop.</string>
@@ -368,15 +368,15 @@
     <string name="ui_vnc_status_x_nosocket">The X server did not start: the X6 socket was not created within 15 seconds.</string>
     <string name="ui_vnc_status_wait_tcp">Waiting for the TCP port…</string>
     <string name="ui_vnc_status_tcp_closed">The X server did not open TCP port 6006 within 10 seconds (the socket exists but TCP is closed).</string>
-    <string name="ui_vnc_status_ready">Ready — open the viewer to start the desktop</string>
+    <string name="ui_vnc_status_ready">Ready, open the viewer to start the desktop</string>
     <string name="ui_vnc_status_tcp_blocked">The X server is not working: TCP port 6006 is closed. The desktop was not sent.</string>
     <string name="ui_vnc_status_x_failed">The X server did not start.</string>
     <string name="ui_vnc_fail_title">Desktop failed to start</string>
     <string name="ui_vnc_fail_logs_hint">%1$s\n\nThe real cause is in the logs (Android logcat + server state).</string>
     <string name="ui_vnc_fail_retry">Retry</string>
     <string name="ui_vnc_unexpected_error">Unexpected error while starting the desktop:\n%1$s</string>
-    <string name="ui_vnc_no_diagnostics">No diagnostics yet — open the desktop first</string>
-    <string name="ui_vnc_diag_title">Diagnostics — Mudif system</string>
+    <string name="ui_vnc_no_diagnostics">No diagnostics yet, open the desktop first</string>
+    <string name="ui_vnc_diag_title">Diagnostics, Mudif system</string>
     <string name="ui_vnc_diag_report">System: Mudif system (Debian 13.1 + LXQt)\nPTY alive: %1$s\nGuest booted: %2$s\nX6 socket: %3$s\nTCP 6006: %4$s\nIcons: native (Debian, no glycin)\nMudif system installed: %5$s\nDeepin look installed: %6$s\nDesktop: starts after opening the viewer (size is fixed first)\n\n--- The real cause ---\n%7$s</string>
     <string name="ui_vnc_diag_open_viewer">Open the viewer and start the desktop</string>
     <string name="ui_vnc_diag_view_logs">Detailed logs</string>
@@ -413,7 +413,7 @@
     <string name="ui_cat_fonts">Fonts</string>
     <string name="ui_store_unit_programs">programs</string>
     <string name="ui_store_unit_fonts">fonts</string>
-    <string name="ui_distro_mudif_desc">Your full system — ready with one tap</string>
+    <string name="ui_distro_mudif_desc">Your full system, ready with one tap</string>
     <string name="ui_store_no_arm64_error">No arm64 version for this program</string>
     <string name="ui_store_bad_url">Invalid package URL</string>
     <string name="ui_store_unknown_method">Unknown install method</string>
@@ -429,10 +429,10 @@
     <string name="ui_term_stopped">Command stopped: %1$s</string>
     <string name="ui_dl_failed_part">Download failed (part %1$d/%2$d): HTTP %3$d</string>
     <string name="ui_dl_failed_http">Download failed: HTTP %1$d</string>
-    <string name="ui_dl_part_missing">Part %1$d/%2$d is incomplete: got %3$d of %4$d bytes — try again</string>
-    <string name="ui_dl_incomplete">Download incomplete: got %1$d of %2$d bytes — try again</string>
+    <string name="ui_dl_part_missing">Part %1$d/%2$d is incomplete: got %3$d of %4$d bytes, try again</string>
+    <string name="ui_dl_incomplete">Download incomplete: got %1$d of %2$d bytes, try again</string>
     <string name="ui_dl_too_small">Download file is suspiciously small (%1$d bytes)</string>
-    <string name="ui_dl_bad_hash">Download is corrupt: the hash does not match the source — try again</string>
+    <string name="ui_dl_bad_hash">Download is corrupt: the hash does not match the source, try again</string>
     <string name="ui_dl_bad_entry">Suspicious path in the archive: %1$s</string>
     <string name="ui_dl_link_failed">Could not create link %1$s: %2$s</string>
     <string name="ui_dl_hardlink_missing">Could not create hard link %1$s: %2$s</string>
@@ -447,11 +447,11 @@
     <string name="ui_engine_no_output">Exited with no output (%1$s)</string>
     <string name="ui_engine_failed">The engine did not work on this device (%1$s):\n%2$s</string>
     <string name="ui_engine_ok">proot is working ✓\n%1$s</string>
-    <string name="ui_backup_desktop_running_err">The desktop is running — stop it first, then retry the backup</string>
-    <string name="ui_backup_desktop_running_restore">The desktop is running — stop it first, then retry the restore</string>
+    <string name="ui_backup_desktop_running_err">The desktop is running, stop it first, then retry the backup</string>
+    <string name="ui_backup_desktop_running_restore">The desktop is running, stop it first, then retry the restore</string>
     <string name="ui_backup_bad_entry">Suspicious path in the backup: %1$s</string>
     <string name="ui_backup_hardlink_missing">Could not create hard link %1$s</string>
-    <string name="ui_backup_no_system">Mudif system not installed — there is nothing to back up</string>
+    <string name="ui_backup_no_system">Mudif system not installed, there is nothing to back up</string>
     <string name="ui_backup_too_small">Backup is suspiciously small (%1$d bytes)</string>
     <string name="ui_backup_invalid_file">Invalid backup file</string>
     <string name="ui_backup_not_mudif">This file is not a Mudif system backup</string>
@@ -461,8 +461,8 @@
     <string name="ui_tv_err_no_ip">Could not find the local network address</string>
     <string name="ui_tv_err_no_server">Could not open the cast server on the phone</string>
     <string name="ui_tv_err_no_send">Could not send the cast command to the system</string>
-    <string name="ui_tv_err_no_ffmpeg">ffmpeg did not start — %1$s</string>
-    <string name="ui_tv_err_no_stream">The cast did not start — %1$s</string>
+    <string name="ui_tv_err_no_ffmpeg">ffmpeg did not start, %1$s</string>
+    <string name="ui_tv_err_no_stream">The cast did not start, %1$s</string>
     <string name="ui_tvpage_title">Mudif cast</string>
     <string name="ui_tvpage_heading">Mudif system cast</string>
     <string name="ui_tvpage_status">State: %1$s</string>
@@ -488,7 +488,7 @@
     <string name="ui_diag_system_line2">Installed with apt (--no-install-recommends); boot is host-side, not nested.</string>
     <string name="ui_diag_p67">P6.7: the freeze was fixed by removing --sysvipc; size is pinned to 1280x720; the desktop wallpaper was fixed (Wallpaper under [Desktop] + WallpaperMode=stretch); power management is off; dark mode was fixed by adding adwaita-qt (qlipper is the only Qt5 app).</string>
     <string name="ui_diag_p8">P8: Arabic in Arabic (Cairo font + ar_MA.UTF-8 locale); purple wallpaper; the Arabic terminal has 48 Fusha commands; the LXQt menu stayed in English (the .qm translation comes later).</string>
-    <string name="ui_diag_snapshot_title">=== Mudif %1$s — detailed log ===</string>
+    <string name="ui_diag_snapshot_title">=== Mudif %1$s, detailed log ===</string>
     <string name="ui_diag_time">Time: %1$s</string>
     <string name="ui_diag_version">Version: %1$s</string>
     <string name="ui_diag_cause_header">--- The real cause (diagnostics P5.22) ---</string>
@@ -517,7 +517,7 @@
     <string name="ui_log_collecting">Collecting logs…</string>
     <string name="ui_log_copied">Copied</string>
     <string name="ui_drawer_settings_tools">Settings and tools</string>
-    <string name="ui_cc_subtitle">Quick controls and system status — real values</string>
+    <string name="ui_cc_subtitle">Quick controls and system status, real values</string>
     <string name="ui_cc_quick">Quick controls</string>
     <string name="ui_cc_wifi">Wi-Fi</string>
     <string name="ui_cc_brightness">Brightness</string>
@@ -534,7 +534,7 @@
     <string name="ui_home_stat_not_installed">Not installed</string>
     <string name="ui_profile_distro">Debian</string>
     <string name="ui_nav_menu_desc">Menu</string>
-    <string name="ui_term_system_not_installed">System not installed — install the Mudif system from Profile first</string>
+    <string name="ui_term_system_not_installed">System not installed, install the Mudif system from Profile first</string>
     <string name="ui_term_container_failed">Could not start the container: %1$s</string>
     <string name="ui_task_cannot_kill_pid1">Cannot stop process 1 (the system core)</string>
     <string name="ui_about_version">Version %1$s · image %2$s</string>
@@ -543,9 +543,9 @@
     <string name="agent_name">Mudif Assistant</string>
     <string name="agent_today">Today</string>
     <string name="agent_subtitle">Online</string>
-    <string name="agent_about">Mudif Assistant is your Arabic assistant inside the Mudif system: it searches the web, opens programs, changes settings, and carries out tasks on the desktop by voice or by typing — and its abilities keep growing. For long tasks, set the battery to Unrestricted in the phone settings so the system does not stop the assistant.</string>
+    <string name="agent_about">Mudif Assistant is your Arabic assistant inside the Mudif system: it searches the web, opens programs, changes settings, and carries out tasks on the desktop by voice or by typing, and its abilities keep growing. For long tasks, set the battery to Unrestricted in the phone settings so the system does not stop the assistant.</string>
     <string name="accessibility_service_description">Mudif Assistant controls Mudif\'s own screens and reads the on-screen UI tree so the agent can act inside the app. It never reads passwords and nothing leaves the phone.</string>
-    <string name="agent_greeting">Hello, I\'m Mudif Assistant. I can open any installed program and carry out any task inside the Mudif system — what should I do?</string>
+    <string name="agent_greeting">Hello, I\'m Mudif Assistant. I can open any installed program and carry out any task inside the Mudif system, what should I do?</string>
     <string name="agent_hint">Write a message…</string>
     <string name="agent_send">Send</string>
     <string name="agent_voice_in_desc">Voice input</string>
@@ -557,13 +557,13 @@
     <string name="agent_typing">Mudif Assistant is typing…</string>
     <string name="agent_thinking">Mudif Assistant is thinking…</string>
     <string name="agent_starting_server">Starting the assistant server…</string>
-    <string name="agent_server_start_failed">Could not start the assistant server — check the log and retry</string>
-    <string name="agent_engine_not_ready">The system is not ready — install the Mudif system first</string>
+    <string name="agent_server_start_failed">Could not start the assistant server, check the log and retry</string>
+    <string name="agent_engine_not_ready">The system is not ready, install the Mudif system first</string>
     <string name="agent_stop">Stop</string>
     <string name="agent_stopped">Reply stopped</string>
-    <string name="agent_error">An error occurred while replying — please retry</string>
+    <string name="agent_error">An error occurred while replying, please retry</string>
     <string name="agent_tool_running">Running: %1$s</string>
-    <string name="agent_server_not_running">The assistant server is not running — open the desktop first</string>
+    <string name="agent_server_not_running">The assistant server is not running, open the desktop first</string>
     <string name="agent_server_retry">Retry</string>
     <string name="agent_mode_chat">Chat</string>
     <string name="agent_mode_console">Console</string>

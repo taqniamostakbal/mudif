@@ -126,7 +126,7 @@ object MudifDialog {
         ).toInt()
 
     /** Branded About dialog (Phase 1a): the same identity as the
-     *  desktop mudif-about — the user's avatar, the channel credit,
+     *  desktop mudif-about, the user's avatar, the channel credit,
      *  the app + image versions, and the GitHub/YouTube links.
      *  This replaces the version-only dialog. */
     fun about(ctx: Context): AlertDialog {

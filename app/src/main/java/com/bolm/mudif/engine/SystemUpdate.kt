@@ -1,7 +1,7 @@
 package com.bolm.mudif.engine
 
 /**
- * Real-computer #4 — in-app system update: apt update + upgrade
+ * Real-computer #4, in-app system update: apt update + upgrade
  * inside the Debian guest, without reinstalling the image.
  *
  * Deliberately does NOT kill orphaned apt processes first: an

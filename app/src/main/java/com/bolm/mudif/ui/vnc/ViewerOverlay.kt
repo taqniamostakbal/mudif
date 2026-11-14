@@ -297,11 +297,11 @@ class ViewerOverlay(private val context: Context) {
     }
 
     /**
-     * Phase 2 — TV: a system-connected display (Smart View / DeX /
+     * Phase 2, TV: a system-connected display (Smart View / DeX /
      * HDMI) opens the viewer on it (unchanged). With no such display,
      * the button opens the SYSTEM wireless-display settings
      * (Miracast fallback): the app cannot connect to a Miracast TV
-     * itself. The viewer is on top, so a dialog would not be seen —
+     * itself. The viewer is on top, so a dialog would not be seen ,
      * the fallback is a direct settings open, plus a Toast.
      * Cast lives on the VncActivity status screen (btnTv dialog).
      */

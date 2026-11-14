@@ -32,14 +32,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * P5.22 RADICAL REBUILD — X11 desktop via Termux:X11, Tiny
+ * P5.22 RADICAL REBUILD, X11 desktop via Termux:X11, Tiny
  * Container's x11 branch exactly.
  *
  * Tiny (`ContainerMainViewModel`, x11 feature):
  *  1. Boot the container in the PTY session (fresh, clean slate).
  *  2. `launchXServer(args)` in parallel.
- *  3. `waitForFile(.../.X11-unix/X6)` — 15 s, exists() only.
- *  4. `Global.sendCommand(command)` — ONE backgrounded desktop
+ *  3. `waitForFile(.../.X11-unix/X6)`, 15 s, exists() only.
+ *  4. `Global.sendCommand(command)`, ONE backgrounded desktop
  *     command into the PTY session.
  *  5. Open `com.termux.x11.MainActivity`.
  *
@@ -48,14 +48,14 @@ import java.util.concurrent.atomic.AtomicReference
  * from a broken pipe: success = PTY alive + guest booted + X socket
  * up + desktop command sent. The viewer shows the truth.
  *
- * P6.4 — نظام مضيف is the ONLY system in this app (the user's
+ * P6.4, نظام مضيف is the ONLY system in this app (the user's
  * order 2026-11-07: "خاص يبقى في التطبيق نظامي فقط اما باقي
  * الانظمة لا"). Debian 13.1 + LXQt, Deepin-style look baked into
  * the install flow. The Alpine rows are gone from the profile tab,
  * the store lists Debian only, and this activity no longer has an
  * Alpine path at all. The intent extra is ignored: every launch
  * opens نظام مضيف.
- * P6.5 — the desktop launches AFTER the viewer opens (from the
+ * P6.5, the desktop launches AFTER the viewer opens (from the
  * dialog button): the viewer resizes the server on attach, and a
  * desktop launched before attach lays out at 1280x1024 with its
  * panel off-screen. The viewer is pinned to exact 1280x720
@@ -76,7 +76,7 @@ class VncActivity : AppCompatActivity() {
      * P18.5: a pending app launch, handed in by the Apps tab
      * (EXTRA_LAUNCH_APP = the full shell command). It fires only
      * after the desktop is confirmed running, inside
-     * openViewerAndLaunchDesktop — never into a dead X server.
+     * openViewerAndLaunchDesktop, never into a dead X server.
      */
     @Volatile
     private var pendingLaunchApp: String? = null
@@ -161,7 +161,7 @@ class VncActivity : AppCompatActivity() {
 
         // P16.2: the status screen is the escape hatch. If the diagnostics
         // dialog never appears (or the user dismisses it), this button
-        // still opens the viewer and starts the desktop — the screen is
+        // still opens the viewer and starts the desktop, the screen is
         // never a dead end. The TCP check runs off the UI thread
         // (Socket.connect throws NetworkOnMainThreadException, P5.25).
         binding.btnOpenViewer.setOnClickListener {
@@ -181,7 +181,7 @@ class VncActivity : AppCompatActivity() {
             }.start()
         }
 
-        // Real-computer #5 — screen recording. The button toggles:
+        // Real-computer #5, screen recording. The button toggles:
         // start (ffmpeg in the guest, viewer opens so you can see
         // what is being recorded) or stop (the mp4 lands in the
         // shared folder). One-shots run off the UI thread.
@@ -226,7 +226,7 @@ class VncActivity : AppCompatActivity() {
             }.start()
         }
 
-        // Phase 2 — desktop on TV, three paths (research order):
+        // Phase 2, desktop on TV, three paths (research order):
         // Cast live-HLS (in-app, wireless), system display
         // (Presentation: Smart View / DeX / HDMI), system wireless
         // settings (Miracast fallback). The TV shows the live
@@ -336,7 +336,7 @@ class VncActivity : AppCompatActivity() {
             )
         }
 
-        // Real-computer #1 — audio passthrough. The button toggles
+        // Real-computer #1, audio passthrough. The button toggles
         // the "audio enabled" preference; the pump starts with the
         // desktop when enabled, and immediately on tap when the
         // desktop is already up.
@@ -371,7 +371,7 @@ class VncActivity : AppCompatActivity() {
             }.start()
         }
 
-        // Version indicator — reads the live marker, never a stale label.
+        // Version indicator, reads the live marker, never a stale label.
         Toast.makeText(this, getString(R.string.ui_vnc_version_toast, LxqtLook.MARKER_VERSION), Toast.LENGTH_LONG).show()
 
         startDesktop()
@@ -418,7 +418,7 @@ class VncActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         // p22: collapse the floating panel when leaving this screen
-        // (HOME, viewer opens). The FAB stays — it floats over the
+        // (HOME, viewer opens). The FAB stays, it floats over the
         // viewer and is the reachable control there. The wide panel
         // must not sit over the home screen blocking icons. onDestroy
         // still removes everything.
@@ -468,7 +468,7 @@ class VncActivity : AppCompatActivity() {
         Thread {
             Thread.sleep(4000)
             val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
-            // Real-computer #8: the 3 s sleep here was redundant —
+            // Real-computer #8: the 3 s sleep here was redundant ,
             // isDesktopRunning already polls twice (up to 20 s each
             // with a 3 s gap). The 4 s sleep above stays: the viewer
             // must attach and resize the server BEFORE the desktop
@@ -494,7 +494,7 @@ class VncActivity : AppCompatActivity() {
             // P18.5: fire a pending app launch (from the Apps tab)
             // only now that the desktop is confirmed running. The
             // command goes through the PTY session, like the desktop
-            // launch itself — a one-shot proot could not keep the
+            // launch itself, a one-shot proot could not keep the
             // app alive. Cleared whether it fires or not, so a
             // failed desktop never launches an app into a dead X.
             val appToLaunch = pendingLaunchApp
@@ -547,7 +547,7 @@ class VncActivity : AppCompatActivity() {
 
     private fun startDesktop() {
         // P16.2: at most one run at a time (see the companion flag).
-        // A second launch while a run is in progress just waits — it
+        // A second launch while a run is in progress just waits, it
         // must NOT spawn a second thread racing the first on the PTY
         // and the X server.
         if (!startInProgress.compareAndSet(false, true)) {
@@ -558,13 +558,13 @@ class VncActivity : AppCompatActivity() {
         }
         Thread {
             try {
-            // Real-computer #7: fast reattach — a healthy session
+            // Real-computer #7: fast reattach, a healthy session
             // opens the viewer directly, no reboot-on-entry.
             if (tryFastReattach()) return@Thread
             // 0. PTY smoke test (study step 0): prove the PTY session
             // can be created and delivers bytes on this device BEFORE
             // building anything on it. If this fails, stop here and
-            // say so — no more builds on an unproven mechanism.
+            // say so, no more builds on an unproven mechanism.
             setStatus(getString(R.string.ui_vnc_status_pty_check))
             if (!GuestSession.ensure(this)) {
                 if (destroyed) return@Thread
@@ -590,13 +590,13 @@ class VncActivity : AppCompatActivity() {
             // processes as orphans owning the display, and the new
             // desktop's window manager then refuses to start. Only
             // when the guest is installed; a failure here is not
-            // fatal — the fresh boot proceeds anyway.
-            // P6.4: also clean the Alpine guest — the box may still
+            // fatal, the fresh boot proceeds anyway.
+            // P6.4: also clean the Alpine guest, the box may still
             // hold the live Alpine LXQt session from the 2026-11-07
             // test owning :6, and a surviving window manager blocks
             // the new desktop (P5.24).
             // Real-computer #8: the two kill one-shots are
-            // independent — run them in parallel, join both.
+            // independent, run them in parallel, join both.
             setStatus(getString(R.string.ui_vnc_status_clean_desktop))
             val killThreads = listOf(
                 Thread { if (DebianSystem.isReady(this)) X11Session.killDebianDesktopProcesses(this) },
@@ -628,7 +628,7 @@ class VncActivity : AppCompatActivity() {
             }
 
             // 2. One-shot installers FIRST (proven path).
-            // P17: NO install anymore — the desktop set ships INSIDE
+            // P17: NO install anymore, the desktop set ships INSIDE
             // the pre-built image (LXQt + openbox + qterminal +
             // firefox-esr + deepin/papirus/adwaita icons + dbus +
             // xkb-data, all pre-installed). ensureDebianDesktop only
@@ -640,7 +640,7 @@ class VncActivity : AppCompatActivity() {
 
             setStatus(getString(R.string.ui_vnc_status_verify_system))
             val desktopOk = X11Session.ensureDebianDesktop(this)
-            // P6.4 — the Deepin-style look for LXQt (navy wallpaper,
+            // P6.4, the Deepin-style look for LXQt (navy wallpaper,
             // bloom-dark icons, dark panel, dark Qt/GTK): written
             // into the rootfs BEFORE the first launch, once per
             // rootfs (marker); skipped when already applied.
@@ -652,7 +652,7 @@ class VncActivity : AppCompatActivity() {
             }
 
             // P16 XKB GUARD: if the desktop install did not complete,
-            // the xkb data is not there either — do NOT start the X
+            // the xkb data is not there either, do NOT start the X
             // server (it would die instantly with an empty
             // XKB_CONFIG_ROOT). Tell the user plainly instead.
             if (!desktopOk) {
@@ -696,7 +696,7 @@ class VncActivity : AppCompatActivity() {
             // 4b. TCP value for the dialog, computed HERE on the
             // background thread (P5.25): isTcpDisplayOpen() does a
             // Socket.connect, which throws NetworkOnMainThreadException
-            // on the UI thread — that is why the dialog always said
+            // on the UI thread, that is why the dialog always said
             // false while the socket was proven LISTEN+ESTABLISHED.
             val tcpOk = X11Session.isTcpDisplayOpen()
 
@@ -707,11 +707,11 @@ class VncActivity : AppCompatActivity() {
             // It launches after the viewer opens, from the dialog
             // button below, once the size has settled at 1280x720
             // (exact mode, set by openViewer). No live wallpaper step
-            // exists for LXQt — the wallpaper is baked into the look
+            // exists for LXQt, the wallpaper is baked into the look
             // configs before launch (pcmanfm-qt reads settings.conf
             // at startup).
 
-            // 5. P19: the viewer opens DIRECTLY — the diagnostics
+            // 5. P19: the viewer opens DIRECTLY, the diagnostics
             // dialog no longer blocks the normal path. The dialog was
             // a report, not a gate (the desktop only launches after
             // the viewer opens, P6.5), so opening the viewer here is
@@ -777,27 +777,27 @@ class VncActivity : AppCompatActivity() {
     }
 
     /**
-     * Real-computer #8 — the X-server startup sequence, extracted
+     * Real-computer #8, the X-server startup sequence, extracted
      * unchanged from startDesktop step 3 so it can run in PARALLEL
      * with the container boot (the X server only needs the rootfs
-     * for xkb-data, never the booted PTY session — the same split
+     * for xkb-data, never the booted PTY session, the same split
      * Tiny Container uses). Returns ok/error instead of showing
      * dialogs: the caller shows the dialog after joining.
      */
     private data class XResult(val ok: Boolean, val error: String? = null)
 
     private fun runXStartup(): XResult {
-        // 3. Start the X server (Tiny launchXServer) — but ONLY
+        // 3. Start the X server (Tiny launchXServer), but ONLY
         // if it is not already up. Judge by the real state
         // (socket + TCP listener), not by the in-memory flag.
-        // P6.3.3 — نظام مضيف ALWAYS restarts the X server fresh.
+        // P6.3.3, نظام مضيف ALWAYS restarts the X server fresh.
         // P6.3.6 proved the cold-start restart sequence works
         // end to end (the old server dies, the fresh server
-        // survives, the TCP gate holds) — that sequence, not
+        // survives, the TCP gate holds), that sequence, not
         // the old "fresh server" correlation, is why the
         // restart is kept on every entry. (The P6.3.3 comment
         // used to claim the fresh-server condition was "the one
-        // proven to work" — P6.3.4 disproved that correlation.)
+        // proven to work", P6.3.4 disproved that correlation.)
         // The stop is best-effort (guarded by the in-memory
         // flag; if this process never started the server, the
         // stop is a no-op and the flow falls back to the
@@ -812,11 +812,11 @@ class VncActivity : AppCompatActivity() {
             // timed out (10 s), serverUp stayed true, startXServer
             // was SKIPPED, and startxfce4 was sent to a dead
             // server. TCP closing is the true death signal, and
-            // the stale files are deleted by hand — but ONLY when
+            // the stale files are deleted by hand, but ONLY when
             // TCP proves no live server holds the display.
             X11Session.waitForTcpDisplayClosed(10000)
             if (X11Session.isTcpDisplayOpen()) {
-                // Old server survived the stop — fall back to it
+                // Old server survived the stop, fall back to it
                 // (never start a second server on :6).
             } else {
                 X11Session.deleteStaleXSocketFiles(this)
@@ -846,7 +846,7 @@ class VncActivity : AppCompatActivity() {
             // 127.0.0.1:6006. The socket file can exist before the
             // server is ready, and the Unix socket connect from
             // inside proot is broken on this device, so the guest
-            // uses TCP — prove the listener is there first.
+            // uses TCP, prove the listener is there first.
             setStatus(getString(R.string.ui_vnc_status_wait_tcp))
             if (!X11Session.waitForTcpDisplay(10000)) {
                 return XResult(false, getString(R.string.ui_vnc_status_tcp_closed))
@@ -856,7 +856,7 @@ class VncActivity : AppCompatActivity() {
     }
 
     /**
-     * Real-computer #7 — fast reattach. When the session is already
+     * Real-computer #7, fast reattach. When the session is already
      * alive, the guest is booted, TCP 6006 answers and lxqt-session
      * is running, the desktop is up: open the viewer directly and
      * skip the whole reboot-on-entry (PTY probe, kills, boot, X
@@ -935,7 +935,7 @@ class VncActivity : AppCompatActivity() {
         /** P18.5: full shell command for one app to launch after the
          *  desktop is confirmed running (handed in by the Apps tab). */
         const val EXTRA_LAUNCH_APP = "launch_app"
-        /** P6 — نظام مضيف: Debian 13.1 + LXQt, the ONE system. */
+        /** P6, نظام مضيف: Debian 13.1 + LXQt, the ONE system. */
         const val DESKTOP_MUDIF = "mudif"
 
         /**

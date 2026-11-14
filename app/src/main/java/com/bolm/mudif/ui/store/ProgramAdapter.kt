@@ -107,7 +107,7 @@ class ProgramAdapter(
                 binding.programIcon.visibility = View.VISIBLE
                 binding.programLetter.visibility = View.GONE
             } else {
-                // P19 Phase 1: no icon — the letter sits on the program's
+                // P19 Phase 1: no icon, the letter sits on the program's
                 // category gradient (squircle), not a plain purple circle.
                 binding.programLetter.text = program.name.firstOrNull()?.toString() ?: "؟"
                 val cat = StoreCategory.forKey(program.category)

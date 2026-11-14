@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Phase 6 — Mudif Assistant AccessibilityService config.
+  Phase 6, Mudif Assistant AccessibilityService config.
   The service reads the active window's UI tree and performs the
   gestures the agent requests (tap / swipe / type / screenshot).
   It never reads password fields and never logs keystrokes; see the

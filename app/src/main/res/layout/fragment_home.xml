@@ -59,7 +59,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- P19 Phase 2: hero card — the system as a gradient hero
+            <!-- P19 Phase 2: hero card, the system as a gradient hero
                  (brand purple) with a white pill button, not a plain
                  white card. Status and button label are set in code. -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Large"

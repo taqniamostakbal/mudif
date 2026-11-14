@@ -304,7 +304,7 @@ class AgentFragment : Fragment() {
     /** p32: one place that decides the chrome (header, scroll row,
      *  divider, profile card, Clear button) from the current mode
      *  and the keyboard state. p33: the HEADER STAYS VISIBLE while
-     *  typing — p32 hid it and Anas reports it gone (his verdict:
+     *  typing, p32 hid it and Anas reports it gone (his verdict:
      *  a chat header must stay pinned, like Rami's). What hides
      *  instead is the activity BOTTOM NAV (via MainActivity; it is
      *  activity chrome the fragment never owned and it sat between
@@ -495,7 +495,7 @@ class AgentFragment : Fragment() {
             }
             // p22: the servers are up, but the brain model may still
             // be missing (fresh image). Never start a turn that can
-            // only fail — show the download card instead.
+            // only fail, show the download card instead.
             if (AgentServer.hasBrainModel() == false) {
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
@@ -801,7 +801,7 @@ class AgentFragment : Fragment() {
     /** Reads opencode-providers.json: Local first, then the cloud
      *  models in a fixed provider order (groq, llm7, openrouter,
      *  huggingface, opencode, google, cohere, mistral), models sorted
-     *  by name. A missing or unreadable asset means Local only — the
+     *  by name. A missing or unreadable asset means Local only, the
      *  chat still works. */
     private fun loadBrainOptions(): List<BrainOption> {
         val options = mutableListOf(
@@ -831,7 +831,7 @@ class AgentFragment : Fragment() {
                     val modelName = models.optJSONObject(modelKey)
                         ?.optString("name", modelKey) ?: modelKey
                     options.add(
-                        BrainOption("$providerKey/$modelKey", "$providerName — $modelName", env)
+                        BrainOption("$providerKey/$modelKey", "$providerName: $modelName", env)
                     )
                 }
             }
@@ -860,7 +860,7 @@ class AgentFragment : Fragment() {
     /** Applies a brain picked on the provider screen: writes it to
      *  opencode.json and restarts the server (only when it is up).
      *  A cloud model needs its key in Settings (or on the provider
-     *  screen) or it fails at runtime — the user is warned, not
+     *  screen) or it fails at runtime, the user is warned, not
      *  blocked. p31: switching brains also drops the server session,
      *  so the next turn starts fresh under the new brain instead of
      *  inheriting the old brain's thinking thread. */

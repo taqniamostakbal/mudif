@@ -16,14 +16,14 @@ import com.bolm.mudif.engine.TerminalSession
 import com.bolm.mudif.ui.MudifDialog
 
 /**
- * Real-computer #10 — guest task manager: the live process list of
+ * Real-computer #10, guest task manager: the live process list of
  * the Debian guest (CPU / RAM per process) with a kill button.
  * Built on the existing one-shot proot machinery (TerminalSession);
- * the guest must have procps (ps) — the image bakes it in (it is
+ * the guest must have procps (ps), the image bakes it in (it is
  * also what isDesktopRunning and the kill helpers rely on).
  *
  * Safety: PID 1 (the container init) can never be killed from here
- * — killing it would kill the whole guest. Every kill asks first.
+ *, killing it would kill the whole guest. Every kill asks first.
  */
 class TaskManagerActivity : AppCompatActivity() {
 

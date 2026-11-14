@@ -9,7 +9,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * P5.22 — shared desktop diagnostics. One place that assembles the FULL
+ * P5.22, shared desktop diagnostics. One place that assembles the FULL
  * detailed log the user ordered: Hypothesis-1, X server state, PTY
  * container session state, desktop state + log, and filtered logcat.
  *
@@ -21,14 +21,14 @@ object DesktopDiagnostics {
     /**
      * Hypothesis 1: Android 12+ Phantom Process Killer.
      * Reports the API level and tries to read the phantom-monitor setting
-     * (usually unreadable without a privileged shell — the attempt itself
+     * (usually unreadable without a privileged shell, the attempt itself
      * is reported, never hidden).
      */
     /**
      * P5.23: the "Phantom Killer" hypothesis is DEAD. The real cause
      * was proven 2026-11-06 from the P5.21 APK's dex strings: the
-     * isLxqtRunning check sent `kill -0 \$(cat ...)` — a literal
-     * backslash before $( — a shell syntax error that killed the
+     * isLxqtRunning check sent `kill -0 \$(cat ...)`, a literal
+     * backslash before $(, a shell syntax error that killed the
      * guest shell and wedged the session. Phantom Killer was never
      * the cause. This section now states the proven finding.
      */
@@ -43,18 +43,18 @@ object DesktopDiagnostics {
     }
 
     /**
-     * P6 — نظام مضيف (Debian 13.1): the P5.25 pixbuf failure mode
+     * P6, نظام مضيف (Debian 13.1): the P5.25 pixbuf failure mode
      * does not exist here. Debian's gdk-pixbuf ships native PNG/JPEG
      * loaders; glycin is not in the LXQt install closure and bwrap
      * is never invoked. The desktop installs with apt
      * (--no-install-recommends) and launches host-side, never nested
      * (nested proot fails: the Android linker is missing inside the
      * guest). Proven live 2026-11-06 (diagnostic Q3/Q4).
-     * P6.4 — the desktop is LXQt now (XFCE stopped by the user's
+     * P6.4, the desktop is LXQt now (XFCE stopped by the user's
      * order 2026-11-07), Deepin-style: navy wallpaper, bloom-dark
      * icons, dark panel, Adwaita-dark Qt style. Kvantum is NOT
      * installed: no kvantum package exists in Debian trixie.
-     * P6.5 — the 2026-11-07 freeze is proven: proot's --shm-helper
+     * P6.5, the 2026-11-07 freeze is proven: proot's --shm-helper
      * spins forever on a missing Termux tmp path (STRACE-P65); the
      * fix is removing --sysvipc, and the desktop now launches after
      * the viewer attaches at the settled 1280x720.
@@ -73,7 +73,7 @@ object DesktopDiagnostics {
 
     /**
      * P5.9: the old filter (`ActivityManager:I DEBUG:I *:S`) SILENCED every
-     * tag except ActivityManager/DEBUG — the X server's own log
+     * tag except ActivityManager/DEBUG, the X server's own log
      * (Termux:X11 / CmdEntryPointService / Xlorie tags) never reached the
      * output, which is why P5.8 showed "(no relevant entries)" while the
      * server silently failed. Now: last 800 lines, ALL tags, then filter.
@@ -130,7 +130,7 @@ object DesktopDiagnostics {
     }
 
     /**
-     * P16.5 — are apt-get/dpkg processes alive on the host side?
+     * P16.5, are apt-get/dpkg processes alive on the host side?
      * An orphaned apt-get holds the dpkg lock and blocks every
      * install (proven on the Nova 9, P16.3: PID 11794). The old
      * xServerProcess() filter hides them; this one shows them.
@@ -152,7 +152,7 @@ object DesktopDiagnostics {
     }
 
     /**
-     * P16.5 — the last desktop-install attempt, as recorded by
+     * P16.5, the last desktop-install attempt, as recorded by
      * X11Session.ensureDebianDesktop. This is the evidence the P16.4
      * diagnostics lacked: WHY the install failed (exit code, timeout,
      * last output) and whether the dpkg lock files exist.
@@ -191,7 +191,7 @@ object DesktopDiagnostics {
         try {
             val tmpDir = File(context.filesDir, "tmp")
             sb.append("TMPDIR: ${tmpDir.absolutePath}\n")
-            // P16: the X server runs on the DEBIAN rootfs — checking the
+            // P16: the X server runs on the DEBIAN rootfs, checking the
             // old Alpine rootfs here reported "xkb dir exists: true"
             // while the Debian one had no xkb dir (the Nova 9 miss).
             val xkb = File(DebianSystem.debianRootfsDir(context), "usr/share/X11/xkb")
@@ -242,7 +242,7 @@ object DesktopDiagnostics {
         sb.append("PTY probe: ${GuestSession.ptyProbeOk}\n")
         sb.append("lastExitCode: ${GuestSession.lastExitCode}")
         if (GuestSession.lastExitCode == -9) {
-            sb.append(" (SIGKILL — killed by the system)")
+            sb.append(" (SIGKILL, killed by the system)")
         }
         sb.append("\n")
         val err = GuestSession.lastError
@@ -256,7 +256,7 @@ object DesktopDiagnostics {
      * Full snapshot: everything in one text, in a fixed order, with a
      * timestamp. This is what the log viewer shows and what "نسخ" copies.
      * The desktop running-check is done by the CALLER and passed in as
-     * [desktopRunning] — null means "not checked".
+     * [desktopRunning], null means "not checked".
      */
     fun fullSnapshot(context: Context, desktopRunning: Boolean?): String {
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())

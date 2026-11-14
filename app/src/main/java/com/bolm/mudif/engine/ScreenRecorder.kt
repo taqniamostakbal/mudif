@@ -6,7 +6,7 @@ import android.util.Log
 import java.io.File
 
 /**
- * Real-computer #5 — screen recording: ffmpeg inside the guest
+ * Real-computer #5, screen recording: ffmpeg inside the guest
  * grabs the X display (x11grab over the proven TCP 127.0.0.1:6)
  * and writes an .mp4 into the SHARED folder, so the user can pull
  * it out with the Files app. No MediaProjection, no fork change.

@@ -38,7 +38,7 @@ data class StoreProgram(
     /**
      * User to run the program as (via runuser). Null = run as root
      * (the guest default). VLC refuses to run as root ("VLC is not
-     * supposed to be run as root"), so it runs as "nobody" — rig
+     * supposed to be run as root"), so it runs as "nobody", rig
      * Batch 3 proved `runuser -u nobody` initializes its GUI.
      */
     val runAs: String?,
@@ -52,7 +52,7 @@ data class StoreProgram(
     /**
      * Rig-verified install, e.g. "x86_64 · 2026-11-10". Null = never
      * verified on the rig. Only programs whose install actually
-     * passed a rig test carry a value — never set it from a guess.
+     * passed a rig test carry a value, never set it from a guess.
      * The value names the arch the rig tested (x86_64); arm64 is
      * added only after a phone verification. pdfcraft is
      * deliberately UNMARKED: it installs, but its window never

@@ -16,13 +16,13 @@
     <string name="welcome_text">افتح سطح المكتب واشتغل كأنك على حاسوب حقيقي، وثبّت البرامج من المتجر.</string>
     <string name="browse_store">تصفح المتجر</string>
     <string name="version_title">الإصدار 0.1.0</string>
-    <string name="version_text">المرحلة 1 — الهيكل الأساسي يعمل</string>
-    <string name="home_system_installed">مثبت ✓ — جاهز للاستعمال</string>
+    <string name="version_text">المرحلة 1، الهيكل الأساسي يعمل</string>
+    <string name="home_system_installed">مثبت ✓، جاهز للاستعمال</string>
     <string name="home_system_not_installed">غير مثبت بعد</string>
     <string name="home_open_desktop">افتح سطح المكتب</string>
     <string name="home_install_system">ثبّت النظام</string>
     <string name="coming_soon">قريباً</string>
-    <string name="coming_soon_long">هذا القسم قيد البناء — سيصل قريباً</string>
+    <string name="coming_soon_long">هذا القسم قيد البناء، سيصل قريباً</string>
     <string name="store_subtitle">برامج مجانية لنظام مضيف، ثبتها بضغطة واحدة</string>
     <string name="store_search_hint">ابحث عن برنامج…</string>
     <string name="store_program_icon_desc">أيقونة البرنامج</string>
@@ -52,15 +52,15 @@
     <string name="store_arch_unknown">تعذر تحديد معمارية النظام، أعد المحاولة</string>
     <string name="install">تثبيت</string>
     <string name="install_soon">التثبيت الحقيقي سيتوفر قريباً</string>
-    <string name="apps_subtitle">برامجك المثبتة — شغّلها بضغطة واحدة</string>
+    <string name="apps_subtitle">برامجك المثبتة، شغّلها بضغطة واحدة</string>
     <string name="apps_empty_title">لا توجد برامج مثبتة بعد</string>
     <string name="apps_empty_text">ثبّت برامج من المتجر وستظهر هنا لتشغيلها بضغطة واحدة.</string>
-    <string name="apps_system_not_ready">نظام مضيف غير مثبت بعد — ثبّته من المتجر أولا</string>
+    <string name="apps_system_not_ready">نظام مضيف غير مثبت بعد، ثبّته من المتجر أولا</string>
     <string name="apps_go_to_store">تصفح المتجر</string>
     <string name="apps_launch">تشغيل</string>
     <string name="apps_launching">جار تشغيل %1$s…</string>
-    <string name="apps_launched">تم تشغيل %1$s — شوف سطح المكتب</string>
-    <string name="apps_launch_failed">لم يفتح %1$s — البرنامج ما بداش. جرب مرة أخرى أو أعد تثبيته من المتجر.</string>
+    <string name="apps_launched">تم تشغيل %1$s، شوف سطح المكتب</string>
+    <string name="apps_launch_failed">لم يفتح %1$s، البرنامج ما بداش. جرب مرة أخرى أو أعد تثبيته من المتجر.</string>
     <string name="games_subtitle">محاكيات وألعاب مفتوحة المصدر، ثبّتها بضغطة واحدة</string>
     <string name="games_setup_station">جهّز محطة الألعاب</string>
     <string name="games_setup_title">تجهيز محطة الألعاب</string>
@@ -79,9 +79,9 @@
     <string name="games_install_action">تثبيت</string>
     <string name="profile_subtitle">معلوماتك وإعداداتك</string>
     <string name="profile_guest_name">مستخدم مضيف</string>
-    <string name="profile_guest_mode">وضع الضيف — بلا حساب</string>
+    <string name="profile_guest_mode">وضع الضيف، بلا حساب</string>
     <string name="viewer_settings_title">إعدادات العارض</string>
-    <string name="viewer_settings_subtitle">إعدادات قارئ سطح المكتب — تُحفظ فورا وتُطبق مباشرة</string>
+    <string name="viewer_settings_subtitle">إعدادات قارئ سطح المكتب، تُحفظ فورا وتُطبق مباشرة</string>
     <string name="viewer_settings_row_title">إعدادات العارض</string>
     <string name="viewer_settings_row_subtitle">العرض، المؤشر، لوحة المفاتيح، شريط المفاتيح</string>
     <string name="viewer_settings_mouse_hint">نقرة الفأرة: إصبع واحد = زر أيسر، إصبعان = زر أيمن، ثلاثة أصابع = زر أوسط. ولأزرار ظاهرة على الشاشة فعّل «أزرار الماوس على الشاشة» في قسم المؤشر.</string>
@@ -95,7 +95,7 @@
     <string name="about_avatar_desc">صورة مضيف</string>
     <string name="about_system_name">نظام مضيف</string>
     <string name="about_tagline">أنت المضيف، ولينكس ضيفك</string>
-    <string name="about_oneliner">دبيان كامل داخل هاتفك الأندرويد — بلا روت، بلا حاسوب</string>
+    <string name="about_oneliner">دبيان كامل داخل هاتفك الأندرويد، بلا روت، بلا حاسوب</string>
     <string name="about_credit">مشروع تقنية المستقبل | Exploring Tech</string>
     <string name="control_center">مركز التحكم</string>
     <string name="engine_check">فحص المحرك</string>
@@ -114,7 +114,7 @@
     <string name="already_installed">ألباين مثبت مسبقاً ✓</string>
     <string name="install_done">تم تثبيت ألباين بنجاح ✓</string>
     <string name="mudif_system">نظام مضيف</string>
-    <string name="mudif_system_desc">دبيان كامل — نظام التطبيق الواحد</string>
+    <string name="mudif_system_desc">دبيان كامل، نظام التطبيق الواحد</string>
     <string name="debian_booting">جاري تشغيل نظام مضيف…</string>
     <string name="debian_install_done">تم تثبيت نظام مضيف بنجاح ✓</string>
     <string name="system_install_title">تثبيت النظام</string>
@@ -136,11 +136,11 @@
     <string name="backup_failed_title">فشل النسخ الاحتياطي</string>
     <string name="backup_restore_confirm">الاستعادة غادي تمسح النظام الحالي وتستبدلو بالنسخة. متأكد؟</string>
     <string name="backup_restore_running">جار استعادة النسخة…</string>
-    <string name="backup_restore_done">تمت الاستعادة ✓ — أعد فتح سطح المكتب</string>
+    <string name="backup_restore_done">تمت الاستعادة ✓، أعد فتح سطح المكتب</string>
     <string name="backup_restore_failed_title">فشلت الاستعادة</string>
-    <string name="backup_desktop_running">سطح المكتب خدام دابا — النسخ الاحتياطي غادي يوقفو مؤقتا. متأكد؟</string>
+    <string name="backup_desktop_running">سطح المكتب خدام دابا، النسخ الاحتياطي غادي يوقفو مؤقتا. متأكد؟</string>
     <string name="task_manager_title">مدير المهام</string>
-    <string name="task_manager_desc">العمليات الخدامة في الضيف — شوفها وأوقف اللي بغيتي</string>
+    <string name="task_manager_desc">العمليات الخدامة في الضيف، شوفها وأوقف اللي بغيتي</string>
     <string name="task_manager_empty">لا توجد عمليات</string>
     <string name="task_manager_kill_confirm">توقف العملية %1$s؟</string>
     <string name="task_manager_killed">تم إيقاف العملية ✓</string>
@@ -169,7 +169,7 @@
     <string name="tv_choose_cast">بث لاسلكي</string>
     <string name="tv_choose_system">شاشة النظام</string>
     <string name="tv_cast_starting">جار بدء البث اللاسلكي…</string>
-    <string name="tv_cast_started">البث خدام — اختار التلفاز من القائمة</string>
+    <string name="tv_cast_started">البث خدام، اختار التلفاز من القائمة</string>
     <string name="tv_cast_failed">تعذر بدء البث اللاسلكي</string>
     <string name="tv_cast_no_play_services">خدمات Google غير متوفرة على هذا الهاتف، البث اللاسلكي غير ممكن</string>
     <string name="tv_cast_running">البث اللاسلكي خدام. تقدر توقفو من هنا.</string>
@@ -210,19 +210,19 @@
     <string name="vp_section_other">أخرى</string>
     <string name="vp_section_agent_keys">مفاتيح الذكاء الاصطناعي</string>
     <string name="vp_agent_key_groq_title">مفتاح Groq</string>
-    <string name="vp_agent_key_groq_desc">مفتاح Groq المجاني (console.groq.com) — لنماذج gpt-oss و Qwen السحابية</string>
+    <string name="vp_agent_key_groq_desc">مفتاح Groq المجاني (console.groq.com)، لنماذج gpt-oss و Qwen السحابية</string>
     <string name="vp_agent_key_hf_title">رمز Hugging Face</string>
-    <string name="vp_agent_key_hf_desc">رمز Hugging Face (huggingface.co/settings/tokens) — للاستدلال المجاني</string>
+    <string name="vp_agent_key_hf_desc">رمز Hugging Face (huggingface.co/settings/tokens)، للاستدلال المجاني</string>
     <string name="vp_agent_key_llm7_title">مفتاح LLM7</string>
-    <string name="vp_agent_key_llm7_desc">مفتاح LLM7 المجاني — لنموذج Grok 4.7 وغيره من النماذج السحابية</string>
+    <string name="vp_agent_key_llm7_desc">مفتاح LLM7 المجاني، لنموذج Grok 4.7 وغيره من النماذج السحابية</string>
     <string name="vp_agent_key_openrouter_title">مفتاح OpenRouter</string>
-    <string name="vp_agent_key_openrouter_desc">مفتاح OpenRouter (openrouter.ai/keys) — للنماذج المجانية مثل Nemotron</string>
+    <string name="vp_agent_key_openrouter_desc">مفتاح OpenRouter (openrouter.ai/keys)، للنماذج المجانية مثل Nemotron</string>
     <string name="vp_agent_key_gemini_title">مفتاح Google AI Studio (Gemini)</string>
-    <string name="vp_agent_key_gemini_desc">مفتاح Gemini المجاني (aistudio.google.com/apikey) — بدون بطاقة بنكية</string>
+    <string name="vp_agent_key_gemini_desc">مفتاح Gemini المجاني (aistudio.google.com/apikey)، بدون بطاقة بنكية</string>
     <string name="vp_agent_key_cohere_title">مفتاح Cohere</string>
-    <string name="vp_agent_key_cohere_desc">مفتاح Cohere التجريبي المجاني (dashboard.cohere.com/api-keys) — 1000 مكالمة شهريا</string>
+    <string name="vp_agent_key_cohere_desc">مفتاح Cohere التجريبي المجاني (dashboard.cohere.com/api-keys)، 1000 مكالمة شهريا</string>
     <string name="vp_agent_key_mistral_title">مفتاح Mistral AI</string>
-    <string name="vp_agent_key_mistral_desc">مفتاح Mistral المجاني (console.mistral.ai/api-keys) — وضع مجاني بدون بطاقة</string>
+    <string name="vp_agent_key_mistral_desc">مفتاح Mistral المجاني (console.mistral.ai/api-keys)، وضع مجاني بدون بطاقة</string>
     <string name="vp_displayresolutionmode_title">وضع دقة العرض</string>
     <string name="vp_displayresolutionmode_desc">كيف يحدد القارئ دقة سطح المكتب</string>
     <string name="vp_displayscale_title">مقياس العرض</string>
@@ -356,7 +356,7 @@
     <string name="vp_opt_send_volume_down">إرسال خفض الصوت</string>
     <string name="vp_opt_send_media_action">إرسال إجراء الوسائط</string>
     <string name="ui_vnc_starting">جاري بدء سطح المكتب…</string>
-    <string name="ui_vnc_desktop_not_ready">سطح المكتب مازال ما وجدش — تسنى حتى يكمل</string>
+    <string name="ui_vnc_desktop_not_ready">سطح المكتب مازال ما وجدش، تسنى حتى يكمل</string>
     <string name="ui_vnc_audio_starts_later">الصوت غادي يبدا ملي يفتح سطح المكتب</string>
     <string name="ui_vnc_overlay_title">أزرار عائمة فوق سطح المكتب</string>
     <string name="ui_vnc_overlay_body">باش تبان أزرار التسجيل والتلفاز والصوت فوق سطح المكتب، خاصك تفعّل «العرض فوق التطبيقات» لمضيف.</string>
@@ -364,7 +364,7 @@
     <string name="ui_vnc_overlay_later">لاحقا</string>
     <string name="ui_vnc_app_launched">تم تشغيل التطبيق ✓</string>
     <string name="ui_vnc_desktop_running">سطح المكتب خدام ✓</string>
-    <string name="ui_vnc_desktop_failed">سطح المكتب ما خدمش — شوف اللوجات</string>
+    <string name="ui_vnc_desktop_failed">سطح المكتب ما خدمش، شوف اللوجات</string>
     <string name="ui_vnc_desktop_starting">سطح المكتب كيبدا دابا، تسنى شوية</string>
     <string name="ui_vnc_status_pty_check">جاري فحص جلسة PTY…</string>
     <string name="ui_vnc_status_pty_missing">جلسة PTY ما تخلقاتش على هاد الجهاز.\n%1$s</string>
@@ -375,7 +375,7 @@
     <string name="ui_vnc_status_clean_install">جاري تنظيف عمليات التثبيت العالقة…</string>
     <string name="ui_vnc_status_verify_system">جاري التحقق من نظام مضيف…</string>
     <string name="ui_vnc_status_look">جاري تثبيت الشكل ديال Deepin…</string>
-    <string name="ui_vnc_status_incomplete">نظام مضيف غير مكتمل.\nالصورة ما فيهاش سطح المكتب — عاود تثبيت النظام من جديد.</string>
+    <string name="ui_vnc_status_incomplete">نظام مضيف غير مكتمل.\nالصورة ما فيهاش سطح المكتب، عاود تثبيت النظام من جديد.</string>
     <string name="ui_vnc_status_restart_x">جاري إعادة تشغيل خادم X من جديد…</string>
     <string name="ui_vnc_status_check_xkb">جاري فحص بيانات لوحة المفاتيح…</string>
     <string name="ui_vnc_status_xkb_missing">بيانات لوحة المفاتيح (xkb) ناقصة في نظام مضيف.\nأعد تثبيت النظام من المتجر ثم عاود فتح سطح المكتب.</string>
@@ -383,15 +383,15 @@
     <string name="ui_vnc_status_x_nosocket">خادم X ما قلعش: سوكيت X6 ما تخلقش خلال 15 ثانية.</string>
     <string name="ui_vnc_status_wait_tcp">جاري انتظار منفذ TCP…</string>
     <string name="ui_vnc_status_tcp_closed">خادم X ما فتحش منفذ TCP 6006 خلال 10 ثواني (السوكيت موجود ولكن TCP مسدود).</string>
-    <string name="ui_vnc_status_ready">جاهز — افتح العارض لبدء سطح المكتب</string>
+    <string name="ui_vnc_status_ready">جاهز، افتح العارض لبدء سطح المكتب</string>
     <string name="ui_vnc_status_tcp_blocked">خادم X ما خدامش: منفذ TCP 6006 مسدود. سطح المكتب ما تبعتش.</string>
     <string name="ui_vnc_status_x_failed">خادم X ما قلعش.</string>
     <string name="ui_vnc_fail_title">فشل بدء سطح المكتب</string>
     <string name="ui_vnc_fail_logs_hint">%1$s\n\nالسبب الحقيقي كاين في اللوجات (logcat ديال أندرويد + حالة الخادم).</string>
     <string name="ui_vnc_fail_retry">إعادة المحاولة</string>
     <string name="ui_vnc_unexpected_error">خطأ غير متوقع أثناء بدء سطح المكتب:\n%1$s</string>
-    <string name="ui_vnc_no_diagnostics">لا توجد معلومات تشخيص بعد — افتح سطح المكتب أولا</string>
-    <string name="ui_vnc_diag_title">تشخيص — نظام مضيف</string>
+    <string name="ui_vnc_no_diagnostics">لا توجد معلومات تشخيص بعد، افتح سطح المكتب أولا</string>
+    <string name="ui_vnc_diag_title">تشخيص، نظام مضيف</string>
     <string name="ui_vnc_diag_report">النظام: نظام مضيف (دبيان 13.1 + LXQt)\nPTY حية: %1$s\nالضيف قلع: %2$s\nسوكيت X6: %3$s\nTCP 6006: %4$s\nالأيقونات: أصلية (دبيان، بلا glycin)\nنظام مضيف تثبت: %5$s\nالشكل ديال Deepin تثبت: %6$s\nسطح المكتب: يبدأ بعد فتح العارض (الحجم كيتثبت أولا)\n\n--- السبب الحقيقي ---\n%7$s</string>
     <string name="ui_vnc_diag_open_viewer">فتح العارض وبدء سطح المكتب</string>
     <string name="ui_vnc_diag_view_logs">اللوجات المفصلة</string>
@@ -428,7 +428,7 @@
     <string name="ui_cat_fonts">الخطوط</string>
     <string name="ui_store_unit_programs">برامج</string>
     <string name="ui_store_unit_fonts">خطوط</string>
-    <string name="ui_distro_mudif_desc">نظامك الكامل — جاهز بضغطة واحدة</string>
+    <string name="ui_distro_mudif_desc">نظامك الكامل، جاهز بضغطة واحدة</string>
     <string name="ui_store_no_arm64_error">لا توجد نسخة arm64 لهذا البرنامج</string>
     <string name="ui_store_bad_url">رابط الحزمة غير صالح</string>
     <string name="ui_store_unknown_method">طريقة تثبيت غير معروفة</string>
@@ -444,10 +444,10 @@
     <string name="ui_term_stopped">تم إيقاف الأمر: %1$s</string>
     <string name="ui_dl_failed_part">التحميل فشل (الجزء %1$d/%2$d): HTTP %3$d</string>
     <string name="ui_dl_failed_http">التحميل فشل: HTTP %1$d</string>
-    <string name="ui_dl_part_missing">الجزء %1$d/%2$d ناقص: وصل %3$d من %4$d بايت — أعد المحاولة</string>
-    <string name="ui_dl_incomplete">التحميل ناقص: وصل %1$d من %2$d بايت — أعد المحاولة</string>
+    <string name="ui_dl_part_missing">الجزء %1$d/%2$d ناقص: وصل %3$d من %4$d بايت، أعد المحاولة</string>
+    <string name="ui_dl_incomplete">التحميل ناقص: وصل %1$d من %2$d بايت، أعد المحاولة</string>
     <string name="ui_dl_too_small">ملف التحميل صغير بشكل مشبوه (%1$d بايت)</string>
-    <string name="ui_dl_bad_hash">التحميل تالف: البصمة لا تطابق المصدر — أعد المحاولة</string>
+    <string name="ui_dl_bad_hash">التحميل تالف: البصمة لا تطابق المصدر، أعد المحاولة</string>
     <string name="ui_dl_bad_entry">مسار مشبوه في الأرشيف: %1$s</string>
     <string name="ui_dl_link_failed">تعذر إنشاء الرابط %1$s: %2$s</string>
     <string name="ui_dl_hardlink_missing">تعذر إنشاء الرابط الصلب %1$s: %2$s</string>
@@ -462,11 +462,11 @@
     <string name="ui_engine_no_output">خرج بلا مخرجات (%1$s)</string>
     <string name="ui_engine_failed">المحرك ما خدمش على هاد الجهاز (%1$s):\n%2$s</string>
     <string name="ui_engine_ok">proot خدام ✓\n%1$s</string>
-    <string name="ui_backup_desktop_running_err">سطح المكتب خدام — أوقفو أولا ثم أعد النسخ الاحتياطي</string>
-    <string name="ui_backup_desktop_running_restore">سطح المكتب خدام — أوقفو أولا ثم أعد الاستعادة</string>
+    <string name="ui_backup_desktop_running_err">سطح المكتب خدام، أوقفو أولا ثم أعد النسخ الاحتياطي</string>
+    <string name="ui_backup_desktop_running_restore">سطح المكتب خدام، أوقفو أولا ثم أعد الاستعادة</string>
     <string name="ui_backup_bad_entry">مسار مشبوه في النسخة: %1$s</string>
     <string name="ui_backup_hardlink_missing">تعذر إنشاء الرابط الصلب %1$s</string>
-    <string name="ui_backup_no_system">نظام مضيف غير مثبت — لا يوجد ما يُنسخ</string>
+    <string name="ui_backup_no_system">نظام مضيف غير مثبت، لا يوجد ما يُنسخ</string>
     <string name="ui_backup_too_small">النسخة صغيرة بشكل مشبوه (%1$d بايت)</string>
     <string name="ui_backup_invalid_file">ملف النسخة غير صالح</string>
     <string name="ui_backup_not_mudif">هذا الملف ليس نسخة احتياطية لنظام مضيف</string>
@@ -476,8 +476,8 @@
     <string name="ui_tv_err_no_ip">ما لقيتش عنوان الشبكة المحلية</string>
     <string name="ui_tv_err_no_server">تعذر فتح خادم البث على الهاتف</string>
     <string name="ui_tv_err_no_send">تعذر إرسال أمر البث إلى النظام</string>
-    <string name="ui_tv_err_no_ffmpeg">ffmpeg ما بداش — %1$s</string>
-    <string name="ui_tv_err_no_stream">البث ما بداش — %1$s</string>
+    <string name="ui_tv_err_no_ffmpeg">ffmpeg ما بداش، %1$s</string>
+    <string name="ui_tv_err_no_stream">البث ما بداش، %1$s</string>
     <string name="ui_tvpage_title">بث مضيف</string>
     <string name="ui_tvpage_heading">بث نظام مضيف</string>
     <string name="ui_tvpage_status">الحالة: %1$s</string>
@@ -503,7 +503,7 @@
     <string name="ui_diag_system_line2">التثبيت بـ apt (--no-install-recommends)، والإقلاع من جهة المضيف، ماشي متداخل.</string>
     <string name="ui_diag_p67">P6.7: التجميد تصلح بإزالة --sysvipc؛ الحجم كيتثبت 1280x720؛ خلفية سطح المكتب تصاوبات (Wallpaper تحت [Desktop] + WallpaperMode=stretch)؛ إدارة الطاقة مطفية؛ النمط الداكن تصاوب بإضافة adwaita-qt (qlipper هو التطبيق الوحيد Qt5).</string>
     <string name="ui_diag_p8">P8: العربية فالعربية (خط Cairo + لغة ar_MA.UTF-8)؛ خلفية بنفسجية؛ الطرفية العربية فيها 48 أمر بالفصحى؛ قائمة LXQt بقات بالإنجليزية (الترجمة .qm جاية من بعد).</string>
-    <string name="ui_diag_snapshot_title">=== مضيف %1$s — سجل مفصل ===</string>
+    <string name="ui_diag_snapshot_title">=== مضيف %1$s، سجل مفصل ===</string>
     <string name="ui_diag_time">الوقت: %1$s</string>
     <string name="ui_diag_version">نسخة: %1$s</string>
     <string name="ui_diag_cause_header">--- السبب الحقيقي (تشخيص P5.22) ---</string>
@@ -532,7 +532,7 @@
     <string name="ui_log_collecting">جاري جمع اللوجات…</string>
     <string name="ui_log_copied">تم النسخ</string>
     <string name="ui_drawer_settings_tools">الإعدادات والأدوات</string>
-    <string name="ui_cc_subtitle">تحكم سريع وحالة النظام — قيم حقيقية</string>
+    <string name="ui_cc_subtitle">تحكم سريع وحالة النظام، قيم حقيقية</string>
     <string name="ui_cc_quick">تحكم سريع</string>
     <string name="ui_cc_wifi">الواي فاي</string>
     <string name="ui_cc_brightness">السطوع</string>
@@ -549,7 +549,7 @@
     <string name="ui_home_stat_not_installed">غير مثبت</string>
     <string name="ui_profile_distro">دبيان</string>
     <string name="ui_nav_menu_desc">القائمة</string>
-    <string name="ui_term_system_not_installed">النظام غير مثبت — ثبّت نظام مضيف من حسابي أولا</string>
+    <string name="ui_term_system_not_installed">النظام غير مثبت، ثبّت نظام مضيف من حسابي أولا</string>
     <string name="ui_term_container_failed">تعذّر تشغيل الحاوية: %1$s</string>
     <string name="ui_task_cannot_kill_pid1">لا يمكن إيقاف العملية رقم 1 (قلب النظام)</string>
     <string name="ui_about_version">الإصدار %1$s · صورة %2$s</string>
@@ -561,9 +561,9 @@
          status ("متصل" with a green dot); the old descriptive text
          lives in agent_about. -->
     <string name="agent_subtitle">متصل</string>
-    <string name="agent_about">مساعد مضيف هو مساعدك العربي داخل نظام مضيف: يبحث في الإنترنت، يفتح البرامج، يبدّل الإعدادات، وينفّذ المهام داخل سطح المكتب بصوتك أو بالكتابة — وقدراته تتوسع مع الوقت. للمهمات الطويلة، اجعل البطارية غير مقيّدة من إعدادات الهاتف حتى لا يوقف النظام المساعد.</string>
+    <string name="agent_about">مساعد مضيف هو مساعدك العربي داخل نظام مضيف: يبحث في الإنترنت، يفتح البرامج، يبدّل الإعدادات، وينفّذ المهام داخل سطح المكتب بصوتك أو بالكتابة، وقدراته تتوسع مع الوقت. للمهمات الطويلة، اجعل البطارية غير مقيّدة من إعدادات الهاتف حتى لا يوقف النظام المساعد.</string>
     <string name="accessibility_service_description">مساعد مضيف يتحكم في شاشات مضيف نفسها ويقرأ شجرة واجهة المستخدم الظاهرة على الشاشة حتى يتمكن المساعد من العمل داخل التطبيق. لا يقرأ كلمات المرور أبدا، ولا يغادر أي شيء الهاتف.</string>
-    <string name="agent_greeting">مرحبا بك، أنا مساعد مضيف. أستطيع أن أفتح أي برنامج مثبّت وأنفّذ أي مهمة داخل نظام مضيف — ماذا تريد أن أفعل؟</string>
+    <string name="agent_greeting">مرحبا بك، أنا مساعد مضيف. أستطيع أن أفتح أي برنامج مثبّت وأنفّذ أي مهمة داخل نظام مضيف، ماذا تريد أن أفعل؟</string>
     <string name="agent_hint">اكتب رسالتك…</string>
     <string name="agent_send">إرسال</string>
     <string name="agent_voice_in_desc">إدخال صوتي</string>
@@ -575,19 +575,19 @@
     <string name="agent_typing">مساعد مضيف يكتب…</string>
     <string name="agent_thinking">مساعد مضيف يفكّر…</string>
     <string name="agent_starting_server">جارٍ تشغيل خادم المساعد…</string>
-    <string name="agent_server_start_failed">تعذّر تشغيل خادم المساعد — تحقّق من السجل وحاول مجددا</string>
-    <string name="agent_engine_not_ready">النظام غير جاهز — ثبّت نظام مضيف أولا</string>
+    <string name="agent_server_start_failed">تعذّر تشغيل خادم المساعد، تحقّق من السجل وحاول مجددا</string>
+    <string name="agent_engine_not_ready">النظام غير جاهز، ثبّت نظام مضيف أولا</string>
     <string name="agent_stop">إيقاف</string>
     <string name="agent_stopped">توقّف الرد</string>
-    <string name="agent_error">حدث خطأ أثناء الرد — حاول مجددا</string>
+    <string name="agent_error">حدث خطأ أثناء الرد، حاول مجددا</string>
     <string name="agent_tool_running">ينفّذ: %1$s</string>
-    <string name="agent_server_not_running">خادم المساعد غير مشغّل — افتح سطح المكتب أولا</string>
+    <string name="agent_server_not_running">خادم المساعد غير مشغّل، افتح سطح المكتب أولا</string>
     <string name="agent_server_retry">إعادة المحاولة</string>
-    <string name="brain_download_title">العقل غير محمّل — حمّله من هنا (حوالي 1.4GB، على الواي فاي)</string>
+    <string name="brain_download_title">العقل غير محمّل، حمّله من هنا (حوالي 1.4GB، على الواي فاي)</string>
     <string name="brain_download_button">تحميل العقل</string>
     <string name="brain_download_downloading">جارٍ تحميل العقل… %1$d%%</string>
-    <string name="brain_download_done">تم تحميل العقل — المساعد جاهز</string>
-    <string name="brain_download_failed">تعذّر التحميل — تحقّق من الإنترنت وحاول مجددا</string>
+    <string name="brain_download_done">تم تحميل العقل، المساعد جاهز</string>
+    <string name="brain_download_failed">تعذّر التحميل، تحقّق من الإنترنت وحاول مجددا</string>
     <string name="agent_mode_chat">المحادثة</string>
     <string name="agent_mode_console">وحدة التحكم</string>
     <string name="agent_reply_language">لغة الرد</string>
@@ -596,16 +596,16 @@
     <!-- p30: short label for the header pill only. The full label above
          stays in the brain picker; the pill is too narrow for it. -->
     <string name="agent_brain_local_short">محلي</string>
-    <string name="agent_brain_changed">تم تغيير العقل إلى %1$s — جار إعادة تشغيل المساعد</string>
-    <string name="agent_brain_key_missing">هذا النموذج يحتاج مفتاح %1$s — أضفه من الإعدادات (مفاتيح الذكاء الاصطناعي)</string>
+    <string name="agent_brain_changed">تم تغيير العقل إلى %1$s، جار إعادة تشغيل المساعد</string>
+    <string name="agent_brain_key_missing">هذا النموذج يحتاج مفتاح %1$s، أضفه من الإعدادات (مفاتيح الذكاء الاصطناعي)</string>
     <string name="agent_brain_failed">تعذر تغيير العقل</string>
     <!-- p31: provider-selection screen -->
     <string name="brain_providers_title">منصات الذكاء الاصطناعي</string>
-    <string name="brain_providers_subtitle">اختر العقل — كلها مجانية وبدون بطاقة بنكية</string>
+    <string name="brain_providers_subtitle">اختر العقل، كلها مجانية وبدون بطاقة بنكية</string>
     <string name="brain_providers_get_key">احصل على مفتاح مجاني</string>
     <string name="brain_providers_key_hint">الصق مفتاح %1$s هنا</string>
     <string name="brain_providers_key_saved">تم حفظ المفتاح</string>
-    <string name="brain_providers_no_key">بدون مفتاح — يعمل مباشرة</string>
+    <string name="brain_providers_no_key">بدون مفتاح، يعمل مباشرة</string>
     <string name="brain_providers_current">الحالي</string>
     <string name="brain_providers_models">النماذج</string>
     <string name="brain_providers_tap_to_change">اضغط لتغيير العقل</string>

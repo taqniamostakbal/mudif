@@ -19,7 +19,7 @@ object InstallFlow {
     fun runDebianInstall(fragment: Fragment, onDone: (ok: Boolean, message: String) -> Unit) {
         val ctx = fragment.requireContext()
         // P16: branded progress dialog (purple bar, Cairo, rounded) via
-        // MudifDialog — replaces the plain AlertDialog + stock ProgressBar
+        // MudifDialog, replaces the plain AlertDialog + stock ProgressBar
         // (teal bar) the user called classic / not professional.
         val progress = com.bolm.mudif.ui.MudifDialog.progress(
             ctx, ctx.getString(R.string.system_install_title)

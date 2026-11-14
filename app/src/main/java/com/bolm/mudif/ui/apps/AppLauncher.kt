@@ -17,13 +17,13 @@ import com.bolm.mudif.ui.vnc.VncActivity
 /**
  * The ONE guest-app launch path (moved verbatim from
  * AppsFragment.runLaunch, P18.5 + PR #83 pgrep verify, so the Games
- * tab launches installed games exactly the way the Apps tab does —
+ * tab launches installed games exactly the way the Apps tab does ,
  * no second, drifting copy of the launch logic).
  *
  * GUI or CLI is decided for real: a .desktop file whose Exec runs
  * this binary means a window of its own; otherwise the binary opens
  * inside qterminal (LXQt's terminal, in the image). The command goes
- * through the live PTY session (GuestSession.sendCommand — the proven
+ * through the live PTY session (GuestSession.sendCommand, the proven
  * launchDesktop mechanism): a one-shot proot cannot keep a GUI
  * process alive after it exits. When no desktop session is live, the
  * launch is handed to VncActivity, which boots the desktop and fires
@@ -46,7 +46,7 @@ object AppLauncher {
         uiHandler.post { onBusy?.invoke(true) }
         Thread {
             // A .desktop file whose Exec runs this binary means a
-            // window of its own — EXCEPT when it declares
+            // window of its own, EXCEPT when it declares
             // Terminal=true: that is a terminal app (htop), and
             // launching it raw opens no window at all (Batch 3).
             // The while loop drops Terminal=true files from the
@@ -84,7 +84,7 @@ object AppLauncher {
                 // Verify the process actually started before claiming
                 // success. The old code Toasted "launched" on `sent`
                 // alone, which only proves bytes reached the PTY, not
-                // that the program opened — failures were invisible
+                // that the program opened, failures were invisible
                 // (output goes to /dev/null). Now a real check decides.
                 val started = verifyStarted(appCtx, program)
                 uiHandler.post {

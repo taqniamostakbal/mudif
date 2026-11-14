@@ -18,7 +18,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Phase 6 — the agent's hands and eyes on the Android layer.
+ * Phase 6, the agent's hands and eyes on the Android layer.
  *
  * What this service can access, stated plainly (this is also what
  * the user sees in Android Settings -> Accessibility, via

@@ -276,7 +276,7 @@ object ProgramStore {
      * an install script (stageAssetToGuest) and runs it with sh.
      * Returns the raw TerminalResult; the caller reports success or
      * failure honestly from exitCode + output. This stages and runs
-     * the script only — it never edits the LXQt panel config (the
+     * the script only, it never edits the LXQt panel config (the
      * panel rewrites panel.conf on exit, so a guest-script edit
      * would be silently lost; see the Arcade wiring report).
      */

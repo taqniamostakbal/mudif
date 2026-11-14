@@ -6,7 +6,7 @@
      model returns it to the chat (the existing setModel backend).
      Same header pattern as SettingsActivity (purple header + back
      chevron + Lifta title). Plain vertical LinearLayout, ONE weight
-     (the RecyclerView) — the p29 rule. -->
+     (the RecyclerView), the p29 rule. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- P19 Phase 2: the main screen is now a DrawerLayout — the content
+<!-- P19 Phase 2: the main screen is now a DrawerLayout, the content
      (fragment host + bottom nav) plus the side menu (NavigationView,
      gravity start = right side in RTL). -->
 <androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"

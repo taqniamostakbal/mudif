@@ -106,7 +106,7 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
     /** p32: strips the bold/code markers the brain emits (`**`, `__`,
      *  backticks) so a reply reads plainly. Display only. p32b: the
      *  brain also emits LaTeX for math ($...$, \boxed{30}, \frac{a}{b},
-     *  \times, \%) — strip those wrappers too so the result reads
+     *  \times, \%), strip those wrappers too so the result reads
      *  plainly (30, not $$\boxed{30}$$). */
     private fun stripMarkdown(text: String): String {
         var out = text.replace("**", "").replace("__", "").replace("`", "")

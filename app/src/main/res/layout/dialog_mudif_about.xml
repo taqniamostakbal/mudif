@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Branded About dialog (Phase 1a): the same identity as the desktop
-     mudif-about — the user's avatar, the channel credit, and the links.
+     mudif-about, the user's avatar, the channel credit, and the links.
      NOT the version-only dialog. Avatar is the approved casual avatar
      (@drawable/avatar_mudif, already circular). Links open in the browser. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"

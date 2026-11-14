@@ -20,12 +20,12 @@ data class TerminalResult(
 object TerminalSession {
 
     /**
-     * Smart timeout: a command is killed only if it is TRULY stuck —
-     * no output for [idleTimeoutSec] — or if it exceeds [maxTimeoutSec]
+     * Smart timeout: a command is killed only if it is TRULY stuck ,
+     * no output for [idleTimeoutSec], or if it exceeds [maxTimeoutSec]
      * total. A command actively producing output (e.g. apk installing
      * 108 packages) is never killed for being slow.
      * [onLine] (optional) receives every output line as it arrives,
-     * on the drain thread — callers use it for live progress (e.g.
+     * on the drain thread, callers use it for live progress (e.g.
      * the store install dialog). Null keeps the old behaviour.
      */
     fun runCommand(
@@ -60,7 +60,7 @@ object TerminalSession {
     /**
      * Shared one-shot runner: [pb] already built for the target
      * rootfs (Alpine or Debian). Same smart-timeout contract as
-     * before — a command is killed only if it is TRULY stuck.
+     * before, a command is killed only if it is TRULY stuck.
      */
     private fun runWithBuilder(
         context: Context,
@@ -89,7 +89,7 @@ object TerminalSession {
                         onLine?.invoke(line)
                     }
                 } catch (_: Exception) {
-                    // Stream closed (timeout kill) — partial output is kept.
+                    // Stream closed (timeout kill), partial output is kept.
                 }
             }.apply { isDaemon = true; start() }
 

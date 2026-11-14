@@ -15,11 +15,11 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Real-computer #2 — backup / restore of the whole Debian system.
+ * Real-computer #2, backup / restore of the whole Debian system.
  *
  * Backup: a host-side walk of the debian-rootfs, written as
  * .tar.xz (commons-compress + XZ level 1: fast on a phone, bigger
- * file — a full backup is ~2.3 GB extracted, ~500-700 MB packed).
+ * file, a full backup is ~2.3 GB extracted, ~500-700 MB packed).
  * The bind-mount contents are excluded (tmp, proc, sys, dev, run
  * hold runtime state, not the system); symlinks stay symlinks and
  * file modes are preserved. Backups land in
@@ -37,7 +37,7 @@ import java.util.Locale
  * alive, so a forgotten stop can never silently corrupt a backup.
  * A restored backup whose image version differs from this build's
  * IMAGE_VERSION is correctly treated as "not installed" by
- * DebianSystem.isReady() — the version check protects the user
+ * DebianSystem.isReady(), the version check protects the user
  * from booting an outdated system by accident.
  */
 object SystemBackup {
@@ -224,7 +224,7 @@ object SystemBackup {
                                 android.system.Os.link(target.absolutePath, f.absolutePath)
                             } catch (_: Exception) {
                                 // Same fallback as DebianSystem.extract:
-                                // Huawei/EMUI refuses link() — copy.
+                                // Huawei/EMUI refuses link(), copy.
                                 if (!target.isFile) {
                                     throw RuntimeException(context.getString(R.string.ui_backup_hardlink_missing, entry.name))
                                 }

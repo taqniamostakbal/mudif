@@ -8,7 +8,7 @@ import com.bolm.mudif.R
 import com.bolm.mudif.engine.ScreenRecorder
 
 /**
- * Real-computer #5 — stops a screen recording from the
+ * Real-computer #5, stops a screen recording from the
  * notification action (the user is inside the viewer while
  * recording, so the stop action cannot live in an activity).
  * onReceive must return fast: the stop runs on a background

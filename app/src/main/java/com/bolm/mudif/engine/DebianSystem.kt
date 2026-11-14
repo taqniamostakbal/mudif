@@ -12,7 +12,7 @@ import java.net.URL
 import java.security.MessageDigest
 
 /**
- * P17 — نظام مضيف: Debian 13.1 Trixie as THE system of the app,
+ * P17, نظام مضيف: Debian 13.1 Trixie as THE system of the app,
  * shipped as a PRE-BUILT image (no on-device apt install anymore).
  *
  * Source: the Mudif image built by image-build/build-image.sh
@@ -21,19 +21,19 @@ import java.security.MessageDigest
  * as 20 MB parts on Hugging Face (public dataset
  * 855teche/mudif-images). Phones download the aarch64 image
  * (23 parts), the rig downloads x86_64 (26 parts). The image has
- * ONE top-level dir (mudif-p19-<arch>/) — extraction strips it,
+ * ONE top-level dir (mudif-p19-<arch>/), extraction strips it,
  * exactly like the old proot-distro tarballs did. The reassembled
  * file is verified against its sha256 before any extraction.
  *
  * Markers inside the image: /root/.mudif_image_version = "p20",
  * /root/.mudif_desktop_ok = "DEBIAN_DESKTOP_OK" (proves the full
- * desktop set is installed — X11Session.ensureDebianDesktop checks
+ * desktop set is installed, X11Session.ensureDebianDesktop checks
  * it instead of running apt). .mudif_ready is NOT baked: the app
  * writes it after its own verified extraction, as before.
  *
  * Shape (diagnostic Q3): the Debian guest boots with Mudif's EXACT
  * proot argv + boot env (RootfsManager.prootBuilderFor / bootArgvFor
- * with this rootfs), launched HOST-side — never nested inside the
+ * with this rootfs), launched HOST-side, never nested inside the
  * Alpine guest (nested proot fails: the Android linker
  * /system/bin/linker64 does not exist inside the guest).
  *
@@ -45,8 +45,8 @@ import java.security.MessageDigest
  * starts from a wiped dest dir, symlinks are removed unconditionally
  * before creation, completion is atomic via the .mudif_ready marker.
  *
- * Why P17 exists: the on-device apt install (P6–P16.6) could never
- * finish on the borrowed Nova 9 — the app's own idle timeout killed
+ * Why P17 exists: the on-device apt install (P6,P16.6) could never
+ * finish on the borrowed Nova 9, the app's own idle timeout killed
  * it mid-install (P16.5/P16.6, proven on the phone), and an
  * orphaned apt-get then held the dpkg lock. Shipping the desktop
  * pre-installed removes the install entirely.
@@ -331,7 +331,7 @@ object DebianSystem {
                                     // P17.1: some phones (Huawei/EMUI) refuse
                                     // link() with EACCES in the app's private
                                     // dir. A hard link and a copy hold the
-                                    // same bytes for the guest — copy the
+                                    // same bytes for the guest, copy the
                                     // target file instead of failing.
                                     val src = File(dest, targetStripped)
                                     if (!src.isFile) throw RuntimeException(context.getString(R.string.ui_dl_hardlink_missing, entry.name, e.message))
@@ -352,7 +352,7 @@ object DebianSystem {
                         entry.isCharacterDevice || entry.isBlockDevice || entry.isFIFO -> {
                             // P17 images ship no device nodes
                             // (verified by verify-image.sh); skip any
-                            // that appear — the app cannot mknod them.
+                            // that appear, the app cannot mknod them.
                         }
                         else -> {
                             f.parentFile?.mkdirs()

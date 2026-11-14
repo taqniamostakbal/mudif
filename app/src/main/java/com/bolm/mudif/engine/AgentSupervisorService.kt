@@ -16,7 +16,7 @@ import com.bolm.mudif.ui.agent.MudifAccessibilityService
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Phase 6 — foreground supervisor for the whole-app agent.
+ * Phase 6, foreground supervisor for the whole-app agent.
  *
  * Owns the two loopback servers the agent needs: [MudifBridge]
  * (127.0.0.1:18080, the Android-layer control plane) and the
@@ -29,14 +29,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * dataSync, persistent notification on channel "mudif_agent",
  * reference-counted start/stop, and a PARTIAL_WAKE_LOCK with a 2 h
  * safety timeout. The WakeLock is held while the supervised agent
- * session runs — that session IS the task here (the bridge and the
- * brain must stay alive for the agent to work) — and released in
+ * session runs, that session IS the task here (the bridge and the
+ * brain must stay alive for the agent to work), and released in
  * onDestroy. Nothing here holds a WakeLock for a single chat
  * message or a single tool call.
  *
  * The service restarts itself after a system kill (START_STICKY):
  * a null intent on restart is treated as a start. It does NOT
- * start by itself on boot or on app launch — something must call
+ * start by itself on boot or on app launch, something must call
  * [start] (the agent tab is the intended caller; wiring that call
  * is a later step, not part of this file).
  *

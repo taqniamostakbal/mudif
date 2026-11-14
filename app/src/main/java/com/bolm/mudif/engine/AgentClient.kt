@@ -451,7 +451,7 @@ object AgentClient {
                 "the tools available, and tell only the truth: if you do not know something, say " +
                 "so, never invent a result. FORMAT RULE: your reply MUST begin with the final " +
                 "answer alone on the first line. Nothing may come before it: no 'The calculation', " +
-                "no 'Step 1', no preamble of any kind. Example: user '15% of 200' — your first " +
+                "no 'Step 1', no preamble of any kind. Example: user '15% of 200' , your first " +
                 "line is exactly '30'. Only after the answer may you add a short explanation. " +
                 "Give the result first; only ask for clarification " +
                 "if the question is genuinely incomplete. " +

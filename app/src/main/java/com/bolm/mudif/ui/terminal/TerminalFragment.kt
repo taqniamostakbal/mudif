@@ -14,7 +14,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.offsec.nhterm.frontend.session.terminal.BasicViewClient
 
 /**
- * P5.22 RADICAL REBUILD — real terminal (Tiny Container's
+ * P5.22 RADICAL REBUILD, real terminal (Tiny Container's
  * TerminalFragment shape): a NetHunter TerminalView attached to the
  * SAME GuestSession PTY session that owns the container. After the
  * boot `exec`, typing here goes straight into the guest login shell.
@@ -41,7 +41,7 @@ class TerminalFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // P6: the terminal boots the ACTIVE system (the last one the
-        // user opened — Debian after نظام مضيف, Alpine otherwise).
+        // user opened, Debian after نظام مضيف, Alpine otherwise).
         val system = GuestSession.currentSystem
         val ready = if (system == GuestSession.GuestSystem.DEBIAN) {
             DebianSystem.isReady(requireContext())
@@ -88,7 +88,7 @@ class TerminalFragment : Fragment() {
         binding.terminalView.setTextSize(36)
         binding.terminalView.attachSession(session)
         // P5.24 FIX: the view's key handler (TerminalView.onKeyDown)
-        // calls terminalViewClient — without a client, ANY keypress
+        // calls terminalViewClient, without a client, ANY keypress
         // NPE-crashes the whole app (P5.23 test, logcat). Tiny
         // Container always sets BasicViewClient. Skipped as
         // "optional" in P5.22; the test proved it is required.
