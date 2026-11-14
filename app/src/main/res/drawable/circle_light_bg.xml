@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p30 KissaKoti redesign: light purple circle for the mic / voice-out
+     buttons (the KissaKoti attach button is a light circle; the icons
+     are tinted purple at the usage site). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#E9E4FF" />
+</shape>

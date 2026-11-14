@@ -7,7 +7,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
+import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemAgentMessageBinding
@@ -38,11 +38,14 @@ data class AgentMessage(
 
 /**
  * Phase 4: one message row for the مساعد مضيف chat. The row is a single
- * bubble; the adapter flips it by role (user = end-aligned, purple
- * bubble, white text, no avatar; agent = start-aligned, surface bubble,
- * system text, clay-penguin avatar). RTL is handled by the layout:
- * the row root uses layoutDirection from the locale, so "start" and
- * "end" are correct in Arabic and in English.
+ * bubble; the adapter flips it by role (user = end-aligned, light
+ * purple bubble, dark text, no avatar; agent = start-aligned, white
+ * bubble, dark text, clay-penguin avatar). RTL is handled by the
+ * layout: the row root uses layoutDirection from the locale, so "start"
+ * and "end" are correct in Arabic and in English.
+ * p30 KissaKoti redesign: the timestamp sits INSIDE the bubble, on the
+ * side the bubble is aligned to (agent = START, user = END); the
+ * background is set on message_bubble, not on the text view.
  */
 class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
 
@@ -69,19 +72,21 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
         with(holder.binding) {
             messageText.text = message.text
             messageTime.text = formatTime(message.time)
+            val timeParams = messageTime.layoutParams as LinearLayout.LayoutParams
             if (message.role == AgentMessage.ROLE_USER) {
                 messageRow.gravity = Gravity.END
                 messageAvatar.visibility = View.GONE
-                messageText.setBackgroundResource(R.drawable.agent_bubble_user)
-                messageText.setTextColor(
-                    ContextCompat.getColor(ctx, android.R.color.white)
-                )
+                messageBubble.setBackgroundResource(R.drawable.agent_bubble_user)
+                messageText.setTextColor(resolveOnSurfaceColor(ctx))
+                timeParams.gravity = Gravity.END
             } else {
                 messageRow.gravity = Gravity.START
                 messageAvatar.visibility = View.VISIBLE
-                messageText.setBackgroundResource(R.drawable.agent_bubble_agent)
+                messageBubble.setBackgroundResource(R.drawable.agent_bubble_agent)
                 messageText.setTextColor(resolveOnSurfaceColor(ctx))
+                timeParams.gravity = Gravity.START
             }
+            messageTime.layoutParams = timeParams
         }
     }
 

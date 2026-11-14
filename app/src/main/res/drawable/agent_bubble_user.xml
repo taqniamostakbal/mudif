@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- p22: WhatsApp-style user bubble — brand purple, tail at the
-     bottom-left (the END side in RTL, where the user's messages sit). -->
+<!-- p30 KissaKoti redesign: LIGHT PURPLE tint (#E9E4FF) with DARK
+     text (the adapter sets the dark color), uniformly rounded 18dp,
+     no tail. The old solid brand-purple bubble with white text is
+     gone; the outgoing color now matches the reference's colored
+     outgoing bubble in Mudif purple tint. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/mudif_purple" />
-    <corners
-        android:topLeftRadius="18dp"
-        android:topRightRadius="18dp"
-        android:bottomRightRadius="18dp"
-        android:bottomLeftRadius="4dp" />
+    <solid android:color="#E9E4FF" />
+    <corners android:radius="18dp" />
 </shape>

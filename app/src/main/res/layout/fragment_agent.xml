@@ -20,7 +20,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="?attr/colorSurface">
+    android:background="#F7F6FF">
 
     <!-- Header: clay-penguin avatar + agent name + reply-language switch.
          FIXED height (88dp) so the header can never stretch to fill the
@@ -51,6 +51,9 @@
             android:src="@drawable/avatar_mudif"
             android:contentDescription="@string/agent_name" />
 
+        <!-- p30 KissaKoti header: name in Lifta + green verified badge,
+             and a status row (green dot + "متصل") under it. The
+             subtitle string now holds the status text. -->
         <LinearLayout
             android:id="@+id/agent_identity"
             android:layout_width="0dp"
@@ -59,47 +62,98 @@
             android:orientation="vertical"
             android:paddingStart="10dp">
 
-            <TextView style="@style/Widget.Mudif.HeaderTitle"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/agent_name"
-                android:textSize="22sp"
-                android:textColor="@android:color/white"
-                android:fontFamily="@font/lifta" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <TextView style="@style/Widget.Mudif.HeaderSubtitle"
+                <TextView style="@style/Widget.Mudif.HeaderTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/agent_name"
+                    android:textSize="22sp"
+                    android:textColor="@android:color/white"
+                    android:fontFamily="@font/lifta" />
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/dot_online"
+                    android:src="@drawable/ic_check"
+                    android:padding="3dp"
+                    android:contentDescription="@null" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="@string/agent_subtitle"
-                android:textSize="13sp"
-                android:textColor="#DCD6FF"
-                android:fontFamily="@font/cairo" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/dot_online" />
+
+                <TextView style="@style/Widget.Mudif.HeaderSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/agent_subtitle"
+                    android:textSize="13sp"
+                    android:textColor="#DCD6FF"
+                    android:fontFamily="@font/cairo" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Brain picker (p22): the model the agent answers with.
-             Local (Ollama Qwen3 1.7B) by default; the cloud models
-             come from opencode-providers.json. The button shows the
-             current brain's short name. -->
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
-            android:id="@+id/btn_brain"
+        <!-- p30: the two pills are stacked vertically, not side by side.
+             Side by side they measured wider than the 360dp screen
+             (menu + avatar + name + two long pills), so the weighted
+             agent_identity got 0px and the agent name was invisible
+             (p29 rig dump). Stacked, the column is only as wide as the
+             widest pill, so the name always has room. The pills are
+             capped + ellipsized so a long cloud-model label can never
+             push the name out again. -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:contentDescription="@string/agent_brain_title"
-            android:fontFamily="@font/cairo"
-            android:textSize="13sp"
-            app:cornerRadius="20dp" />
+            android:orientation="vertical"
+            android:gravity="center">
 
-        <!-- Reply language for the agent (Fusha default / Darija /
-             English). Stored, and carried with every message. -->
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
-            android:id="@+id/btn_reply_language"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/agent_reply_language"
-            android:fontFamily="@font/cairo"
-            android:textSize="13sp"
-            app:cornerRadius="20dp" />
+            <!-- Brain picker (p22): the model the agent answers with.
+                 Local (Ollama Qwen3 1.7B) by default; the cloud models
+                 come from opencode-providers.json. The button shows the
+                 current brain's short name. -->
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
+                android:id="@+id/btn_brain"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxWidth="120dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:contentDescription="@string/agent_brain_title"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="20dp" />
+
+            <!-- Reply language for the agent (Fusha default / Darija /
+                 English). Stored, and carried with every message. -->
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
+                android:id="@+id/btn_reply_language"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:maxWidth="120dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:contentDescription="@string/agent_reply_language"
+                android:fontFamily="@font/cairo"
+                android:textSize="13sp"
+                app:cornerRadius="20dp" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Mode toggle + clear history. Direct child of the root, so it is
@@ -232,6 +286,70 @@
         </LinearLayout>
     </HorizontalScrollView>
 
+    <!-- p30 KissaKoti redesign: "TODAY" divider + white profile card,
+         like the reference (TODAY above the pet card, card above the
+         messages). Both are chat-mode views: hidden in console mode
+         (see AgentFragment showChat/showConsole). The card shows the
+         agent name in Lifta + the current brain model and status; the
+         model line is set in code (updateBrainButton). -->
+    <TextView
+        android:id="@+id/agent_today_divider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="4dp"
+        android:gravity="center"
+        android:text="@string/agent_today"
+        android:textSize="11sp"
+        android:textColor="#8A8A8A"
+        android:fontFamily="@font/cairo" />
+
+    <LinearLayout
+        android:id="@+id/agent_profile_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/card_white_rounded"
+        android:elevation="2dp"
+        android:padding="12dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="8dp">
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/avatar_mudif"
+            android:contentDescription="@string/agent_name" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/agent_name"
+                android:textSize="18sp"
+                android:textColor="?attr/colorOnSurface"
+                android:fontFamily="@font/lifta" />
+
+            <TextView
+                android:id="@+id/agent_profile_model"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/agent_brain_local"
+                android:textSize="13sp"
+                android:textColor="#8A8A8A"
+                android:fontFamily="@font/cairo" />
+        </LinearLayout>
+    </LinearLayout>
+
     <!-- Message list. THE single weight in this layout, direct child of
          the root (same proven pattern as StoreFragment's programs list).
          It fills whatever space is left after header + mode + chips +
@@ -241,7 +359,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="#F6F3FF"
+        android:background="#F7F6FF"
         android:clipToPadding="false"
         android:padding="12dp" />
 
@@ -330,12 +448,15 @@
         android:paddingEnd="12dp"
         android:paddingBottom="12dp">
 
+        <!-- p30 KissaKoti redesign: light circle + purple mic icon
+             (was a purple circle with a white icon). -->
         <ImageButton
             android:id="@+id/btn_voice_in"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:background="@drawable/circle_bg"
+            android:background="@drawable/circle_light_bg"
             android:src="@drawable/ic_mic"
+            android:tint="@color/mudif_purple"
             android:contentDescription="@string/agent_voice_in_desc"
             android:padding="10dp" />
 
@@ -357,24 +478,30 @@
             android:imeOptions="actionSend"
             android:maxLines="4" />
 
+        <!-- p30 KissaKoti redesign: light circle + purple speaker icon
+             (was a purple circle with a white icon). -->
         <ImageButton
             android:id="@+id/btn_voice_out"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:background="@drawable/circle_bg"
+            android:background="@drawable/circle_light_bg"
             android:src="@drawable/ic_audio"
+            android:tint="@color/mudif_purple"
             android:contentDescription="@string/agent_voice_out_off"
             android:padding="10dp" />
 
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+        <!-- p30 KissaKoti redesign: round purple send button with a
+             paper-plane icon (was a text button). Same ID, so the
+             fragment code (click listener + isEnabled) is unchanged. -->
+        <ImageButton
             android:id="@+id/btn_send"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:layout_marginStart="8dp"
-            android:text="@string/agent_send"
-            android:fontFamily="@font/cairo"
-            android:textSize="14sp"
-            app:cornerRadius="22dp" />
+            android:background="@drawable/circle_bg"
+            android:src="@drawable/ic_send"
+            android:padding="12dp"
+            android:contentDescription="@string/agent_send" />
     </LinearLayout>
 
     <!-- ================= Console mode (WebView) ================= -->

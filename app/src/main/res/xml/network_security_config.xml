@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p30: the agent brain (opencode 127.0.0.1:4096) and Ollama
+     (127.0.0.1:11434) are loopback-only HTTP servers. Target SDK 34
+     blocks cleartext by default, so AgentClient.createSession failed
+     with "Cleartext HTTP traffic to 127.0.0.1 not permitted" and the
+     brain could never answer. This config permits cleartext ONLY to
+     127.0.0.1 and localhost; all other traffic stays HTTPS-only. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+</network-security-config>

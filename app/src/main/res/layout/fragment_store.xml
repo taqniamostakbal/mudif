@@ -4,12 +4,12 @@
      was wrap_content + nestedScrollingEnabled=false inside the outer
      NestedScrollView, so tapping "All" (1,139 programs) forced the
      RecyclerView to create + measure ALL 1,139 item views at once to
-     compute its height -> OutOfMemory / the app died. Now the top
-     section (distro + search + category cards) lives in its own
-     NestedScrollView, and programs_recycler is 0dp + weight=1 with
-     its own scrolling, so it only binds the visible items (real
-     RecyclerView recycling). The search and categories stay reachable
-     while browsing programs. -->
+     compute its height -> OutOfMemory / the app died.
+     p30: the screen is ONE scrolling list (ConcatAdapter in the single
+     weight=1 programs_recycler, see the comment above the search box),
+     so the list only binds the visible items (real RecyclerView
+     recycling) and can never measure 0. The search stays fixed above
+     the list while browsing programs. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -60,61 +60,39 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- p29 ROOT FIX (Store "All" list invisible): the top section was in
-         a wrap_content NestedScrollView, which measured its tall category
-         grid and consumed ALL vertical space, leaving the weight=1
-         programs_recycler 0px (logcat: programs_recycler 0 height,
-         visible:false). The top section is short fixed content (one distro
-         row + search + 8 category cards) and needs NO scrolling of its
-         own, so it is a plain LinearLayout now. programs_recycler (weight=1,
-         direct child of the root) gets all remaining space, same proven
-         pattern as the other tabs. -->
-    <LinearLayout
+    <!-- p30 ROOT FIX (Store "All" list invisible, p28 + p29): the
+         measured heights on the rig prove the fixed top section
+         (header 291px + distro 344px + search 112px + category 201px)
+         consumed the ENTIRE 976px fragment area, so the weight=1
+         programs_recycler got 0px. No fixed top section can fit: the
+         content is 97% of the screen. So there is NO separate top
+         section any more. The screen is ONE scrolling list
+         (ConcatAdapter: distro card + category grid + program cards,
+         GridLayoutManager span 2, categories span 1, everything else
+         spans 2) inside the single weight=1 programs_recycler. The
+         distro card and the category grid scroll away naturally while
+         browsing, all 8 categories stay reachable, and the list can
+         never measure 0 because it is the only weighted child. -->
+    <!-- P16.1: plain EditText, not TextInputEditText. The Material
+         TextInputLayout wrapper broke the search field's input
+         connection (focus worked, no keystroke arrived, mInputEditorInfo
+         empty), so the box is a plain EditText on a rounded background. -->
+    <EditText style="@style/Widget.Mudif.SearchBox"
+        android:id="@+id/search_box"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recycler"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
-                android:padding="12dp" />
-
-            <!-- P16.1: plain EditText, not TextInputEditText. The Material
-                 TextInputLayout wrapper broke the search field's input
-                 connection (focus worked, no keystroke arrived, mInputEditorInfo
-                 empty), so the box is a plain EditText on a rounded background. -->
-            <EditText style="@style/Widget.Mudif.SearchBox"
-                android:id="@+id/search_box"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/search_box_bg"
-                android:drawableStart="@android:drawable/ic_menu_search"
-                android:drawablePadding="8dp"
-                android:padding="12dp"
-                android:hint="@string/store_search_hint"
-                android:fontFamily="@font/cairo"
-                android:inputType="text"
-                android:imeOptions="actionSearch"
-                android:maxLines="1" />
-
-            <!-- P19 Phase 1: category gradient cards (2-column grid) replace
-                 the plain filter chips. Same tap-to-filter behaviour. -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/category_recycler"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp" />
-    </LinearLayout>
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/search_box_bg"
+        android:drawableStart="@android:drawable/ic_menu_search"
+        android:drawablePadding="8dp"
+        android:padding="12dp"
+        android:hint="@string/store_search_hint"
+        android:fontFamily="@font/cairo"
+        android:inputType="text"
+        android:imeOptions="actionSearch"
+        android:maxLines="1" />
 
     <!-- The programs list scrolls on its own (weight=1 fills the rest
          of the screen). It recycles views, so "All" (1,139 programs)

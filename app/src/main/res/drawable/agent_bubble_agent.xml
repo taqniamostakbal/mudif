@@ -1,16 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- p22: WhatsApp-style agent bubble — solid WHITE fill (the old
-     surface fill was invisible on the white chat background) with a
-     lavender hairline, tail at the bottom-right (the START side in
-     RTL, toward the avatar). -->
+<!-- p30 KissaKoti redesign: uniformly rounded 18dp (no tail), solid
+     WHITE fill with a lavender hairline. The timestamp now sits
+     INSIDE the bubble (see item_agent_message.xml). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="#FFFFFF" />
-    <corners
-        android:topLeftRadius="18dp"
-        android:topRightRadius="18dp"
-        android:bottomRightRadius="4dp"
-        android:bottomLeftRadius="18dp" />
+    <corners android:radius="18dp" />
     <stroke
         android:width="1dp"
         android:color="#DCD6FF" />

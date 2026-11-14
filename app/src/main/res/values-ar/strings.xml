@@ -541,7 +541,8 @@
     <string name="ui_about_version_app">الإصدار %1$s</string>
     <string name="tab_agent">مساعد مضيف</string>
     <string name="agent_name">مساعد مضيف</string>
-    <string name="agent_subtitle">مساعدك داخل نظام مضيف</string>
+    <string name="agent_today">اليوم</string>
+    <string name="agent_subtitle">متصل</string>
     <string name="agent_about">مساعد مضيف هو مساعدك العربي داخل نظام مضيف: يبحث في الإنترنت، يفتح البرامج، يبدّل الإعدادات، وينفّذ المهام داخل سطح المكتب بصوتك أو بالكتابة — وقدراته تتوسع مع الوقت. للمهمات الطويلة، اجعل البطارية غير مقيّدة من إعدادات الهاتف حتى لا يوقف النظام المساعد.</string>
     <string name="accessibility_service_description">مساعد مضيف يتحكم في شاشات مضيف نفسها ويقرأ شجرة واجهة المستخدم الظاهرة على الشاشة حتى يتمكن المساعد من العمل داخل التطبيق. لا يقرأ كلمات المرور أبدا، ولا يغادر أي شيء الهاتف.</string>
     <string name="agent_greeting">مرحبا بك، أنا مساعد مضيف. أستطيع أن أفتح أي برنامج مثبّت وأنفّذ أي مهمة داخل نظام مضيف — ماذا تريد أن أفعل؟</string>

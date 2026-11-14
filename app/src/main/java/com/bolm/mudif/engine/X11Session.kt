@@ -428,8 +428,20 @@ object X11Session {
         // (gio info confirmed both xattrs true, icon still "!").
         // The freedesktop trust rule also requires the .desktop file
         // itself to be executable, so chmod +x both copies as well.
-        // If this still does not clear it, the trust lives in the
-        // gvfs-metadata store (needs gvfsd running), not in xattrs.
+        // p30: the xattr + chmod +x are BOTH set and the "!" is
+        // STILL there (rig-proven). The trust hypothesis is dead:
+        // libfm-qt reads metadata::trust from the gvfs-metadata
+        // store (/root/.local/share/gvfs-metadata/), NOT the xattr.
+        // gio set only works with the desktop session's LIVE bus,
+        // and only BEFORE pcmanfm-qt first reads the icon (a set
+        // while pcmanfm-qt runs does not clear the "!" live). So a
+        // backgrounded loop polls for lxqt-session, reads its bus
+        // from /proc, and sets the trust on both copies. It must
+        // beat pcmanfm-qt's first icon read (~1-3 s); if it loses,
+        // the store persists, so the NEXT launch is clean.
+        // dbus-launch does NOT work (its temporary bus never
+        // reaches the store). Keep chmod +x and the xattr as
+        // belt-and-suspenders. Best-effort; never blocks the desktop.
         try {
             GuestSession.sendCommand(
                 "chmod +x /root/Desktop/mudif-launcher.desktop /usr/share/applications/mudif-launcher.desktop 2>/dev/null; " +
@@ -447,6 +459,24 @@ object X11Session {
         val ok = GuestSession.sendCommand("$cmd > /root/$desktop-session-$stamp.log 2>&1 &")
         if (ok) Log.d(TAG, "$desktop command sent through PTY session")
         else Log.e(TAG, "PTY session not available for $desktop")
+        // p30 icon fix (LXQt only): backgrounded loop in the PTY
+        // shell. Polls every 0.5 s (up to 30 s) for lxqt-session,
+        // reads its live bus from /proc, and sets metadata::trust
+        // on both .desktop copies with that bus. Tries EVERY
+        // lxqt-session pid (a killed session can linger as a zombie
+        // whose /proc environ is empty, so the first pid may be
+        // unreadable). Best-effort; the loop exits on its own.
+        if (ok && desktop == "lxqt") {
+            val d = "$"
+            val trustLoop = "( for i in ${d}(seq 1 60); do for pid in ${d}(pgrep -f '[l]xqt-session'); do " +
+                "bus=${d}(tr '\\0' '\\n' < /proc/${d}pid/environ 2>/dev/null | grep '^DBUS_SESSION_BUS_ADDRESS=' | cut -d= -f2-); " +
+                "if [ -n \"${d}bus\" ]; then DBUS_SESSION_BUS_ADDRESS=\"${d}bus\" gio set /root/Desktop/mudif-launcher.desktop metadata::trust true 2>/dev/null && " +
+                "DBUS_SESSION_BUS_ADDRESS=\"${d}bus\" gio set /usr/share/applications/mudif-launcher.desktop metadata::trust true 2>/dev/null && break 2; fi; done; sleep 0.5; done ) " +
+                "> /root/icon-trust-$stamp.log 2>&1 &"
+            try {
+                GuestSession.sendCommand(trustLoop)
+            } catch (_: Exception) { }
+        }
         return ok
     }
 

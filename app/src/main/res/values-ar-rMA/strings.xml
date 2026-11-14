@@ -541,7 +541,8 @@
     <string name="ui_about_version_app">الإصدار %1$s</string>
     <string name="tab_agent">مساعد مضيف</string>
     <string name="agent_name">مساعد مضيف</string>
-    <string name="agent_subtitle">المساعد ديالك داخل نظام مضيف</string>
+    <string name="agent_today">اليوم</string>
+    <string name="agent_subtitle">متصل</string>
     <string name="agent_about">مساعد مضيف هو المساعد ديالك بالعربية داخل نظام مضيف: كيبحث فالإنترنت، كيحل البرامج، كيبدل الإعدادات، وكيدير المهام داخل سطح المكتب بصوتك ولا بالكتابة — والقدرات ديالو كتكبر مع الوقت. للخدمات الطوال، خلّي البطارية بلا قيود من إعدادات التيليفون باش النظام ما يوقفش المساعد.</string>
     <string name="accessibility_service_description">المساعد ديال مضيف كيتحكم فالشاشات ديال مضيف وكيقرا شجرة الواجهة اللي باينة فالشاشة باش المساعد يقدر يخدم داخل التطبيق. ما كيقراش كلمات السر أبدا، وما كيخرج حتى شي حاجة من التيليفون.</string>
     <string name="agent_greeting">مرحبا، أنا مساعد مضيف. نقدر نحل أي برنامج مثبّت وندير أي مهمة داخل نظام مضيف — شنو بغيتي ندير؟</string>

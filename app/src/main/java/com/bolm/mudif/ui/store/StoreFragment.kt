@@ -10,8 +10,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentStoreBinding
 import com.bolm.mudif.engine.DebianSystem
@@ -41,6 +41,13 @@ class StoreFragment : Fragment() {
     private val evidence = HashMap<String, String>()
     private lateinit var programAdapter: ProgramAdapter
     private lateinit var categoryAdapter: CategoryCardAdapter
+    private lateinit var distroAdapter: DistroAdapter
+    private lateinit var concatAdapter: ConcatAdapter
+    // p30: whether the distro card + category grid are currently in
+    // the concat list. They hide while a search query is typed (the
+    // filtered programs fill the screen) and come back when the query
+    // is cleared. Tracked so add/remove never runs twice in a row.
+    private var sectionsInConcat = true
     private val uiHandler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(
@@ -53,8 +60,14 @@ class StoreFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        binding.recycler.layoutManager = LinearLayoutManager(requireContext())
-        binding.recycler.adapter = DistroAdapter(
+        // p30: ONE scrolling list for the whole screen (ConcatAdapter).
+        // The distro card, the category grid and the program cards are
+        // sections of a single RecyclerView, so there is no fixed top
+        // section that can eat the list's height (p28 + p29 proved the
+        // fixed top measured 976px and left the list 0px). Grid span 2:
+        // category cards span 1 (2-column grid), distro + section
+        // headers + program cards span 2 (full width).
+        distroAdapter = DistroAdapter(
             DISTROS,
             // P6.4: the store lists Debian only (نظام مضيف is the
             // ONE system). The Alpine card and the install_soon
@@ -94,16 +107,21 @@ class StoreFragment : Fragment() {
                 parentFragmentManager.executePendingTransactions()
             }
         }
-        binding.categoryRecycler.layoutManager = GridLayoutManager(requireContext(), 2)
-        binding.categoryRecycler.adapter = categoryAdapter
-
         programAdapter = ProgramAdapter(
             onVerify = { p -> runVerify(p) },
             onInstall = { p -> runInstall(p) },
             onUninstall = { p -> runUninstall(p) }
         )
-        binding.programsRecycler.layoutManager = LinearLayoutManager(requireContext())
-        binding.programsRecycler.adapter = programAdapter
+        concatAdapter = ConcatAdapter(distroAdapter, categoryAdapter, programAdapter)
+        binding.programsRecycler.layoutManager = GridLayoutManager(requireContext(), 2).apply {
+            spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int {
+                    val (adapter, _) = concatAdapter.getWrappedAdapterAndPosition(position)
+                    return if (adapter === categoryAdapter) 1 else 2
+                }
+            }
+        }
+        binding.programsRecycler.adapter = concatAdapter
 
         binding.searchBox.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -136,7 +154,7 @@ class StoreFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         // e.g. installed from the profile tab -> reflect it here
-        (_binding?.recycler?.adapter as? DistroAdapter)?.refresh()
+        if (::distroAdapter.isInitialized) distroAdapter.refresh()
         if (statusesLoaded && DebianSystem.isReady(requireContext())) {
             refreshAllStatuses()
         }
@@ -164,7 +182,7 @@ class StoreFragment : Fragment() {
         }
         InstallFlow.runDebianInstall(this) { ok, message ->
             if (ok) {
-                (binding.recycler.adapter as? DistroAdapter)?.refresh()
+                if (::distroAdapter.isInitialized) distroAdapter.refresh()
                 Snackbar.make(
                     binding.root,
                     getString(R.string.debian_install_done),
@@ -249,14 +267,34 @@ class StoreFragment : Fragment() {
         }.start()
     }
 
+    /** Adds or removes the distro card + category grid sections of
+     *  the concat list. No-op when the state already matches, so a
+     *  keystroke never re-adds an adapter that is already there
+     *  (ConcatAdapter throws on a duplicate add). */
+    private fun setSectionsVisible(visible: Boolean) {
+        if (visible == sectionsInConcat) return
+        sectionsInConcat = visible
+        if (visible) {
+            concatAdapter.addAdapter(0, distroAdapter)
+            concatAdapter.addAdapter(1, categoryAdapter)
+        } else {
+            concatAdapter.removeAdapter(categoryAdapter)
+            concatAdapter.removeAdapter(distroAdapter)
+        }
+    }
+
     /** Search (Arabic name, English name, description) plus category filter. */
     private fun applyFilter() {
         val q = query.trim()
-        // p21: while a query is typed, the category cards hide so the
-        // filtered list is what the user sees. Before, the cards
-        // stayed visible with stale counts and the screen looked
-        // unfiltered even though the list below had already filtered.
-        binding.categoryRecycler.visibility = if (q.isEmpty()) View.VISIBLE else View.GONE
+        // p21: while a query is typed, the distro card + category
+        // cards leave the list so the filtered programs are what the
+        // user sees. Before, the cards stayed visible with stale
+        // counts and the screen looked unfiltered even though the
+        // list below had already filtered. p30: the sections are
+        // adapters in the concat list, so they are added/removed
+        // instead of hidden (a hidden adapter would still hold its
+        // place in the scrolling list).
+        setSectionsVisible(q.isEmpty())
         val filtered = programs.filter { p ->
             (selectedCategory == StoreCategory.ALL.key || p.category == selectedCategory) &&
                 (q.isEmpty() || p.name.contains(q, ignoreCase = true) ||

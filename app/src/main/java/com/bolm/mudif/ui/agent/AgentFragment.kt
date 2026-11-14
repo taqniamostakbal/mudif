@@ -193,6 +193,8 @@ class AgentFragment : Fragment() {
     // (both are weight=1 direct children; only one is visible at a time).
     private fun showChat() {
         binding.chipsScroll.visibility = View.VISIBLE
+        binding.agentTodayDivider.visibility = View.VISIBLE
+        binding.agentProfileCard.visibility = View.VISIBLE
         binding.agentRecycler.visibility = View.VISIBLE
         binding.inputRow.visibility = View.VISIBLE
         binding.consoleContainer.visibility = View.GONE
@@ -200,6 +202,8 @@ class AgentFragment : Fragment() {
 
     private fun showConsole() {
         binding.chipsScroll.visibility = View.GONE
+        binding.agentTodayDivider.visibility = View.GONE
+        binding.agentProfileCard.visibility = View.GONE
         binding.agentRecycler.visibility = View.GONE
         binding.inputRow.visibility = View.GONE
         binding.consoleContainer.visibility = View.VISIBLE
@@ -624,11 +628,26 @@ class AgentFragment : Fragment() {
 
     private fun updateBrainButton() {
         binding.btnBrain.text = brainLabelFor(brainModel)
+        // p30 KissaKoti profile card: full model label + status.
+        binding.agentProfileModel.text =
+            "${brainFullLabelFor(brainModel)} • ${getString(R.string.agent_subtitle)}"
     }
 
-    /** Short label for the header button: Local, or the model name. */
-    private fun brainLabelFor(modelId: String): String {
+    /** Full label for the profile card: "محلي (Qwen3 1.7B)" or the
+     *  cloud model's full label. The header pill shows the short form. */
+    private fun brainFullLabelFor(modelId: String): String {
         if (modelId == BRAIN_LOCAL) return getString(R.string.agent_brain_local)
+        return loadBrainOptions().firstOrNull { it.id == modelId }?.label
+            ?: modelId.substringAfter("/", modelId)
+    }
+
+    /** Short label for the header button: Local, or the model name.
+     *  p30: the local label is the SHORT form ("محلي"). The full form
+     *  ("محلي (Qwen3 1.7B)") stays in the brain picker; the header
+     *  pill is too narrow for it and the long label pushed the agent
+     *  name to 0px. */
+    private fun brainLabelFor(modelId: String): String {
+        if (modelId == BRAIN_LOCAL) return getString(R.string.agent_brain_local_short)
         return loadBrainOptions().firstOrNull { it.id == modelId }?.label
             ?: modelId.substringAfter("/", modelId)
     }

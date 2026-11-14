@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.recyclerview)
     implementation(libs.material)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -103,7 +104,13 @@ dependencies {
     // P18.5: fork commit b1c96fb adds the raw drag path in
     // SIMULATED_TOUCH (cursor follows the finger, bypassing
     // GestureDetector onScroll slop/batching).
-    implementation("com.github.taqniamostakbal:termux-x11:b1c96fb41113c834a3c88925d9ae59854e025e9c") {
+    // p30: fork commit 89638a7 makes BACK exit the viewer to the
+    // Mudif app (finish) instead of forwarding BACK to the X
+    // desktop (the p29 rig FAIL: BACK never left the viewer, because
+    // the foreground activity is the fork's MainActivity, not
+    // VncActivity). The fix is in the fork's MainActivity
+    // (OnBackInvokedCallback + dispatchKeyEvent + onBackPressed).
+    implementation("com.github.taqniamostakbal:termux-x11:89638a7e66761fff398dc233a598cfd9ee1a21fc") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
