@@ -110,7 +110,7 @@ dependencies {
     // the foreground activity is the fork's MainActivity, not
     // VncActivity). The fix is in the fork's MainActivity
     // (OnBackInvokedCallback + dispatchKeyEvent + onBackPressed).
-    implementation("com.github.taqniamostakbal:termux-x11:e8c222daf4ef5a78324bc5911af58df8e2bebeb0") {
+    implementation("com.github.taqniamostakbal:termux-x11:d7982d5b6a420023d40ea743a71fcea9bb9029ba") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
