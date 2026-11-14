@@ -116,7 +116,10 @@ class StoreFragment : Fragment() {
         binding.programsRecycler.layoutManager = GridLayoutManager(requireContext(), 2).apply {
             spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
-                    val (adapter, _) = concatAdapter.getWrappedAdapterAndPosition(position)
+                    // getWrappedAdapterAndPosition returns an
+                    // android.util.Pair, which has no component1/2,
+                    // so destructuring does not compile; use .first.
+                    val adapter = concatAdapter.getWrappedAdapterAndPosition(position).first
                     return if (adapter === categoryAdapter) 1 else 2
                 }
             }
