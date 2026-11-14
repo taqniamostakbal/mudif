@@ -623,6 +623,20 @@
     <string name="agent_quick_search">ابحث في الإنترنت</string>
     <string name="agent_quick_open_app">افتح برنامج</string>
     <string name="agent_quick_settings">بدّل الإعدادات</string>
+    <!-- Vision increment 1: "شوف الشاشة" looks at the desktop. -->
+    <string name="agent_vision_chip">شوف الشاشة</string>
+    <string name="agent_vision_question">ماذا ترى على الشاشة الآن؟</string>
+    <string name="agent_vision_looking">أنظر إلى الشاشة…</string>
+    <string name="agent_vision_saw">ما أراه على الشاشة: %1$s</string>
+    <string name="agent_vision_desktop_down">سطح المكتب متوقف، افتحه أولا ثم أعد المحاولة</string>
+    <string name="agent_vision_capture_failed">تعذّر التقاط الشاشة</string>
+    <string name="agent_vision_failed">تعذّرت قراءة الشاشة، أعد المحاولة</string>
+    <string name="agent_vision_chip_unavailable_desktop">شوف الشاشة، غير متوفر: سطح المكتب متوقف</string>
+    <string name="agent_vision_chip_unavailable_model">شوف الشاشة، غير متوفر: نموذج الرؤية غير محمّل</string>
+    <string name="vision_download_title">نموذج الرؤية غير محمّل، حمّله من هنا (حوالي 1.7GB، على الواي فاي)</string>
+    <string name="vision_download_button">تحميل نموذج الرؤية</string>
+    <string name="vision_download_downloading">جارٍ تحميل نموذج الرؤية… %1$d%%</string>
+    <string name="vision_download_done">تم تحميل نموذج الرؤية، صار المساعد يرى الشاشة</string>
     <string name="agent_clear_history">مسح المحادثة</string>
     <!-- p32: short label for the Clear button in the chat header. -->
     <string name="agent_clear_history_short">مسح</string>

@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.view.LayoutInflater
@@ -32,6 +33,9 @@ import com.bolm.mudif.engine.AgentServer
 import com.bolm.mudif.engine.AgentSupervisorService
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.engine.VisionCapture
+import com.bolm.mudif.engine.VisionClient
+import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.settings.SettingsActivity
 import com.bolm.mudif.ui.vnc.VncActivity
@@ -138,6 +142,7 @@ class AgentFragment : Fragment() {
         updateProfileCardVisibility()
         binding.btnBrainDownload.setOnClickListener { startBrainDownload() }
         checkBrainModelOnOpen()
+        refreshVisionChip()
 
         updateLanguageButton()
         updateBrainButton()
@@ -174,6 +179,11 @@ class AgentFragment : Fragment() {
         binding.chipSearch.setOnClickListener {
             sendMessage(getString(R.string.agent_quick_search))
         }
+        // Vision increment 1: "شوف الشاشة" looks at the desktop and
+        // describes it. The chip is disabled with the reason when
+        // the desktop is down or the vision model is missing
+        // (refreshVisionChip, checked when the tab opens).
+        binding.chipVision.setOnClickListener { startVisionLook() }
 
         binding.btnSend.setOnClickListener { sendCurrentInput() }
         binding.inputText.setOnEditorActionListener { _, actionId, _ ->
@@ -297,6 +307,7 @@ class AgentFragment : Fragment() {
         binding.chipApps.visibility = v
         binding.chipHelp.visibility = v
         binding.chipSearch.visibility = v
+        binding.chipVision.visibility = v
         binding.chipOpenApp.visibility = v
         binding.chipSettings.visibility = v
     }
@@ -376,13 +387,26 @@ class AgentFragment : Fragment() {
     // ------------------------------------------------- brain download (p22)
 
     private var brainDownloadRunning = false
+    // Vision increment 1: the same card downloads the vision model
+    // too. [downloadModel] remembers which one the card is offering.
+    private var downloadModel: String = AgentServer.BRAIN_MODEL
 
-    /** Shows the one-tap brain download card (model missing). */
-    private fun showBrainDownloadCard() {
+    /** Shows the one-tap model download card (brain or vision model
+     *  missing). */
+    private fun showBrainDownloadCard(model: String = AgentServer.BRAIN_MODEL) {
+        downloadModel = model
         binding.brainDownloadCard.visibility = View.VISIBLE
         binding.brainDownloadProgress.visibility = View.GONE
         binding.brainDownloadProgress.progress = 0
-        binding.brainDownloadText.text = getString(R.string.brain_download_title)
+        val isVision = model == AgentServer.VISION_MODEL
+        binding.brainDownloadText.text = getString(
+            if (isVision) R.string.vision_download_title
+            else R.string.brain_download_title
+        )
+        binding.btnBrainDownload.text = getString(
+            if (isVision) R.string.vision_download_button
+            else R.string.brain_download_button
+        )
         binding.btnBrainDownload.isEnabled = true
     }
 
@@ -390,15 +414,23 @@ class AgentFragment : Fragment() {
         binding.brainDownloadCard.visibility = View.GONE
     }
 
-    /** Background check when the tab opens: if Ollama answers but the
-     *  model is missing, show the download card (no turn is started). */
+    /** Background check when the tab opens: if Ollama answers but
+     *  the model is missing, show the download card (no turn is started).
+     *  The brain comes first (the chat needs it); when it is present
+     *  but the vision model is missing, the card offers the vision
+     *  model instead, so the "شوف الشاشة" chip can be enabled. */
     private fun checkBrainModelOnOpen() {
         Thread {
-            val has = AgentServer.hasBrainModel() ?: return@Thread
+            val hasBrain = AgentServer.hasBrainModel() ?: return@Thread
+            val hasVision = if (hasBrain) AgentServer.hasModel(AgentServer.VISION_MODEL) else null
             val act = activity ?: return@Thread
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
-                if (has) hideBrainDownloadCard() else showBrainDownloadCard()
+                when {
+                    !hasBrain -> showBrainDownloadCard()
+                    hasVision == false -> showBrainDownloadCard(AgentServer.VISION_MODEL)
+                    else -> hideBrainDownloadCard()
+                }
             }
         }.start()
     }
@@ -420,15 +452,20 @@ class AgentFragment : Fragment() {
             // The pull needs the servers up; ensureStarted is cheap
             // when they already run (it returns immediately).
             AgentServer.ensureStarted(appContext)
-            val ok = AgentServer.pullBrainModel { completed, total ->
-                val act = activity ?: return@pullBrainModel
+            val model = downloadModel
+            val isVision = model == AgentServer.VISION_MODEL
+            val ok = AgentServer.pullModel(model) { completed, total ->
+                val act = activity ?: return@pullModel
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
                     if (total > 0) {
                         val pct = (completed * 100 / total).toInt().coerceIn(0, 100)
                         binding.brainDownloadProgress.progress = pct
                         binding.brainDownloadText.text =
-                            getString(R.string.brain_download_downloading, pct)
+                            getString(
+                                if (isVision) R.string.vision_download_downloading
+                                else R.string.brain_download_downloading, pct
+                            )
                     }
                 }
             }
@@ -440,8 +477,13 @@ class AgentFragment : Fragment() {
                 if (ok) {
                     hideBrainDownloadCard()
                     Toast.makeText(
-                        requireContext(), R.string.brain_download_done, Toast.LENGTH_SHORT
+                        requireContext(),
+                        if (isVision) R.string.vision_download_done
+                        else R.string.brain_download_done,
+                        Toast.LENGTH_SHORT
                     ).show()
+                    // A downloaded vision model enables the chip.
+                    refreshVisionChip()
                 } else {
                     binding.brainDownloadText.text =
                         getString(R.string.brain_download_failed)
@@ -482,9 +524,11 @@ class AgentFragment : Fragment() {
      * session, then stream the reply into the agent bubble.
      * Every failure lands as an agent error message with a real
      * action (Retry, or "open desktop" when the engine is not
-     * installed). Nothing is faked.
+     * installed). Nothing is faked. [screenContext] (vision
+     * increment 1) is what the agent saw on the screen; it is sent
+     * as a second text part, observed context, never an instruction.
      */
-    private fun startTurn(text: String) {
+    private fun startTurn(text: String, screenContext: String? = null) {
         turnRunning = true
         // p33: while the keyboard is open the thinking line + action
         // button stay hidden (applyChromeVisibility owns them then);
@@ -578,7 +622,8 @@ class AgentFragment : Fragment() {
                 }
             }
             val handle = AgentClient.sendPrompt(
-                sid, text, AgentClient.systemPrompt(replyLanguage), callbacks
+                sid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
+                screenContext
             )
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
@@ -595,6 +640,142 @@ class AgentFragment : Fragment() {
                     binding.btnAgentAction.text = getString(R.string.agent_stop)
                     binding.btnAgentAction.setOnClickListener { stopCurrentTurn() }
                 }
+            }
+        }.start()
+    }
+
+    // ---------------------------------------------------------- vision (increment 1)
+
+    /** The "شوف الشاشة" chip: the assistant looks at the desktop
+     *  and describes it. Blocked while a turn runs, like a send. */
+    private fun startVisionLook() {
+        if (turnRunning) {
+            Toast.makeText(requireContext(), R.string.agent_thinking, Toast.LENGTH_SHORT).show()
+            return
+        }
+        hideAgentAction()
+        val question = getString(R.string.agent_vision_question)
+        val userMessage = AgentMessage(AgentMessage.ROLE_USER, question, replyLanguage)
+        appendMessage(userMessage)
+        lastUserMessage = userMessage
+        startVisionTurn(question)
+    }
+
+    /**
+     * Vision increment 1 flow (background thread, UI posts only):
+     * servers up -> vision model present -> capture one frame ->
+     * moondream describes it -> the description is shown in the
+     * chat -> the brain answers with it as observed context.
+     * Every failure ends the turn with the real reason; nothing is
+     * faked and no stale frame is ever read as new.
+     */
+    private fun startVisionTurn(question: String) {
+        turnRunning = true
+        if (!keyboardOpen) {
+            binding.agentTyping.text = getString(R.string.agent_vision_looking)
+            binding.agentTyping.visibility = View.VISIBLE
+        }
+        binding.btnSend.isEnabled = false
+        val appContext = context?.applicationContext ?: run {
+            onTurnFailed(null)
+            return
+        }
+        Thread {
+            AgentSupervisorService.start(appContext)
+            val ensured = AgentServer.ensureStarted(appContext)
+            val act = activity ?: return@Thread
+            if (!ensured.up) {
+                act.runOnUiThread {
+                    if (_binding == null) return@runOnUiThread
+                    onTurnFailed(ensured.reason)
+                    refreshVisionChip()
+                }
+                return@Thread
+            }
+            // Vision model gate: missing means the download card,
+            // not a turn that can only fail.
+            if (AgentServer.hasModel(AgentServer.VISION_MODEL) == false) {
+                act.runOnUiThread {
+                    if (_binding == null) return@runOnUiThread
+                    showBrainDownloadCard(AgentServer.VISION_MODEL)
+                    endTurnUi()
+                    refreshVisionChip()
+                }
+                return@Thread
+            }
+            val t0 = SystemClock.elapsedRealtime()
+            val capture = VisionCapture.capture(appContext)
+            if (capture is VisionCapture.CaptureResult.Failed) {
+                act.runOnUiThread {
+                    if (_binding == null) return@runOnUiThread
+                    onTurnFailed(
+                        null,
+                        getString(
+                            if (capture.reason == VisionCapture.REASON_DESKTOP_DOWN)
+                                R.string.agent_vision_desktop_down
+                            else R.string.agent_vision_capture_failed
+                        )
+                    )
+                    refreshVisionChip()
+                }
+                return@Thread
+            }
+            val shot = (capture as VisionCapture.CaptureResult.Ok).file
+            val jpeg = try {
+                shot.readBytes()
+            } catch (e: Exception) {
+                null
+            }
+            val description = jpeg?.let { VisionClient.describe(it) }
+            val seconds = (SystemClock.elapsedRealtime() - t0) / 1000.0
+            android.util.Log.d(
+                "AgentFragment",
+                "vision read: capture+describe took ${"%.1f".format(seconds)} s"
+            )
+            if (description.isNullOrBlank()) {
+                act.runOnUiThread {
+                    if (_binding == null) return@runOnUiThread
+                    onTurnFailed(null, getString(R.string.agent_vision_failed))
+                }
+                return@Thread
+            }
+            // The agent shows what it saw, then the brain answers
+            // with it. startTurn runs on the UI thread here.
+            act.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                appendMessage(
+                    AgentMessage(
+                        AgentMessage.ROLE_AGENT,
+                        getString(R.string.agent_vision_saw, description),
+                        replyLanguage
+                    )
+                )
+                startTurn(question, description)
+            }
+        }.start()
+    }
+
+    /** Enables the "شوف الشاشة" chip only when vision can really
+     *  run (desktop up AND moondream present); otherwise it stays
+     *  disabled with the reason in its description. Background
+     *  thread: the checks are TCP probes, never on the UI thread. */
+    private fun refreshVisionChip() {
+        Thread {
+            val desktopUp = X11Session.isTcpDisplayOpen()
+            val hasVision = AgentServer.hasModel(AgentServer.VISION_MODEL)
+            val act = activity ?: return@Thread
+            act.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                val enabled = desktopUp && hasVision == true
+                binding.chipVision.isEnabled = enabled
+                binding.chipVision.alpha = if (enabled) 1.0f else 0.4f
+                binding.chipVision.contentDescription = getString(
+                    when {
+                        !desktopUp -> R.string.agent_vision_chip_unavailable_desktop
+                        hasVision != true -> R.string.agent_vision_chip_unavailable_model
+                        else -> R.string.agent_vision_chip
+                    }
+                )
             }
         }.start()
     }

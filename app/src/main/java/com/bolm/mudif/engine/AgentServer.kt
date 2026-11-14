@@ -88,14 +88,18 @@ object AgentServer {
     /** Local brain model (Ollama). The assistant cannot answer
      *  without it; the image does not bake it (on-demand download). */
     const val BRAIN_MODEL = "qwen3:1.7b"
+
+    /** Local vision model (Ollama): reads the desktop screenshot
+     *  into text. Same on-demand rule as the brain. */
+    const val VISION_MODEL = "moondream"
     private const val OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
     private const val OLLAMA_PULL_URL = "http://127.0.0.1:11434/api/pull"
     private const val PULL_READ_TIMEOUT_MS = 120_000
 
-    /** Is the brain model present in Ollama? Null = Ollama is not
+    /** Is the model present in Ollama? Null = Ollama is not
      *  reachable (unknown, the servers are not up yet). Never called
      *  on the UI thread (network). */
-    fun hasBrainModel(): Boolean? {
+    fun hasModel(model: String): Boolean? {
         return try {
             val conn = java.net.URL(OLLAMA_TAGS_URL).openConnection() as java.net.HttpURLConnection
             conn.requestMethod = "GET"
@@ -105,7 +109,7 @@ object AgentServer {
             val body = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
             val models = JSONObject(body).optJSONArray("models") ?: return false
             for (i in 0 until models.length()) {
-                if (models.getJSONObject(i).optString("name") == BRAIN_MODEL) return true
+                if (models.getJSONObject(i).optString("name") == model) return true
             }
             false
         } catch (e: Exception) {
@@ -113,12 +117,17 @@ object AgentServer {
         }
     }
 
-    /** Downloads the brain model from Ollama (POST /api/pull, SSE
+    /** Is the brain model present in Ollama? Null = Ollama is not
+     *  reachable (unknown, the servers are not up yet). Never called
+     *  on the UI thread (network). */
+    fun hasBrainModel(): Boolean? = hasModel(BRAIN_MODEL)
+
+    /** Downloads a model from Ollama (POST /api/pull, SSE
      *  progress). [onProgress] gets (downloadedBytes, totalBytes)
      *  on the calling thread; the caller posts to the UI thread.
      *  Retries once on failure. Returns true when the model is
      *  present afterwards. Never called on the UI thread. */
-    fun pullBrainModel(onProgress: (Long, Long) -> Unit): Boolean {
+    fun pullModel(model: String, onProgress: (Long, Long) -> Unit): Boolean {
         repeat(2) { attempt ->
             try {
                 val conn = java.net.URL(OLLAMA_PULL_URL).openConnection() as java.net.HttpURLConnection
@@ -127,10 +136,10 @@ object AgentServer {
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.connectTimeout = PROBE_TIMEOUT_MS
                 conn.readTimeout = PULL_READ_TIMEOUT_MS
-                val body = JSONObject().put("name", BRAIN_MODEL).put("stream", true).toString()
+                val body = JSONObject().put("name", model).put("stream", true).toString()
                 conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                 if (conn.responseCode != 200) {
-                    Log.w(TAG, "pullBrainModel: HTTP ${conn.responseCode} (attempt ${attempt + 1})")
+                    Log.w(TAG, "pullModel($model): HTTP ${conn.responseCode} (attempt ${attempt + 1})")
                     return@repeat
                 }
                 conn.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
@@ -145,11 +154,19 @@ object AgentServer {
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "pullBrainModel failed (attempt ${attempt + 1})", e)
+                Log.w(TAG, "pullModel($model) failed (attempt ${attempt + 1})", e)
             }
         }
-        return hasBrainModel() == true
+        return hasModel(model) == true
     }
+
+    /** Downloads the brain model from Ollama (POST /api/pull, SSE
+     *  progress). [onProgress] gets (downloadedBytes, totalBytes)
+     *  on the calling thread; the caller posts to the UI thread.
+     *  Retries once on failure. Returns true when the model is
+     *  present afterwards. Never called on the UI thread. */
+    fun pullBrainModel(onProgress: (Long, Long) -> Unit): Boolean =
+        pullModel(BRAIN_MODEL, onProgress)
 
     /**
      * Makes sure the brain server is running, starting it when it is

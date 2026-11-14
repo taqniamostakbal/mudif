@@ -107,12 +107,19 @@ object AgentClient {
      * Sends one turn and streams the reply. Returns the handle at
      * once; the reply arrives through [callbacks]. The caller must
      * keep the handle to let the user stop the turn.
+     *
+     * [screenContext]: vision increment 1. When non-null, the turn
+     * carries a SECOND text part with what the agent saw on the
+     * screen ("ما أراه على الشاشة الآن: ..."), as observed context,
+     * never as an instruction and never as a system-prompt edit.
+     * Null (the default) sends exactly the one text part as before.
      */
     fun sendPrompt(
         sessionId: String,
         text: String,
         systemPrompt: String,
-        callbacks: TurnCallbacks
+        callbacks: TurnCallbacks,
+        screenContext: String? = null
     ): TurnHandle {
         val handle = TurnHandle(sessionId)
         val finished = AtomicBoolean(false)
@@ -213,13 +220,17 @@ object AgentClient {
         // live text until the SSE stream signals idle/error.
         Thread {
             try {
-                val body = JSONObject().apply {
-                    put(
-                        "parts",
-                        JSONArray().put(
-                            JSONObject().put("type", "text").put("text", text)
-                        )
+                val parts = JSONArray().put(
+                    JSONObject().put("type", "text").put("text", text)
+                )
+                if (screenContext != null) {
+                    parts.put(
+                        JSONObject().put("type", "text")
+                            .put("text", "ما أراه على الشاشة الآن: $screenContext")
                     )
+                }
+                val body = JSONObject().apply {
+                    put("parts", parts)
                     put("system", systemPrompt)
                 }.toString()
                 val asyncCode = postPromptAsync(sessionId, body)
