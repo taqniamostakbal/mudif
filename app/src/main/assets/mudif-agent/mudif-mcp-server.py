@@ -33,14 +33,28 @@ Optional env overrides: MUDIF_URL (default http://127.0.0.1:18080),
 MUDIF_TOKEN_FILE (default /tmp/mudif-bridge-token).
 """
 
+import html
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 BRIDGE_URL = os.environ.get("MUDIF_URL", "http://127.0.0.1:18080").rstrip("/")
 TOKEN_FILE = os.environ.get("MUDIF_TOKEN_FILE", "/tmp/mudif-bridge-token")
+
+# Web search/fetch (brain fix phase 1): no bridge involved, stdlib
+# only. Keys come from the environment at call time, never from a
+# file, never logged.
+ALLOWLIST_FILE = os.environ.get("MUDIF_ALLOWLIST_FILE", "/tmp/mudif-allowed-urls.txt")
+ALLOWLIST_TTL_S = 1800  # allowlist entries older than 30 minutes are ignored
+WEB_TEXT_CAP = 15000  # max chars of returned text per web tool
+_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 # Read timeouts in seconds, per tool.
 TIMEOUTS = {
@@ -56,6 +70,9 @@ TIMEOUTS = {
     "mudif_android_swipe": 30,
     "mudif_android_screenshot": 60,
     "mudif_logs": 30,
+    "mudif_web_search": 60,
+    "mudif_web_fetch": 60,
+    "mudif_web_answer": 120,
 }
 
 TOOLS = [
@@ -145,6 +162,36 @@ TOOLS = [
         "description": "Last 100 lines of the bridge log.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
+    {
+        "name": "mudif_web_search",
+        "description": "Web search: Exa first, Tavily second, DuckDuckGo HTML when no key is set. Returns titles, URLs and snippets. Never invents a result.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query."},
+                "count": {"type": "integer", "description": "Results wanted, default 5, max 10."},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "mudif_web_fetch",
+        "description": "Read one web page as text. Opens only URLs the search tool returned or the user pasted; any other URL is refused.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"url": {"type": "string", "description": "Page URL to read."}},
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "mudif_web_answer",
+        "description": "Answer one question from live web sources, with citations. Exa answer first, Tavily extract second.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "Question to answer."}},
+            "required": ["query"],
+        },
+    },
 ]
 
 # Tool name -> (HTTP method, bridge path).
@@ -210,6 +257,378 @@ class BridgeError(Exception):
     pass
 
 
+# ------------------------------------------------------- web tools
+# Brain fix phase 1 (BRAIN-FIX-PLAN.md sections 9-10). No bridge
+# involved: these tools call the search providers and the web
+# directly. Errors are returned inside the result JSON (with a
+# "source" field), never invented, never a faked result.
+
+WEB_TOOLS = {"mudif_web_search", "mudif_web_fetch", "mudif_web_answer"}
+
+
+class WebError(Exception):
+    pass
+
+
+def _env_key(name):
+    """API key from the environment at call time. None when unset."""
+    value = os.environ.get(name, "").strip()
+    return value or None
+
+
+def _clean_text(raw):
+    """Strip HTML tags/entities, collapse whitespace."""
+    text = html.unescape(raw or "")
+    text = re.sub(r"(?is)<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _truncate_text(text, cap):
+    """Cap text length; returns (text, was_truncated)."""
+    text = text or ""
+    if len(text) <= cap:
+        return text, False
+    cut = text[:cap]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut + " ...", True
+
+
+def _post_json(url, payload, headers, timeout):
+    """POST a JSON body, return the parsed dict. WebError on failure."""
+    data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        raise WebError("HTTP %d from %s" % (e.code, url))
+    except urllib.error.URLError as e:
+        raise WebError("cannot reach %s: %s" % (url, e.reason))
+
+
+def allowlist_add(urls):
+    """Append URLs to the fetch allowlist with a timestamp; prune
+    entries older than ALLOWLIST_TTL_S. One entry per line:
+    "<epoch>\\t<url>" (the timestamp is what makes the 30-minute
+    expiry enforceable). Best-effort, never raises."""
+    try:
+        now = int(time.time())
+        kept = []
+        try:
+            with open(ALLOWLIST_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.rstrip("\n")
+                    if "\t" not in line:
+                        continue
+                    stamp, entry = line.split("\t", 1)
+                    try:
+                        stamp = int(stamp)
+                    except ValueError:
+                        continue
+                    if now - stamp <= ALLOWLIST_TTL_S and entry.strip():
+                        kept.append((stamp, entry.strip()))
+        except OSError:
+            pass
+        seen = {entry for _, entry in kept}
+        for url in urls:
+            url = (url or "").strip()
+            if url and url not in seen:
+                kept.append((now, url))
+                seen.add(url)
+        with open(ALLOWLIST_FILE, "w", encoding="utf-8") as f:
+            for stamp, entry in kept:
+                f.write("%d\t%s\n" % (stamp, entry))
+    except OSError:
+        pass
+
+
+def allowlist_contains(url):
+    """True when the exact URL is in the allowlist and still fresh."""
+    url = (url or "").strip()
+    if not url:
+        return False
+    try:
+        now = int(time.time())
+        with open(ALLOWLIST_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                if "\t" not in line:
+                    continue
+                stamp, entry = line.rstrip("\n").split("\t", 1)
+                try:
+                    if now - int(stamp) > ALLOWLIST_TTL_S:
+                        continue
+                except ValueError:
+                    continue
+                if entry.strip() == url:
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def _search_result(source, results):
+    """Shape a search result: allowlist the URLs, fit the JSON in
+    WEB_TEXT_CAP by shrinking snippets. Adds "truncated" when cut."""
+    results = [r for r in results if r.get("url")]
+    allowlist_add([r["url"] for r in results])
+    truncated = False
+    while results:
+        payload = {"source": source, "results": results}
+        if len(json.dumps(payload, ensure_ascii=False)) <= WEB_TEXT_CAP:
+            break
+        longest = max(range(len(results)), key=lambda i: len(results[i].get("snippet", "")))
+        snippet = results[longest].get("snippet", "")
+        if len(snippet) <= 20:
+            results.pop(longest)
+        else:
+            results[longest]["snippet"] = snippet[:len(snippet) // 2]
+        truncated = True
+    out = {"source": source, "results": results}
+    if truncated:
+        out["truncated"] = True
+    return out
+
+
+def _exa_search(query, count, key):
+    data = _post_json(
+        "https://api.exa.ai/search",
+        {"query": query, "numResults": count},
+        {"x-api-key": key, "Content-Type": "application/json"},
+        30,
+    )
+    return [
+        {"title": r.get("title", ""), "url": r.get("url", ""), "snippet": r.get("text", "")}
+        for r in data.get("results", [])[:count]
+    ]
+
+
+def _tavily_search(query, count, key):
+    data = _post_json(
+        "https://api.tavily.com/search",
+        {"api_key": key, "query": query, "max_results": count, "search_depth": "basic"},
+        {"Content-Type": "application/json"},
+        30,
+    )
+    return [
+        {"title": r.get("title", ""), "url": r.get("url", ""), "snippet": r.get("content", "")}
+        for r in data.get("results", [])[:count]
+    ]
+
+
+def _ddg_real_url(href):
+    """DuckDuckGo result links are redirectors; unwrap to the real URL."""
+    href = html.unescape(href or "").strip()
+    if href.startswith("//duckduckgo.com/l/?"):
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)
+        target = query.get("uddg", [""])[0]
+        return urllib.parse.unquote(target) if target else ""
+    if href.startswith("http://") or href.startswith("https://"):
+        return href
+    if href.startswith("//"):
+        return "https:" + href
+    return ""
+
+
+def _ddg_search(query, count):
+    """DuckDuckGo HTML, best-effort parse of titles, links, snippets."""
+    url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote_plus(query)
+    request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            page = response.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        raise WebError("DuckDuckGo HTTP %d" % e.code)
+    except urllib.error.URLError as e:
+        raise WebError("cannot reach DuckDuckGo: %s" % e.reason)
+    results = []
+    for match in re.finditer(
+        r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', page, re.S
+    ):
+        link = _ddg_real_url(match.group(1))
+        title = _clean_text(match.group(2))
+        if link and title:
+            results.append({"title": title, "url": link, "snippet": ""})
+        if len(results) >= count:
+            break
+    if not results:
+        # A gate/captcha page parses to zero results: that is a
+        # failure, never a silent empty success.
+        raise WebError("DuckDuckGo returned no results (bot check?)")
+    snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', page, re.S)
+    for i, snippet in enumerate(snippets):
+        if i < len(results):
+            results[i]["snippet"] = _clean_text(snippet)
+    return results
+
+
+def web_search(arguments):
+    """Exa, else Tavily, else DuckDuckGo HTML. One try per provider."""
+    query = (arguments.get("query") or "").strip()
+    if not query:
+        return {"source": "none", "error": "search failed: empty query"}
+    try:
+        count = int(arguments.get("count", 5))
+    except (TypeError, ValueError):
+        count = 5
+    count = max(1, min(10, count))
+    errors = []
+    exa_key = _env_key("EXA_API_KEY")
+    if exa_key:
+        try:
+            return _search_result("exa", _exa_search(query, count, exa_key))
+        except WebError as e:
+            errors.append("exa: %s" % e)
+    tavily_key = _env_key("TAVILY_API_KEY")
+    if tavily_key:
+        try:
+            return _search_result("tavily", _tavily_search(query, count, tavily_key))
+        except WebError as e:
+            errors.append("tavily: %s" % e)
+    try:
+        return _search_result("duckduckgo", _ddg_search(query, count))
+    except WebError as e:
+        errors.append("duckduckgo: %s" % e)
+    return {"source": "none", "error": "search failed: " + "; ".join(errors)}
+
+
+def _fetch_url(url):
+    """GET one URL as decoded text. WebError with the real reason."""
+    request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUTS["mudif_web_fetch"]) as response:
+            raw = response.read()
+            charset = response.headers.get_content_charset() or "utf-8"
+            return raw.decode(charset, "replace")
+    except urllib.error.HTTPError as e:
+        raise WebError("HTTP %d fetching %s" % (e.code, url))
+    except urllib.error.URLError as e:
+        raise WebError("cannot fetch %s: %s" % (url, e.reason))
+
+
+def _html_to_text(page):
+    """Strip scripts/styles/tags, collapse whitespace."""
+    page = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", page)
+    page = re.sub(r"(?is)<[^>]+>", " ", page)
+    return _clean_text(page)
+
+
+def _page_title(page):
+    match = re.search(r"(?is)<title[^>]*>(.*?)</title>", page)
+    return _clean_text(match.group(1)) if match else ""
+
+
+def _chromium_path():
+    for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable"):
+        path = shutil.which(name)
+        if path:
+            return path
+    return None
+
+
+def web_fetch(arguments):
+    """Read one page as text. Allowlist first; anything else refused."""
+    url = (arguments.get("url") or "").strip()
+    if not url:
+        return {"source": "fetch", "error": "url not allowed: empty url"}
+    if urllib.parse.urlparse(url).scheme.lower() not in ("http", "https"):
+        return {"source": "fetch", "error": "url not allowed: %s" % url}
+    if not allowlist_contains(url):
+        return {"source": "fetch", "error": "url not allowed: %s" % url}
+    try:
+        page = _fetch_url(url)
+    except WebError as e:
+        return {"source": "fetch", "error": str(e)}
+    text = _html_to_text(page)
+    title = _page_title(page)
+    if len(text) < 50:
+        # Possibly JavaScript-rendered: one retry with headless
+        # Chromium --dump-dom, only when it is installed (on-demand
+        # store install, never baked into the image in v1).
+        chrome = _chromium_path()
+        if chrome is None:
+            return {"source": "fetch", "url": url, "title": title,
+                    "error": "page needs JavaScript and Chromium is not installed"}
+        try:
+            dom = subprocess.run(
+                [chrome, "--headless", "--disable-gpu", "--no-sandbox", "--dump-dom", url],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                timeout=TIMEOUTS["mudif_web_fetch"], text=True,
+            ).stdout
+            dom_text = _html_to_text(dom)
+            if len(dom_text) > len(text):
+                text = dom_text
+                title = _page_title(dom) or title
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"source": "fetch", "url": url, "title": title,
+                    "error": "chromium fetch failed: %s" % e}
+    text, truncated = _truncate_text(text, WEB_TEXT_CAP)
+    out = {"source": "fetch", "url": url, "title": title, "text": text}
+    if truncated:
+        out["truncated"] = True
+    return out
+
+
+def _answer_from_results(source, results):
+    """Tavily path: no model call in the proxy. The brain synthesises
+    from the returned snippets; the tool only returns the sources."""
+    results = [r for r in results if r.get("url")][:3]
+    allowlist_add([r["url"] for r in results])
+    citations = [{"title": r.get("title", ""), "url": r["url"]} for r in results]
+    answer = "\n".join(r.get("snippet", "") for r in results if r.get("snippet"))
+    answer, truncated = _truncate_text(answer, WEB_TEXT_CAP)
+    out = {"source": source, "answer": answer, "citations": citations}
+    if truncated:
+        out["truncated"] = True
+    return out
+
+
+def web_answer(arguments):
+    """Exa answer first, else Tavily search + extract of the top 3."""
+    query = (arguments.get("query") or "").strip()
+    if not query:
+        return {"source": "none", "error": "answer failed: empty query"}
+    exa_key = _env_key("EXA_API_KEY")
+    if exa_key:
+        try:
+            data = _post_json(
+                "https://api.exa.ai/answer",
+                {"query": query},
+                {"x-api-key": exa_key, "Content-Type": "application/json"},
+                60,
+            )
+            citations = [
+                {"title": c.get("title", ""), "url": c.get("url", "")}
+                for c in data.get("citations", []) if c.get("url")
+            ]
+            allowlist_add([c["url"] for c in citations])
+            return {"source": "exa-answer", "answer": data.get("answer", ""),
+                    "citations": citations}
+        except WebError:
+            pass  # fall through to Tavily
+    tavily_key = _env_key("TAVILY_API_KEY")
+    if tavily_key:
+        try:
+            return _answer_from_results("tavily", _tavily_search(query, 3, tavily_key))
+        except WebError:
+            pass  # fall through to the honest error
+    return {"source": "none",
+            "error": "answer failed: no search key set (Exa or Tavily)"}
+
+
+def web_call(name, arguments):
+    """Dispatch one web tool. Errors are inside the result dict."""
+    try:
+        if name == "mudif_web_search":
+            return web_search(arguments)
+        if name == "mudif_web_fetch":
+            return web_fetch(arguments)
+        return web_answer(arguments)
+    except Exception as e:  # Never let one bad call kill the server.
+        source = "fetch" if name == "mudif_web_fetch" else "none"
+        return {"source": source, "error": "internal error: %s" % e}
+
+
 def handle(request):
     """Handle one JSON-RPC request dict. Returns a response dict, or None for notifications."""
     method = request.get("method")
@@ -233,6 +652,16 @@ def handle(request):
     if method == "tools/call":
         name = params.get("name")
         arguments = params.get("arguments") or {}
+        if name in WEB_TOOLS:
+            # Web tools need no bridge token; errors live in the dict.
+            result = web_call(name, arguments)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
+                },
+            }
         if name not in ROUTES:
             return {
                 "jsonrpc": "2.0",
