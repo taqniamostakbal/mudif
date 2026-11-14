@@ -616,6 +616,13 @@ class AgentFragment : Fragment() {
      *  current reply (never appended), so a re-sent full part cannot
      *  duplicate text. */
     private fun showStreamingText(fullText: String) {
+        // p33: a streaming event that arrives after the turn
+        // ended (timeout, Stop, or the done event racing it) is
+        // stale. Without this guard it appends a duplicate bubble
+        // with the same text (seen on the rig: the full reply
+        // appeared twice, byte-identical, after a 300 s timeout
+        // followed by a retry).
+        if (!turnRunning) return
         if (streamingIndex < 0) {
             messages.add(AgentMessage(AgentMessage.ROLE_AGENT, fullText, replyLanguage))
             streamingIndex = messages.size - 1
@@ -629,6 +636,11 @@ class AgentFragment : Fragment() {
     }
 
     private fun finishTurn(finalText: String) {
+        // p33: a late done event after the turn already ended
+        // (timeout, Stop, retry) is stale; without this guard it
+        // appends a second copy of the reply, and a stopped turn
+        // would speak its aborted text.
+        if (!turnRunning) return
         if (streamingIndex < 0 && finalText.isNotEmpty()) {
             appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, finalText, replyLanguage))
         }
