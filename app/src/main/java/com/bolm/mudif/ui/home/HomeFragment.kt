@@ -113,12 +113,20 @@ class HomeFragment : Fragment() {
             else R.string.home_install_system
         )
         // P19 Phase 2: system stat mirrors the hero status.
-        // The image version is shown so a screenshot always tells
-        // which image is installed (p17-v1 vs p19-v2 vs p20).
+        // p54: the value is one line only ("مثبت ✓"). The image
+        // version used to be appended to the value ("مثبت ✓ · p23"),
+        // which wrapped to two lines, made this card the tallest
+        // in the row, and exposed the pale card surface under the
+        // other two cards' gradients. The version still shows, on
+        // the label line, so a screenshot always tells which image
+        // is installed (p17-v1 vs p19-v2 vs p20).
+        val v = if (ready) DebianSystem.installedImageVersion(requireContext()) else null
         binding.statSystem.text = if (ready) {
-            val v = DebianSystem.installedImageVersion(requireContext())
-            if (v != null) getString(R.string.ui_home_stat_installed) + " · $v" else getString(R.string.ui_home_stat_installed)
+            getString(R.string.ui_home_stat_installed)
         } else getString(R.string.ui_home_stat_not_installed)
+        binding.statSystemLabel.text = if (v != null) {
+            getString(R.string.ui_home_system) + " · $v"
+        } else getString(R.string.ui_home_system)
     }
 
     private fun openDesktop() {

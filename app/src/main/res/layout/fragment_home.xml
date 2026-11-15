@@ -127,9 +127,15 @@
                     android:layout_weight="1"
                     android:layout_marginEnd="4dp">
 
+                    <!-- p54: match_parent, not wrap_content. The gradient
+                         lives on this container; wrap_content made it
+                         end at the content height while the card
+                         stretched to the row height, so cards 1-2
+                         showed the pale card surface below the
+                         gradient. The text stays centered (gravity). -->
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="vertical"
                         android:gravity="center"
                         android:background="@drawable/home_stat_gradient"
@@ -145,6 +151,7 @@
                             android:fontFamily="@font/cairo" />
 
                         <TextView style="@style/TextAppearance.Mudif.Caption"
+                            android:id="@+id/stat_system_label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
@@ -164,7 +171,7 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="vertical"
                         android:gravity="center"
                         android:background="@drawable/home_stat_gradient"
@@ -198,7 +205,7 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="vertical"
                         android:gravity="center"
                         android:background="@drawable/home_stat_gradient"

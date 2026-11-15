@@ -55,13 +55,13 @@ import com.bolm.mudif.R
  * home pops (frames 65-117), store squashes (0-12, the badge and its
  * "1" text layer start at frame 13 and never show), apps shuffles
  * its grid (16-122 at 3x), games wobbles (0-99 at 3x), agent
- * sparkle pulses (0-10). Deselect cancels the animation and resets
+ * robot pops (0-10). Deselect cancels the animation and resets
  * the icon to its idle frame. A re-tap re-notifies the listener
  * (the fragment re-shows) without replaying the animation.
  *
  * The icon view size differs per tab: the five Lottie canvases hold
  * different amounts of ink (home 73%, store 62%, apps 53%, games
- * 52%, agent 69% of canvas height at frame 0, measured with the
+ * 52%, agent robot 72% of canvas height at frame 0, measured with the
  * trim-aware renderer in test-evidence-realcomp/bottomnav-p52), so
  * a uniform view size would render uneven icons. Each size below
  * was measured from the real JSON ink bounds so every icon renders
@@ -99,7 +99,7 @@ class BottomNavView @JvmOverloads constructor(
         TabConfig(R.id.nav_store, R.string.tab_store, R.raw.nav_lottie_store, 35, 0, 12, 1f),
         TabConfig(R.id.nav_apps, R.string.tab_apps, R.raw.nav_lottie_apps, 41, 16, 122, 3f),
         TabConfig(R.id.nav_games, R.string.tab_games, R.raw.nav_lottie_games, 42, 0, 99, 3f),
-        TabConfig(R.id.nav_agent, R.string.tab_agent_short, R.raw.nav_lottie_agent, 32, 0, 10, 1f),
+        TabConfig(R.id.nav_agent, R.string.tab_agent_short, R.raw.nav_lottie_agent, 30, 0, 10, 1f),
     )
 
     private val holders = mutableMapOf<Int, TabHolder>()
