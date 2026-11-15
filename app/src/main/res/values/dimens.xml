@@ -6,15 +6,14 @@
     <dimen name="nav_indicator_width">64dp</dimen>
     <dimen name="nav_indicator_height">32dp</dimen>
     <!-- p46 sidebar: expanded panel width, collapsed rail width, row
-         height, active pill overflow past the panel edge, active
-         circle diameter on the rail, panel inner-corner radius,
-         header height. -->
+         height, active circle diameter on the rail, panel
+         inner-corner radius, header height. p49: the pill overflow
+         and circle shift dimens are deleted; the pill and circle
+         stay inside the panel and rail. -->
     <dimen name="sidebar_width_expanded">280dp</dimen>
     <dimen name="sidebar_width_collapsed">72dp</dimen>
     <dimen name="sidebar_row_height">56dp</dimen>
-    <dimen name="sidebar_pill_overflow">24dp</dimen>
     <dimen name="sidebar_circle_size">56dp</dimen>
-    <dimen name="sidebar_circle_shift">16dp</dimen>
     <dimen name="sidebar_panel_corner">24dp</dimen>
     <dimen name="sidebar_header_height">88dp</dimen>
 </resources>

@@ -29,16 +29,17 @@ import com.bolm.mudif.R
  * p46: the sidebar navigation drawer, rebuilt like reference
  * image-390.png. A slide-in drawer with two states that morph into
  * each other: an expanded panel (logo header, icon + label rows, the
- * active row a purple pill that extends past the panel's inner edge)
- * and a collapsed rail (icons only, the active icon in a purple
- * circle). One consistent purple #593BFE, Fusha Arabic labels, the
- * existing Mudif vector icons. No user row, no logout row: there is
- * no account in the app. Rows emit the same ids as drawer_menu.xml
- * and values/ids.xml, so MainActivity routes them exactly like
- * the old NavigationView did.
+ * active row a purple pill) and a collapsed rail (icons only, the
+ * active icon in a purple circle). One consistent purple #593BFE,
+ * Fusha Arabic labels, the existing Mudif vector icons. No user row,
+ * no logout row: there is no account in the app. Rows emit the same
+ * ids as drawer_menu.xml and values/ids.xml, so MainActivity routes
+ * them exactly like the old NavigationView did.
  *
- * The pill and the circle overflow the panel edge on purpose, so
- * every ancestor in the chain runs with clipChildren false.
+ * p49: the pill and the circle stay INSIDE the panel and rail
+ * bounds (the reference bulges past the panel edge by design, but
+ * on the phone it reads as broken). No child draws outside its
+ * parent, so nothing here needs clipChildren false.
  */
 class SidebarView @JvmOverloads constructor(
     context: Context,
@@ -52,9 +53,7 @@ class SidebarView @JvmOverloads constructor(
     private val expandedWidth = resources.getDimensionPixelSize(R.dimen.sidebar_width_expanded)
     private val collapsedWidth = resources.getDimensionPixelSize(R.dimen.sidebar_width_collapsed)
     private val rowHeight = resources.getDimensionPixelSize(R.dimen.sidebar_row_height)
-    private val pillOverflow = resources.getDimensionPixelSize(R.dimen.sidebar_pill_overflow)
     private val circleSize = resources.getDimensionPixelSize(R.dimen.sidebar_circle_size)
-    private val circleShift = resources.getDimensionPixelSize(R.dimen.sidebar_circle_shift)
     private val panelCorner = resources.getDimension(R.dimen.sidebar_panel_corner)
 
     private var collapsed = false
@@ -112,7 +111,6 @@ class SidebarView @JvmOverloads constructor(
 
     init {
         orientation = VERTICAL
-        clipChildren = false
         applyPanelBackground()
         buildHeader()
         buildMenu()
@@ -214,17 +212,18 @@ class SidebarView @JvmOverloads constructor(
             }
             row.bg.isVisible = true
             if (expanded) {
+                // p49: full row width, no overflow. The pill ends
+                // flush with the panel edge, inside the panel.
                 row.bg.layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT, rowHeight
-                ).apply { marginEnd = -pillOverflow }
+                )
                 row.bg.setBackgroundResource(R.drawable.sidebar_active_pill)
             } else {
-                // Centered, then shifted toward the inner edge so the
-                // circle extends 8dp past the rail edge (the bulge):
-                // centered inset is (72-56)/2 = 8dp, shift 16dp.
+                // p49: centered in the rail, 8dp inset each side
+                // ((72-56)/2), fully inside the rail.
                 row.bg.layoutParams = FrameLayout.LayoutParams(
                     circleSize, circleSize, Gravity.CENTER
-                ).apply { marginEnd = -circleShift }
+                )
                 row.bg.setBackgroundResource(R.drawable.circle_bg)
             }
         }
@@ -277,7 +276,6 @@ class SidebarView @JvmOverloads constructor(
                 LayoutParams.MATCH_PARENT,
                 resources.getDimensionPixelSize(R.dimen.sidebar_header_height)
             )
-            clipChildren = false
         }
         headerExpanded = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -363,7 +361,6 @@ class SidebarView @JvmOverloads constructor(
             layoutParams = LayoutParams(
                 LayoutParams.MATCH_PARENT, 0, 1f
             )
-            clipChildren = false
             clipToPadding = false
             isVerticalScrollBarEnabled = false
         }
@@ -373,7 +370,6 @@ class SidebarView @JvmOverloads constructor(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
-            clipChildren = false
         }
         for (item in mainRows) menu.addView(buildRow(item).root)
         sectionTitle = TextView(context).apply {
@@ -401,7 +397,6 @@ class SidebarView @JvmOverloads constructor(
             layoutParams = LayoutParams(
                 LayoutParams.MATCH_PARENT, rowHeight
             )
-            clipChildren = false
             isClickable = true
             isFocusable = true
             foreground = resolveSelectableBackground()
