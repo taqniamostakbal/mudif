@@ -111,7 +111,10 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- P19 Phase 2: three quick stats (system / programs / storage). -->
+            <!-- P19 Phase 2: three quick stats (system / programs / storage).
+                 p50: each stat card is a professional purple gradient
+                 (home_stat_gradient) with white values and #E6E6FF
+                 labels, so the numbers read on the gradient. -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -129,6 +132,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center"
+                        android:background="@drawable/home_stat_gradient"
                         android:padding="14dp">
 
                         <TextView
@@ -137,7 +141,7 @@
                             android:layout_height="wrap_content"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:textColor="@color/mudif_purple"
+                            android:textColor="@android:color/white"
                             android:fontFamily="@font/cairo" />
 
                         <TextView style="@style/TextAppearance.Mudif.Caption"
@@ -146,7 +150,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/ui_home_system"
                             android:textSize="12sp"
-                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textColor="#E6E6FF"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -163,6 +167,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center"
+                        android:background="@drawable/home_stat_gradient"
                         android:padding="14dp">
 
                         <TextView
@@ -171,7 +176,7 @@
                             android:layout_height="wrap_content"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:textColor="@color/mudif_purple"
+                            android:textColor="@android:color/white"
                             android:fontFamily="@font/cairo" />
 
                         <TextView style="@style/TextAppearance.Mudif.Caption"
@@ -180,7 +185,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/ui_home_store_apps"
                             android:textSize="12sp"
-                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textColor="#E6E6FF"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -196,6 +201,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center"
+                        android:background="@drawable/home_stat_gradient"
                         android:padding="14dp">
 
                         <TextView
@@ -204,7 +210,7 @@
                             android:layout_height="wrap_content"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:textColor="@color/mudif_purple"
+                            android:textColor="@android:color/white"
                             android:fontFamily="@font/cairo" />
 
                         <TextView style="@style/TextAppearance.Mudif.Caption"
@@ -213,7 +219,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/ui_home_free_storage"
                             android:textSize="12sp"
-                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textColor="#E6E6FF"
                             android:fontFamily="@font/cairo" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

@@ -14,6 +14,7 @@ import com.bolm.mudif.engine.InstallFlow
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.store.StoreCatalog
 import com.bolm.mudif.ui.vnc.VncActivity
+import java.util.Locale
 
 /**
  * P16: the home is no longer an empty welcome screen. It shows the ONE
@@ -90,7 +91,7 @@ class HomeFragment : Fragment() {
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 binding.statPrograms.text = if (count > 0) "$count" else "…"
-                binding.statStorage.text = if (freeGb >= 0) "%.1f GB".format(freeGb) else "…"
+                binding.statStorage.text = if (freeGb >= 0) "%.1f GB".format(Locale.US, freeGb) else "…"
             }
         }.start()
     }

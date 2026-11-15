@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityControlCenterBinding
 import java.io.File
+import java.util.Locale
 
 /**
  * P19 Phase 3: control center + system status (P18.5 #2 + #3).
@@ -163,7 +164,7 @@ class ControlCenterActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun gb(bytes: Long): String = "%.1f GB".format(bytes / 1_073_741_824.0)
+    private fun gb(bytes: Long): String = "%.1f GB".format(Locale.US, bytes / 1_073_741_824.0)
 
     /** Two /proc/stat samples 500 ms apart; -1 when unreadable. */
     private fun readCpuUsage(): Int {

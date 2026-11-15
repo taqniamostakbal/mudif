@@ -100,9 +100,9 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
 
     override fun getItemCount() = items.size
 
-    /** WhatsApp-style time under each bubble (HH:mm, device locale). */
+    /** WhatsApp-style time under each bubble (HH:mm, Latin digits). */
     private fun formatTime(time: Long): String =
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
+        SimpleDateFormat("HH:mm", Locale.US).format(Date(time))
 
     /** p32: strips the bold/code markers the brain emits (`**`, `__`,
      *  backticks) so a reply reads plainly. Display only. p32b: the

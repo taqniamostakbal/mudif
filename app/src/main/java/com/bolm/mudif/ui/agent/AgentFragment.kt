@@ -1723,7 +1723,7 @@ class AgentFragment : Fragment() {
             val seconds = (SystemClock.elapsedRealtime() - t0) / 1000.0
             android.util.Log.d(
                 "AgentFragment",
-                "vision read: capture+describe took ${"%.1f".format(seconds)} s"
+                "vision read: capture+describe took ${"%.1f".format(Locale.US, seconds)} s"
             )
             if (description.isNullOrBlank()) {
                 // Retry re-runs the VISION turn, not a plain
