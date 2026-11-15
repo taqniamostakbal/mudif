@@ -36,7 +36,7 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="12dp"
             android:background="@drawable/bottom_nav_pill_bg"
-            android:elevation="8dp" />
+            android:elevation="12dp" />
     </LinearLayout>
 
     <!-- p46: custom sidebar (expanded panel / collapsed rail), same id
