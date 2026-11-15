@@ -12,7 +12,6 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import com.bolm.mudif.R
-import com.bolm.mudif.engine.DebianSystem
 import com.google.android.material.button.MaterialButton
 
 /**
@@ -22,11 +21,26 @@ import com.google.android.material.button.MaterialButton
  * fall back to the plain Android default (white box, teal bar) that the
  * user called "classic, not professional".
  *
- * Style: rounded white card (dialog_mudif_bg), Cairo font, purple
- * (#593BFE) positive button + purple progress bar, dark title.
- * The window background is set after show() so the corners are visible.
+ * p56 style: the window background is the standard purple gradient
+ * (dialog_mudif_bg, #593BFE to #3D2BB5), text is white / #E6E6FF,
+ * the main button is the white OnPurple pill, option buttons are
+ * white outlined (SecondaryOnPurple) with the current one filled
+ * white. Every dialog opens and closes with a fade + scale
+ * animation (Mudif.Dialog.Animation). The window background is set
+ * after show() so the corners are visible.
  */
 object MudifDialog {
+
+    /** Fade + scale open/close animation on a dialog window. Call
+     *  after show(). AppLanguage.showPicker uses it too (its dialog
+     *  is built outside this file). */
+    fun animateWindow(dialog: AlertDialog) {
+        dialog.window?.let { w ->
+            val lp = w.attributes
+            lp.windowAnimations = R.style.Mudif_Dialog_Animation
+            w.attributes = lp
+        }
+    }
 
     /** One info dialog: title + message + 1-3 buttons. Null buttons are hidden. */
     fun info(
@@ -67,6 +81,7 @@ object MudifDialog {
         dialog.window?.setBackgroundDrawable(
             ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
         )
+        animateWindow(dialog)
         return dialog
     }
 
@@ -105,10 +120,12 @@ object MudifDialog {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { if (index > 0) topMargin = dp(ctx, 8) }
             if (index == current) {
-                // Current choice: filled purple, white text (Primary look).
+                // Current choice: filled white, purple text (OnPurple
+                // look). p56: the dialog is a gradient card now, so
+                // the old filled purple was invisible on it.
                 button.backgroundTintList =
-                    ContextCompat.getColorStateList(ctx, R.color.mudif_purple)
-                button.setTextColor(ContextCompat.getColor(ctx, android.R.color.white))
+                    ContextCompat.getColorStateList(ctx, android.R.color.white)
+                button.setTextColor(ContextCompat.getColor(ctx, R.color.mudif_purple))
             }
             button.setOnClickListener { dialog.dismiss(); onSelect(index) }
             container.addView(button)
@@ -117,6 +134,7 @@ object MudifDialog {
         dialog.window?.setBackgroundDrawable(
             ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
         )
+        animateWindow(dialog)
         return dialog
     }
 
@@ -125,30 +143,24 @@ object MudifDialog {
             TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), ctx.resources.displayMetrics
         ).toInt()
 
-    /** Branded About dialog (Phase 1a): the same identity as the
-     *  desktop mudif-about, the user's avatar, the channel credit,
-     *  the app + image versions, and the GitHub/YouTube links.
-     *  This replaces the version-only dialog. */
+    /** Branded About dialog (Phase 1a, reworked p56): the owner card.
+     *  Avatar on top (the owner's photo, circular), app name, owner
+     *  name taqniamostakbal, version chip, one-line description,
+     *  channel credit, tappable GitHub link, copyright at the bottom,
+     *  then YouTube + close. The Debian image version is not shown
+     *  here anymore: this dialog is about the app, not the image. */
     fun about(ctx: Context): AlertDialog {
         val view = LayoutInflater.from(ctx).inflate(R.layout.dialog_mudif_about, null)
-        val imageVersion = DebianSystem.installedImageVersion(ctx)
         val appVersion = appVersion(ctx)
-        val versionText = if (imageVersion != null) {
-            ctx.getString(R.string.ui_about_version, appVersion, imageVersion)
-        } else {
-            ctx.getString(R.string.ui_about_version_app, appVersion)
-        }
-        view.findViewById<TextView>(R.id.about_version).text = versionText
+        view.findViewById<TextView>(R.id.about_version).text =
+            ctx.getString(R.string.about_version_chip, appVersion)
+        val link = view.findViewById<TextView>(R.id.about_github_url)
+        link.paintFlags = link.paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
+        link.setOnClickListener { openLink(ctx, ctx.getString(R.string.about_github_url)) }
         val dialog = AlertDialog.Builder(ctx)
             .setView(view)
             .setCancelable(true)
             .create()
-        view.findViewById<MaterialButton>(R.id.about_btn_github).setOnClickListener {
-            // p22: the repo URL 404s for logged-out users because the
-            // mudif repo is PRIVATE; the public profile works for
-            // everyone. Switch back to .../mudif when the repo goes public.
-            openLink(ctx, "https://github.com/taqniamostakbal")
-        }
         view.findViewById<MaterialButton>(R.id.about_btn_youtube).setOnClickListener {
             openLink(ctx, "https://www.youtube.com/@taqniaMostakbal")
         }
@@ -159,6 +171,7 @@ object MudifDialog {
         dialog.window?.setBackgroundDrawable(
             ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
         )
+        animateWindow(dialog)
         return dialog
     }
 
@@ -220,6 +233,7 @@ object MudifDialog {
         dialog.window?.setBackgroundDrawable(
             ContextCompat.getDrawable(ctx, R.drawable.dialog_mudif_bg)
         )
+        animateWindow(dialog)
         return Progress(dialog, view)
     }
 }

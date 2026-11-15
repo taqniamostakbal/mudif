@@ -105,10 +105,12 @@ object AppLanguage {
             val (button, tag) = pair
             button.text = labels[index]
             if (tag == current) {
-                // Current language: filled purple, white text (Primary look).
+                // Current language: filled white, purple text
+                // (OnPurple look). p56: the picker is a gradient
+                // card now, so the old filled purple was invisible.
                 button.backgroundTintList =
-                    ContextCompat.getColorStateList(activity, R.color.mudif_purple)
-                button.setTextColor(ContextCompat.getColor(activity, android.R.color.white))
+                    ContextCompat.getColorStateList(activity, android.R.color.white)
+                button.setTextColor(ContextCompat.getColor(activity, R.color.mudif_purple))
             }
             button.setOnClickListener {
                 dialog.dismiss()
@@ -119,5 +121,6 @@ object AppLanguage {
         dialog.window?.setBackgroundDrawable(
             ContextCompat.getDrawable(activity, R.drawable.dialog_mudif_bg)
         )
+        com.bolm.mudif.ui.MudifDialog.animateWindow(dialog)
     }
 }

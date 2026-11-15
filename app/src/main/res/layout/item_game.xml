@@ -10,8 +10,12 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
+    android:stateListAnimator="@animator/card_press"
     app:strokeWidth="0dp">
 
+    <!-- p56: the Arcade card is the standard purple gradient
+         (set in code by ArcadeAdapter); the cat_games gradient
+         is gone by the p56 order. -->
     <LinearLayout
         android:id="@+id/card_bg"
         android:layout_width="match_parent"

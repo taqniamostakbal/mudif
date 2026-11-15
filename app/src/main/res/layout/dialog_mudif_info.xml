@@ -13,13 +13,16 @@
     android:orientation="vertical"
     android:padding="24dp">
 
+    <!-- p56: the info dialog is a gradient card (dialog_mudif_bg).
+         Title white, message #E6E6FF, the main button is the white
+         OnPurple pill, the other buttons are white text. -->
     <TextView
         android:id="@+id/dialog_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="19sp"
         android:textStyle="bold"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="@android:color/white"
         android:fontFamily="@font/cairo" />
 
     <ScrollView
@@ -35,7 +38,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="14sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textColor="@color/card_text_secondary"
             android:fontFamily="@font/cairo" />
     </ScrollView>
 
@@ -47,7 +50,7 @@
         android:layout_marginTop="20dp"
         android:orientation="vertical">
 
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
             android:id="@+id/dialog_btn_positive"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -56,7 +59,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/dialog_btn_neutral"
-            style="@style/Widget.Mudif.Button.Text"
+            style="@style/Widget.Mudif.Button.TextOnPurple"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/cairo"
@@ -64,7 +67,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/dialog_btn_negative"
-            style="@style/Widget.Mudif.Button.Text"
+            style="@style/Widget.Mudif.Button.TextOnPurple"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/cairo"

@@ -7,6 +7,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemAppBinding
+import com.bolm.mudif.ui.CardEntrance
 import com.bolm.mudif.ui.store.StoreCategory
 import com.bolm.mudif.ui.store.StoreIconLoader
 import com.bolm.mudif.ui.store.StoreProgram
@@ -27,6 +28,11 @@ class AppsAdapter(
 
     private var items: List<StoreProgram> = emptyList()
     private var busyIds: Set<String> = emptySet()
+
+    // p56: entrance plays once per app (fade + slide). The set is
+    // per adapter instance, so a rebind after a refresh does not
+    // replay it.
+    private val animatedIds = mutableSetOf<String>()
 
     inner class Holder(val binding: ItemAppBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -55,6 +61,9 @@ class AppsAdapter(
         val ctx = holder.binding.root.context
         val busy = busyIds.contains(p.id)
         with(holder.binding) {
+            if (animatedIds.add(p.id)) {
+                CardEntrance.play(root, CardEntrance.staggerDelay(position))
+            }
             appName.text = p.name
             appDesc.text = p.desc
             appCategory.text = StoreCategory.labelFor(ctx, p.category)

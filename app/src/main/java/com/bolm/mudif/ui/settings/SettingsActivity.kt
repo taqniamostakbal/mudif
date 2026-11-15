@@ -3,6 +3,8 @@ package com.bolm.mudif.ui.settings
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
@@ -94,12 +96,25 @@ class SettingsActivity : AppCompatActivity() {
             }
             container.addView(title)
 
+            // p56: the section card is a purple gradient card. The
+            // MaterialCardView itself is transparent; the gradient
+            // lives on the body layout (14dp, the Compact radius),
+            // the same pattern as the home stat cards (p54).
+            // Ripple comes from the theme's selectableItemBackground.
+            val ripple = TypedValue().let { out ->
+                theme.resolveAttribute(android.R.attr.selectableItemBackground, out, true)
+                ContextCompat.getDrawable(this, out.resourceId)
+            }
             val card = MaterialCardView(this).apply {
                 radius = dp(14).toFloat()
                 cardElevation = dp(2).toFloat()
-                // Background comes from the theme (Widget.Mudif.Card,
-                // colorSurface, dark-mode aware); the old hardcoded
-                // white ignored the theme.
+                setCardBackgroundColor(Color.TRANSPARENT)
+                isClickable = true
+                isFocusable = true
+                foreground = ripple
+                stateListAnimator = android.animation.AnimatorInflater.loadStateListAnimator(
+                    this@SettingsActivity, R.animator.card_press
+                )
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
@@ -107,6 +122,9 @@ class SettingsActivity : AppCompatActivity() {
             }
             val cardBody = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
+                background = ContextCompat.getDrawable(
+                    this@SettingsActivity, R.drawable.card_gradient_compact
+                )
                 setPadding(dp(18), dp(6), dp(18), dp(6))
             }
             section.settings.forEachIndexed { index, setting ->
@@ -116,7 +134,11 @@ class SettingsActivity : AppCompatActivity() {
                         layoutParams = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
                         ).apply { setMargins(0, dp(4), 0, dp(4)) }
-                        setBackgroundColor(this@SettingsActivity.themeColor(com.google.android.material.R.attr.colorOutline))
+                        setBackgroundColor(
+                            ContextCompat.getColor(
+                                this@SettingsActivity, R.color.card_divider
+                            )
+                        )
                     })
                 }
             }
@@ -146,10 +168,22 @@ class SettingsActivity : AppCompatActivity() {
             setPadding(dp(4), dp(18), dp(4), dp(8))
         }
         container.addView(title)
+        // p56: the language card is a purple gradient card too
+        // (transparent MaterialCardView, gradient on the body).
+        val langRipple = TypedValue().let { out ->
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, out, true)
+            ContextCompat.getDrawable(this, out.resourceId)
+        }
         val card = MaterialCardView(this).apply {
             radius = dp(14).toFloat()
             cardElevation = dp(2).toFloat()
-            // Background from the theme (Widget.Mudif.Card).
+            setCardBackgroundColor(Color.TRANSPARENT)
+            isClickable = true
+            isFocusable = true
+            foreground = langRipple
+            stateListAnimator = android.animation.AnimatorInflater.loadStateListAnimator(
+                this@SettingsActivity, R.animator.card_press
+            )
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -157,12 +191,15 @@ class SettingsActivity : AppCompatActivity() {
         }
         val cardBody = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            background = ContextCompat.getDrawable(
+                this@SettingsActivity, R.drawable.card_gradient_compact
+            )
             setPadding(dp(18), dp(12), dp(18), dp(12))
         }
         val desc = TextView(this).apply {
             text = getString(R.string.language_desc)
             textSize = 13f
-            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.card_text_secondary))
         }
         cardBody.addView(desc)
         val labels = listOf(
@@ -194,12 +231,12 @@ class SettingsActivity : AppCompatActivity() {
         val title = TextView(this).apply {
             text = getString(setting.titleRes)
             textSize = 16f
-            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(ContextCompat.getColor(this@SettingsActivity, android.R.color.white))
         }
         val desc = TextView(this).apply {
             text = getString(setting.descRes)
             textSize = 13f
-            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.card_text_secondary))
         }
         return title to desc
     }
@@ -227,6 +264,11 @@ class SettingsActivity : AppCompatActivity() {
             is ViewerPrefs.SwitchSetting -> {
                 val sw = SwitchMaterial(this).apply {
                     isChecked = prefs.getBoolean(setting.key, setting.default)
+                    // p56: white thumb + translucent white track, so
+                    // the switch reads on the purple gradient card
+                    // (the default purple thumb would vanish on it).
+                    thumbTintList = ColorStateList.valueOf(Color.WHITE)
+                    trackTintList = ColorStateList.valueOf(0x80FFFFFF)
                     setOnCheckedChangeListener { _, checked ->
                         prefs.edit().putBoolean(setting.key, checked).apply()
                     }
@@ -274,14 +316,15 @@ class SettingsActivity : AppCompatActivity() {
                 // Slider goes below the texts (full width).
                 val valueText = TextView(this).apply {
                     textSize = 14f
-                    setTextColor(ContextCompat.getColor(context, R.color.mudif_purple))
+                    setTextColor(ContextCompat.getColor(context, android.R.color.white))
                     setTypeface(typeface, Typeface.BOLD)
                 }
                 val seek = SeekBar(this).apply {
                     max = setting.max - setting.min
-                    // Brand purple thumb + track (was the default grey/teal).
-                    progressTintList = ContextCompat.getColorStateList(context, R.color.mudif_purple)
-                    thumbTintList = ContextCompat.getColorStateList(context, R.color.mudif_purple)
+                    // p56: white thumb + track on the purple card
+                    // (the brand purple thumb would vanish on it).
+                    progressTintList = ColorStateList.valueOf(Color.WHITE)
+                    thumbTintList = ColorStateList.valueOf(Color.WHITE)
                     val current = prefs.getInt(setting.key, setting.default)
                         .coerceIn(setting.min, setting.max)
                     progress = current - setting.min
@@ -315,7 +358,7 @@ class SettingsActivity : AppCompatActivity() {
                     row.addView(TextView(this).apply {
                         text = getString(R.string.viewer_scale_ignored_note)
                         textSize = 13f
-                        setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                        setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.card_text_secondary))
                         setPadding(0, dp(6), 0, 0)
                     })
                 }
@@ -358,7 +401,7 @@ class SettingsActivity : AppCompatActivity() {
                 val chevron = TextView(this).apply {
                     text = "‹"
                     textSize = 24f
-                    setTextColor(ContextCompat.getColor(context, R.color.mudif_purple))
+                    setTextColor(ContextCompat.getColor(context, android.R.color.white))
                 }
                 top.addView(chevron)
                 top.setOnClickListener { runAction(setting.key) }

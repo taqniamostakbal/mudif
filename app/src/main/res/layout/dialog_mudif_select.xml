@@ -12,13 +12,16 @@
     android:orientation="vertical"
     android:padding="24dp">
 
+    <!-- p56: the select dialog is a gradient card (dialog_mudif_bg).
+         Title white, message #E6E6FF; the option buttons are white
+         outlined (item_select_option), the current one filled white. -->
     <TextView
         android:id="@+id/dialog_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="19sp"
         android:textStyle="bold"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="@android:color/white"
         android:fontFamily="@font/cairo" />
 
     <TextView
@@ -27,7 +30,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:textSize="14sp"
-        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textColor="@color/card_text_secondary"
         android:fontFamily="@font/cairo"
         android:visibility="gone" />
 

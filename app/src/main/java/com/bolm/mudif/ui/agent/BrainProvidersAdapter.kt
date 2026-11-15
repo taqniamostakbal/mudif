@@ -99,10 +99,13 @@ class BrainProvidersAdapter(
             }
             row.root.text = (if (isCurrent) "✓ " else "") + model.name + suffix
             if (isCurrent) {
+                // p56: the current model row is a filled white pill
+                // with purple text (the old filled purple was
+                // invisible on the gradient card).
                 row.root.backgroundTintList =
-                    ContextCompat.getColorStateList(ctx, R.color.mudif_purple)
+                    ContextCompat.getColorStateList(ctx, android.R.color.white)
                 row.root.setTextColor(
-                    ContextCompat.getColor(ctx, android.R.color.white)
+                    ContextCompat.getColor(ctx, R.color.mudif_purple)
                 )
             }
             row.root.setOnClickListener { onPickModel(model.id) }

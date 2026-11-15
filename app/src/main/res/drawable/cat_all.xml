@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- P19 Phase 1: category gradient card background (16dp squircle). -->
+<!-- P19 Phase 1: category gradient card background (16dp squircle).
+     p56: the end is the deep violet #3D2BB5 now, so cat_all IS the
+     standard card gradient (#593BFE to #3D2BB5, diagonal 135). The
+     hero card, the letter tiles and the ALL category card all use
+     this drawable, so they all became the standard gradient at once. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <gradient
         android:startColor="#593BFE"
-        android:endColor="#8B5CF6"
+        android:endColor="#3D2BB5"
         android:angle="135"
         android:type="linear" />
     <corners android:radius="16dp" />

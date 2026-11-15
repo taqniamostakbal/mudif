@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- P16: branded dialog background, rounded card for all Mudif dialogs.
-     UI overhaul: solid is ?attr/colorSurface (was hardcoded white)
-     so dialogs work in DayNight dark mode. -->
+     p56: the window background is the standard purple gradient
+     (#593BFE to deeper violet #3D2BB5, diagonal 135), so every dialog
+     is a gradient card. Dialog text is white / #E6E6FF and dialog
+     buttons are OnPurple / SecondaryOnPurple / TextOnPurple, never
+     purple-on-purple. 20dp corners, same as before. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="?attr/colorSurface" />
+    <gradient
+        android:startColor="#593BFE"
+        android:endColor="#3D2BB5"
+        android:angle="135"
+        android:type="linear" />
     <corners android:radius="20dp" />
 </shape>

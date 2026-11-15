@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemGameBinding
+import com.bolm.mudif.ui.CardEntrance
 import com.bolm.mudif.ui.store.ProgramState
 import com.bolm.mudif.ui.store.StoreIconLoader
 import com.bolm.mudif.ui.store.StoreProgram
@@ -29,6 +30,11 @@ class ArcadeAdapter(
     private var items: List<StoreProgram> = emptyList()
     private var states: Map<String, ProgramState> = emptyMap()
     private var busyIds: Set<String> = emptySet()
+
+    // p56: entrance plays once per game (fade + slide). The set is
+    // per adapter instance, so a rebind after a refresh does not
+    // replay it.
+    private val animatedIds = mutableSetOf<String>()
 
     inner class Holder(val binding: ItemGameBinding) :
         RecyclerView.ViewHolder(binding.root)
@@ -81,7 +87,14 @@ class ArcadeAdapter(
             state == ProgramState.INSTALLING ||
             state == ProgramState.UNINSTALLING
         with(holder.binding) {
-            cardBg.setBackgroundResource(R.drawable.cat_games)
+            // p56: every game card is the standard purple gradient
+            // (the per-category colors are gone, like the rest of
+            // the app). The icon tile keeps its per-category
+            // gradient: it is an icon well, not a card.
+            cardBg.setBackgroundResource(R.drawable.home_stat_gradient)
+            if (animatedIds.add(program.id)) {
+                CardEntrance.play(root, CardEntrance.staggerDelay(position))
+            }
 
             // Gamepad glyph first; it stays when the catalog PNG is
             // missing. The real icon loads off the main thread;

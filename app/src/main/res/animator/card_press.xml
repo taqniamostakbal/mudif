@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p56: press feedback for every card. While pressed the card
+     shrinks slightly (0.97, 100ms, the motion_duration_press value);
+     released it returns to 1.0. Set as android:stateListAnimator on
+     the card together with android:foreground ripple; it never
+     interferes with clicks (no touch listener, no code). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <set android:interpolator="@android:interpolator/accelerate_decelerate">
+            <objectAnimator
+                android:propertyName="scaleX"
+                android:valueTo="0.97"
+                android:duration="100" />
+            <objectAnimator
+                android:propertyName="scaleY"
+                android:valueTo="0.97"
+                android:duration="100" />
+        </set>
+    </item>
+    <item>
+        <set android:interpolator="@android:interpolator/accelerate_decelerate">
+            <objectAnimator
+                android:propertyName="scaleX"
+                android:valueTo="1.0"
+                android:duration="100" />
+            <objectAnimator
+                android:propertyName="scaleY"
+                android:valueTo="1.0"
+                android:duration="100" />
+        </set>
+    </item>
+</selector>

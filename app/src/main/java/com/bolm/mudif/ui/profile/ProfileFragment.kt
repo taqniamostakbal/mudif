@@ -64,7 +64,12 @@ class ProfileFragment : Fragment() {
         binding.rowLanguage.setOnClickListener {
             (requireActivity() as? AppCompatActivity)?.let { AppLanguage.showPicker(it) }
         }
-        binding.rowAbout.setOnClickListener(soon)
+        // p56: the About row opens the owner card (MudifDialog.about).
+        // It used to show "coming soon"; the dialog exists since
+        // Phase 1a and the sidebar already opens it.
+        binding.rowAbout.setOnClickListener {
+            MudifDialog.about(requireContext())
+        }
         // P18.3, Viewer settings screen (Fusha, Mudif style).
         binding.rowViewerSettings.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), SettingsActivity::class.java))
@@ -194,6 +199,19 @@ class ProfileFragment : Fragment() {
         // Real-computer #10, guest task manager (processes + kill).
         binding.rowTaskManager.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), TaskManagerActivity::class.java))
+        }
+
+        // p56: card entrance on first view (fade + slide, staggered).
+        if (savedInstanceState == null) {
+            listOf(
+                binding.cardIdentity, binding.cardSystems, binding.cardApps,
+                binding.rowLanguage, binding.rowViewerSettings, binding.rowEngine,
+                binding.rowTerminal, binding.rowVncMudif, binding.rowLogs,
+                binding.rowSharedFolder, binding.rowSystemUpdate, binding.rowBackup,
+                binding.rowTaskManager, binding.rowAbout
+            ).forEachIndexed { index, card ->
+                com.bolm.mudif.ui.CardEntrance.play(card, com.bolm.mudif.ui.CardEntrance.staggerDelay(index))
+            }
         }
     }
 

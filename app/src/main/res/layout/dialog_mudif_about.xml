@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Branded About dialog (Phase 1a): the same identity as the desktop
-     mudif-about, the user's avatar, the channel credit, and the links.
-     NOT the version-only dialog. Avatar is the approved casual avatar
-     (@drawable/avatar_mudif, already circular). Links open in the browser. -->
+<!-- p56: About dialog, the owner card. The dialog window is the
+     purple gradient (dialog_mudif_bg); every text is white /
+     #E6E6FF. Order: owner avatar on top (circular, white ring),
+     app name, owner name, version chip, one-line description,
+     channel credit, GitHub link, copyright at the bottom, then
+     the YouTube button and the close button. The GitHub link is
+     a tappable text line (it replaces the old GitHub button).
+     Closes with the button and with back (cancelable). -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -16,99 +20,113 @@
         android:gravity="center_horizontal"
         android:padding="24dp">
 
-        <ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/about_avatar"
             android:layout_width="96dp"
             android:layout_height="96dp"
-            android:src="@drawable/avatar_mudif"
-            android:contentDescription="@string/about_avatar_desc" />
+            android:src="@drawable/owner_avatar"
+            android:scaleType="centerCrop"
+            android:contentDescription="@string/about_avatar_desc"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Mudif.Circle"
+            app:strokeColor="@android:color/white"
+            app:strokeWidth="2dp" />
 
-        <TextView style="@style/TextAppearance.Mudif.Title"
-            android:id="@+id/about_title"
+        <TextView
+            android:id="@+id/about_app_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="@string/about_system_name"
-            android:textSize="20sp"
+            android:text="@string/app_name"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/lifta" />
+
+        <TextView
+            android:id="@+id/about_owner_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/about_owner_name"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
             android:fontFamily="@font/cairo" />
 
-        <TextView style="@style/TextAppearance.Mudif.Caption"
+        <TextView
             android:id="@+id/about_version"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/badge_bg"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
             android:textSize="13sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textColor="@android:color/white"
             android:fontFamily="@font/cairo" />
 
         <TextView
-            android:id="@+id/about_tagline"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/about_tagline"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="@color/mudif_purple"
-            android:fontFamily="@font/cairo" />
-
-        <TextView style="@style/TextAppearance.Mudif.Caption"
             android:id="@+id/about_oneliner"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="14dp"
             android:gravity="center"
             android:text="@string/about_oneliner"
             android:textSize="13sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textColor="@color/card_text_secondary"
             android:fontFamily="@font/cairo" />
 
         <TextView
-            android:id="@+id/about_credit"
+            android:id="@+id/about_channel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:gravity="center"
-            android:text="@string/about_credit"
+            android:text="@string/about_channel"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="@android:color/white"
             android:fontFamily="@font/cairo" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/about_github_url"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:gravity="center">
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="@string/about_github_url"
+            android:textSize="13sp"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/cairo" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/about_btn_github"
-                style="@style/Widget.Mudif.Button.Secondary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="GitHub"
-                android:fontFamily="@font/cairo"
-                app:cornerRadius="10dp" />
+        <TextView
+            android:id="@+id/about_copyright"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:text="@string/about_copyright"
+            android:textSize="12sp"
+            android:textColor="@color/card_text_secondary"
+            android:fontFamily="@font/cairo" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/about_btn_youtube"
-                style="@style/Widget.Mudif.Button.Secondary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="YouTube"
-                android:fontFamily="@font/cairo"
-                app:cornerRadius="10dp" />
-        </LinearLayout>
-
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
-            android:id="@+id/about_btn_ok"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/about_btn_youtube"
+            style="@style/Widget.Mudif.Button.SecondaryOnPurple"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
+            android:text="YouTube"
+            android:fontFamily="@font/cairo"
+            app:cornerRadius="10dp" />
+
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
+            android:id="@+id/about_btn_ok"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:text="@string/ok"
             android:fontFamily="@font/cairo"
             app:cornerRadius="12dp" />

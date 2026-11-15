@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Phase 3: "بحث" footer on the provider-selection screen.
-     Search-key rows for Exa + Tavily (the master plan's search
-     providers): paste the key + save; the save rewrites keys.env
-     like the provider key rows. No "Get free key" button: no
-     verified key URL exists in the codebase for either. Plain
-     vertical LinearLayout on the white rounded card (same card as
-     the provider cards). The save button text is the same hardcoded
-     "حفظ" as the provider key rows on this screen. -->
+<!-- p56: the search-key card is a purple gradient card (20dp,
+     the old card_white_rounded surface). Title white; the key
+     fields stay pale inputs; the save buttons are white OnPurple
+     pills. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/card_white_rounded"
+    android:background="@drawable/card_gradient_large"
     android:elevation="2dp"
     android:padding="14dp"
-    android:layout_marginBottom="12dp">
+    android:layout_marginBottom="12dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:stateListAnimator="@animator/card_press">
 
     <TextView
         android:id="@+id/search_title"
@@ -23,7 +23,7 @@
         android:layout_height="wrap_content"
         android:text="@string/brain_providers_search_title"
         android:textSize="18sp"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="@android:color/white"
         android:fontFamily="@font/lifta" />
 
     <!-- Exa key row: the hint names the provider, like the
@@ -49,7 +49,7 @@
             android:inputType="textPassword"
             android:maxLines="1" />
 
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
             android:id="@+id/search_exa_save"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -82,7 +82,7 @@
             android:inputType="textPassword"
             android:maxLines="1" />
 
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
             android:id="@+id/search_tavily_save"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
