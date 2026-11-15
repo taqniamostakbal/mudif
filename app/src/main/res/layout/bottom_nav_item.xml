@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p48: one bottom-nav tab. The 64x32dp frame holds the active pill
+     (visible only when selected) with the Lottie icon centered on it;
+     the label sits below. The icon size is set per tab in code
+     (BottomNavView), because the five Lottie canvases hold different
+     amounts of ink. The label is 12sp, one line, never ellipsized:
+     the agent label is the short string (tab_agent_short) so it fits
+     the tab width in every language. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:background="?attr/selectableItemBackgroundBorderless"
+    android:clickable="true"
+    android:focusable="true">
+
+    <FrameLayout
+        android:layout_width="@dimen/nav_indicator_width"
+        android:layout_height="@dimen/nav_indicator_height">
+
+        <View
+            android:id="@+id/nav_item_pill"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bottom_nav_active_pill"
+            android:visibility="gone" />
+
+        <com.airbnb.lottie.LottieAnimationView
+            android:id="@+id/nav_item_icon"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/nav_item_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="12sp"
+        android:maxLines="1" />
+
+</LinearLayout>

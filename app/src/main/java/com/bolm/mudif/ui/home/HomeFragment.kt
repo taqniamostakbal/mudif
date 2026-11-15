@@ -39,7 +39,10 @@ class HomeFragment : Fragment() {
             parentFragmentManager.beginTransaction()
                 .replace(R.id.nav_host, com.bolm.mudif.ui.store.StoreFragment())
                 .commit()
-            activity?.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(
+            // p48: the bottom nav is the custom BottomNavView now, not
+            // a Material BottomNavigationView (the old cast would
+            // throw ClassCastException at runtime).
+            activity?.findViewById<com.bolm.mudif.ui.nav.BottomNavView>(
                 R.id.bottom_nav
             )?.selectedItemId = R.id.nav_store
         }

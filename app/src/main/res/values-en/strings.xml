@@ -541,6 +541,7 @@
     <string name="ui_about_version">Version %1$s · image %2$s</string>
     <string name="ui_about_version_app">Version %1$s</string>
     <string name="tab_agent">Mudif Assistant</string>
+    <string name="tab_agent_short">Assistant</string>
     <string name="agent_name">Mudif Assistant</string>
     <string name="agent_today">Today</string>
     <string name="agent_subtitle">Online</string>

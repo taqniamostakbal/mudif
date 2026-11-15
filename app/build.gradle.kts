@@ -130,4 +130,8 @@ dependencies {
     // + route chooser dialog. No Remote Display API (deprecated 2021).
     implementation(libs.play.services.cast.framework)
     implementation(libs.androidx.mediarouter)
+    // p48: Lottie for the bottom-nav animated icons (Anas ordered a
+    // library). The 5 tab animations are LottieFiles JSON in res/raw/,
+    // one LottieAnimationView per tab in ui.nav.BottomNavView.
+    implementation(libs.lottie)
 }

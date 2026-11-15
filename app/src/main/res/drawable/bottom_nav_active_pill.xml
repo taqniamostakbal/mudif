@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p48: the selected tab's pill in the bottom nav (64x32dp, pale
+     #E4DEFF, 16dp corners). Same color and size as the old Material
+     active indicator; now a plain View in bottom_nav_item.xml so the
+     icon inside it can never be empty. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/mudif_pill" />
+    <corners android:radius="16dp" />
+</shape>

@@ -34,7 +34,7 @@ import com.bolm.mudif.R
  * circle). One consistent purple #593BFE, Fusha Arabic labels, the
  * existing Mudif vector icons. No user row, no logout row: there is
  * no account in the app. Rows emit the same ids as drawer_menu.xml
- * and bottom_nav_menu.xml, so MainActivity routes them exactly like
+ * and values/ids.xml, so MainActivity routes them exactly like
  * the old NavigationView did.
  *
  * The pill and the circle overflow the panel edge on purpose, so

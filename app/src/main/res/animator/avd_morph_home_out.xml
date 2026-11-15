@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android"
-    android:duration="@integer/motion_duration_morph"
-    android:propertyName="pathData"
-    android:valueType="pathType"
-    android:valueFrom="M12,1.5l10,9h-3.5v9.5h-4.5v-6h-4v6H5.5v-9.5H2z"
-    android:valueTo="M12,3l9,8h-3v9h-4v-6h-4v6H6v-9H3z"
-    android:interpolator="@android:anim/decelerate_interpolator" />

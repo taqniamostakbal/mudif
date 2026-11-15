@@ -1,15 +1,9 @@
 package com.bolm.mudif
 
 import android.content.Intent
-import android.graphics.drawable.AnimatedVectorDrawable
 import android.os.Bundle
 import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageView
 import androidx.activity.OnBackPressedCallback
-import androidx.annotation.DrawableRes
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.DrawableCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
@@ -30,11 +24,6 @@ import com.bolm.mudif.ui.store.StoreFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-
-    // Bottom-nav icon morphs: the previously selected tab, so its
-    // icon can play the deselect AVD when another tab is tapped.
-    // Starts on nav_home, which is the tab shown on launch.
-    private var previousNavItemId: Int = R.id.nav_home
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,8 +47,12 @@ class MainActivity : AppCompatActivity() {
             show(HomeFragment())
         }
 
-        binding.bottomNav.setOnItemSelectedListener { item ->
-            val frag: Fragment = when (item.itemId) {
+        // p48: the bottom nav is the custom BottomNavView (Lottie
+        // icons). The listener receives the tab id directly; the view
+        // plays its own select animation, so there is no AVD wiring
+        // here anymore.
+        binding.bottomNav.setOnItemSelectedListener { itemId ->
+            val frag: Fragment = when (itemId) {
                 R.id.nav_home -> HomeFragment()
                 R.id.nav_store -> StoreFragment()
                 R.id.nav_apps -> AppsFragment()
@@ -68,10 +61,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_profile -> ProfileFragment()
                 else -> HomeFragment()
             }
-            animateNavSelection(previousNavItemId, item.itemId)
-            previousNavItemId = item.itemId
             show(frag)
-            binding.navView.setSelected(item.itemId)
+            binding.navView.setSelected(itemId)
             true
         }
 
@@ -86,11 +77,10 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_home, R.id.nav_store, R.id.nav_apps,
                 R.id.nav_games, R.id.nav_agent ->
                     binding.bottomNav.selectedItemId = itemId
-                // Profile is NOT in the bottom nav: BottomNavigationView
-                // throws at inflate time with more than 5 items
-                // (IllegalArgumentException), which crashed the app on
-                // launch. Profile lives in the drawer only; show it
-                // directly instead of routing through the bottom nav.
+                // Profile is NOT in the bottom nav: the custom
+                // BottomNavView builds exactly the 5 main tabs.
+                // Profile lives in the drawer only; show it directly
+                // instead of routing through the bottom nav.
                 R.id.nav_profile -> {
                     binding.navView.setSelected(R.id.nav_profile)
                     show(ProfileFragment())
@@ -160,82 +150,5 @@ class MainActivity : AppCompatActivity() {
             )
             .replace(R.id.nav_host, fragment)
             .commit()
-    }
-
-    // Bottom-nav icon morphs (200ms, values/motion.xml). The newly
-    // selected tab plays its select AVD, the previous tab its
-    // deselect AVD. The pill slide is the Material 3 built-in
-    // indicator animation, not a custom animator. A re-tap on the
-    // selected tab plays nothing. The MenuItem icon is pinned to the
-    // AVD instance so later nav updates keep it; the drawable shown
-    // is set directly on the item ImageView in playNavAvd.
-    private fun animateNavSelection(previousId: Int, selectedId: Int) {
-        if (previousId == selectedId) return
-        navAvdFor(previousId, deselect = true)?.let { playNavAvd(previousId, it, selected = false) }
-        navAvdFor(selectedId, deselect = false)?.let { playNavAvd(selectedId, it, selected = true) }
-    }
-
-    private fun playNavAvd(itemId: Int, @DrawableRes avdRes: Int, selected: Boolean) {
-        val drawable = ContextCompat.getDrawable(this, avdRes) as? AnimatedVectorDrawable ?: return
-        // Pin this AVD instance as the MenuItem icon first: every later
-        // NavigationBarMenuView update calls itemView.initialize(), which
-        // calls setIcon(item.icon) and early-returns when the icon is the
-        // instance already stored, so it will not overwrite the ImageView
-        // drawable set below.
-        binding.bottomNav.menu.findItem(itemId)?.icon = drawable
-        // Material 1.12.0 NavigationBarItemView.setIcon never shows the
-        // instance given: it shows ConstantState.newDrawable() wrapped in
-        // DrawableCompat.wrap().mutate(). Starting the instance we hold
-        // animates nothing on screen (the p34f root cause), and starting
-        // whatever copy the ImageView happens to hold is a gamble on its
-        // runtime type, with the old fallback silently starting the
-        // undisplayed instance when the cast failed. Post past the
-        // framework checked-state update for this tap, then set THIS
-        // instance directly on the displayed ImageView and start it, so
-        // the started instance and the displayed instance are the same
-        // object by construction. This is the same pattern the send and
-        // record buttons already use (setImageDrawable then start).
-        // The direct set bypasses Material icon tint, so tint the AVD
-        // with the resolved selected/unselected color here.
-        binding.bottomNav.post {
-            val imageView = navIconImageView(itemId) ?: return@post
-            val tintList = binding.bottomNav.itemIconTintList
-            val state = if (selected) intArrayOf(android.R.attr.state_checked) else intArrayOf()
-            val fallback = ContextCompat.getColor(
-                this@MainActivity,
-                if (selected) R.color.mudif_purple else R.color.mudif_unselected
-            )
-            val color = tintList?.getColorForState(state, fallback) ?: fallback
-            drawable.mutate()
-            DrawableCompat.setTint(drawable, color)
-            imageView.setImageDrawable(drawable)
-            drawable.start()
-        }
-    }
-
-    // The ImageView the bottom nav actually displays for itemId: the
-    // item view (id == itemId, set by NavigationBarItemView.initialize)
-    // holds one ImageView with the icon.
-    private fun navIconImageView(itemId: Int): ImageView? {
-        val menuView = binding.bottomNav.getChildAt(0) as? ViewGroup ?: return null
-        for (i in 0 until menuView.childCount) {
-            val itemView = menuView.getChildAt(i)
-            if (itemView.id == itemId) {
-                return itemView.findViewById<ImageView>(
-                    com.google.android.material.R.id.navigation_bar_item_icon_view
-                )
-            }
-        }
-        return null
-    }
-
-    @DrawableRes
-    private fun navAvdFor(itemId: Int, deselect: Boolean): Int? = when (itemId) {
-        R.id.nav_home -> if (deselect) R.drawable.nav_home_deselect else R.drawable.nav_home_select
-        R.id.nav_store -> if (deselect) R.drawable.nav_store_deselect else R.drawable.nav_store_select
-        R.id.nav_apps -> if (deselect) R.drawable.nav_apps_deselect else R.drawable.nav_apps_select
-        R.id.nav_games -> if (deselect) R.drawable.nav_games_deselect else R.drawable.nav_games_select
-        R.id.nav_agent -> if (deselect) R.drawable.nav_agent_deselect else R.drawable.nav_agent_select
-        else -> null
     }
 }

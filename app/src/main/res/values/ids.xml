@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p48: the bottom-nav tab ids. They used to be defined by
+     menu/bottom_nav_menu.xml (deleted with the Material
+     BottomNavigationView); the ids are still used by MainActivity,
+     SidebarView, HomeFragment, and AgentFragment, so they live here
+     now. -->
+<resources>
+    <item name="nav_home" type="id" />
+    <item name="nav_store" type="id" />
+    <item name="nav_apps" type="id" />
+    <item name="nav_games" type="id" />
+    <item name="nav_agent" type="id" />
+</resources>
