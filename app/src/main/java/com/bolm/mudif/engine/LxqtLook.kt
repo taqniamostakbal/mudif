@@ -267,7 +267,12 @@ object LxqtLook {
     // screen (DesktopScale), so an existing rootfs must re-apply to
     // pick them up. The p23 APK and the p23 image must ship from the
     // same snapshot.
-    const val MARKER_VERSION = "p23"
+    // P24 (2026-11-15, CLI v2): the Arabic CLI 2.0 and programs.tsv
+    // are staged by ensureLxqtLook, so an existing rootfs must
+    // re-apply to pick them up. The image stays p23 (untouched);
+    // only the look version moves, and the VNC version toast shows
+    // it. This is the same re-apply mechanism as p22/p23.
+    const val MARKER_VERSION = "p24"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -275,6 +280,7 @@ object LxqtLook {
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
     private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
+    private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
     private const val TRANSLATIONS_ZIP_ASSET = "translations.zip"
     private const val THEME_ZIP_ASSET = "mudif-theme.zip"
@@ -374,6 +380,15 @@ object LxqtLook {
             mudifConfDir.mkdirs()
             context.assets.open(CLI_ASSET).use { input ->
                 File(mudifConfDir, "arabic-cli.sh").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            // CLI v2: the Arabic-name to apt mapping (programs.tsv,
+            // generated from store-catalog.json). The CLI resolves
+            // ثبت/افتح through it; without the file the verbs fall
+            // back to raw apt names / xdg-open and say so.
+            context.assets.open(PROGRAMS_TSV_ASSET).use { input ->
+                File(mudifConfDir, "programs.tsv").outputStream().use { out ->
                     input.copyTo(out)
                 }
             }

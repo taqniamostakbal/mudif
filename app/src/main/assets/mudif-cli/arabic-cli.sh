@@ -1,6 +1,31 @@
 # arabic-cli.sh: اوامر نظام مضيف بالعربية الفصحى
-# النسخة: 1.0
-MUDIF_CLI_VERSION="1.0"
+# النسخة: 2.0
+MUDIF_CLI_VERSION="2.0"
+
+# --- حل اسم برنامج ---
+# ملف البرامج programs.tsv بجانب هذا الملف (اسم، اسم دارجة، حزمة apt، امر التشغيل، الطريقة، المعرف).
+# _حل-الاسم يطبع كل الصفوف المطابقة للاسم العربي (الاسم الفصيح او الدارج) او المعرف، ولا شيء ان لم يوجد.
+# يعيد 2 ان كان الملف غائبا.
+_حل-الاسم() {
+  local map="${MUDIF_PROGRAMS:-/root/.config/mudif/programs.tsv}"
+  [ -f "$map" ] || return 2
+  awk -F'\t' -v n="$1" '$1==n || $2==n || $6==n' "$map"
+}
+
+# _تأكيد يسال (ن/لا) ويعيد 0 عند نعم فقط.
+_تأكيد() {
+  local answer
+  read -r -p "$1؟ (ن/لا) " answer
+  case "$answer" in
+    ن|نعم) return 0;;
+    *) echo "تم الالغاء."; return 1;;
+  esac
+}
+
+# _عدد-الاسطر يعد اسطر نص (0 للنص الفارغ).
+_عدد-الاسطر() {
+  printf '%s\n' "$1" | grep -c .
+}
 
 # --- الملفات ---
 اعرض() { ls -lah "$@"; }
@@ -95,7 +120,25 @@ MUDIF_CLI_VERSION="1.0"
 }
 
 افتح() {
-  if [ "$#" -eq 0 ]; then echo "الاستعمال: افتح <ملف>"; return 1; fi
+  if [ "$#" -eq 0 ]; then echo "الاستعمال: افتح <برنامج أو ملف>"; return 1; fi
+  if [ "$#" -eq 1 ]; then
+    local m n bin
+    if m=$(_حل-الاسم "$1"); then
+      n=$(_عدد-الاسطر "$m")
+      if [ "$n" -eq 1 ]; then
+        bin=$(printf '%s' "$m" | cut -f4)
+        if [ -z "$bin" ]; then echo "البرنامج $1 ليس له امر تشغيل."; return 1; fi
+        if ! command -v "$bin" >/dev/null 2>&1; then echo "البرنامج $1 غير مثبت. ثبته أولا: ثبت $1"; return 1; fi
+        "$bin" >/dev/null 2>&1 & disown
+        echo "تم فتح $1."
+        return 0
+      elif [ "$n" -gt 1 ]; then
+        echo "يوجد $n برامج بهذا الاسم:"
+        printf '%s\n' "$m" | cut -f1
+        return 1
+      fi
+    fi
+  fi
   xdg-open "$1" >/dev/null 2>&1 &
   disown
 }
@@ -110,8 +153,24 @@ MUDIF_CLI_VERSION="1.0"
 }
 
 ثبت() {
-  if [ "$#" -eq 0 ]; then echo "الاستعمال: ثبت <حزمة...>"; return 1; fi
-  apt install "$@"
+  if [ "$#" -eq 0 ]; then echo "الاستعمال: ثبت <برنامج>"; return 1; fi
+  if [ "$#" -eq 1 ]; then
+    local m n apt method
+    if ! m=$(_حل-الاسم "$1"); then echo "ملف البرامج غير موجود."; return 1; fi
+    n=$(_عدد-الاسطر "$m")
+    if [ "$n" -eq 1 ]; then
+      apt=$(printf '%s' "$m" | cut -f3); method=$(printf '%s' "$m" | cut -f5)
+      if [ "$method" != "apt" ] || [ -z "$apt" ]; then echo "البرنامج $1 لا يثبت عبر apt."; return 1; fi
+      _تأكيد "تثبيت $1 ($apt)" || return 1
+      apt install -y "$apt" && echo "تم تثبيت $1."
+      return 0
+    elif [ "$n" -gt 1 ]; then
+      echo "يوجد $n برامج بهذا الاسم:"
+      printf '%s\n' "$m" | cut -f1
+      return 1
+    fi
+  fi
+  apt install -y "$@"
 }
 
 ازل() {
@@ -123,8 +182,18 @@ MUDIF_CLI_VERSION="1.0"
   apt update && apt full-upgrade
 }
 
+حدّث-النظام() {
+  _تأكيد "تحديث النظام كاملا" || return 1
+  apt update && apt upgrade -y && echo "تم تحديث النظام."
+}
+
 نظف() {
   apt autoremove && apt autoclean && echo "تم التنظيف."
+}
+
+نظف-الكاش() {
+  _تأكيد "تنظيف كاش الحزم" || return 1
+  apt clean && echo "تم تنظيف الكاش."
 }
 
 معلومات() {
@@ -187,6 +256,29 @@ MUDIF_CLI_VERSION="1.0"
   ping -c 4 "${1:-8.8.8.8}"
 }
 
+# ابحث: بحث ويب يعيد استعمال web_search من خادم مضيف
+# (نفس المسار: Exa ان وجد مفتاح، ثم Tavily، ثم DuckDuckGo بلا مفتاح).
+# لا مزود جديد ولا مفتاح جديد.
+ابحث() {
+  if [ "$#" -eq 0 ]; then echo "الاستعمال: ابحث <كلمة>"; return 1; fi
+  local server="/root/.config/mudif/mudif-mcp-server.py"
+  [ -f "$server" ] || { echo "خادم البحث غير موجود. افتح المساعد أولا."; return 1; }
+  python3 - "$*" <<'PY'
+import importlib.util, sys
+try:
+    spec = importlib.util.spec_from_file_location("mudif_mcp", "/root/.config/mudif/mudif-mcp-server.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    r = m.web_search({"query": sys.argv[1], "count": 5})
+except Exception as e:
+    print("فشل البحث: " + str(e)); sys.exit(1)
+if r.get("error"):
+    print("فشل البحث: " + r["error"]); sys.exit(1)
+print("المصدر: " + r.get("source", ""))
+for x in r.get("results", []):
+    print("- " + x.get("title", "") + "\n  " + x.get("url", ""))
+PY
+}
+
 وايفاي() {
   if command -v nmcli >/dev/null 2>&1; then
     nmcli device status
@@ -236,8 +328,8 @@ MUDIF_CLI_VERSION="1.0"
 مساعدة() {
   echo "اوامر نظام مضيف (اكتب الامر ثم الوسائط):"
   echo "الملفات: اعرض، ادخل، انسخ، انقل، احذف، انشئ، انشئ-مجلد، اقرأ، اقرأ-صفحة، ابحث-عن-ملف، ابحث-في-الملف، احص، اضغط، فك-الضغط، افتح، اعرض-الشجرة"
-  echo "النظام: حدث، ثبت، ازل، رقي، نظف، معلومات، القرص، الذاكرة، العمليات، اقتل، التاريخ، الوقت، من-انا، الصلاحيات، غير-الصلاحيات، النسخة"
-  echo "الشبكة: الشبكة، عنواني، اختبر-الاتصال، وايفاي"
+  echo "النظام: حدث، ثبت، ازل، رقي، حدّث-النظام، نظف، نظف-الكاش، معلومات، القرص، الذاكرة، العمليات، اقتل، التاريخ، الوقت، من-انا، الصلاحيات، غير-الصلاحيات، النسخة"
+  echo "الشبكة: الشبكة، عنواني، اختبر-الاتصال، ابحث، وايفاي"
   echo "التطبيقات: المتصفح، الملفات، الاعدادات، المتجر، الطرفية، عدل"
   echo "الطاقة: اقفل، اخرج، اطفئ، اعد-التشغيل"
   echo "للتفصيل عن امر اكتب: type الامر (مثال: type اعرض)"

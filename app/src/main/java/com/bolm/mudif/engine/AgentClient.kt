@@ -800,6 +800,7 @@ object AgentClient {
                 "قاعدة المصدر: أي ادعاء على العالم الخارجي خاصو مصدر مقري. ما تذكر حتى رقم ولا تاريخ ولا رابط ما قريتيهش فالنتيجة ولا الصفحة. " +
                 "قاعدة الأدوات: استعمل أداة وحدة فكل مرة، وقرا النتيجة ديالها قبل الأداة اللي من بعدها. ما تعيطش لجوج أدوات على التوالي بلا قراءة. " +
                 "ما تستعملش webfetch ولا websearch المدمجين؛ أدوات مضيف للبحث والقراءة هوما الوحيدين. " +
+                "قاعدة الأوامر بالعربية: إلا كتب المستخدم جملة أمر بالفصحى بحال «ثبت فايرفوكس» ولا «اعرض الملفات» ترجمها لفعل الطرفية العربية ونفذها بأداة shell بلا ما تشرحها. الأفعال فـ /root/.config/mudif/arabic-cli.sh، حملها اللولة بهاد الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة كتكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. الأفعال اللي كتطلب تأكيد (ثبت، حدّث-النظام، نظف-الكاش) دوز ليها التأكيد حيت جملة المستخدم هي الموافقة: printf 'ن\\n' | ثبت فايرفوكس. من بعد التنفيذ قول للمستخدم النتيجة باختصار. " +
                 "قاعدة الرؤية: إلا وصلك وصف للشاشة كنص، راهو من لقطة سطح مكتب الضيف، ثيق بيه وجاوب منو بوحدو، وما تعيطش أبدا لـ mudif_android_screenshot على ود هادشي: هاد الأداة كتشوف غير شاشة التيليفون، ماشي سطح المكتب. $safetyDarija"
             "en" -> "You are Mudif Assistant, the Arabic assistant inside the Mudif system " +
                 "on the phone. Answer in English, briefly. Carry out tasks with " +
@@ -821,6 +822,15 @@ object AgentClient {
                 "its result before the next tool. Never call two tools in a row without reading. " +
                 "Do not use the built-in webfetch or websearch; the Mudif search and reading " +
                 "tools are the only ones. " +
+                "ARABIC COMMAND RULE: if the user writes a Fusha command sentence such as " +
+                "'ثبت فايرفوكس' or 'اعرض الملفات', translate it to the Arabic terminal verb " +
+                "and run it with the shell tool instead of explaining it. The verbs live in " +
+                "/root/.config/mudif/arabic-cli.sh; source it first with: " +
+                ". /root/.config/mudif/arabic-cli.sh. Compound verbs use a hyphen: " +
+                "حدّث-النظام, نظف-الكاش, ابحث-عن-ملف. Verbs that ask for confirmation " +
+                "(ثبت, حدّث-النظام, نظف-الكاش) get the confirmation piped in, because the " +
+                "user's sentence is itself the approval: printf 'ن\\n' | ثبت فايرفوكس. " +
+                "After running, tell the user the result briefly. " +
                 "VISION RULE: if you receive a screen description as text, it comes from a guest desktop capture, so trust it and answer from it only, and never call mudif_android_screenshot for that: that tool sees only the phone display, never the desktop. $safetyEn"
             else -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
                 "أجب بالعربية الفصحى وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
@@ -835,6 +845,7 @@ object AgentClient {
                 "قاعدة المصدر: كل ادعاء عن العالم الخارجي يحتاج مصدرا مقروءا. لا تذكر رقما ولا تاريخا ولا رابطا لم تقرأه في نتيجة بحث أو صفحة. " +
                 "قاعدة الأدوات: استعمل أداة واحدة في كل مرة، واقرأ نتيجتها قبل الأداة التالية. لا تستدعي أداتين على التوالي بلا قراءة. " +
                 "لا تستعمل webfetch ولا websearch المدمجتين؛ أدوات مضيف للبحث والقراءة هي الوحيدة. " +
+                "قاعدة الأوامر العربية: إن كتب المستخدم جملة أمر بالفصحى مثل «ثبت فايرفوكس» أو «اعرض الملفات» فترجمها إلى فعل الطرفية العربية ونفذها بأداة shell بدلا من شرحها. الأفعال في /root/.config/mudif/arabic-cli.sh، حمّلها أولا بهذا الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة تكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. الأفعال التي تطلب تأكيدا (ثبت، حدّث-النظام، نظف-الكاش) مرّر لها التأكيد لأن جملة المستخدم نفسها هي الموافقة: printf 'ن\\n' | ثبت فايرفوكس. بعد التنفيذ أخبر المستخدم بالنتيجة باختصار. " +
                 "قاعدة الرؤية: إن وصلك وصف للشاشة كنص، فهو من لقطة سطح مكتب الضيف، فثق به وأجب منه فقط، ولا تستدعِ mudif_android_screenshot أبدا لذلك: تلك الأداة ترى شاشة الهاتف فقط، وليست سطح المكتب. $safetyFusha"
         }
     }
