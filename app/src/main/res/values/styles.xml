@@ -128,8 +128,11 @@
          pill view. Icon morphs are AnimatedVectorDrawables wired in
          MainActivity, durations from values/motion.xml. -->
     <style name="Widget.Mudif.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
-        <item name="android:background">?attr/colorSurface</item>
-        <item name="android:elevation">0dp</item>
+        <!-- p45: floating pill (reference image-389). The pill
+             background is a rounded surface drawable, the bar floats
+             on 8dp elevation with margins set in activity_main.xml. -->
+        <item name="android:background">@drawable/bottom_nav_pill_bg</item>
+        <item name="android:elevation">8dp</item>
         <item name="itemIconTint">@color/bottom_nav_item_tint</item>
         <item name="itemTextColor">@color/bottom_nav_item_tint</item>
         <item name="labelVisibilityMode">labeled</item>
