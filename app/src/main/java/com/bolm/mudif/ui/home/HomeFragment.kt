@@ -67,6 +67,15 @@ class HomeFragment : Fragment() {
             }
         }
         refreshSystemCard()
+        // p56: card entrance on first view (fade + slide, staggered).
+        if (savedInstanceState == null) {
+            listOf(
+                binding.cardHero, binding.cardStatSystem, binding.cardStatPrograms,
+                binding.cardStatStorage, binding.cardWelcome, binding.cardVersion
+            ).forEachIndexed { index, card ->
+                com.bolm.mudif.ui.CardEntrance.play(card, com.bolm.mudif.ui.CardEntrance.staggerDelay(index))
+            }
+        }
         // P19 Phase 2: the two stats that need I/O (catalog size, free
         // storage) load off the main thread; the system stat is in
         // refreshSystemCard.

@@ -10,8 +10,12 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
+    android:stateListAnimator="@animator/card_press"
     app:strokeWidth="0dp">
 
+    <!-- p56: the category card is the standard purple gradient
+         (set in code by CategoryCardAdapter); the per-category
+         gradients are gone by the p56 order. -->
     <LinearLayout
         android:id="@+id/card_bg"
         android:layout_width="match_parent"

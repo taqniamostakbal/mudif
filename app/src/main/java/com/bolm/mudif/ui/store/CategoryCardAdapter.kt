@@ -5,13 +5,18 @@ import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemCategoryCardBinding
+import com.bolm.mudif.ui.CardEntrance
 
 /**
  * P19 Phase 1: category gradient cards (replaces the plain filter chips).
- * Each card is its category's gradient + white icon + label + program
- * count. Tapping a card filters the program list, same as the old chips.
- * The selected card gets a white stroke.
+ * p56: every card is the standard purple gradient + white icon +
+ * label + program count (the per-category colors are gone, like the
+ * rest of the app). Tapping a card filters the program list, same
+ * as the old chips. The selected card gets a white stroke. The
+ * letter tile inside a category is not a card; it keeps its
+ * per-category gradient.
  */
 class CategoryCardAdapter(
     private val categories: List<StoreCategory>,
@@ -19,6 +24,11 @@ class CategoryCardAdapter(
     private var counts: Map<String, Int>,
     private val onSelect: (StoreCategory) -> Unit
 ) : RecyclerView.Adapter<CategoryCardAdapter.Holder>() {
+
+    // p56: entrance plays once per category (fade + slide). The set
+    // is per adapter instance, so a rebind after a store refresh
+    // does not replay it.
+    private val animatedKeys = mutableSetOf<String>()
 
     inner class Holder(val binding: ItemCategoryCardBinding) :
         RecyclerView.ViewHolder(binding.root)
@@ -56,7 +66,10 @@ class CategoryCardAdapter(
         } else counts[category.key] ?: 0
         val unit = if (category == StoreCategory.FONTS) holder.binding.root.context.getString(com.bolm.mudif.R.string.ui_store_unit_fonts) else holder.binding.root.context.getString(com.bolm.mudif.R.string.ui_store_unit_programs)
         with(holder.binding) {
-            cardBg.setBackgroundResource(category.gradientRes)
+            cardBg.setBackgroundResource(R.drawable.home_stat_gradient)
+            if (animatedKeys.add(category.key)) {
+                CardEntrance.play(root, CardEntrance.staggerDelay(position))
+            }
             catIcon.setImageResource(category.iconRes)
             catLabel.text = root.context.getString(category.labelRes)
             catCount.text = "$count $unit"

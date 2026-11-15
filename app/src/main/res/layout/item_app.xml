@@ -3,13 +3,20 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="6dp">
+    android:layout_margin="6dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:stateListAnimator="@animator/card_press">
 
+    <!-- p56: the installed-app card is a purple gradient card
+         (20dp, the Large radius). Text is white / #E6E6FF. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center_horizontal"
+        android:background="@drawable/card_gradient_large"
         android:padding="16dp">
 
         <!-- P19 squircle icon tile (OneOS style): the real store icon,
@@ -48,7 +55,7 @@
             android:layout_marginTop="10dp"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="@android:color/white"
             android:fontFamily="@font/cairo" />
 
         <TextView style="@style/TextAppearance.Mudif.Caption"
@@ -57,7 +64,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:textSize="12sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textColor="@color/card_text_secondary"
             android:gravity="center"
             android:fontFamily="@font/cairo"
             android:maxLines="3"
@@ -69,7 +76,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:textSize="11sp"
-            android:textColor="@color/mudif_purple"
+            android:textColor="@android:color/white"
             android:fontFamily="@font/cairo" />
 
         <!-- P18.6: buttons stacked vertically, each full width. In the
@@ -82,7 +89,7 @@
             android:layout_marginTop="10dp"
             android:orientation="vertical">
 
-            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
                 android:id="@+id/btn_launch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -93,14 +100,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_uninstall"
-                style="@style/Widget.Mudif.Button.Text"
+                style="@style/Widget.Mudif.Button.TextOnPurple"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="@string/store_uninstall"
                 android:fontFamily="@font/cairo"
-                android:textSize="12sp"
-                android:textColor="#B3261E" />
+                android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

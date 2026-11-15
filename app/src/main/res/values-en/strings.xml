@@ -97,6 +97,13 @@
     <string name="about_tagline">You are the host, and Linux is your guest</string>
     <string name="about_oneliner">The full Mudif system inside your Android phone, no root, no computer</string>
     <string name="about_credit">مشروع تقنية المستقبل | Exploring Tech</string>
+    <!-- p56: About dialog (owner card). The owner name, channel,
+         link and copyright are the same text in every locale. -->
+    <string name="about_owner_name">taqniamostakbal</string>
+    <string name="about_version_chip">Version %1$s</string>
+    <string name="about_channel">تقنية المستقبل | Exploring Tech</string>
+    <string name="about_github_url">https://github.com/taqniamostakbal</string>
+    <string name="about_copyright">© 2026 taqniamostakbal - جميع الحقوق محفوظة</string>
     <string name="control_center">Control center</string>
     <string name="engine_check">Engine check</string>
     <string name="engine_check_desc">Run proot and confirm the engine is alive</string>

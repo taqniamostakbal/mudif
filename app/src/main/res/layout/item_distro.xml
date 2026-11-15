@@ -3,13 +3,22 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="6dp">
+    android:layout_margin="6dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:stateListAnimator="@animator/card_press">
 
+    <!-- p56: the system row is a purple gradient card. Text is
+         white / #E6E6FF, the install button is the white OnPurple
+         pill, the logo sits on a light circle (a purple circle
+         would vanish on the gradient). -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
+        android:background="@drawable/home_stat_gradient"
         android:padding="16dp">
 
         <!-- Phase 1b: the system logo (penguin), not a letter. -->
@@ -20,7 +29,7 @@
             android:src="@drawable/logo_mudif"
             android:scaleType="fitCenter"
             android:contentDescription="@string/about_system_name"
-            android:background="@drawable/circle_bg" />
+            android:background="@drawable/circle_light" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -36,7 +45,7 @@
                 android:layout_height="wrap_content"
                 android:textSize="17sp"
                 android:textStyle="bold"
-                android:textColor="?attr/colorOnSurface"
+                android:textColor="@android:color/white"
                 android:fontFamily="@font/cairo" />
 
             <TextView style="@style/TextAppearance.Mudif.Caption"
@@ -45,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textSize="13sp"
-                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textColor="@color/card_text_secondary"
                 android:fontFamily="@font/cairo" />
 
             <TextView style="@style/TextAppearance.Mudif.Caption"
@@ -54,11 +63,11 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textSize="12sp"
-                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textColor="@color/card_text_secondary"
                 android:fontFamily="@font/cairo" />
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.OnPurple"
             android:id="@+id/btn_install"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

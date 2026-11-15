@@ -13,13 +13,17 @@
     android:orientation="vertical"
     android:padding="24dp">
 
+    <!-- p56: the language picker is a gradient card
+         (dialog_mudif_bg). Title white, message #E6E6FF; the
+         language buttons are white outlined (SecondaryOnPurple),
+         the current one filled white in code. -->
     <TextView
         android:id="@+id/dialog_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="19sp"
         android:textStyle="bold"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="@android:color/white"
         android:fontFamily="@font/cairo" />
 
     <TextView
@@ -28,7 +32,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:textSize="14sp"
-        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textColor="@color/card_text_secondary"
         android:fontFamily="@font/cairo" />
 
     <!-- The 3 languages, each its own name (readable before any locale
@@ -42,7 +46,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/dialog_option_fusha"
-            style="@style/Widget.Mudif.Button.Secondary"
+            style="@style/Widget.Mudif.Button.SecondaryOnPurple"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/cairo"
@@ -50,7 +54,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/dialog_option_darija"
-            style="@style/Widget.Mudif.Button.Secondary"
+            style="@style/Widget.Mudif.Button.SecondaryOnPurple"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -59,7 +63,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/dialog_option_english"
-            style="@style/Widget.Mudif.Button.Secondary"
+            style="@style/Widget.Mudif.Button.SecondaryOnPurple"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
