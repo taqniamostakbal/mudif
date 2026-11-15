@@ -225,7 +225,7 @@
                 android:layout_marginEnd="8dp"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:contentDescription="@string/agent_reply_language"
+                android:contentDescription="@string/language_title"
                 android:fontFamily="@font/cairo"
                 android:textSize="13sp"
                 app:cornerRadius="16dp" />

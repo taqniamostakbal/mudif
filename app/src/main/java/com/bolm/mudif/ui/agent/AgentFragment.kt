@@ -59,9 +59,10 @@ import org.json.JSONObject
  *
  * Two modes, chat first:
  * - Chat: native message list (persisted locally), quick-action chips,
- *   voice input/output, and a manual reply-language switch (Fusha
- *   default / Darija / English) that is stored and sent with every
- *   message as the brain's system prompt.
+ *   voice input/output, and the reply language, which always follows
+ *   the app language (Fusha / Darija / English) and is read live at
+ *   every turn start, so a language change takes effect on the next
+ *   turn. The header chip opens the app language picker.
  * - Console: a WebView on the agent server, localhost only. The
  *   WebView refuses any URL that is not localhost.
  *
@@ -162,8 +163,12 @@ class AgentFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        replyLanguage = prefs().getString(KEY_REPLY_LANGUAGE, AgentMessage.REPLY_FUSHA)
-            ?: AgentMessage.REPLY_FUSHA
+        // p57: the reply language is the app language, read live.
+        // The stored pref is only a cache; it never overrides the
+        // app language, so a language change takes effect here
+        // (and again at every turn start) with no reinstall.
+        replyLanguage = liveReplyLanguage()
+        prefs().edit().putString(KEY_REPLY_LANGUAGE, replyLanguage).apply()
         brainModel = prefs().getString(KEY_BRAIN_MODEL, BRAIN_LOCAL) ?: BRAIN_LOCAL
         // Vision increment 2: a cloud vision turn that died with
         // the view (rotation, process death) leaves its restore
@@ -224,7 +229,7 @@ class AgentFragment : Fragment() {
         val showAbout = { showAgentAbout() }
         binding.agentAvatar.setOnClickListener { showAbout() }
         binding.agentIdentity.setOnClickListener { showAbout() }
-        binding.btnReplyLanguage.setOnClickListener { showReplyLanguageMenu() }
+        binding.btnReplyLanguage.setOnClickListener { openLanguagePicker() }
         // p31: the brain pill and the profile card both open the
         // provider-selection screen (10 free platforms).
         binding.btnBrain.setOnClickListener { openBrainProviders() }
@@ -1018,6 +1023,9 @@ class AgentFragment : Fragment() {
             return
         }
         hideAgentAction()
+        // p57: read the reply language live, so the stored
+        // per-message language matches the turn that follows.
+        replyLanguage = liveReplyLanguage()
         val userMessage = AgentMessage(AgentMessage.ROLE_USER, text, replyLanguage)
         appendMessage(userMessage)
         lastUserMessage = userMessage
@@ -1036,6 +1044,8 @@ class AgentFragment : Fragment() {
         val last = lastUserMessage ?: return
         if (turnRunning) return
         hideAgentAction()
+        // p57: read the reply language live, like sendMessage.
+        replyLanguage = liveReplyLanguage()
         // Phase 3: the retry re-sends visibly, as a user message of
         // its own, so the user can tell it re-sent anything.
         val userMessage = AgentMessage(AgentMessage.ROLE_USER, last.text, replyLanguage)
@@ -1056,6 +1066,12 @@ class AgentFragment : Fragment() {
      * as a second text part, observed context, never an instruction.
      */
     private fun startTurn(text: String, screenContext: String? = null, imageBase64: String? = null, isCloudVision: Boolean = false) {
+        // p57: read the reply language live here, at turn start, so
+        // a language change takes effect on this turn. The system
+        // prompt, the vision prefix, and every built-in reply below
+        // all use this field; no session restart is needed, because
+        // AgentClient sends the system prompt again on every turn.
+        replyLanguage = liveReplyLanguage()
         // p34f fix 4: a new turn starts, the old failure is spent.
         clearTurnFailed(requireContext())
         turnRunning = true
@@ -1511,6 +1527,8 @@ class AgentFragment : Fragment() {
             return
         }
         hideAgentAction()
+        // p57: read the reply language live, like sendMessage.
+        replyLanguage = liveReplyLanguage()
         val question = getString(R.string.agent_vision_question)
         val userMessage = AgentMessage(AgentMessage.ROLE_USER, question, replyLanguage)
         appendMessage(userMessage)
@@ -2153,13 +2171,33 @@ class AgentFragment : Fragment() {
     }
 
     private fun ensureGreeting() {
+        val live = liveReplyLanguage()
         if (messages.isEmpty()) {
             messages.add(
                 AgentMessage(
                     AgentMessage.ROLE_AGENT,
                     getString(R.string.agent_greeting),
-                    replyLanguage
+                    live
                 )
+            )
+            saveMessages()
+            return
+        }
+        // p57: the greeting is the only message and it was written
+        // in an old language (the persisted bubble never changed
+        // when the language did). Re-localize it in place instead
+        // of showing a stale-language greeting under a new UI.
+        // A greeting followed by a real exchange is history and
+        // stays as it was said.
+        if (messages.size == 1 &&
+            messages[0].role == AgentMessage.ROLE_AGENT &&
+            messages[0].replyLanguage != live
+        ) {
+            messages[0] = AgentMessage(
+                AgentMessage.ROLE_AGENT,
+                getString(R.string.agent_greeting),
+                live,
+                messages[0].time
             )
             saveMessages()
         }
@@ -2226,6 +2264,17 @@ class AgentFragment : Fragment() {
 
     // ------------------------------------------------- reply language
 
+    /** p57: the reply language, derived live from the app language
+     *  (ar -> fusha, ar-MA -> darija, en -> en). Read at view
+     *  creation and at every turn start, never cached across a
+     *  language change. */
+    private fun liveReplyLanguage(): String {
+        // Null-safe on purpose: speakAgent can run after detach,
+        // and then the last synced value is the right fallback.
+        val ctx = context ?: return replyLanguage
+        return replyLanguageForTag(AppLanguage.currentTag(ctx))
+    }
+
     private fun updateLanguageButton() {
         binding.btnReplyLanguage.text = getString(
             when (replyLanguage) {
@@ -2236,35 +2285,15 @@ class AgentFragment : Fragment() {
         )
     }
 
-    private fun showReplyLanguageMenu() {
-        // Branded dialog (MudifDialog.select): the old PopupMenu was
-        // the classic unstyled system popup, clipped by the screen
-        // edge in RTL and overlapping the header (his screenshot).
-        val labels = listOf(
-            getString(R.string.language_fusha),
-            getString(R.string.language_darija),
-            getString(R.string.language_english)
-        )
-        val current = when (replyLanguage) {
-            AgentMessage.REPLY_DARIJA -> 1
-            AgentMessage.REPLY_EN -> 2
-            else -> 0
-        }
-        MudifDialog.select(
-            requireContext(),
-            getString(R.string.agent_reply_language),
-            labels,
-            current
-        ) { index ->
-            replyLanguage = when (index) {
-                1 -> AgentMessage.REPLY_DARIJA
-                2 -> AgentMessage.REPLY_EN
-                else -> AgentMessage.REPLY_FUSHA
-            }
-            prefs().edit().putString(KEY_REPLY_LANGUAGE, replyLanguage)
-                .putBoolean(KEY_REPLY_LANGUAGE_EXPLICIT, true).apply()
-            updateLanguageButton()
-        }
+    /** p57: the header language chip opens the APP language
+     *  picker now. The old reply-language menu let the agent keep
+     *  a different language from the UI (the reported defect: UI
+     *  in English, chip Darija, greeting Fusha), so it is gone:
+     *  the reply language always follows the app language, and
+     *  AppLanguage.apply() relaunches the task, so the new
+     *  language reaches this screen at once. */
+    private fun openLanguagePicker() {
+        AppLanguage.showPicker(requireActivity() as androidx.appcompat.app.AppCompatActivity, false)
     }
 
     private fun updateBrainButton() {
@@ -2610,15 +2639,22 @@ class AgentFragment : Fragment() {
             ).show()
             return
         }
-        // Primary locale is ar-SA; if the device has no Saudi voice
-        // data the system recognizer falls back on its own, and ar-EG
-        // is the documented fallback if a fixed locale is ever forced.
+        // p57: the recognizer locale follows the live reply
+        // language (en -> en-US, darija -> ar-MA, fusha -> ar-SA),
+        // so voice input hears the language the user reads. The
+        // system recognizer falls back on its own when a pack is
+        // missing.
+        val voiceLocale = when (liveReplyLanguage()) {
+            AgentMessage.REPLY_EN -> "en-US"
+            AgentMessage.REPLY_DARIJA -> "ar-MA"
+            else -> "ar-SA"
+        }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
             )
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-SA")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLocale)
             putExtra(
                 RecognizerIntent.EXTRA_PROMPT,
                 getString(R.string.agent_voice_in_desc)
@@ -2635,6 +2671,31 @@ class AgentFragment : Fragment() {
         }
     }
 
+    /** p57: the TTS voice follows the reply language, like the
+     *  text replies. Chains per language because a missing voice
+     *  pack must fall back, never silence the feature: en ->
+     *  English; darija -> ar-MA, then ar-SA, then ar-EG (no
+     *  device ships a Darija voice pack); fusha -> ar-SA, then
+     *  ar-EG. Returns true when a voice was set. */
+    private fun applyTtsLanguage(engine: TextToSpeech, reply: String): Boolean {
+        val locales = when (reply) {
+            AgentMessage.REPLY_EN -> listOf(Locale.ENGLISH)
+            AgentMessage.REPLY_DARIJA -> listOf(
+                Locale("ar", "MA"), Locale("ar", "SA"), Locale("ar", "EG")
+            )
+            else -> listOf(Locale("ar", "SA"), Locale("ar", "EG"))
+        }
+        for (locale in locales) {
+            val result = engine.setLanguage(locale)
+            if (result != TextToSpeech.LANG_MISSING_DATA &&
+                result != TextToSpeech.LANG_NOT_SUPPORTED
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
     private fun initTts() {
         tts = TextToSpeech(requireContext(), TextToSpeech.OnInitListener { status ->
             if (status != TextToSpeech.SUCCESS) {
@@ -2642,19 +2703,11 @@ class AgentFragment : Fragment() {
                 return@OnInitListener
             }
             val engine = tts ?: return@OnInitListener
-            val result = engine.setLanguage(Locale("ar", "SA"))
-            if (result == TextToSpeech.LANG_MISSING_DATA ||
-                result == TextToSpeech.LANG_NOT_SUPPORTED
-            ) {
-                // Fallback: Egyptian Arabic voice data is the most
-                // common Arabic pack on devices without a Saudi pack.
-                val fallback = engine.setLanguage(Locale("ar", "EG"))
-                if (fallback == TextToSpeech.LANG_MISSING_DATA ||
-                    fallback == TextToSpeech.LANG_NOT_SUPPORTED
-                ) {
-                    setTtsAvailable(false)
-                    return@OnInitListener
-                }
+            val reply = context?.let { replyLanguageForTag(AppLanguage.currentTag(it)) }
+                ?: AgentMessage.REPLY_FUSHA
+            if (!applyTtsLanguage(engine, reply)) {
+                setTtsAvailable(false)
+                return@OnInitListener
             }
             ttsReady = true
         })
@@ -2716,6 +2769,9 @@ class AgentFragment : Fragment() {
 
     private fun speakAgent(text: String) {
         if (!voiceOutOn || !ttsReady) return
+        // p57: the voice follows the live reply language, so a
+        // language change speaks the new language at once.
+        tts?.let { applyTtsLanguage(it, liveReplyLanguage()) }
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, UTTERANCE_ID)
     }
 
@@ -2815,30 +2871,29 @@ class AgentFragment : Fragment() {
         private const val PREFS_NAME = "mudif_agent_chat"
         private const val KEY_MESSAGES = "messages"
         private const val KEY_REPLY_LANGUAGE = "reply_language"
-        // Defect 4: set only when the user picks the reply language
-        // by hand in the chat menu. While absent, an app-language
-        // change syncs the reply language to match it.
-        private const val KEY_REPLY_LANGUAGE_EXPLICIT = "reply_language_explicit"
+
+        /** p57: the app-language tag mapped to the reply language
+         *  (ar -> fusha, ar-MA -> darija, en -> en). One mapping,
+         *  used by the live read and by the app-language sync. */
+        fun replyLanguageForTag(tag: String): String = when (tag) {
+            AppLanguage.TAG_DARIJA -> AgentMessage.REPLY_DARIJA
+            AppLanguage.TAG_ENGLISH -> AgentMessage.REPLY_EN
+            else -> AgentMessage.REPLY_FUSHA
+        }
 
         /**
-         * Defect 4: link the reply language to the app language.
+         * p57: link the reply language to the app language.
          * Called from AppLanguage.apply() on every app-language
-         * pick. When the user never picked a reply language by
-         * hand, the reply language follows the app language
-         * (ar -> fusha, ar-MA -> darija, en -> en). A manual
-         * chat-menu pick sets KEY_REPLY_LANGUAGE_EXPLICIT and
-         * stops the sync, so an explicit choice is never
-         * overwritten by a later app-language change.
+         * pick. The sync is unconditional now: the old manual
+         * reply-language menu (and its explicit flag) let the
+         * agent keep a different language from the UI, so both
+         * are gone. The live read in the fragment is the real
+         * guarantee; this write only keeps the stored cache in
+         * sync for any reader of the pref.
          */
         fun applyAppLanguageReply(context: Context, tag: String) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            if (prefs.getBoolean(KEY_REPLY_LANGUAGE_EXPLICIT, false)) return
-            val reply = when (tag) {
-                AppLanguage.TAG_DARIJA -> AgentMessage.REPLY_DARIJA
-                AppLanguage.TAG_ENGLISH -> AgentMessage.REPLY_EN
-                else -> AgentMessage.REPLY_FUSHA
-            }
-            prefs.edit().putString(KEY_REPLY_LANGUAGE, reply).apply()
+            prefs.edit().putString(KEY_REPLY_LANGUAGE, replyLanguageForTag(tag)).apply()
         }
 
         /** Vision increment 2: the picked cloud vision model id

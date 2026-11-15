@@ -22,9 +22,11 @@ import com.google.android.material.button.MaterialButton
  * "<package>_preferences"). Default when absent is Fusha ("ar").
  * AppCompatDelegate stores the locale itself (per-app locales), so
  * no manifest localeConfig is needed; apply() triggers the locale
- * change, links the reply language (unless the user picked it by
- * hand in the chat), and relaunches the whole task on MainActivity,
- * so back-stack screens cannot keep the old language.
+ * change, links the reply language, and relaunches the whole task
+ * on MainActivity, so back-stack screens cannot keep the old
+ * language. p57: the link is unconditional now; the old manual
+ * reply-language menu is gone, so the agent always follows the
+ * app language.
  */
 object AppLanguage {
 
@@ -50,10 +52,12 @@ object AppLanguage {
     }
 
     /** Save [tag], apply it as the app locale, sync the reply
-     *  language (AgentFragment skips the sync when the user picked
-     *  the reply language by hand), then relaunch the whole task
-     *  on MainActivity so every back-stack screen reloads in the
-     *  new language instead of keeping the old one. */
+     *  language to match it, then relaunch the whole task on
+     *  MainActivity so every back-stack screen reloads in the new
+     *  language instead of keeping the old one. p57: the sync is
+     *  unconditional; the agent reads the app language live at
+     *  every turn start, so the new language reaches the next
+     *  reply with no reinstall. */
     fun apply(context: Context, tag: String) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(KEY, tag).apply()
