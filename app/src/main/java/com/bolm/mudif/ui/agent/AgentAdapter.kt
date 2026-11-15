@@ -12,10 +12,11 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * One chat line. `replyLanguage` is the reply-language choice the user
- * picked in the header ("fusha" / "darija" / "en"); it travels with
- * every user message so the brain's system prompt can answer in that
- * language (the prompt itself is a later step).
+ * One chat line. `replyLanguage` is the reply language in force
+ * when the message was written ("fusha" / "darija" / "en"); it
+ * travels with every message and is stored with it. p57: it always
+ * follows the app language now, read live at turn start; the old
+ * header menu that let it differ from the UI is gone.
  */
 data class AgentMessage(
     val role: String,
