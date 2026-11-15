@@ -268,7 +268,7 @@ class SettingsActivity : AppCompatActivity() {
                     // the switch reads on the purple gradient card
                     // (the default purple thumb would vanish on it).
                     thumbTintList = ColorStateList.valueOf(Color.WHITE)
-                    trackTintList = ColorStateList.valueOf(0x80FFFFFF)
+                    trackTintList = ColorStateList.valueOf(0x80FFFFFF.toInt())
                     setOnCheckedChangeListener { _, checked ->
                         prefs.edit().putBoolean(setting.key, checked).apply()
                     }
