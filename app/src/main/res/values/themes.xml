@@ -11,6 +11,5 @@
              style on a view still wins over these defaults. -->
         <item name="materialCardViewStyle">@style/Widget.Mudif.Card</item>
         <item name="buttonStyle">@style/Widget.Mudif.Button.Primary</item>
-        <item name="bottomNavigationStyle">@style/Widget.Mudif.BottomNavigation</item>
     </style>
 </resources>

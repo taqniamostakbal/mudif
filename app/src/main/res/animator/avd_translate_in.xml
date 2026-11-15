@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android"
-    android:duration="@integer/motion_duration_morph"
-    android:propertyName="translateY"
-    android:valueFrom="-4"
-    android:valueTo="0"
-    android:interpolator="@android:anim/decelerate_interpolator" />

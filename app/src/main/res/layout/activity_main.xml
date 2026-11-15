@@ -25,15 +25,19 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <com.google.android.material.bottomnavigation.BottomNavigationView style="@style/Widget.Mudif.BottomNavigation"
+        <!-- p48: custom bottom nav (ui.nav.BottomNavView) with Lottie
+             animated icons. Same id, same margins, same floating
+             pill background and elevation as the old Material
+             BottomNavigationView, so MainActivity wiring stays put. -->
+        <com.bolm.mudif.ui.nav.BottomNavView
             android:id="@+id/bottom_nav"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="12dp"
-            app:menu="@menu/bottom_nav_menu"
-            app:labelVisibilityMode="labeled" />
+            android:background="@drawable/bottom_nav_pill_bg"
+            android:elevation="8dp" />
     </LinearLayout>
 
     <!-- p46: custom sidebar (expanded panel / collapsed rail), same id

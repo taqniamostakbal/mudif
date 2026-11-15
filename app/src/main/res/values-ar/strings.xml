@@ -541,6 +541,7 @@
     <string name="ui_about_version">الإصدار %1$s · صورة %2$s</string>
     <string name="ui_about_version_app">الإصدار %1$s</string>
     <string name="tab_agent">مساعد مضيف</string>
+    <string name="tab_agent_short">مساعد</string>
     <string name="agent_name">مساعد مضيف</string>
     <string name="agent_today">اليوم</string>
     <string name="agent_subtitle">متصل</string>

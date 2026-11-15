@@ -120,36 +120,14 @@
         <item name="android:background">@drawable/search_box_bg</item>
     </style>
 
-    <!-- Bottom navigation: purple when selected, #757575 otherwise.
-         Flat (0dp elevation, surface background). The active
-         indicator is a 64x32dp pill in #E4DEFF; its slide between
-         tabs is the Material 3 NavigationBarView built-in animation
-         (material 1.12.0), no custom ValueAnimator on the internal
-         pill view. Icon morphs are AnimatedVectorDrawables wired in
-         MainActivity, durations from values/motion.xml. -->
-    <style name="Widget.Mudif.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
-        <!-- p45: floating pill (reference image-389). The pill
-             background is a rounded surface drawable, the bar floats
-             on 8dp elevation with margins set in activity_main.xml. -->
-        <item name="android:background">@drawable/bottom_nav_pill_bg</item>
-        <item name="android:elevation">8dp</item>
-        <item name="itemIconTint">@color/bottom_nav_item_tint</item>
-        <item name="itemTextColor">@color/bottom_nav_item_tint</item>
-        <item name="labelVisibilityMode">labeled</item>
-        <item name="itemActiveIndicatorStyle">@style/Widget.Mudif.BottomNavigation.ActiveIndicator</item>
-    </style>
-
-    <style name="Widget.Mudif.BottomNavigation.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
-        <item name="android:width">@dimen/nav_indicator_width</item>
-        <item name="android:height">@dimen/nav_indicator_height</item>
-        <item name="android:color">@color/mudif_pill</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.Mudif.Pill</item>
-    </style>
-
-    <style name="ShapeAppearance.Mudif.Pill" parent="ShapeAppearance.Material3.SmallComponent">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">16dp</item>
-    </style>
+    <!-- p48: the bottom nav is the custom ui.nav.BottomNavView
+         (Lottie icons), not a Material BottomNavigationView. Its bar
+         background is @drawable/bottom_nav_pill_bg, its active pill
+         is @drawable/bottom_nav_active_pill, its pill size is
+         @dimen/nav_indicator_width/height (64x32dp). No style here:
+         the view sets its own colors (mudif_purple selected,
+         mudif_unselected otherwise). The old
+         Widget.Mudif.BottomNavigation styles were deleted with it. -->
 
     <!-- Drawer navigation view: purple icons, on-surface text. -->
     <style name="Widget.Mudif.NavigationView" parent="Widget.Material3.NavigationView">
