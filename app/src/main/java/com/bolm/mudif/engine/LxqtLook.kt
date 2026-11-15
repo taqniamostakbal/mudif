@@ -272,7 +272,10 @@ object LxqtLook {
     // re-apply to pick them up. The image stays p23 (untouched);
     // only the look version moves, and the VNC version toast shows
     // it. This is the same re-apply mechanism as p22/p23.
-    const val MARKER_VERSION = "p24"
+    // P25 (2026-11-15, p44): p43 shipped a new arabic-cli.sh but
+    // kept MARKER_VERSION at p24, so the new CLI never staged on
+    // an existing rootfs. Bump to p25 so the p44 configs re-apply.
+    const val MARKER_VERSION = "p25"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
