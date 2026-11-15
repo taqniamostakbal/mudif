@@ -120,7 +120,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="حفظ"
+            android:text="@string/save"
             android:fontFamily="@font/cairo"
             android:textSize="13sp"
             app:cornerRadius="18dp" />

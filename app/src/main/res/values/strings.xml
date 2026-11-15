@@ -161,11 +161,11 @@
     <string name="tv_title">عرض على التلفاز</string>
     <string name="tv_no_display">ما كاين حتى شاشة خارجية متصلة. وصل التلفاز بالهاتف (Smart View أو DeX أو HDMI) ثم عاود المحاولة.</string>
     <string name="tv_opened">تم فتح سطح المكتب على التلفاز ✓</string>
-    <string name="tv_miracast_open">جار فتح إعدادات العرض اللاسلكي في النظام…</string>
+    <string name="tv_miracast_open">جار فتح صفحة العرض اللاسلكي في النظام…</string>
     <string name="tv_miracast_unavailable">تعذر فتح إعدادات العرض اللاسلكي في النظام</string>
-    <string name="tv_miracast_body">هذا عرض النظام (Miracast): التطبيق ما يقدرش يتصل بالتلفاز بنفسو، غادي تختار التلفاز من إعدادات النظام. يخدم غير مع تلفاز يدعم Miracast.</string>
+    <string name="tv_miracast_body">هذا عرض النظام (Miracast): التطبيق لا يستطيع الاتصال بالتلفاز بنفسه، ستختار التلفاز من صفحة العرض اللاسلكي في إعدادات النظام. يعمل فقط مع تلفاز يدعم Miracast.</string>
     <string name="tv_miracast_open_button">فتح إعدادات النظام</string>
-    <string name="tv_choose_body">اختار طريقة العرض على التلفاز:\n\n• بث لاسلكي: يعرض سطح المكتب على تلفاز فيه Chromecast أو جهاز Chromecast، بلا سلك. فيه تأخير ثواني، للعرض ماشي للتحكم السريع.\n\n• شاشة النظام: يعرض على شاشة متصلة بالنظام (Smart View أو DeX أو HDMI) إن وجدت، وإلا يفتح إعدادات العرض اللاسلكي في النظام.</string>
+    <string name="tv_choose_body">اختار طريقة العرض على التلفاز:\n\n• بث لاسلكي: يعرض سطح المكتب على تلفاز فيه Chromecast أو جهاز Chromecast، بلا سلك. فيه تأخير ثواني، للعرض ماشي للتحكم السريع.\n\n• شاشة النظام: يعرض على شاشة متصلة بالنظام (Smart View أو DeX أو HDMI) إن وجدت، وإلا يعرض الخيارات المتاحة على هذا الهاتف.</string>
     <string name="tv_choose_cast">بث لاسلكي</string>
     <string name="tv_choose_system">شاشة النظام</string>
     <string name="tv_cast_starting">جار بدء البث اللاسلكي…</string>
@@ -183,10 +183,9 @@
     <string name="ui_cat_games">الألعاب</string>
     <string name="language_title">اللغة</string>
     <string name="language_fusha">العربية الفصحى</string>
-    <string name="language_darija">الدارجة</string>
+    <string name="language_darija">الدارجة المغربية</string>
     <string name="language_english">English</string>
     <string name="language_desc">لغة واجهة التطبيق</string>
-    <string name="language_restart_note">يُطبَّق التغيير بعد إعادة تشغيل التطبيق</string>
     <string name="language_first_run_title">اختار لغة التطبيق</string>
     <string name="language_first_run_body">تقدر تبدل اللغة في أي وقت من حسابي ← اللغة.</string>
     <string name="drawer_language">اللغة</string>
@@ -659,4 +658,11 @@
     <!-- p32: short label for the Clear button in the chat header. -->
     <string name="agent_clear_history_short">مسح</string>
     <string name="agent_history_cleared">تم مسح المحادثة</string>
+    <string name="save">حفظ</string>
+    <string name="change">تغيير</string>
+    <string name="store_stage_update">جاري تحديث قوائم الحزم…</string>
+    <string name="store_stage_install">جار التثبيت…</string>
+    <string name="store_stage_download">جاري التحميل…</string>
+    <string name="store_download_failed">فشل تحميل الحزمة</string>
+    <string name="tv_no_wireless_settings_body">هذا الهاتف لا يحتوي على صفحة العرض اللاسلكي في إعداداته، لذلك لا توجد قائمة تلفاز يفتحها التطبيق. للعرض على التلفاز: على هواتف هواوي: الإعدادات، المزيد من الاتصالات، العرض اللاسلكي. على هواتف سامسونغ: بلاطة Smart View في الإعدادات السريعة، أو DeX. أو استعمل البث اللاسلكي إن كان متاحا على هذا الهاتف.</string>
 </resources>

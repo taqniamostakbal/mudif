@@ -2,6 +2,7 @@ package com.bolm.mudif.ui.store
 
 import android.content.Context
 import com.bolm.mudif.R
+import com.bolm.mudif.ui.settings.AppLanguage
 import org.json.JSONObject
 
 /**
@@ -13,7 +14,16 @@ data class StoreProgram(
     val id: String,
     val name: String,
     val nameEn: String,
+    /**
+     * Defect 4: Darija name/description and English description,
+     * from the catalog JSON (nameDarija / descDarija / descEn).
+     * Null when the catalog has no value for the program; the
+     * display helpers below fall back to the Fusha name/desc.
+     */
+    val nameDarija: String? = null,
     val desc: String,
+    val descDarija: String? = null,
+    val descEn: String? = null,
     val category: String,
     val method: String,
     val apt: String?,
@@ -59,7 +69,29 @@ data class StoreProgram(
      * paints (P19v2), so a "tested" badge on it would be a lie.
      */
     val tested: String?
-)
+) {
+    /** Name in the current app language. English uses the Latin
+     *  nameEn; Darija uses nameDarija; both fall back to the
+     *  Fusha name when the localized value is absent. */
+    fun displayName(context: Context): String = when (AppLanguage.currentTag(context)) {
+        AppLanguage.TAG_DARIJA -> nameDarija?.takeIf { it.isNotBlank() } ?: name
+        AppLanguage.TAG_ENGLISH -> nameEn
+        else -> name
+    }
+
+    /** Description in the current app language, falling back to
+     *  the Fusha desc when the Darija value is absent. English
+     *  stays on the Fusha desc for now: the descEn values in the
+     *  catalog are a rule-based draft (930 of 1226 still carry
+     *  Arabic tokens), so showing them would put word salad in
+     *  the English store. They stay in the JSON for the human
+     *  review pass, which is still owed. */
+    fun displayDesc(context: Context): String = when (AppLanguage.currentTag(context)) {
+        AppLanguage.TAG_DARIJA -> descDarija?.takeIf { it.isNotBlank() } ?: desc
+        AppLanguage.TAG_ENGLISH -> desc
+        else -> desc
+    }
+}
 
 /** The 7 catalog categories plus the "all" filter, with Fusha labels.
  *  P19 Phase 1: each category also carries its gradient card background
@@ -104,7 +136,10 @@ object StoreCatalog {
                     id = o.getString("id"),
                     name = o.getString("name"),
                     nameEn = o.getString("nameEn"),
+                    nameDarija = o.optString("nameDarija", null)?.takeIf { it != "null" },
                     desc = o.getString("desc"),
+                    descDarija = o.optString("descDarija", null)?.takeIf { it != "null" },
+                    descEn = o.optString("descEn", null)?.takeIf { it != "null" },
                     category = o.getString("category"),
                     method = o.getString("method"),
                     apt = o.optString("apt", null)?.takeIf { it != "null" },

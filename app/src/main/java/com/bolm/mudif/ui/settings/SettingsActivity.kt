@@ -186,13 +186,6 @@ class SettingsActivity : AppCompatActivity() {
         ).apply { topMargin = dp(8) }
         button.setOnClickListener { AppLanguage.showPicker(this) }
         cardBody.addView(button)
-        val note = TextView(this).apply {
-            text = getString(R.string.language_restart_note)
-            textSize = 13f
-            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-            setPadding(0, dp(8), 0, 0)
-        }
-        cardBody.addView(note)
         card.addView(cardBody)
         container.addView(card)
     }

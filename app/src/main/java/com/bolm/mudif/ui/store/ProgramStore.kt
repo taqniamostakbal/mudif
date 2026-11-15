@@ -188,8 +188,8 @@ object ProgramStore {
                 // if update succeeded".
                 val cmd = """
                     dpkg --configure -a
-                    echo "MUDIF_STAGE:جاري تحديث قوائم الحزم…"
-                    DEBIAN_FRONTEND=noninteractive apt-get update && echo "MUDIF_STAGE:جار التثبيت…" && DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}
+                    echo "MUDIF_STAGE:${context.getString(R.string.store_stage_update)}"
+                    DEBIAN_FRONTEND=noninteractive apt-get update && echo "MUDIF_STAGE:${context.getString(R.string.store_stage_install)}" && DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}
                 """.trimIndent()
                 runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress)
             }
@@ -215,7 +215,7 @@ object ProgramStore {
                     url=$urlQ
                     file=$fileQ
                     mkdir -p ${'$'}STORE_TMP
-                    echo "MUDIF_STAGE:جاري التحميل…"
+                    echo "MUDIF_STAGE:${context.getString(R.string.store_stage_download)}"
                     total=${'$'}(curl -fsSLI "${'$'}url" | grep -i '^content-length:' | tail -1 | awk '{print ${'$'}2}' | tr -d '\r')
                     curl -fsSL -o ${'$'}STORE_TMP/${'$'}file "${'$'}url" &
                     dl_pid=${'$'}!
@@ -224,12 +224,12 @@ object ProgramStore {
                         got=${'$'}(stat -c%s ${'$'}STORE_TMP/${'$'}file 2>/dev/null || echo 0)
                         echo "MUDIF_PROGRESS:${'$'}((got*100/total))"
                       else
-                        echo "جار التحميل..."
+                        echo "${context.getString(R.string.store_stage_download)}"
                       fi
                       sleep 2
                     done
-                    wait "${'$'}dl_pid" || { echo "فشل تحميل الحزمة"; exit 1; }
-                    echo "MUDIF_STAGE:جار التثبيت…"
+                    wait "${'$'}dl_pid" || { echo "${context.getString(R.string.store_download_failed)}"; exit 1; }
+                    echo "MUDIF_STAGE:${context.getString(R.string.store_stage_install)}"
                     dpkg -i ${'$'}STORE_TMP/${'$'}file || { dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -f -y; }
                     dpkg-query -W -f='${'$'}{Status}' ${program.debPackage} 2>/dev/null | grep -q "install ok installed"
                 """.trimIndent()
@@ -241,7 +241,7 @@ object ProgramStore {
                 }
                 runWithProgress(
                     context,
-                    "(echo \"MUDIF_STAGE:جار التثبيت…\"; sh $STORE_TMP/${program.script}) 2>&1",
+                    "(echo \"MUDIF_STAGE:${context.getString(R.string.store_stage_install)}\"; sh $STORE_TMP/${program.script}) 2>&1",
                     180, 1800, onProgress
                 )
             }
@@ -252,7 +252,7 @@ object ProgramStore {
                     }
                     runWithProgress(
                         context,
-                        "(echo \"MUDIF_STAGE:جار التثبيت…\"; mkdir -p /usr/share/fonts/truetype/lifta && " +
+                        "(echo \"MUDIF_STAGE:${context.getString(R.string.store_stage_install)}\"; mkdir -p /usr/share/fonts/truetype/lifta && " +
                             "cp $STORE_TMP/${program.font} /usr/share/fonts/truetype/lifta/ && " +
                             "fc-cache -f >/dev/null 2>&1; fc-list | grep -i lifta) 2>&1",
                         60, 300, onProgress
@@ -260,8 +260,8 @@ object ProgramStore {
                 } else {
                     val cmd = """
                         dpkg --configure -a
-                        echo "MUDIF_STAGE:جاري تحديث قوائم الحزم…"
-                        DEBIAN_FRONTEND=noninteractive apt-get update && echo "MUDIF_STAGE:جار التثبيت…" && DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}
+                        echo "MUDIF_STAGE:${context.getString(R.string.store_stage_update)}"
+                        DEBIAN_FRONTEND=noninteractive apt-get update && echo "MUDIF_STAGE:${context.getString(R.string.store_stage_install)}" && DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}
                     """.trimIndent()
                     runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress)
                 }

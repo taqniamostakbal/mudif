@@ -1,6 +1,7 @@
 package com.bolm.mudif.ui.settings
 
 import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
@@ -9,7 +10,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
+import com.bolm.mudif.MainActivity
 import com.bolm.mudif.R
+import com.bolm.mudif.ui.agent.AgentFragment
 import com.google.android.material.button.MaterialButton
 
 /**
@@ -19,7 +22,9 @@ import com.google.android.material.button.MaterialButton
  * "<package>_preferences"). Default when absent is Fusha ("ar").
  * AppCompatDelegate stores the locale itself (per-app locales), so
  * no manifest localeConfig is needed; apply() triggers the locale
- * change and the caller recreates the activity.
+ * change, links the reply language (unless the user picked it by
+ * hand in the chat), and relaunches the whole task on MainActivity,
+ * so back-stack screens cannot keep the old language.
  */
 object AppLanguage {
 
@@ -44,18 +49,27 @@ object AppLanguage {
         return prefs.contains(KEY)
     }
 
-    /** Save [tag] and apply it as the app locale. Caller recreates the activity. */
+    /** Save [tag], apply it as the app locale, sync the reply
+     *  language (AgentFragment skips the sync when the user picked
+     *  the reply language by hand), then relaunch the whole task
+     *  on MainActivity so every back-stack screen reloads in the
+     *  new language instead of keeping the old one. */
     fun apply(context: Context, tag: String) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(KEY, tag).apply()
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+        AgentFragment.applyAppLanguageReply(context, tag)
+        val intent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
+        context.startActivity(intent)
     }
 
     /** Language picker dialog (drawer item, first-run dialog, Profile
      *  language row). Branded Mudif dialog (dialog_language_picker):
      *  the 3 languages are real buttons, each in its own name, so they
      *  read correctly before any locale is applied. Choosing applies
-     *  the locale and recreates the activity. The old
+     *  the locale and relaunches the whole task (see apply()). The old
      *  AlertDialog.Builder + setItems() version is gone: it used the
      *  system list style (not the app's look) and its item list never
      *  appeared when setMessage was also set (rig: title + message
@@ -99,7 +113,6 @@ object AppLanguage {
             button.setOnClickListener {
                 dialog.dismiss()
                 apply(activity, tag)
-                activity.recreate()
             }
         }
         dialog.show()

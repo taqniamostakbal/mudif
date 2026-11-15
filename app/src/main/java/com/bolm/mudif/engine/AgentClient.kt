@@ -176,15 +176,21 @@ object AgentClient {
      *
      * [screenContext]: vision increment 1. When non-null, the turn
      * carries a SECOND text part with what the agent saw on the
-     * screen ("ما أراه على الشاشة الآن: ..."), as observed context,
-     * never as an instruction and never as a system-prompt edit.
-     * Null (the default) sends exactly the one text part as before.
+     * screen, worded in the turn's reply language (see
+     * [visionPrefix]), as observed context, never as an instruction
+     * and never as a system-prompt edit. Null (the default) sends
+     * exactly the one text part as before.
      *
      * [testSilentTurn]: test-only hook (item 4). When true, the
      * turn parks after the watchdog is armed and performs zero
      * network I/O, so the watchdog is the only thing that can
      * end it (or a user Stop). Default false; no UI or string
      * reaches it.
+     *
+     * [replyLanguage]: "fusha", "darija" or "en" (same values as
+     * [systemPrompt]). Used only to word the vision context part
+     * in the turn's language; the system prompts themselves are
+     * untouched. Default "fusha", so older call sites are unchanged.
      */
     fun sendPrompt(
         sessionId: String,
@@ -198,7 +204,8 @@ object AgentClient {
         localStop: (() -> String)? = null,
         // Consolidated fix, item 4: test-only silent-turn hook.
         // Default false, so the single call site is unchanged.
-        testSilentTurn: Boolean = false
+        testSilentTurn: Boolean = false,
+        replyLanguage: String = "fusha"
     ): TurnHandle {
         val handle = TurnHandle(sessionId, localStop)
         val finished = AtomicBoolean(false)
@@ -434,7 +441,7 @@ object AgentClient {
                 if (screenContext != null) {
                     parts.put(
                         JSONObject().put("type", "text")
-                            .put("text", "مصدر هذا الوصف: لقطة سطح مكتب الضيف (ffmpeg x11grab، العرض :6). ما أراه على الشاشة الآن: $screenContext. لا تستدعِ mudif_android_screenshot: تلك الأداة ترى شاشة هاتف أندرويد فقط، وليست سطح المكتب. أجب من هذا الوصف فقط، ولا تنفه.")
+                            .put("text", visionPrefix(replyLanguage, screenContext))
                     )
                 }
                 val body = JSONObject().apply {
@@ -757,6 +764,21 @@ object AgentClient {
      *  Short on purpose: the small local brain fails in long
      *  contexts (rig rounds 1-2). `replyLanguage` is "fusha" /
      *  "darija" / "en". */
+    /**
+     * Defect 4: the vision context part, worded in the turn's reply
+     * language instead of hardcoded Fusha. The content is identical
+     * in all three branches (source = guest desktop capture, never
+     * the Android screenshot tool, answer from the description
+     * only); only the wording follows [replyLanguage]. The system
+     * prompts in [systemPrompt] stay exactly as designed.
+     */
+    private fun visionPrefix(replyLanguage: String, screenContext: String): String =
+        when (replyLanguage) {
+            "darija" -> "مصدر هاد الوصف: لقطة سطح مكتب الضيف (ffmpeg x11grab، العرض :6). شنو كنشوف فالشاشة دابا: $screenContext. ما تعيطش لـ mudif_android_screenshot: هاد الأداة كتشوف غير شاشة التيليفون، ماشي سطح المكتب. جاوب من هاد الوصف بوحدو، وما تنفيهش."
+            "en" -> "Source of this description: a guest desktop capture (ffmpeg x11grab, display :6). What I see on the screen now: $screenContext. Never call mudif_android_screenshot: that tool sees only the phone display, never the desktop. Answer from this description only, and do not deny it."
+            else -> "مصدر هذا الوصف: لقطة سطح مكتب الضيف (ffmpeg x11grab، العرض :6). ما أراه على الشاشة الآن: $screenContext. لا تستدعِ mudif_android_screenshot: تلك الأداة ترى شاشة هاتف أندرويد فقط، وليست سطح المكتب. أجب من هذا الوصف فقط، ولا تنفه."
+        }
+
     fun systemPrompt(replyLanguage: String): String {
         val safetyFusha =
             "لا تحذف أي شيء، ولا ترسل أي رسالة، ولا تدفع أي مبلغ، ولا تؤكد أي هوية نيابة عن المستخدم إلا بعد موافقته الصريحة."

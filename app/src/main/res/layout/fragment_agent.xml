@@ -378,7 +378,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="تغيير"
+            android:text="@string/change"
             android:textSize="13sp"
             android:textColor="@color/mudif_purple"
             android:fontFamily="@font/cairo" />

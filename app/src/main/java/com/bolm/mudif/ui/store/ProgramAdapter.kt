@@ -2,8 +2,6 @@ package com.bolm.mudif.ui.store
 
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -36,14 +34,42 @@ class ProgramAdapter(
 
     private var states: Map<String, ProgramState> = emptyMap()
     private var evidence: Map<String, String> = emptyMap()
-    private val iconCache = HashMap<String, Bitmap?>()
     private val animatedIds = HashSet<String>()
 
-    /** New states from the fragment: rebind visible cards, no relist. */
+    /**
+     * New states from the fragment: rebind only the cards whose
+     * state or evidence actually changed. The fragment mutates and
+     * re-passes the same map instance, so snapshot both maps first;
+     * without the copy the diff would compare the map to itself and
+     * see nothing. A full notifyDataSetChanged here rebound every
+     * visible row on every status refresh, which amplified the
+     * scroll ANR (defect 2).
+     */
     fun refreshStates(states: Map<String, ProgramState>, evidence: Map<String, String>) {
-        this.states = states
-        this.evidence = evidence
-        notifyDataSetChanged()
+        val oldStates = this.states
+        val oldEvidence = this.evidence
+        this.states = states.toMap()
+        this.evidence = evidence.toMap()
+        val changed = HashSet<String>()
+        for ((id, state) in states) {
+            if (oldStates[id] != state) changed.add(id)
+        }
+        for (id in oldStates.keys) {
+            if (!states.containsKey(id)) changed.add(id)
+        }
+        for ((id, ev) in evidence) {
+            if (oldEvidence[id] != ev) changed.add(id)
+        }
+        for (id in oldEvidence.keys) {
+            if (!evidence.containsKey(id)) changed.add(id)
+        }
+        if (changed.isEmpty()) return
+        for (position in currentList.indices) {
+            val item = currentList[position]
+            if (item is StoreListItem.Program && changed.contains(item.program.id)) {
+                notifyItemChanged(position)
+            }
+        }
     }
 
     /** Submit a filtered list and replay the entrance animation once. */
@@ -89,33 +115,32 @@ class ProgramAdapter(
 
         fun bind(program: StoreProgram, position: Int) {
             val ctx = binding.root.context
-            binding.programName.text = program.name
+            binding.programName.text = program.displayName(ctx)
             binding.programNameEn.text = program.nameEn
-            binding.programDesc.text = program.desc
+            binding.programNameEn.visibility =
+                if (program.nameEn == binding.programName.text.toString()) View.GONE else View.VISIBLE
+            binding.programDesc.text = program.displayDesc(ctx)
 
-            val icon = iconCache.getOrPut(program.icon) {
-                try {
-                    ctx.assets.open("store-icons/${program.icon}").use { stream ->
-                        BitmapFactory.decodeStream(stream)
-                    }
-                } catch (e: Exception) {
-                    null
+            // Letter tile first (P19 Phase 1: the letter sits on the
+            // program's category gradient, not a plain purple circle).
+            // It stays until the real icon arrives, and it is the final
+            // rendering when the icon file is missing. The icon loads
+            // off the main thread; decoding in bind froze scrolling
+            // (defect 2). The loader only applies the bitmap while
+            // this holder is still bound to this program.
+            binding.programLetter.text = program.name.firstOrNull()?.toString() ?: "؟"
+            val cat = StoreCategory.forKey(program.category)
+            binding.programLetter.background = ContextCompat.getDrawable(
+                ctx, cat?.gradientRes ?: R.drawable.cat_all
+            )
+            binding.programLetter.visibility = View.VISIBLE
+            binding.programIcon.visibility = View.GONE
+            StoreIconLoader.load(ctx, program.icon, ICON_TILE_DP, binding.programIcon) { bitmap ->
+                if (bitmap != null) {
+                    binding.programIcon.setImageBitmap(bitmap)
+                    binding.programIcon.visibility = View.VISIBLE
+                    binding.programLetter.visibility = View.GONE
                 }
-            }
-            if (icon != null) {
-                binding.programIcon.setImageBitmap(icon)
-                binding.programIcon.visibility = View.VISIBLE
-                binding.programLetter.visibility = View.GONE
-            } else {
-                // P19 Phase 1: no icon, the letter sits on the program's
-                // category gradient (squircle), not a plain purple circle.
-                binding.programLetter.text = program.name.firstOrNull()?.toString() ?: "؟"
-                val cat = StoreCategory.forKey(program.category)
-                binding.programLetter.background = ContextCompat.getDrawable(
-                    ctx, cat?.gradientRes ?: R.drawable.cat_all
-                )
-                binding.programLetter.visibility = View.VISIBLE
-                binding.programIcon.visibility = View.GONE
             }
 
             val state = states[program.id] ?: ProgramState.UNKNOWN
@@ -176,6 +201,7 @@ class ProgramAdapter(
     companion object {
         private const val TYPE_HEADER = 0
         private const val TYPE_PROGRAM = 1
+        private const val ICON_TILE_DP = 56
 
         private val DIFF = object : DiffUtil.ItemCallback<StoreListItem>() {
             override fun areItemsTheSame(old: StoreListItem, new: StoreListItem): Boolean {

@@ -1,13 +1,12 @@
 package com.bolm.mudif.ui.games
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemGameBinding
 import com.bolm.mudif.ui.store.ProgramState
+import com.bolm.mudif.ui.store.StoreIconLoader
 import com.bolm.mudif.ui.store.StoreProgram
 
 /**
@@ -30,7 +29,6 @@ class ArcadeAdapter(
     private var items: List<StoreProgram> = emptyList()
     private var states: Map<String, ProgramState> = emptyMap()
     private var busyIds: Set<String> = emptySet()
-    private val iconCache = HashMap<String, Bitmap?>()
 
     inner class Holder(val binding: ItemGameBinding) :
         RecyclerView.ViewHolder(binding.root)
@@ -40,15 +38,31 @@ class ArcadeAdapter(
         notifyDataSetChanged()
     }
 
-    /** New states from the fragment: rebind visible cards, no relist. */
+    /**
+     * New states from the fragment: rebind only the cards whose
+     * state actually changed. The fragment mutates and re-passes the
+     * same map instance, so snapshot it first; without the copy the
+     * diff would compare the map to itself and see nothing. A full
+     * notifyDataSetChanged here rebound every visible row on every
+     * status refresh, which amplified the scroll ANR (defect 2).
+     */
     fun refreshStates(states: Map<String, ProgramState>) {
-        this.states = states
-        notifyDataSetChanged()
+        val oldStates = this.states
+        this.states = states.toMap()
+        for (index in items.indices) {
+            val id = items[index].id
+            if (oldStates[id] != states[id]) notifyItemChanged(index)
+        }
     }
 
+    /** New busy set: rebind only the rows whose busy flag flipped. */
     fun setBusy(busy: Set<String>) {
-        busyIds = busy
-        notifyDataSetChanged()
+        val oldBusy = busyIds
+        busyIds = busy.toSet()
+        for (index in items.indices) {
+            val id = items[index].id
+            if (oldBusy.contains(id) != busyIds.contains(id)) notifyItemChanged(index)
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
@@ -69,25 +83,18 @@ class ArcadeAdapter(
         with(holder.binding) {
             cardBg.setBackgroundResource(R.drawable.cat_games)
 
-            // Real store icon; the gamepad glyph stays only as the
-            // fallback when the catalog PNG is missing.
-            val icon = iconCache.getOrPut(program.icon) {
-                try {
-                    ctx.assets.open("store-icons/${program.icon}").use { stream ->
-                        BitmapFactory.decodeStream(stream)
-                    }
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            if (icon != null) {
-                gameIcon.setImageBitmap(icon)
-            } else {
-                gameIcon.setImageResource(R.drawable.ic_gamepad)
+            // Gamepad glyph first; it stays when the catalog PNG is
+            // missing. The real icon loads off the main thread;
+            // decoding in bind froze scrolling (defect 2). The loader
+            // only applies the bitmap while this holder is still
+            // bound to this program.
+            gameIcon.setImageResource(R.drawable.ic_gamepad)
+            StoreIconLoader.load(ctx, program.icon, ICON_TILE_DP, gameIcon) { bitmap ->
+                if (bitmap != null) gameIcon.setImageBitmap(bitmap)
             }
 
-            gameName.text = program.name
-            gameDesc.text = program.desc
+            gameName.text = program.displayName(ctx)
+            gameDesc.text = program.displayDesc(ctx)
             gameBadge.text = when (state) {
                 ProgramState.INSTALLED -> ctx.getString(R.string.store_status_installed)
                 ProgramState.NOT_INSTALLED -> ctx.getString(R.string.store_status_not_installed)
@@ -112,4 +119,8 @@ class ArcadeAdapter(
     }
 
     override fun getItemCount() = items.size
+
+    companion object {
+        private const val ICON_TILE_DP = 32
+    }
 }

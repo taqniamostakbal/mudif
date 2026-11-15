@@ -45,6 +45,7 @@ import com.bolm.mudif.engine.VisionCapture
 import com.bolm.mudif.engine.VisionClient
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
+import com.bolm.mudif.ui.settings.AppLanguage
 import com.bolm.mudif.ui.settings.SettingsActivity
 import com.bolm.mudif.ui.vnc.VncActivity
 import java.util.Locale
@@ -1302,7 +1303,8 @@ class AgentFragment : Fragment() {
             }
             val handle = AgentClient.sendPrompt(
                 useSid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
-                screenContext, localStop, testSilentTurn = silentHook
+                screenContext, localStop, testSilentTurn = silentHook,
+                replyLanguage = replyLanguage
             )
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
@@ -1966,7 +1968,8 @@ class AgentFragment : Fragment() {
                 2 -> AgentMessage.REPLY_EN
                 else -> AgentMessage.REPLY_FUSHA
             }
-            prefs().edit().putString(KEY_REPLY_LANGUAGE, replyLanguage).apply()
+            prefs().edit().putString(KEY_REPLY_LANGUAGE, replyLanguage)
+                .putBoolean(KEY_REPLY_LANGUAGE_EXPLICIT, true).apply()
             updateLanguageButton()
         }
     }
@@ -2519,6 +2522,31 @@ class AgentFragment : Fragment() {
         private const val PREFS_NAME = "mudif_agent_chat"
         private const val KEY_MESSAGES = "messages"
         private const val KEY_REPLY_LANGUAGE = "reply_language"
+        // Defect 4: set only when the user picks the reply language
+        // by hand in the chat menu. While absent, an app-language
+        // change syncs the reply language to match it.
+        private const val KEY_REPLY_LANGUAGE_EXPLICIT = "reply_language_explicit"
+
+        /**
+         * Defect 4: link the reply language to the app language.
+         * Called from AppLanguage.apply() on every app-language
+         * pick. When the user never picked a reply language by
+         * hand, the reply language follows the app language
+         * (ar -> fusha, ar-MA -> darija, en -> en). A manual
+         * chat-menu pick sets KEY_REPLY_LANGUAGE_EXPLICIT and
+         * stops the sync, so an explicit choice is never
+         * overwritten by a later app-language change.
+         */
+        fun applyAppLanguageReply(context: Context, tag: String) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            if (prefs.getBoolean(KEY_REPLY_LANGUAGE_EXPLICIT, false)) return
+            val reply = when (tag) {
+                AppLanguage.TAG_DARIJA -> AgentMessage.REPLY_DARIJA
+                AppLanguage.TAG_ENGLISH -> AgentMessage.REPLY_EN
+                else -> AgentMessage.REPLY_FUSHA
+            }
+            prefs.edit().putString(KEY_REPLY_LANGUAGE, reply).apply()
+        }
         private const val KEY_VOICE_OUT = "voice_out"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_BRAIN_MODEL = "brain_model"

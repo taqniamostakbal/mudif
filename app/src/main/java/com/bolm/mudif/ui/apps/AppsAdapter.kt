@@ -1,7 +1,5 @@
 package com.bolm.mudif.ui.apps
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemAppBinding
 import com.bolm.mudif.ui.store.StoreCategory
+import com.bolm.mudif.ui.store.StoreIconLoader
 import com.bolm.mudif.ui.store.StoreProgram
 
 /**
@@ -28,7 +27,6 @@ class AppsAdapter(
 
     private var items: List<StoreProgram> = emptyList()
     private var busyIds: Set<String> = emptySet()
-    private val iconCache = HashMap<String, Bitmap?>()
 
     inner class Holder(val binding: ItemAppBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -37,9 +35,14 @@ class AppsAdapter(
         notifyDataSetChanged()
     }
 
+    /** New busy set: rebind only the rows whose busy flag flipped. */
     fun setBusy(busy: Set<String>) {
-        busyIds = busy
-        notifyDataSetChanged()
+        val oldBusy = busyIds
+        busyIds = busy.toSet()
+        for (index in items.indices) {
+            val id = items[index].id
+            if (oldBusy.contains(id) != busyIds.contains(id)) notifyItemChanged(index)
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
@@ -56,29 +59,26 @@ class AppsAdapter(
             appDesc.text = p.desc
             appCategory.text = StoreCategory.labelFor(ctx, p.category)
 
-            val icon = iconCache.getOrPut(p.icon) {
-                try {
-                    ctx.assets.open("store-icons/${p.icon}").use { stream ->
-                        BitmapFactory.decodeStream(stream)
-                    }
-                } catch (e: Exception) {
-                    null
+            // Letter tile first (same P19 fallback as the store:
+            // first letter on the program's category gradient). It
+            // stays until the real icon arrives, and it is the final
+            // rendering when the icon file is missing. The icon loads
+            // off the main thread; decoding in bind froze scrolling
+            // (defect 2). The loader only applies the bitmap while
+            // this holder is still bound to this program.
+            appLetter.text = p.name.firstOrNull()?.toString() ?: "؟"
+            val cat = StoreCategory.forKey(p.category)
+            appLetter.background = ContextCompat.getDrawable(
+                ctx, cat?.gradientRes ?: R.drawable.cat_all
+            )
+            appLetter.visibility = View.VISIBLE
+            appIcon.visibility = View.GONE
+            StoreIconLoader.load(ctx, p.icon, ICON_TILE_DP, appIcon) { bitmap ->
+                if (bitmap != null) {
+                    appIcon.setImageBitmap(bitmap)
+                    appIcon.visibility = View.VISIBLE
+                    appLetter.visibility = View.GONE
                 }
-            }
-            if (icon != null) {
-                appIcon.setImageBitmap(icon)
-                appIcon.visibility = View.VISIBLE
-                appLetter.visibility = View.GONE
-            } else {
-                // Same P19 fallback as the store: first letter on the
-                // program's category gradient (squircle).
-                appLetter.text = p.name.firstOrNull()?.toString() ?: "؟"
-                val cat = StoreCategory.forKey(p.category)
-                appLetter.background = ContextCompat.getDrawable(
-                    ctx, cat?.gradientRes ?: R.drawable.cat_all
-                )
-                appLetter.visibility = View.VISIBLE
-                appIcon.visibility = View.GONE
             }
 
             btnLaunch.isEnabled = !busy
@@ -89,4 +89,8 @@ class AppsAdapter(
     }
 
     override fun getItemCount() = items.size
+
+    companion object {
+        private const val ICON_TILE_DP = 56
+    }
 }

@@ -19,7 +19,6 @@ import com.bolm.mudif.R
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.ScreenRecorder
-import com.bolm.mudif.engine.SystemDisplay
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.settings.ViewerPrefs
 
@@ -299,26 +298,33 @@ class ViewerOverlay(private val context: Context) {
     /**
      * Phase 2, TV: a system-connected display (Smart View / DeX /
      * HDMI) opens the viewer on it (unchanged). With no such display,
-     * the button opens the SYSTEM wireless-display settings
-     * (Miracast fallback): the app cannot connect to a Miracast TV
-     * itself. The viewer is on top, so a dialog would not be seen ,
-     * the fallback is a direct settings open, plus a Toast.
-     * Cast lives on the VncActivity status screen (btnTv dialog).
+     * p36 defect 3 routes through the SAME chooser as the status
+     * screen (VncActivity.showTvChooser, Cast first): this activity
+     * is brought forward with EXTRA_SHOW_TV_CHOOSER and the chooser
+     * opens from its onNewIntent. Never a direct settings open from
+     * here anymore: on this phone that landed on "Display and
+     * brightness", which has no TV picker at all.
      */
     private fun onTv() {
         Thread {
             val dm = context.getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
             val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
             if (displays.isEmpty()) {
-                val opened = SystemDisplay.openWirelessDisplaySettings(context)
-                // The viewer is on top, so a dialog would not be seen.
-                (context as? android.app.Activity)?.runOnUiThread {
-                    Toast.makeText(
-                        context,
-                        if (opened) context.getString(R.string.tv_miracast_open)
-                        else context.getString(R.string.tv_miracast_unavailable),
-                        Toast.LENGTH_LONG
-                    ).show()
+                // No system display: hand the TV choice to
+                // VncActivity, same dialog as its btnTv, so the user
+                // can choose Cast first. The viewer is on top, so
+                // the activity is brought forward first (singleTop:
+                // onNewIntent opens the chooser, no desktop restart).
+                try {
+                    val intent = Intent(context, VncActivity::class.java).apply {
+                        putExtra(VncActivity.EXTRA_SHOW_TV_CHOOSER, true)
+                        addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {
+                    // Explicit in-app intent: unreachable in practice.
+                    // Stay silent rather than promise a settings page
+                    // that does not exist on this phone.
                 }
                 return@Thread
             }

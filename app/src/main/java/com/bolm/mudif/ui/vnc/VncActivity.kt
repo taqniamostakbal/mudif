@@ -234,6 +234,9 @@ class VncActivity : AppCompatActivity() {
         // settings (Miracast fallback). The TV shows the live
         // desktop; it does not boot one, so Cast refuses until the
         // desktop is up. When streaming, the button stops it.
+        // p36 defect 3: the chooser lives in showTvChooser(), so the
+        // viewer overlay routes its TV button through the same
+        // dialog (Cast first) instead of opening settings directly.
         binding.btnTv.setOnClickListener {
             if (TvStreamer.state == TvStreamer.TvState.STREAMING) {
                 MudifDialog.info(
@@ -250,93 +253,9 @@ class VncActivity : AppCompatActivity() {
                 )
                 return@setOnClickListener
             }
-            MudifDialog.info(
-                this, getString(R.string.tv_title),
-                getString(R.string.tv_choose_body),
-                getString(R.string.tv_choose_cast),
-                onPositive = {
-                    if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
-                        Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
-                        return@info
-                    }
-                    if (!CastManager.available) {
-                        MudifDialog.info(this, getString(R.string.tv_title), getString(R.string.tv_cast_no_play_services), getString(R.string.ok))
-                        return@info
-                    }
-                    Toast.makeText(this, getString(R.string.tv_cast_starting), Toast.LENGTH_SHORT).show()
-                    Thread {
-                        val started = TvStreamer.start(this)
-                        runOnUiThread {
-                            if (!started) {
-                                MudifDialog.info(
-                                    this, getString(R.string.tv_title),
-                                    getString(R.string.tv_cast_failed) + "\n\n" + (TvStreamer.lastError ?: "") + "\n\n" + TvStreamer.lastLog(this),
-                                    getString(R.string.ok)
-                                )
-                                return@runOnUiThread
-                            }
-                            val url = TvStreamer.streamUrl()
-                            if (url == null) {
-                                Toast.makeText(this, getString(R.string.tv_cast_failed), Toast.LENGTH_LONG).show()
-                                return@runOnUiThread
-                            }
-                            CastManager.setPendingHlsUrl(url)
-                            // If a Cast session is already connected,
-                            // load now; otherwise the session listener
-                            // loads when the user picks a TV below.
-                            if (!CastManager.loadNow(url)) {
-                                MediaRouteChooserDialogFragment()
-                                    .show(supportFragmentManager, "mudif_cast_chooser")
-                            } else {
-                                Toast.makeText(this, getString(R.string.tv_cast_started), Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }.start()
-                },
-                neutral = getString(R.string.tv_choose_system),
-                onNeutral = {
-                    Thread {
-                        val dm = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
-                        val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
-                        if (displays.isEmpty()) {
-                            // No system display: label the Miracast
-                            // fallback as a SYSTEM flow before opening
-                            // the system settings (the app cannot
-                            // connect to a Miracast TV itself).
-                            runOnUiThread {
-                                MudifDialog.info(
-                                    this, getString(R.string.tv_title),
-                                    getString(R.string.tv_miracast_body),
-                                    getString(R.string.tv_miracast_open_button),
-                                    onPositive = {
-                                        SystemDisplay.openWirelessDisplaySettings(this)
-                                    },
-                                    negative = getString(R.string.cancel)
-                                )
-                            }
-                            return@Thread
-                        }
-                        if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
-                            runOnUiThread {
-                                Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
-                            }
-                            return@Thread
-                        }
-                        ViewerPrefs.prefs(this).edit()
-                            .putBoolean("storeSecondaryDisplayPreferencesSeparately", true).apply()
-                        val ok = X11Session.openViewerOnDisplay(this, displays[0])
-                        runOnUiThread {
-                            Toast.makeText(
-                                this,
-                                if (ok) getString(R.string.tv_opened) else getString(R.string.tv_no_display),
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }.start()
-                },
-                negative = getString(R.string.cancel)
-            )
+            showTvChooser()
         }
+
 
         // Real-computer #1, audio passthrough. The button toggles
         // the "audio enabled" preference; the pump starts with the
@@ -380,6 +299,140 @@ class VncActivity : AppCompatActivity() {
     }
 
     /**
+     * p36 defect 3, the ONE TV chooser: Cast first, system display
+     * second. Shared by btnTv and by the viewer overlay (which
+     * routes here through onNewIntent, EXTRA_SHOW_TV_CHOOSER).
+     * Public so ViewerOverlay can reach it through its activity.
+     */
+    fun showTvChooser() {
+        MudifDialog.info(
+            this, getString(R.string.tv_title),
+            getString(R.string.tv_choose_body),
+            getString(R.string.tv_choose_cast),
+            onPositive = { startCastFlow() },
+            neutral = getString(R.string.tv_choose_system),
+            onNeutral = {
+                Thread {
+                    val dm = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+                    val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
+                    if (displays.isEmpty()) {
+                        // No system display. Resolve-check at dialog
+                        // time: when the phone has no wireless-display
+                        // settings page, do NOT offer "open system
+                        // settings" as a TV path, the plain Display
+                        // settings page has no TV picker (Nova 9).
+                        val hasWirelessSettings = SystemDisplay.hasWirelessDisplaySettings(this)
+                        val castAvailable = CastManager.available
+                        runOnUiThread {
+                            if (hasWirelessSettings) {
+                                // The page exists, so the Miracast
+                                // dialog may honestly offer it.
+                                MudifDialog.info(
+                                    this, getString(R.string.tv_title),
+                                    getString(R.string.tv_miracast_body),
+                                    getString(R.string.tv_miracast_open_button),
+                                    onPositive = {
+                                        if (SystemDisplay.openWirelessDisplaySettings(this)) {
+                                            Toast.makeText(this, getString(R.string.tv_miracast_open), Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(this, getString(R.string.tv_miracast_unavailable), Toast.LENGTH_LONG).show()
+                                        }
+                                    },
+                                    negative = getString(R.string.cancel)
+                                )
+                            } else {
+                                // No wireless-display page on this
+                                // phone: honest dialog, no settings
+                                // button at all. The real options are
+                                // Cast (when Play Services exist) or
+                                // the vendor path in the body text
+                                // (Huawei wireless projection, Samsung
+                                // Smart View / DeX). Instructions text
+                                // only, no unverified deep links.
+                                val castAction: (() -> Unit)? =
+                                    if (castAvailable) ({ startCastFlow() }) else null
+                                MudifDialog.info(
+                                    this, getString(R.string.tv_title),
+                                    getString(R.string.tv_no_wireless_settings_body),
+                                    if (castAvailable) getString(R.string.tv_choose_cast) else getString(R.string.ok),
+                                    onPositive = castAction,
+                                    negative = getString(R.string.cancel)
+                                )
+                            }
+                        }
+                        return@Thread
+                    }
+                    if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
+                        runOnUiThread {
+                            Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
+                        }
+                        return@Thread
+                    }
+                    ViewerPrefs.prefs(this).edit()
+                        .putBoolean("storeSecondaryDisplayPreferencesSeparately", true).apply()
+                    val ok = X11Session.openViewerOnDisplay(this, displays[0])
+                    runOnUiThread {
+                        Toast.makeText(
+                            this,
+                            if (ok) getString(R.string.tv_opened) else getString(R.string.tv_no_display),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }.start()
+            },
+            negative = getString(R.string.cancel)
+        )
+    }
+
+    /**
+     * Cast live-HLS flow, extracted verbatim from the old chooser
+     * positive button so both the chooser and the no-settings
+     * dialog start Cast the same way. Refuses until the desktop
+     * is up; refuses without Play Services; otherwise starts
+     * TvStreamer and opens the route chooser unless a Cast
+     * session is already connected.
+     */
+    private fun startCastFlow() {
+        if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
+            Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!CastManager.available) {
+            MudifDialog.info(this, getString(R.string.tv_title), getString(R.string.tv_cast_no_play_services), getString(R.string.ok))
+            return
+        }
+        Toast.makeText(this, getString(R.string.tv_cast_starting), Toast.LENGTH_SHORT).show()
+        Thread {
+            val started = TvStreamer.start(this)
+            runOnUiThread {
+                if (!started) {
+                    MudifDialog.info(
+                        this, getString(R.string.tv_title),
+                        getString(R.string.tv_cast_failed) + "\n\n" + (TvStreamer.lastError ?: "") + "\n\n" + TvStreamer.lastLog(this),
+                        getString(R.string.ok)
+                    )
+                    return@runOnUiThread
+                }
+                val url = TvStreamer.streamUrl()
+                if (url == null) {
+                    Toast.makeText(this, getString(R.string.tv_cast_failed), Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                CastManager.setPendingHlsUrl(url)
+                // If a Cast session is already connected,
+                // load now; otherwise the session listener
+                // loads when the user picks a TV below.
+                if (!CastManager.loadNow(url)) {
+                    MediaRouteChooserDialogFragment()
+                        .show(supportFragmentManager, "mudif_cast_chooser")
+                } else {
+                    Toast.makeText(this, getString(R.string.tv_cast_started), Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    /**
      * P16.2: singleTop relaunch. A second tap on "افتح سطح المكتب" (or a
      * relaunch while this screen is already in the stack) brings THIS
      * instance forward instead of stacking a second VncActivity whose
@@ -390,6 +443,16 @@ class VncActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // p36 defect 3: the viewer overlay routes its TV button here
+        // (EXTRA_SHOW_TV_CHOOSER) so the user gets the same chooser
+        // as btnTv, Cast first, instead of a direct settings open.
+        // This must NOT fall through to startDesktop() below: the
+        // desktop is already running behind the viewer, and a
+        // re-entry would reopen the viewer over the chooser.
+        if (intent.getBooleanExtra(EXTRA_SHOW_TV_CHOOSER, false)) {
+            showTvChooser()
+            return
+        }
         // A fresh launch request replaces any pending one.
         pendingLaunchApp = intent.getStringExtra(EXTRA_LAUNCH_APP)
         startDesktop()
@@ -949,6 +1012,13 @@ class VncActivity : AppCompatActivity() {
         /** P18.5: full shell command for one app to launch after the
          *  desktop is confirmed running (handed in by the Apps tab). */
         const val EXTRA_LAUNCH_APP = "launch_app"
+        /**
+         * p36 defect 3: set by the viewer overlay when its TV button
+         * is tapped with no presentation display. VncActivity is
+         * brought forward and onNewIntent opens the TV chooser
+         * (showTvChooser) instead of restarting the desktop.
+         */
+        const val EXTRA_SHOW_TV_CHOOSER = "show_tv_chooser"
         /** P6, نظام مضيف: Debian 13.1 + LXQt, the ONE system. */
         const val DESKTOP_MUDIF = "mudif"
 
