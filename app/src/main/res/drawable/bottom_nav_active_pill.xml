@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- p52: the selected tab's pill in the bottom nav (64x44dp, pale
-     #E4DEFF, 16dp corners). Taller than the old Material 64x32dp
-     indicator so the bigger 22dp icons fit inside it. -->
+<!-- p55: the selected tab's pill in the bottom nav (64x44dp,
+     16dp corners). On the purple gradient card it is white at
+     20% alpha (@color/nav_selected_pill), so the selected tab
+     reads clearly while the white icon and label sit on it. The
+     old pale #E4DEFF pill (mudif_pill) belonged to the white
+     card and is gone with it. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/mudif_pill" />
+    <solid android:color="@color/nav_selected_pill" />
     <corners android:radius="16dp" />
 </shape>

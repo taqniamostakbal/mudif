@@ -25,9 +25,11 @@
             android:layout_weight="1" />
 
         <!-- p48: custom bottom nav (ui.nav.BottomNavView) with Lottie
-             animated icons. Same id, same margins, same floating
-             pill background and elevation as the old Material
-             BottomNavigationView, so MainActivity wiring stays put. -->
+             animated icons. p55: the card is the purple gradient
+             (the same gradient as the home stat cards), 16dp
+             corners, white icons and labels; same id, same 16dp
+             margins and 12dp bottom as before, so MainActivity
+             wiring stays put. -->
         <com.bolm.mudif.ui.nav.BottomNavView
             android:id="@+id/bottom_nav"
             android:layout_width="match_parent"

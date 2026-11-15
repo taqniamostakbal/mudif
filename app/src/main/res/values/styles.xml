@@ -57,6 +57,37 @@
         <item name="cornerRadius">@dimen/radius_button</item>
     </style>
 
+    <!-- p56: buttons for use ON the purple gradient cards and dialogs.
+         SecondaryOnPurple is the outlined button in white (white text
+         + white stroke); TextOnPurple is the plain text button in
+         white. The old Secondary (purple text + purple stroke) and
+         Text (purple text) are invisible on purple, so no gradient
+         surface may use them. -->
+    <style name="Widget.Mudif.Button.SecondaryOnPurple" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="strokeColor">@android:color/white</item>
+        <item name="cornerRadius">@dimen/radius_button</item>
+    </style>
+
+    <style name="Widget.Mudif.Button.TextOnPurple" parent="Widget.Material3.Button.TextButton">
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <!-- p56: dialog window animation (fade + scale, 180ms). Applied
+         to every Mudif dialog window after show(). -->
+    <style name="Mudif.Dialog.Animation" parent="android:Animation">
+        <item name="android:windowEnterAnimation">@anim/dialog_fade_scale_in</item>
+        <item name="android:windowExitAnimation">@anim/dialog_fade_scale_out</item>
+    </style>
+
+    <!-- p56: circular shape for the owner avatar in the About dialog. -->
+    <style name="ShapeAppearance.Mudif.Circle" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <!-- Text: title 20sp / body 16sp / caption 13sp, Cairo, theme colors.
          Muted text uses colorOnSurfaceVariant (the theme's muted tone). -->
     <style name="TextAppearance.Mudif.Title" parent="TextAppearance.Material3.TitleLarge">
@@ -125,8 +156,9 @@
          background is @drawable/bottom_nav_pill_bg, its active pill
          is @drawable/bottom_nav_active_pill, its pill size is
          @dimen/nav_indicator_width/height (64x44dp since p52). No style here:
-         the view sets its own colors (mudif_purple selected,
-         mudif_unselected otherwise). The old
+         p55: the bar is the purple gradient, the icons and labels
+         are white (full white selected, 70% white unselected
+         labels), the active pill is white at 20% alpha. The old
          Widget.Mudif.BottomNavigation styles were deleted with it. -->
 
     <!-- Drawer navigation view: purple icons, on-surface text. -->

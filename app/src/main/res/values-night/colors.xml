@@ -7,10 +7,11 @@
      hardcoded light surfaces (screen, bubbles, cards, tiles, chips,
      muted text) to dark equivalents. The brand purple header and
      the vivid category gradients stay the same in both modes.
-     The light lavender pill (mudif_pill) and the light circle fill
-     are deliberately kept light at night: the purple nav icon and
-     the purple glyphs on them stay readable only on a light
-     ground, the same as Material secondaryContainer. -->
+     p55: the bottom nav card is the purple gradient in both
+     modes, so the nav no longer uses the light lavender pill
+     (mudif_pill). The light circle fill is deliberately kept
+     light at night: the purple glyphs on it stay readable only
+     on a light ground, the same as Material secondaryContainer. -->
 <resources>
     <color name="mudif_unselected">#9E9E9E</color>
     <color name="screen_bg">#121214</color>

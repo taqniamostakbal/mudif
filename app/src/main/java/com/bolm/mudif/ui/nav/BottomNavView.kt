@@ -34,10 +34,19 @@ import com.bolm.mudif.R
  * timeline, and the icon is a LottieAnimationView that always shows
  * its current frame.
  *
- * The look matches the p45 reference (image-389): a floating white
- * stadium bar, the selected tab a pale #E4DEFF pill (64x44dp) with a
- * clearly visible purple icon, the label below the pill. The pill
- * and the label are per-tab views here, not a Material indicator.
+ * p55: Anas ordered the card purple like the app's own style,
+ * the icons white, and the card rectangular and modern. The bar
+ * is now the purple gradient (#593BFE to #3D2BB5, diagonal 135
+ * degrees, the same gradient as the home stat cards and the
+ * hero), 16dp corners, 16dp side margins, 12dp bottom. All five
+ * icons are white in both states (the COLOR_FILTER callback
+ * tints them white); the labels are white too, full white when
+ * selected, white at 70% otherwise, so the selected tab stands
+ * out. The selected tab keeps its 64x44dp pill, now white at
+ * 20% alpha instead of pale #E4DEFF. The p53 hairline is gone:
+ * a purple card needs no outline against the near-white page.
+ * The pill and the label are per-tab views here, not a Material
+ * indicator.
  *
  * p52: the p48 claim that the icon "can never be empty" was wrong.
  * The Home icon was invisible on Anas's phone (image-395, proven by
@@ -66,9 +75,12 @@ import com.bolm.mudif.R
  * a uniform view size would render uneven icons. Each size below
  * was measured from the real JSON ink bounds so every icon renders
  * at 22dp of ink height. The tint is a single color filter over
- * the whole composition (KeyPath "**"), purple when selected, dark
- * gray #424242 otherwise (p52: the old #757575 was too pale for
- * thin outline icons at this size; #424242 is 9.6:1 on white).
+ * the whole composition (KeyPath "**"), white in both states
+ * (p55: the icons sit on the purple gradient card, so they are
+ * white selected and unselected; the old purple / #424242 tints
+ * belonged to the white card). The selected tab reads through
+ * its translucent white pill and its full-white label; the
+ * unselected labels are white at 70%.
  */
 class BottomNavView @JvmOverloads constructor(
     context: Context,
@@ -144,7 +156,7 @@ class BottomNavView @JvmOverloads constructor(
             )
             icon.addValueCallback(KeyPath("**"), LottieProperty.COLOR_FILTER, tintCallback)
             label.setText(config.labelRes)
-            label.setTextColor(unselectedColor())
+            label.setTextColor(labelUnselectedColor())
             item.setOnClickListener { select(config.id, fromTap = true) }
             addView(item)
             holders[config.id] = TabHolder(config, pill, icon, label, tintCallback)
@@ -185,14 +197,17 @@ class BottomNavView @JvmOverloads constructor(
         holder.icon.setMinAndMaxProgress(0f, 1f)
         holder.icon.progress = 0f
         holder.pill.visibility = View.GONE
-        holder.label.setTextColor(unselectedColor())
+        holder.label.setTextColor(labelUnselectedColor())
         holder.tintCallback.setValue(
             PorterDuffColorFilter(unselectedColor(), PorterDuff.Mode.SRC_ATOP))
     }
 
     private fun selectedColor(): Int =
-        ContextCompat.getColor(context, R.color.mudif_purple)
+        ContextCompat.getColor(context, R.color.nav_white)
 
     private fun unselectedColor(): Int =
-        ContextCompat.getColor(context, R.color.mudif_unselected)
+        ContextCompat.getColor(context, R.color.nav_white)
+
+    private fun labelUnselectedColor(): Int =
+        ContextCompat.getColor(context, R.color.nav_label_unselected)
 }
