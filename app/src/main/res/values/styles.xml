@@ -124,7 +124,7 @@
          (Lottie icons), not a Material BottomNavigationView. Its bar
          background is @drawable/bottom_nav_pill_bg, its active pill
          is @drawable/bottom_nav_active_pill, its pill size is
-         @dimen/nav_indicator_width/height (64x32dp). No style here:
+         @dimen/nav_indicator_width/height (64x44dp since p52). No style here:
          the view sets its own colors (mudif_purple selected,
          mudif_unselected otherwise). The old
          Widget.Mudif.BottomNavigation styles were deleted with it. -->

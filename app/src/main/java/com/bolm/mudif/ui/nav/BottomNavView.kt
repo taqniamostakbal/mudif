@@ -35,11 +35,21 @@ import com.bolm.mudif.R
  * its current frame.
  *
  * The look matches the p45 reference (image-389): a floating white
- * stadium bar, the selected tab a pale #E4DEFF pill (64x32dp) with a
+ * stadium bar, the selected tab a pale #E4DEFF pill (64x44dp) with a
  * clearly visible purple icon, the label below the pill. The pill
- * and the label are per-tab views here, not a Material indicator,
- * so the icon can never be empty: the Lottie view draws its idle
- * frame even before any animation plays.
+ * and the label are per-tab views here, not a Material indicator.
+ *
+ * p52: the p48 claim that the icon "can never be empty" was wrong.
+ * The Home icon was invisible on Anas's phone (image-395, proven by
+ * pixel measurement: zero ink pixels in the Home tab) because
+ * nav_lottie_home.json carries a Trim Paths modifier whose end
+ * animates 0% at frame 0 to 100% at frame 65: the idle frame draws
+ * 0% of the path, so the icon is empty at rest and after every
+ * deselect. Fixed in the JSON itself (the Trim Paths item removed,
+ * frame 0 now shows the full house); the scale pop (frames 65-117)
+ * is untouched, it starts from a fully drawn house. A nav icon must
+ * be visible at frame 0: any JSON whose idle frame is empty is a
+ * broken icon, not an animation choice.
  *
  * Per-tab animation (plays once on select, ends on the idle frame):
  * home pops (frames 65-117), store squashes (0-12, the badge and its
@@ -50,12 +60,15 @@ import com.bolm.mudif.R
  * (the fragment re-shows) without replaying the animation.
  *
  * The icon view size differs per tab: the five Lottie canvases hold
- * different amounts of ink (home 67%, store 51%, apps 56%, games
- * 87%, sparkle 72% after its star was scaled up in the JSON), so a
- * uniform view size would render uneven icons. Each size below was
- * measured from the real JSON ink bounds so every icon renders at
- * about 19-20dp. The tint is a single color filter over the whole
- * composition (KeyPath "**"), purple when selected, gray otherwise.
+ * different amounts of ink (home 73%, store 62%, apps 53%, games
+ * 52%, agent 69% of canvas height at frame 0, measured with the
+ * trim-aware renderer in test-evidence-realcomp/bottomnav-p52), so
+ * a uniform view size would render uneven icons. Each size below
+ * was measured from the real JSON ink bounds so every icon renders
+ * at 22dp of ink height. The tint is a single color filter over
+ * the whole composition (KeyPath "**"), purple when selected, dark
+ * gray #424242 otherwise (p52: the old #757575 was too pale for
+ * thin outline icons at this size; #424242 is 9.6:1 on white).
  */
 class BottomNavView @JvmOverloads constructor(
     context: Context,
@@ -82,11 +95,11 @@ class BottomNavView @JvmOverloads constructor(
     )
 
     private val tabs = listOf(
-        TabConfig(R.id.nav_home, R.string.tab_home, R.raw.nav_lottie_home, 28, 65, 117, 1f),
-        TabConfig(R.id.nav_store, R.string.tab_store, R.raw.nav_lottie_store, 32, 0, 12, 1f),
-        TabConfig(R.id.nav_apps, R.string.tab_apps, R.raw.nav_lottie_apps, 32, 16, 122, 3f),
-        TabConfig(R.id.nav_games, R.string.tab_games, R.raw.nav_lottie_games, 28, 0, 99, 3f),
-        TabConfig(R.id.nav_agent, R.string.tab_agent_short, R.raw.nav_lottie_agent, 28, 0, 10, 1f),
+        TabConfig(R.id.nav_home, R.string.tab_home, R.raw.nav_lottie_home, 30, 65, 117, 1f),
+        TabConfig(R.id.nav_store, R.string.tab_store, R.raw.nav_lottie_store, 35, 0, 12, 1f),
+        TabConfig(R.id.nav_apps, R.string.tab_apps, R.raw.nav_lottie_apps, 41, 16, 122, 3f),
+        TabConfig(R.id.nav_games, R.string.tab_games, R.raw.nav_lottie_games, 42, 0, 99, 3f),
+        TabConfig(R.id.nav_agent, R.string.tab_agent_short, R.raw.nav_lottie_agent, 32, 0, 10, 1f),
     )
 
     private val holders = mutableMapOf<Int, TabHolder>()

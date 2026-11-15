@@ -4,7 +4,7 @@
     <dimen name="radius_card">16dp</dimen>
     <dimen name="radius_button">12dp</dimen>
     <dimen name="nav_indicator_width">64dp</dimen>
-    <dimen name="nav_indicator_height">32dp</dimen>
+    <dimen name="nav_indicator_height">44dp</dimen>
     <!-- p46 sidebar: expanded panel width, collapsed rail width, row
          height, active circle diameter on the rail, panel
          inner-corner radius, header height. p49: the pill overflow

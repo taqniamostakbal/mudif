@@ -3,7 +3,7 @@
     <color name="mudif_purple">#593BFE</color>
     <color name="mudif_purple_dark">#4527D6</color>
     <color name="mudif_pill">#E4DEFF</color>
-    <color name="mudif_unselected">#757575</color>
+    <color name="mudif_unselected">#424242</color>
     <color name="mudif_teal">#00E5CC</color>
 
     <!-- Dark mode (values-night/colors.xml overrides these): every

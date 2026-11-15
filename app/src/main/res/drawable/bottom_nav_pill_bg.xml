@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- p45: floating pill background for the bottom nav (reference
-     image-389, bottom row). Fully rounded surface card. The radius
-     is larger than half the nav height so it renders as a stadium
-     at any height. The surface color follows the DayNight theme. -->
+<!-- p52: the pill is a real card now: solid card_bg (white in light,
+     #232329 at night) instead of ?attr/colorSurface, which is the
+     same #FEF7FF as the screen background, so the old pill blended
+     into the background and only its shadow defined it. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="?attr/colorSurface" />
+    <solid android:color="@color/card_bg" />
     <corners android:radius="40dp" />
 </shape>
