@@ -6,6 +6,25 @@
     <color name="mudif_unselected">#757575</color>
     <color name="mudif_teal">#00E5CC</color>
 
+    <!-- Dark mode (values-night/colors.xml overrides these): every
+         hardcoded light surface in the layouts and drawables now
+         resolves through one of these names, so the DayNight theme
+         can switch it. Light values are the exact hex the views
+         used before, so light mode looks identical. -->
+    <color name="screen_bg">#F7F6FF</color>
+    <color name="bubble_agent_bg">#FFFFFF</color>
+    <color name="bubble_agent_stroke">#DCD6FF</color>
+    <color name="bubble_user_bg">#E9E4FF</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="card_stroke">#DCD6FF</color>
+    <color name="icon_tile_bg">#F0EEFF</color>
+    <color name="icon_tile_stroke">#E5E0FF</color>
+    <color name="circle_light_fill">#EDE9FF</color>
+    <color name="chip_bg_unselected">#EDEAF7</color>
+    <color name="chip_text_unselected">#333333</color>
+    <color name="text_muted">#8A8A8A</color>
+    <color name="text_muted_dark">#6B6B6B</color>
+
     <!-- P19 Phase 1: category gradients (from the user's style refs:
          vivid gradient cards, each category its own color). -->
     <color name="cat_all_start">#593BFE</color>

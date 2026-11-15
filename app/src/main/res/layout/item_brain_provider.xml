@@ -70,7 +70,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:textSize="13sp"
-        android:textColor="#6B6B6B"
+        android:textColor="@color/text_muted_dark"
         android:fontFamily="@font/cairo" />
 
     <TextView

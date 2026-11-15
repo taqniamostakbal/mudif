@@ -27,6 +27,12 @@ object VisionCapture {
     /** Guest path of the shot (bind-mounted to the app's files/tmp). */
     const val SHOT_GUEST_PATH = "/tmp/mudif-shot.jpg"
 
+    /** The guest display the frame comes from. This is the ONLY
+     *  capture source for desktop vision: the Android display is
+     *  never a fallback, here or anywhere on the vision path. */
+    const val SOURCE_DISPLAY = "127.0.0.1:6"
+    const val SOURCE_LABEL = "guest_desktop_x11grab"
+
     /** Width the frame is downscaled to when the desktop is wider
      *  (keeps it ~100-250 KB). Desktops at or below this width are
      *  captured at native size. */
@@ -73,7 +79,7 @@ object VisionCapture {
         val scaleFilter =
             if (actual.first > SHOT_WIDTH) " -vf scale=$SHOT_WIDTH:-1" else ""
         val cmd = "ffmpeg -y -f x11grab -video_size $size " +
-            "-i 127.0.0.1:6 -frames:v 1$scaleFilter " +
+            "-i $SOURCE_DISPLAY -frames:v 1$scaleFilter " +
             SHOT_GUEST_PATH
         val result = try {
             TerminalSession.runCommandDebian(appCtx, cmd, 30, 60)
@@ -86,7 +92,7 @@ object VisionCapture {
                 "shot exists=${shot.exists()} size=${shot.length()}")
             return CaptureResult.Failed(REASON_CAPTURE_FAILED)
         }
-        Log.d(TAG, "capture: ${shot.length()} bytes at $size")
+        Log.i(TAG, "capture: source=$SOURCE_LABEL display=$SOURCE_DISPLAY size=$size file=$SHOT_GUEST_PATH bytes=${shot.length()}")
         return CaptureResult.Ok(shot, shot.length())
     }
 
@@ -97,7 +103,7 @@ object VisionCapture {
     private fun queryDisplaySize(context: Context): Pair<Int, Int>? {
         val result = try {
             TerminalSession.runCommandDebian(
-                context, "xdpyinfo -display 127.0.0.1:6", 10, 30
+                context, "xdpyinfo -display $SOURCE_DISPLAY", 10, 30
             )
         } catch (e: Exception) {
             Log.w(TAG, "capture: xdpyinfo run failed", e)

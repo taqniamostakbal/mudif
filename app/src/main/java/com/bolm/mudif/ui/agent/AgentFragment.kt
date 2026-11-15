@@ -11,6 +11,7 @@ import android.graphics.Rect
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.Process
 import android.os.SystemClock
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
@@ -328,6 +329,9 @@ class AgentFragment : Fragment() {
         // p34f fix 6: the desktop / service state may have changed
         // while the tab was away; re-check on every entry.
         refreshVisionChip()
+        // Consolidated fix item 1: narrow re-check for a dangling
+        // turn the onViewCreated pass had to skip while setup exited.
+        detectDanglingTurn()
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
@@ -346,8 +350,35 @@ class AgentFragment : Fragment() {
             binding.root.viewTreeObserver.removeOnGlobalLayoutListener(it)
         }
         layoutListener = null
-        currentTurn?.cancel()
+        val supersededTurn = currentTurn
+        currentTurn?.supersede()
         currentTurn = null
+        if (supersededTurn != null) {
+            // Hole 1: the supersede aborts the live server session,
+            // so the stored id must go with it. A next turn reusing
+            // the aborted id gets an instant empty reply (prompt
+            // async 204, no text) until a model switch makes a new
+            // session. Same drop as Clear and model switch.
+            sessionId = null
+            prefs().edit().remove(KEY_SESSION_ID).apply()
+            Log.i("MudifAgent", "onDestroyView superseded live turn, dropped stored session id")
+        }
+        // Re-gate hole 5 (round 2): the marker must go here,
+        // unconditionally. The turn is dead in every onDestroyView
+        // in this app: a replaced instance is removed (its handle
+        // superseded and aborted, or its setup post can never
+        // re-arm because _binding stays null), and activity
+        // teardown kills it too. There is no same-instance view
+        // recreation (every config change is absorbed, no
+        // retain/detach/back-stack), so there is no keep-branch.
+        // No isAdded guard: it is false here after a replace()
+        // (FragmentStore clears mAdded before the state move that
+        // runs onDestroyView), while requireContext() is valid
+        // until onDetach. Otherwise the next instance's dangling
+        // detector waits out the full 300 s on a fresh same-pid
+        // marker and Retry appears only after a re-entry past
+        // send+300 s.
+        clearTurnInFlightMarker(requireContext())
         // Phase 3: the turn is cancelled with the view; the flag
         // must not survive it, or the next send is dropped silently
         // (the wedge: every terminal callback posts behind a
@@ -506,7 +537,18 @@ class AgentFragment : Fragment() {
      *  message exists to re-send). Its re-runnable payload is the
      *  picked model id; Retry re-applies the pick. */
     private fun markRefusedPick(ctx: Context, pickedId: String) {
-        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+        // Consolidated fix item 2: a real turn failure always
+        // supersedes a pick refusal. A stored failure with no pick
+        // is an unanswered question; overwriting it would orphan
+        // its Retry, so the refusal leaves the state alone.
+        val stored = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (stored.getBoolean(KEY_LAST_TURN_FAILED, false) &&
+            stored.getString(KEY_FAILED_TURN_PICK, null) == null
+        ) {
+            Log.i("MudifAgent", "markRefusedPick skipped, real turn failure pending")
+            return
+        }
+        stored.edit()
             .putBoolean(KEY_LAST_TURN_FAILED, true)
             .putBoolean(KEY_FAILED_TURN_VISION, false)
             .putString(KEY_FAILED_TURN_PICK, pickedId)
@@ -521,6 +563,16 @@ class AgentFragment : Fragment() {
             .apply()
     }
 
+    // Hole 5: the marker is spent once its turn ends. Takes a
+    // Context so background terminal paths can clear it without
+    // touching views (prefs() needs an attached fragment).
+    private fun clearTurnInFlightMarker(ctx: Context) {
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_TURN_IN_FLIGHT_AT)
+            .remove(KEY_TURN_IN_FLIGHT_PID)
+            .apply()
+    }
+
     /** p34f fix 4: re-derive Retry from the STORED failed turn when
      *  the view is created. The last user message comes from the
      *  stored messages, not the dead in-memory field; a vision
@@ -532,23 +584,113 @@ class AgentFragment : Fragment() {
         val failed = prefs().getBoolean(KEY_LAST_TURN_FAILED, false)
         val pick = prefs().getString(KEY_FAILED_TURN_PICK, null)
         Log.i("MudifAgent", "restoreFailedTurnUi failed=$failed pick=$pick")
-        if (!failed) return
-        // p34h: a refused brain pick has no stored user message
-        // (a model pick is not a turn), so the message lookup
-        // below would exit and Retry would never come back after
-        // a relaunch. The pick restores from its own payload.
+        if (!failed) {
+            // Consolidated fix item 1: a turn that died with the
+            // process left no mark; detect it from the stored
+            // messages instead of returning here.
+            detectDanglingTurn()
+            return
+        }
+        // Consolidated fix item 2 invariant: a pick present here
+        // means no real turn failure is stored, because a refusal
+        // cannot overwrite one and a turn failure removes the pick.
+        // The pick branch therefore owns Retry.
         if (!pick.isNullOrBlank()) {
             val retryPick: String = pick
             showTurnFailedUi(null) { applyBrainPick(retryPick) }
             return
         }
-        val lastUser = messages.lastOrNull { it.role == AgentMessage.ROLE_USER } ?: return
+        val lastUser = messages.lastOrNull { it.role == AgentMessage.ROLE_USER }
+        if (lastUser == null) {
+            // Hole 8: a stored failure with no stored question has
+            // no re-runnable payload, so Retry would be a no-op
+            // (retryLastMessage returns when lastUserMessage is
+            // null). No in-code path stores such a state: every
+            // markTurnFailed site runs after a user message is
+            // stored, so this is stale or hand-edited prefs.
+            // Clear it instead of showing a dead Retry.
+            lastUserMessage = null
+            clearTurnFailed(requireContext())
+            Log.w("MudifAgent", "restoreFailedTurnUi stale failed turn with no stored user message, cleared")
+            return
+        }
         lastUserMessage = lastUser
         val isVision = prefs().getBoolean(KEY_FAILED_TURN_VISION, false)
         showTurnFailedUi(
             null,
             if (isVision) ({ startVisionTurn(lastUser.text) }) else null
         )
+    }
+
+    /** Consolidated fix item 1: a mid-turn process death leaves the
+     *  user message unanswered with no stored mark, because every
+     *  terminal path died with the process. Detect it from the
+     *  stored messages and surface it as a failed turn with Retry.
+     *  The guards rule out a live turn, a clean end, and a user
+     *  Stop. Returns true when a dangling turn was surfaced. */
+    private fun detectDanglingTurn(): Boolean {
+        if (_binding == null) return false
+        if (turnRunning || currentTurn != null || turnSetupRunning) return false
+        if (prefs().getBoolean(KEY_LAST_TURN_FAILED, false)) return false
+        if (prefs().getString(KEY_FAILED_TURN_PICK, null) != null) return false
+        // Hole 5: durable in-flight marker. The per-instance guards
+        // above are all fresh false on a new instance after a tab
+        // switch, so a turn still starting in this process would
+        // look dangling. A fresh marker from this pid means the turn
+        // may still be in flight; wait for its deadline.
+        val inFlightAt = prefs().getLong(KEY_TURN_IN_FLIGHT_AT, -1L)
+        val inFlightPid = prefs().getInt(KEY_TURN_IN_FLIGHT_PID, -1)
+        if (inFlightAt >= 0L && inFlightPid == Process.myPid() &&
+            System.currentTimeMillis() - inFlightAt < 300_000L
+        ) {
+            return false
+        }
+        val last = messages.lastOrNull() ?: return false
+        val ctx = requireContext()
+        if (last.role == AgentMessage.ROLE_USER) {
+            val isVision = last.text == getString(R.string.agent_vision_question)
+            clearTurnInFlightMarker(ctx)
+            markTurnFailed(ctx, isVision)
+            lastUserMessage = last
+            appendMessage(
+                AgentMessage(
+                    AgentMessage.ROLE_AGENT,
+                    getString(R.string.agent_error),
+                    replyLanguage
+                )
+            )
+            showTurnFailedUi(
+                null,
+                if (isVision) ({ startVisionTurn(last.text) }) else null
+            )
+            Log.i("MudifAgent", "restoreFailedTurnUi dangling user message detected isVision=$isVision")
+            return true
+        }
+        val verdicts = setOf(
+            getString(R.string.agent_error),
+            getString(R.string.agent_server_start_failed),
+            getString(R.string.agent_engine_not_ready),
+            getString(R.string.agent_empty_reply),
+            getString(R.string.agent_vision_failed),
+            getString(R.string.agent_vision_capture_failed),
+            getString(R.string.agent_vision_desktop_down)
+        )
+        if (last.role == AgentMessage.ROLE_AGENT && last.text in verdicts) {
+            val prevUser = messages.dropLast(1)
+                .lastOrNull { it.role == AgentMessage.ROLE_USER }
+            val isVision = prevUser != null &&
+                prevUser.text == getString(R.string.agent_vision_question)
+            clearTurnInFlightMarker(ctx)
+            markTurnFailed(ctx, isVision)
+            lastUserMessage = prevUser
+            showTurnFailedUi(
+                null,
+                if (isVision && prevUser != null) ({ startVisionTurn(prevUser.text) }) else null
+            )
+            Log.i("MudifAgent", "restoreFailedTurnUi dangling failure verdict detected isVision=$isVision")
+            return true
+        }
+        return false
     }
 
     private fun sendCurrentInput() {
@@ -689,9 +831,14 @@ class AgentFragment : Fragment() {
         val text = rawText.trim()
         if (text.isEmpty()) return
         if (turnRunning) {
-            // Never swallow a send silently: the button is disabled
-            // during a turn, but the keyboard send key and the quick
-            // chips can still reach here.
+            // Consolidated fix item 8: a send rejected while a turn
+            // runs must not leave its text in the field, or the next
+            // send stores it concatenated with the new question.
+            // The guard is the real gate: the button stays enabled
+            // during a turn so a rejected tap reaches this code.
+            _binding?.inputText?.setText("")
+            // Never swallow a send silently: the keyboard send key
+            // and the quick chips can still reach here.
             Toast.makeText(requireContext(), R.string.agent_thinking, Toast.LENGTH_SHORT).show()
             return
         }
@@ -699,6 +846,14 @@ class AgentFragment : Fragment() {
         val userMessage = AgentMessage(AgentMessage.ROLE_USER, text, replyLanguage)
         appendMessage(userMessage)
         lastUserMessage = userMessage
+        // Hole 5: durable in-flight marker, one-shot per send. A
+        // new send overwrites it. The detector reads it to tell a
+        // turn still starting in this process apart from a turn
+        // that died with it.
+        prefs().edit()
+            .putLong(KEY_TURN_IN_FLIGHT_AT, System.currentTimeMillis())
+            .putInt(KEY_TURN_IN_FLIGHT_PID, Process.myPid())
+            .apply()
         startTurn(text)
     }
 
@@ -752,7 +907,10 @@ class AgentFragment : Fragment() {
             binding.agentTyping.text = getString(R.string.agent_starting_server)
             binding.agentTyping.visibility = View.VISIBLE
         }
-        binding.btnSend.isEnabled = false
+        // Consolidated fix item 8: the button stays enabled during
+        // a turn. The turnRunning guard in sendMessage is the real
+        // gate; a disabled button swallows the tap, so a rejected
+        // send never reached the code that clears the field.
         // Phase 3: the Stop button is armed up front, so it is a
         // valid abort control for the whole turn, keyboard open or
         // not (applyChromeVisibility shows it while typing).
@@ -841,6 +999,9 @@ class AgentFragment : Fragment() {
                     // is ended, the typing line hides, Send returns,
                     // and Retry shows.
                     endedTurnSeq = turnSeq
+                    // Hole 5: terminal path that bypasses endTurnUi;
+                    // the in-flight marker is spent.
+                    clearTurnInFlightMarker(appContext)
                     showTurnFailedUi(null, null)
                     hideSlowBrainChip()
                 }
@@ -861,6 +1022,11 @@ class AgentFragment : Fragment() {
             val callbacks = object : AgentClient.TurnCallbacks {
                 override fun onText(fullText: String) {
                     act.runOnUiThread {
+                        // Consolidated fix item 4b: a terminal event
+                        // from a superseded turn must never touch
+                        // the new turn. Streaming text is useless
+                        // without its terminal event, so drop it.
+                        if (thisTurnSeq != turnSeq) return@runOnUiThread
                         if (_binding == null) {
                             // Phase 3: view gone (tab switch). A turn
                             // already ended drops late text, like
@@ -892,6 +1058,10 @@ class AgentFragment : Fragment() {
 
                 override fun onTool(tool: String) {
                     act.runOnUiThread {
+                        // Hole 11: same stale gate as onText, onDone
+                        // and onError. A superseded turn must not
+                        // rewrite the typing line of the new turn.
+                        if (thisTurnSeq != turnSeq) return@runOnUiThread
                         if (_binding == null) return@runOnUiThread
                         // p33: hidden while the keyboard is open (the
                         // message list needs the room); it returns
@@ -905,6 +1075,30 @@ class AgentFragment : Fragment() {
 
                 override fun onDone(finalText: String) {
                     act.runOnUiThread {
+                        // Consolidated fix item 4b: a superseded
+                        // turn's reply is still real text; persist
+                        // it durably (refresh first, the old
+                        // instance's list is stale after a
+                        // recreation) and never touch the new turn.
+                        if (thisTurnSeq != turnSeq) {
+                            // Holes 3 and 6: this turn already ended
+                            // in this instance (Stop, clean end, or
+                            // failure), so a late terminal event must
+                            // never add a second verdict or revive the
+                            // failure mark.
+                            if (endedTurnSeq >= thisTurnSeq) return@runOnUiThread
+                            messages.clear()
+                            messages.addAll(loadMessages())
+                            if (finalText.isNotEmpty()) {
+                                persistMessage(
+                                    AgentMessage(
+                                        AgentMessage.ROLE_AGENT, finalText, replyLanguage
+                                    )
+                                )
+                            }
+                            clearTurnInFlightMarker(act.applicationContext)
+                            return@runOnUiThread
+                        }
                         if (_binding == null) {
                             // Phase 3: view gone. A turn already
                             // ended drops the late done, like
@@ -918,6 +1112,13 @@ class AgentFragment : Fragment() {
                                     )
                                 )
                             }
+                            // Holes 3 and 6: this view-gone path ends
+                            // the turn without endTurnUi, so record
+                            // the terminal seq here.
+                            endedTurnSeq = turnSeq
+                            // Hole 5: terminal path; the in-flight
+                            // marker is spent.
+                            clearTurnInFlightMarker(act.applicationContext)
                             turnRunning = false
                             currentTurn = null
                             streamingIndex = -1
@@ -929,6 +1130,32 @@ class AgentFragment : Fragment() {
 
                 override fun onError(message: String) {
                     act.runOnUiThread {
+                        // Consolidated fix item 4b: a superseded
+                        // turn's failure must be durable, or its
+                        // timeout vanishes with no verdict and no
+                        // Retry. Persist it (refresh first) and
+                        // mark it failed; never touch the new turn.
+                        if (thisTurnSeq != turnSeq) {
+                            // Holes 3 and 6: this turn already ended
+                            // in this instance (Stop, clean end, or
+                            // failure), so a late terminal event must
+                            // never add a second verdict or revive the
+                            // failure mark.
+                            if (endedTurnSeq >= thisTurnSeq) return@runOnUiThread
+                            messages.clear()
+                            messages.addAll(loadMessages())
+                            persistMessage(
+                                AgentMessage(
+                                    AgentMessage.ROLE_AGENT,
+                                    verdictFor(null, message, act),
+                                    replyLanguage
+                                )
+                            )
+                            markTurnFailed(act.applicationContext, false)
+                            clearTurnInFlightMarker(act.applicationContext)
+                            Log.i("MudifAgent", "stale onError persisted seq=$thisTurnSeq")
+                            return@runOnUiThread
+                        }
                         if (_binding == null) {
                             // Phase 3: view gone. A turn already
                             // ended drops the late error; a live turn
@@ -942,6 +1169,19 @@ class AgentFragment : Fragment() {
                                     replyLanguage
                                 )
                             )
+                            // Consolidated fix item 3: a failure
+                            // recorded while the view is gone must
+                            // still be durable, or no Retry survives
+                            // a relaunch for it.
+                            markTurnFailed(act, false)
+                            Log.i("MudifAgent", "onError view-gone marked failed")
+                            // Holes 3 and 6: this view-gone path ends
+                            // the turn without endTurnUi, so record
+                            // the terminal seq here.
+                            endedTurnSeq = turnSeq
+                            // Hole 5: terminal path; the in-flight
+                            // marker is spent.
+                            clearTurnInFlightMarker(act.applicationContext)
                             turnRunning = false
                             currentTurn = null
                             streamingIndex = -1
@@ -980,9 +1220,25 @@ class AgentFragment : Fragment() {
                 } else {
                     null
                 }
+            // Consolidated fix item 4: one-shot silent-turn hook
+            // for the timeout test. Read and cleared here, not at
+            // the top of startTurn, so a turn that fails earlier
+            // never consumes the arming.
+            // Hole 10: createSession() above runs before this read,
+            // so a hooked turn after Clear or on a fresh install
+            // already POSTed a new session row before parking. The
+            // verifier must have a stored session id before arming,
+            // or the DB check is conditional on that.
+            val silentHookPrefs = appContext.getSharedPreferences(
+                PREFS_NAME, Context.MODE_PRIVATE
+            )
+            val silentHook = silentHookPrefs.getBoolean(KEY_TEST_SILENT_TURN, false)
+            if (silentHook) {
+                silentHookPrefs.edit().remove(KEY_TEST_SILENT_TURN).apply()
+            }
             val handle = AgentClient.sendPrompt(
                 sid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
-                screenContext, localStop
+                screenContext, localStop, testSilentTurn = silentHook
             )
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
@@ -1045,7 +1301,9 @@ class AgentFragment : Fragment() {
             binding.agentTyping.text = getString(R.string.agent_vision_looking)
             binding.agentTyping.visibility = View.VISIBLE
         }
-        binding.btnSend.isEnabled = false
+        // Consolidated fix item 8: same as startTurn, the button
+        // stays enabled during a vision turn so a rejected send
+        // reaches the guard in sendMessage and clears the field.
         val appContext = context?.applicationContext ?: run {
             onTurnFailed(null)
             return
@@ -1092,6 +1350,9 @@ class AgentFragment : Fragment() {
                     // failure and hide the action button, so the
                     // terminal tail is done here instead.
                     endedTurnSeq = turnSeq
+                    // Hole 5: terminal path that bypasses endTurnUi;
+                    // the in-flight marker is spent.
+                    clearTurnInFlightMarker(appContext)
                     showTurnFailedUi(null) { startVisionTurn(question) }
                     refreshVisionChip()
                 }
@@ -1325,6 +1586,9 @@ class AgentFragment : Fragment() {
         // p34f fix 4: this turn terminally ended (done or stopped);
         // the post-call re-arm must not revive it.
         endedTurnSeq = turnSeq
+        // Hole 5: the turn is terminally over; its in-flight
+        // marker is spent.
+        if (isAdded) clearTurnInFlightMarker(requireContext())
         // p34f fix 4: the turn ended cleanly (done or stopped), so
         // no stored failure may offer Retry afterwards.
         if (isAdded) clearTurnFailed(requireContext())
@@ -1374,6 +1638,9 @@ class AgentFragment : Fragment() {
         // p34f fix 4: this turn terminally failed; the post-call
         // re-arm must not revive it.
         endedTurnSeq = turnSeq
+        // Hole 5: the turn is terminally over; its in-flight
+        // marker is spent.
+        clearTurnInFlightMarker(requireContext())
         // Phase 3: the third turn-end path that never hid the chip;
         // the local-timeout failure left it stale over the list.
         hideSlowBrainChip()
@@ -1456,6 +1723,13 @@ class AgentFragment : Fragment() {
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
+        // Holes 3 and 6: this is a terminal path that bypasses
+        // endTurnUi, so record the terminal seq here, or a late
+        // stale event for this turn would not be suppressed.
+        endedTurnSeq = turnSeq
+        // Hole 5: the turn is terminally over; its in-flight
+        // marker is spent.
+        clearTurnInFlightMarker(ctx)
         val verdict = verdictFor(reason, detail, ctx)
         persistMessage(AgentMessage(AgentMessage.ROLE_AGENT, verdict, replyLanguage))
         // p34f fix 4: same durable failure as onTurnFailed, from
@@ -1776,9 +2050,15 @@ class AgentFragment : Fragment() {
                 // to re-send); Retry re-applies it. The updateBrainButton
                 // call below is skipped by the return, so the pill
                 // is untouched.
+                // Consolidated fix item 2: the warning and the
+                // Toast stay unconditional; only the pick Retry is
+                // guarded, so a pending real turn failure keeps its
+                // own Retry instead of being overwritten.
+                val turnFailedPending = prefs().getBoolean(KEY_LAST_TURN_FAILED, false) &&
+                    prefs().getString(KEY_FAILED_TURN_PICK, null) == null
                 Log.i("MudifAgent", "applyBrainPick refused no key env=${picked.env} marked failed")
                 markRefusedPick(requireContext(), picked.id)
-                if (_binding != null) showTurnFailedUi(null) { applyBrainPick(picked.id) }
+                if (_binding != null && !turnFailedPending) showTurnFailedUi(null) { applyBrainPick(picked.id) }
                 return
             }
         }
@@ -2049,6 +2329,16 @@ class AgentFragment : Fragment() {
         // re-runnable payload for a failure that has no user
         // message to re-send.
         private const val KEY_FAILED_TURN_PICK = "failed_turn_pick"
+        // Consolidated fix item 4: one-shot hidden pref that arms
+        // a silent turn for the timeout test. Never referenced in
+        // any res/ file or any UI.
+        private const val KEY_TEST_SILENT_TURN = "test_silent_turn"
+        // Hole 5: durable in-flight marker. Written on every send
+        // in sendMessage, cleared on every terminal path. A new
+        // instance uses it to tell a turn still starting in this
+        // process apart from a turn that died with it.
+        private const val KEY_TURN_IN_FLIGHT_AT = "turn_in_flight_at"
+        private const val KEY_TURN_IN_FLIGHT_PID = "turn_in_flight_pid"
         private const val BRAIN_LOCAL = "ollama/qwen3:1.7b"
         // Brain fix (plan section 11): first-token wait before the
         // local-slow chip offers a free cloud brain.

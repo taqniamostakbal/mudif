@@ -75,9 +75,10 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
             // code markers for display only (the stored text keeps
             // the original) so the result reads plainly. User
             // messages show exactly what was typed.
-            messageText.text =
+            messageText.text = stripDashes(
                 if (message.role == AgentMessage.ROLE_AGENT) stripMarkdown(message.text)
                 else message.text
+            )
             messageTime.text = formatTime(message.time)
             if (message.role == AgentMessage.ROLE_USER) {
                 messageRow.gravity = Gravity.END
@@ -118,4 +119,12 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
         out = out.replace("\\times", "×").replace("\\%", "%")
         return out
     }
+
+    /** Display side dash sanitization: replace each em dash (U+2014)
+     *  and en dash (U+2013) with a single space, display only (the
+     *  stored text keeps the original). Applied to every rendered
+     *  message, agent and user alike, so a reply stored before this
+     *  fix still renders dash free. */
+    private fun stripDashes(text: String): String =
+        text.replace('\u2014', ' ').replace('\u2013', ' ')
 }

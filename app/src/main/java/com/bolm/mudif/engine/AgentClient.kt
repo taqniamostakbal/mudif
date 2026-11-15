@@ -85,7 +85,27 @@ object AgentClient {
 
         /** Stops the turn: closes the SSE stream and asks the server
          *  to abort. Best-effort; the server may already be done. */
+        @Volatile var stoppedByUser: Boolean = false
+            private set
+
+        /** User Stop: the turn ends now and its watchdog stays
+         *  silent. Only stopCurrentTurn calls this. */
         fun cancel() {
+            stoppedByUser = true
+            tearDown()
+        }
+
+        /** View destroyed (rotation, tab switch) while the turn
+         *  never ended: same teardown as cancel(), but the turn
+         *  was NOT stopped by the user, so its own watchdog
+         *  still fires failed() at its own deadline instead of
+         *  vanishing with the view. Only onDestroyView calls
+         *  this; see the rearm fragment spec for the call site. */
+        fun supersede() {
+            tearDown()
+        }
+
+        private fun tearDown() {
             cancelled = true
             try {
                 sseConnection?.disconnect()
@@ -159,6 +179,12 @@ object AgentClient {
      * screen ("ما أراه على الشاشة الآن: ..."), as observed context,
      * never as an instruction and never as a system-prompt edit.
      * Null (the default) sends exactly the one text part as before.
+     *
+     * [testSilentTurn]: test-only hook (item 4). When true, the
+     * turn parks after the watchdog is armed and performs zero
+     * network I/O, so the watchdog is the only thing that can
+     * end it (or a user Stop). Default false; no UI or string
+     * reaches it.
      */
     fun sendPrompt(
         sessionId: String,
@@ -169,7 +195,10 @@ object AgentClient {
         // Phase 3: stops the local model on timeout, error, or Stop.
         // The caller supplies it only for local-brain turns; cloud
         // turns pass null (no local model to stop).
-        localStop: (() -> String)? = null
+        localStop: (() -> String)? = null,
+        // Consolidated fix, item 4: test-only silent-turn hook.
+        // Default false, so the single call site is unchanged.
+        testSilentTurn: Boolean = false
     ): TurnHandle {
         val handle = TurnHandle(sessionId, localStop)
         val finished = AtomicBoolean(false)
@@ -210,23 +239,27 @@ object AgentClient {
             }
         }
         fun done(finalText: String) {
+            // Consolidated fix, item 7b: the final model text is
+            // sanitized here, at the source, before it is stored
+            // or spoken. Verdict strings never pass through done().
+            val cleanText = sanitizeModelText(finalText)
             // p34g fix 2: a turn with zero agent tokens ends only
             // through failed(), never as an empty success. The
             // phase-2 Nemotron empty finish ended here as done(""),
             // and the view-gone onDone path drops that silently
             // with no stored verdict and no Retry.
-            if (finalText.isEmpty()) {
+            if (cleanText.isEmpty()) {
                 failed(if (handle.cancelled) "stopped before any reply" else "empty reply: server finished with no text")
                 return
             }
             if (finished.compareAndSet(false, true)) {
                 turnDone.set(true)
-                Log.i(TAG, "done: final text len=${finalText.length}")
+                Log.i(TAG, "done: final text len=${cleanText.length}")
                 try {
                     handle.sseConnection?.disconnect()
                 } catch (_: Exception) {
                 }
-                callbacks.onDone(finalText)
+                callbacks.onDone(cleanText)
             }
         }
 
@@ -243,11 +276,36 @@ object AgentClient {
             } catch (_: InterruptedException) {
                 true
             }
-            if (!handle.cancelled && !turnDone.get()) {
-                Log.i(TAG, "timeout firing interrupted=$interrupted")
+            // Consolidated fix, item 4b: the watchdog answers only
+            // to its own turn. A supersede (view destroyed) tears
+            // the network down but must not silence this timer;
+            // only a user Stop does that, via stoppedByUser.
+            if (!handle.stoppedByUser && !turnDone.get()) {
+                Log.i(TAG, "timeout firing interrupted=$interrupted superseded=${handle.cancelled}")
                 failed(if (interrupted) "watchdog interrupted before reply" else "timeout: no reply within 300 s")
             }
         }.apply { isDaemon = true }.start()
+
+        // Consolidated fix, item 4: test-only silent-turn hook.
+        // Placement is the whole point: after the watchdog is
+        // armed above, before any session check below. The turn
+        // parks here with zero network I/O (no session check,
+        // no session creation, no SSE subscription, no post),
+        // so the watchdog is the only thing that can end it,
+        // or a user Stop through the returned handle.
+        if (testSilentTurn) {
+            Log.i(TAG, "test hook: silent turn armed, parking until watchdog")
+            Thread {
+                while (!turnDone.get() && !handle.cancelled) {
+                    try {
+                        Thread.sleep(1_000)
+                    } catch (_: InterruptedException) {
+                        break
+                    }
+                }
+            }.apply { isDaemon = true }.start()
+            return handle
+        }
 
         // Phase 4, fix 1: a live session must exist before the
         // prompt is posted. Blank id, or an id the server no longer
@@ -332,7 +390,7 @@ object AgentClient {
                                             val t = part.optString("text", "")
                                             if (t.isNotEmpty()) {
                                                 lastText.set(t)
-                                                callbacks.onText(t)
+                                                callbacks.onText(sanitizeModelText(t))
                                             }
                                         }
                                         "tool" -> {
@@ -376,7 +434,7 @@ object AgentClient {
                 if (screenContext != null) {
                     parts.put(
                         JSONObject().put("type", "text")
-                            .put("text", "ما أراه على الشاشة الآن: $screenContext")
+                            .put("text", "مصدر هذا الوصف: لقطة سطح مكتب الضيف (ffmpeg x11grab، العرض :6). ما أراه على الشاشة الآن: $screenContext. لا تستدعِ mudif_android_screenshot: تلك الأداة ترى شاشة هاتف أندرويد فقط، وليست سطح المكتب. أجب من هذا الوصف فقط، ولا تنفه.")
                     )
                 }
                 val body = JSONObject().apply {
@@ -424,7 +482,7 @@ object AgentClient {
                             lastPollText = polled
                             lastText.set(polled)
                             unchangedPolls = 0
-                            callbacks.onText(polled)
+                            callbacks.onText(sanitizeModelText(polled))
                         } else {
                             unchangedPolls++
                         }
@@ -444,9 +502,13 @@ object AgentClient {
                             return@Thread
                         }
                     }
-                    if (handle.cancelled) {
+                    // Consolidated fix, item 4b: only a user Stop
+                    // turns a cancel into the prompt stopped event.
+                    // A superseded turn exits silently here, so its
+                    // own watchdog stays the sole terminator.
+                    if (handle.stoppedByUser) {
                         done(lastText.get())
-                    } else if (!turnDone.get()) {
+                    } else if (!handle.cancelled && !turnDone.get()) {
                         failed("timeout: no reply within 300 s")
                     }
                     return@Thread
@@ -458,7 +520,12 @@ object AgentClient {
                     val finalText = postMessageBlocking(activeSessionId, body)
                     Log.i(TAG, "blocking reply len=${finalText?.length ?: -1}")
                     if (turnDone.get()) return@Thread
-                    if (handle.cancelled) done(lastText.get()) else {
+                    // Consolidated fix, item 4b: same rule as the
+                    // poll tail above. A superseded turn exits
+                    // silently; only a user Stop ends it here.
+                    if (handle.stoppedByUser) done(lastText.get()) else if (handle.cancelled) {
+                        return@Thread
+                    } else {
                         val replyText = finalText ?: lastText.get()
                         // Phase 4: a null blocking reply used to end
                         // the turn as an empty success. Fail honestly
@@ -658,6 +725,16 @@ object AgentClient {
         return info.optString("finish", "").isNotEmpty()
     }
 
+    /** Consolidated fix, item 7b: model text is stored and shown
+     *  verbatim, so strip em dashes (U+2014) and en dashes
+     *  (U+2013) here, at the source, with exactly two replace
+     *  calls and nothing else: each dash becomes one space, no
+     *  collapsing, no trim, no other text touched. User messages,
+     *  verdict strings, and prompts never pass through this. */
+    private fun sanitizeModelText(text: String): String {
+        return text.replace('\u2014', ' ').replace('\u2013', ' ')
+    }
+
     /** Concatenates the text parts of one message JSON object
      *  ({info, parts} or a bare message with "parts"). */
     private fun extractTextFromMessageJson(obj: JSONObject): String {
@@ -700,7 +777,8 @@ object AgentClient {
                 "ما تجاوبش من ذاكرتك على أحداث جارية. " +
                 "قاعدة المصدر: أي ادعاء على العالم الخارجي خاصو مصدر مقري. ما تذكر حتى رقم ولا تاريخ ولا رابط ما قريتيهش فالنتيجة ولا الصفحة. " +
                 "قاعدة الأدوات: استعمل أداة وحدة فكل مرة، وقرا النتيجة ديالها قبل الأداة اللي من بعدها. ما تعيطش لجوج أدوات على التوالي بلا قراءة. " +
-                "ما تستعملش webfetch ولا websearch المدمجين؛ أدوات مضيف للبحث والقراءة هوما الوحيدين. $safetyDarija"
+                "ما تستعملش webfetch ولا websearch المدمجين؛ أدوات مضيف للبحث والقراءة هوما الوحيدين. " +
+                "قاعدة الرؤية: إلا وصلك وصف للشاشة كنص، راهو من لقطة سطح مكتب الضيف، ثيق بيه وجاوب منو بوحدو، وما تعيطش أبدا لـ mudif_android_screenshot على ود هادشي: هاد الأداة كتشوف غير شاشة التيليفون، ماشي سطح المكتب. $safetyDarija"
             "en" -> "You are Mudif Assistant, the Arabic assistant inside the Mudif system " +
                 "on the phone. Answer in English, briefly. Carry out tasks with " +
                 "the tools available, and tell only the truth: if you do not know something, say " +
@@ -720,7 +798,8 @@ object AgentClient {
                 "read in a search result or a page. TOOL RULE: use one tool at a time and read " +
                 "its result before the next tool. Never call two tools in a row without reading. " +
                 "Do not use the built-in webfetch or websearch; the Mudif search and reading " +
-                "tools are the only ones. $safetyEn"
+                "tools are the only ones. " +
+                "VISION RULE: if you receive a screen description as text, it comes from a guest desktop capture, so trust it and answer from it only, and never call mudif_android_screenshot for that: that tool sees only the phone display, never the desktop. $safetyEn"
             else -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
                 "أجب بالعربية الفصحى وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
                 "إن لم تعرف شيئا قل لا أعرف، ولا تخترع نتيجة. " +
@@ -733,7 +812,8 @@ object AgentClient {
                 "لا تجب من ذاكرتك عن أحداث جارية. " +
                 "قاعدة المصدر: كل ادعاء عن العالم الخارجي يحتاج مصدرا مقروءا. لا تذكر رقما ولا تاريخا ولا رابطا لم تقرأه في نتيجة بحث أو صفحة. " +
                 "قاعدة الأدوات: استعمل أداة واحدة في كل مرة، واقرأ نتيجتها قبل الأداة التالية. لا تستدعي أداتين على التوالي بلا قراءة. " +
-                "لا تستعمل webfetch ولا websearch المدمجتين؛ أدوات مضيف للبحث والقراءة هي الوحيدة. $safetyFusha"
+                "لا تستعمل webfetch ولا websearch المدمجتين؛ أدوات مضيف للبحث والقراءة هي الوحيدة. " +
+                "قاعدة الرؤية: إن وصلك وصف للشاشة كنص، فهو من لقطة سطح مكتب الضيف، فثق به وأجب منه فقط، ولا تستدعِ mudif_android_screenshot أبدا لذلك: تلك الأداة ترى شاشة الهاتف فقط، وليست سطح المكتب. $safetyFusha"
         }
     }
 }

@@ -5,7 +5,11 @@ Translates MCP tool calls (JSON-RPC over stdio, the way OpenCode
 spawns local MCP servers) into HTTP calls against the Mudif bridge
 running in the Android app on the shared loopback
 (http://127.0.0.1:18080). One tool per bridge endpoint; no tool
-exists for anything the bridge does not implement.
+exists for anything the bridge does not implement. One extra tool,
+mudif_desktop_screenshot, runs guest ffmpeg x11grab in the guest
+(no bridge call): it is the only screenshot tool that sees the
+guest desktop, while mudif_android_screenshot sees only the
+Android phone display.
 
 Auth: the bridge token is read once at startup from
 /tmp/mudif-bridge-token (the guest path of the app's
@@ -33,6 +37,7 @@ Optional env overrides: MUDIF_URL (default http://127.0.0.1:18080),
 MUDIF_TOKEN_FILE (default /tmp/mudif-bridge-token).
 """
 
+import base64
 import html
 import json
 import os
@@ -69,6 +74,7 @@ TIMEOUTS = {
     "mudif_android_type": 30,
     "mudif_android_swipe": 30,
     "mudif_android_screenshot": 60,
+    "mudif_desktop_screenshot": 60,
     "mudif_logs": 30,
     "mudif_web_search": 60,
     "mudif_web_fetch": 60,
@@ -154,7 +160,12 @@ TOOLS = [
     },
     {
         "name": "mudif_android_screenshot",
-        "description": "One still screenshot of the Android display as base64 JPEG.",
+        "description": "One still screenshot of the Android phone display as base64 JPEG. This is the PHONE screen only, never the Debian guest desktop: while the chat is open it shows the Mudif app itself. Do NOT use it to answer what is on the desktop or computer screen; a desktop description is supplied as text in the prompt, or use mudif_desktop_screenshot.",
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "mudif_desktop_screenshot",
+        "description": "One still screenshot of the Debian guest desktop (the computer screen inside Mudif) as base64 JPEG. Use this when the user asks what is on the desktop or computer screen. This is the ONLY screenshot tool that sees the guest desktop; mudif_android_screenshot sees only the Android phone display.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
@@ -255,6 +266,82 @@ def bridge_call(tool, arguments):
 
 class BridgeError(Exception):
     pass
+
+
+# -------------------------------------------- guest desktop capture
+# Vision fix: the brain used to answer desktop questions with the
+# Android screenshot, which shows the phone display (the chat
+# itself), then disavowed the correct guest description. This tool
+# re-points that impulse at the real source: the same guest ffmpeg
+# x11grab primitive VisionCapture uses (display 127.0.0.1:6, real
+# size from xdpyinfo, downscaled to 960 wide). No bridge involved:
+# ffmpeg runs in the guest. Any failure returns an error dict,
+# never a stale frame and never an Android frame.
+
+DESKTOP_TOOLS = {"mudif_desktop_screenshot"}
+DESKTOP_DISPLAY = "127.0.0.1:6"
+DESKTOP_SHOT = "/tmp/mudif-mcp-shot.jpg"
+DESKTOP_SHOT_WIDTH = 960
+
+
+def _desktop_display_size():
+    """Real guest display size from xdpyinfo, or None."""
+    try:
+        proc = subprocess.run(
+            ["xdpyinfo", "-display", DESKTOP_DISPLAY],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            timeout=30, text=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode != 0:
+        return None
+    match = re.search(r"dimensions:\s*(\d+)x(\d+)\s*pixels", proc.stdout or "")
+    if not match:
+        return None
+    width, height = int(match.group(1)), int(match.group(2))
+    if width <= 0 or height <= 0:
+        return None
+    return width, height
+
+
+def desktop_screenshot(arguments):
+    """One guest desktop frame as base64 JPEG, labelled by source."""
+    size = _desktop_display_size()
+    if size is None:
+        return {"source": "guest_desktop_x11grab", "ok": False,
+                "error": "could not read the guest display size (is the desktop running?)"}
+    width, height = size
+    scale = ["-vf", "scale=%d:-1" % DESKTOP_SHOT_WIDTH] if width > DESKTOP_SHOT_WIDTH else []
+    cmd = ["ffmpeg", "-y", "-f", "x11grab",
+           "-video_size", "%dx%d" % (width, height),
+           "-i", DESKTOP_DISPLAY, "-frames:v", "1"] + scale + [DESKTOP_SHOT]
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.PIPE,
+                              timeout=TIMEOUTS["mudif_desktop_screenshot"], text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"source": "guest_desktop_x11grab", "ok": False,
+                "error": "ffmpeg capture failed: %s" % e}
+    if proc.returncode != 0:
+        return {"source": "guest_desktop_x11grab", "ok": False,
+                "error": "ffmpeg capture failed with exit %d" % proc.returncode}
+    try:
+        with open(DESKTOP_SHOT, "rb") as f:
+            data = f.read()
+    except OSError as e:
+        return {"source": "guest_desktop_x11grab", "ok": False,
+                "error": "could not read the captured frame: %s" % e}
+    if not data:
+        return {"source": "guest_desktop_x11grab", "ok": False,
+                "error": "ffmpeg produced an empty frame"}
+    try:
+        os.remove(DESKTOP_SHOT)
+    except OSError:
+        pass
+    return {"source": "guest_desktop_x11grab", "ok": True, "format": "jpeg",
+            "display": DESKTOP_DISPLAY, "size": "%dx%d" % (width, height),
+            "data": base64.b64encode(data).decode("ascii")}
 
 
 # ------------------------------------------------------- web tools
@@ -662,6 +749,17 @@ def handle(request):
                     "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
                 },
             }
+        if name in DESKTOP_TOOLS:
+            # Guest desktop capture: no bridge token needed; errors
+            # live in the dict, like the web tools.
+            result = desktop_screenshot(arguments)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
+                },
+            }
         if name not in ROUTES:
             return {
                 "jsonrpc": "2.0",
@@ -676,6 +774,10 @@ def handle(request):
                 "id": req_id,
                 "error": {"code": -32000, "message": str(e)},
             }
+        if name == "mudif_android_screenshot" and isinstance(result, dict):
+            # Label the source in the result itself: this frame is
+            # the Android phone display, never the guest desktop.
+            result["source"] = "android_display"
         return {
             "jsonrpc": "2.0",
             "id": req_id,

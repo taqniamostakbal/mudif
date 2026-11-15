@@ -29,6 +29,11 @@ object VisionClient {
     /** A 3B vision model on a phone CPU is slow: allow 5 minutes. */
     private const val READ_TIMEOUT_MS = 300_000
 
+    /** Capture source this description always comes from: the
+     *  guest desktop frame from VisionCapture, never the Android
+     *  display. Logged on every successful read (see describe). */
+    const val SOURCE_LABEL = "guest_desktop_x11grab"
+
     const val VISION_PROMPT =
         "Describe this desktop screenshot briefly: open windows, the focused window, " +
             "any error dialog or notification, and all visible text exactly as shown. " +
@@ -64,17 +69,22 @@ object VisionClient {
             conn.outputStream.use { it.write(body.toByteArray(StandardCharsets.UTF_8)) }
             val code = conn.responseCode
             if (code != 200) {
-                Log.w(TAG, "describe: HTTP $code")
+                Log.w(TAG, "describe: source=$SOURCE_LABEL model=${AgentServer.VISION_MODEL} HTTP $code")
                 conn.disconnect()
                 return null
             }
             val raw = conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
             conn.disconnect()
-            JSONObject(raw)
+            val description = JSONObject(raw)
                 .optJSONObject("message")
                 ?.optString("content", "")
                 ?.trim()
                 ?.takeIf { it.isNotEmpty() }
+            if (description != null) {
+                Log.i(TAG, "describe: source=$SOURCE_LABEL model=${AgentServer.VISION_MODEL} imageBytes=${jpegBytes.size} descriptionChars=${description.length}")
+            }
+            // Strip em/en dashes at the source so the stored description is dash-free.
+            description?.replace('\u2014', ' ').replace('\u2013', ' ')
         } catch (e: Exception) {
             Log.w(TAG, "describe failed", e)
             null

@@ -58,7 +58,7 @@
             android:gravity="end"
             android:layout_marginTop="4dp"
             android:textSize="11sp"
-            android:textColor="#8A8A8A"
+            android:textColor="@color/text_muted"
             android:fontFamily="@font/cairo" />
     </LinearLayout>
 </LinearLayout>

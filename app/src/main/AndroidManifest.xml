@@ -31,9 +31,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Consolidated fix item 5: rotation must not recreate
+             this activity mid-turn. Without configChanges, a
+             rotation destroyed AgentFragment, onDestroyView
+             cancelled the turn and aborted the live server session,
+             and the next turns on that session finished instantly
+             with no text until a model switch made a new session. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|locale|density|fontScale"
             android:windowSoftInputMode="adjustResize" />
         <!-- p31: provider-selection screen (free AI platforms). -->
         <activity
