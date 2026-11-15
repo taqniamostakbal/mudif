@@ -14,6 +14,7 @@ import com.bolm.mudif.databinding.ItemProcessBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.TerminalSession
 import com.bolm.mudif.ui.MudifDialog
+import java.util.Locale
 
 /**
  * Real-computer #10, guest task manager: the live process list of
@@ -126,7 +127,7 @@ class TaskManagerActivity : AppCompatActivity() {
         val rssKb: Long,
         val comm: String
     ) {
-        val memMb: String get() = "%.1f MB".format(rssKb / 1024.0)
+        val memMb: String get() = "%.1f MB".format(Locale.US, rssKb / 1024.0)
     }
 
     private class ProcessAdapter(

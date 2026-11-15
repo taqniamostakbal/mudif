@@ -10,6 +10,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * P17, نظام مضيف: Debian 13.1 Trixie as THE system of the app,
@@ -84,7 +85,7 @@ object DebianSystem {
         val a = abi()
         val count = if (a == "x86_64") PART_COUNT_X86_64 else PART_COUNT_AARCH64
         val base = "mudif-image-$a-$IMAGE_VERSION.tar.xz"
-        return (0 until count).map { i -> "$base.p20%02d".format(i) }
+        return (0 until count).map { i -> "$base.p20%02d".format(Locale.US, i) }
     }
 
     fun partUrls(): List<String> = partNames().map { "$HF_BASE$it" }
@@ -264,7 +265,7 @@ object DebianSystem {
                 digest.update(buf, 0, n)
             }
         }
-        return digest.digest().joinToString("") { "%02x".format(it) }
+        return digest.digest().joinToString("") { "%02x".format(Locale.US, it) }
     }
 
     fun extract(context: Context) {

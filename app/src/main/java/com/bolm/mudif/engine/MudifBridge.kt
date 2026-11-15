@@ -115,7 +115,7 @@ object MudifBridge {
         }
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
-        val fresh = bytes.joinToString("") { "%02x".format(it) }
+        val fresh = bytes.joinToString("") { "%02x".format(Locale.US, it) }
         prefs.edit().putString(KEY_TOKEN, fresh).apply()
         writeTokenFile(appCtx, fresh)
         return fresh
