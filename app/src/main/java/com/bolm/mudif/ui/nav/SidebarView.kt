@@ -89,7 +89,7 @@ class SidebarView @JvmOverloads constructor(
         Row(R.id.nav_store, R.drawable.ic_store, R.string.tab_store),
         Row(R.id.nav_apps, R.drawable.ic_apps, R.string.tab_apps),
         Row(R.id.nav_games, R.drawable.ic_games, R.string.tab_games),
-        Row(R.id.nav_agent, R.drawable.ic_cat_ai, R.string.tab_agent),
+        Row(R.id.nav_agent, R.drawable.ic_agent_robot, R.string.tab_agent),
         Row(R.id.nav_profile, R.drawable.ic_person, R.string.tab_profile)
     )
 

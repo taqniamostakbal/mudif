@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- p54: robot head for the agent rows. Anas: the star does not
+         say "agent" ("نجمة حيدها و يدير ايقونة تدل على الايجين").
+         Stroke style like ic_settings/ic_info (the tint supplies
+         the color); the small circles render as solid dots because
+         the 2dp stroke is nearly as wide as the circle, same as
+         the Lottie robot's filled eyes. The AI store category
+         keeps its star (ic_cat_ai): a category is not the agent. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7.5,8h9a2.5,2.5 0 0,1 2.5,2.5v7a2.5,2.5 0 0,1 -2.5,2.5h-9a2.5,2.5 0 0,1 -2.5,-2.5v-7a2.5,2.5 0 0,1 2.5,-2.5zM12,8V5M12,2.2a1.2,1.2 0 1,0 0,2.4a1.2,1.2 0 1,0 0,-2.4zM9.3,11.9a1.1,1.1 0 1,0 0,2.2a1.1,1.1 0 1,0 0,-2.2zM14.7,11.9a1.1,1.1 0 1,0 0,2.2a1.1,1.1 0 1,0 0,-2.2zM9.5,17h5M5,13H3M19,13h2" />
+</vector>
