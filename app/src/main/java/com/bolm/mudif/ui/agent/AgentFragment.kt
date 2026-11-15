@@ -100,6 +100,18 @@ class AgentFragment : Fragment() {
     // startVisionTurn). onViewCreated uses it to tell a turn that
     // is still starting apart from a wedged flag.
     @Volatile private var turnSetupRunning: Boolean = false
+    // p35c: a brain-model restart is tracked, never fire-and-forget.
+    // A turn that starts while it runs must wait for it; a turn that
+    // starts after it failed must not answer on the old server.
+    // brainRestartAgain arms one more run when a second pick lands
+    // mid-restart, so the newest pick is the one verified.
+    @Volatile private var brainRestartRunning: Boolean = false
+    @Volatile private var brainRestartFailed: Boolean = false
+    @Volatile private var brainRestartAgain: Boolean = false
+    @Volatile private var brainRestartThread: Thread? = null
+    // p35c second attempt: one lock guards all four restart
+    // fields, so no sampler can see a half-updated state.
+    private val brainRestartLock = Any()
     // p32: keyboard state (the layout listener updates it). While
     // the keyboard is open the header + scroll row + divider + card
     // hide so the message list keeps a usable height (they used to
@@ -959,6 +971,12 @@ class AgentFragment : Fragment() {
             } catch (e: Exception) {
                 android.util.Log.w("AgentFragment", "supervisor start failed (best-effort)", e)
             }
+            // p35c: a model pick restarts the server on a tracked
+            // thread; the turn waits for that restart (or its one
+            // retry) before ensureStarted, or ensureStarted would
+            // short-circuit on the still-running old server and the
+            // fresh session would pin the old model.
+            val restartOk = waitForBrainRestart(appContext)
             val ensured = AgentServer.ensureStarted(appContext)
             Log.i("MudifAgent", "startTurn ensureStarted up=${ensured.up} reason=${ensured.reason} brainModel=$brainModel")
             val act = activity
@@ -968,6 +986,13 @@ class AgentFragment : Fragment() {
                 turnRunning = false
                 currentTurn = null
                 streamingIndex = -1
+                return@runTurnThread
+            }
+            if (!restartOk) {
+                // p35c: the server never verified on the picked
+                // model; answering now would answer with the old
+                // one. Fail honestly instead, with Retry.
+                failTurnInBackground(act, appContext, AgentServer.REASON_START_FAILED, null)
                 return@runTurnThread
             }
             if (!ensured.up) {
@@ -1007,17 +1032,56 @@ class AgentFragment : Fragment() {
                 }
                 return@runTurnThread
             }
-            var sid = sessionId
-            if (sid.isNullOrBlank()) {
-                sid = AgentClient.createSession()
-                Log.i("MudifAgent", "startTurn createSession ok=${!sid.isNullOrBlank()}")
-                if (sid.isNullOrBlank()) {
-                    failTurnInBackground(act, appContext, null, null)
-                    return@runTurnThread
+            // p35c second attempt, hole 3: re-check immediately
+            // before session creation, so a pick landing after
+            // the first gate cannot slip a session onto the
+            // old-model server. The re-check alone only narrowed
+            // the window to microseconds; it could not close it.
+            if (!waitForBrainRestart(appContext)) {
+                failTurnInBackground(act, appContext, AgentServer.REASON_START_FAILED, null)
+                return@runTurnThread
+            }
+            // p35d: the flag re-check, the session read, the
+            // creation POST and the publish run under
+            // brainRestartLock, so no pick can land between them.
+            // waitForBrainRestart joins the restart thread, so it
+            // can never run inside the lock: the restart thread
+            // needs the lock to clear its flags, and a join under
+            // the lock would deadlock. The locked re-check is a
+            // flag snapshot instead. A pick that landed after the
+            // unlocked wait fails this turn honestly with Retry
+            // instead of answering on the old model; no second
+            // wait runs here, so the wait budget does not grow.
+            // The lock is held only across session creation, never
+            // across the prompt post or the whole turn. The
+            // restart thread needs the lock only at the end of a
+            // run, to set its flags; it holds nothing the turn
+            // needs, so it waits and a hung POST ends the hold.
+            var sid: String? = null
+            var restartPending = false
+            synchronized(brainRestartLock) {
+                restartPending = brainRestartRunning || brainRestartFailed
+                if (!restartPending) {
+                    sid = sessionId
+                    if (sid.isNullOrBlank()) {
+                        sid = AgentClient.createSession()
+                        Log.i("MudifAgent", "startTurn createSession ok=${!sid.isNullOrBlank()}")
+                        if (!sid.isNullOrBlank()) {
+                            sessionId = sid
+                            appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                                .edit().putString(KEY_SESSION_ID, sid).apply()
+                        }
+                    }
                 }
-                sessionId = sid
-                appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    .edit().putString(KEY_SESSION_ID, sid).apply()
+            }
+            if (restartPending) {
+                failTurnInBackground(act, appContext, AgentServer.REASON_START_FAILED, null)
+                return@runTurnThread
+            }
+            val useSid = sid
+            if (useSid.isNullOrBlank()) {
+                failTurnInBackground(act, appContext, null, null)
+                return@runTurnThread
             }
             val callbacks = object : AgentClient.TurnCallbacks {
                 override fun onText(fullText: String) {
@@ -1237,7 +1301,7 @@ class AgentFragment : Fragment() {
                 silentHookPrefs.edit().remove(KEY_TEST_SILENT_TURN).apply()
             }
             val handle = AgentClient.sendPrompt(
-                sid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
+                useSid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
                 screenContext, localStop, testSilentTurn = silentHook
             )
             act.runOnUiThread {
@@ -1316,6 +1380,10 @@ class AgentFragment : Fragment() {
             } catch (e: Exception) {
                 android.util.Log.w("AgentFragment", "supervisor start failed (best-effort)", e)
             }
+            // p35c second attempt, hole 5: wait out a brain
+            // restart before ensureStarted, so vision never
+            // starts a server beside the restart thread.
+            val restartOk = waitForBrainRestart(appContext)
             val ensured = AgentServer.ensureStarted(appContext)
             Log.i("MudifAgent", "startVisionTurn ensureStarted up=${ensured.up} reason=${ensured.reason}")
             val act = activity
@@ -1325,6 +1393,11 @@ class AgentFragment : Fragment() {
                 turnRunning = false
                 currentTurn = null
                 streamingIndex = -1
+                return@runTurnThread
+            }
+            if (!restartOk) {
+                failTurnInBackground(act, appContext, AgentServer.REASON_START_FAILED, null) { startVisionTurn(question) }
+                refreshVisionChip()
                 return@runTurnThread
             }
             if (!ensured.up) {
@@ -2012,6 +2085,128 @@ class AgentFragment : Fragment() {
         )
     }
 
+    /** p35c: restarts the brain server after a model pick, tracked
+     *  to completion instead of fire-and-forget. The running flag
+     *  is what the next turn waits on; the failed flag is what
+     *  makes it refuse to answer on the old server. A second pick
+     *  while a restart runs does not start a second restart: it
+     *  arms one more run, so the newest pick is the one verified.
+     *  A failed final run posts the honest outcome as a Toast;
+     *  the next turn then fails with the same verdict in chat. */
+    private fun restartBrainServer() {
+        val appContext = context?.applicationContext ?: return
+        val thread = Thread {
+            var ok = false
+            while (true) {
+                try {
+                    ok = AgentServer.restart(appContext)
+                } catch (e: Exception) {
+                    Log.w("MudifAgent", "brain restart crashed", e)
+                    ok = false
+                }
+                // p35c second attempt, hole 2: the again check and
+                // the running clear happen in one lock hold, so a
+                // pick landing after the check cannot be lost.
+                val rerun = synchronized(brainRestartLock) {
+                    if (brainRestartAgain) {
+                        brainRestartAgain = false
+                        true
+                    } else {
+                        brainRestartFailed = !ok
+                        brainRestartRunning = false
+                        false
+                    }
+                }
+                if (!rerun) break
+                Log.i("MudifAgent", "brain restart: another pick arrived mid-restart, running again")
+            }
+            if (!ok) {
+                Log.e("MudifAgent", "brain restart failed, server still on the old model")
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    Toast.makeText(appContext, R.string.agent_brain_failed, Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Log.i("MudifAgent", "brain restart verified on the picked model")
+            }
+        }
+        // p35c second attempt, hole 1: thread reference, running
+        // flag and start happen in one lock hold, so no sampler
+        // can see running true with no thread to join.
+        synchronized(brainRestartLock) {
+            if (brainRestartRunning) {
+                brainRestartAgain = true
+                return
+            }
+            brainRestartThread = thread
+            brainRestartRunning = true
+            brainRestartFailed = false
+            thread.isDaemon = true
+            thread.start()
+        }
+    }
+
+    /** p35c: waits out a brain restart a pick started, so the next
+     *  turn never creates its session on the still-running old
+     *  server. Returns true when no restart was pending or the
+     *  pending one verified; false when it failed or timed out,
+     *  and the caller must then fail the turn honestly instead of
+     *  answering. A failed restart gets one synchronous retry
+     *  here, so a transient failure self-heals and Retry on the
+     *  failed turn has something real to retry. Never on the UI
+     *  thread: the wait alone can last past a minute. */
+    private fun waitForBrainRestart(ctx: Context): Boolean {
+        // p35c second attempt, hole 1: running and thread are
+        // snapshotted in one lock hold. Running true with no
+        // thread means a restart is starting; fail closed.
+        val (runningNow, thread) = synchronized(brainRestartLock) {
+            brainRestartRunning to brainRestartThread
+        }
+        if (runningNow && thread == null) return false
+        if (thread != null) {
+            try {
+                thread.join(BRAIN_RESTART_WAIT_TIMEOUT_MS)
+            } catch (_: InterruptedException) {
+            }
+            val stillRunning = synchronized(brainRestartLock) { brainRestartRunning }
+            if (stillRunning) {
+                Log.e("MudifAgent", "brain restart still running after wait, turn refused")
+                return false
+            }
+        }
+        val failed = synchronized(brainRestartLock) { brainRestartFailed }
+        if (failed) {
+            Log.i("MudifAgent", "brain restart failed earlier, retrying once for this turn")
+            // p35c second attempt, hole 4: the retry runs through
+            // the tracked restartBrainServer path, never a bare
+            // AgentServer.restart, so it cannot run beside a
+            // second restart a pick starts at the same time.
+            restartBrainServer()
+            val (retryRunning, retryThread) = synchronized(brainRestartLock) {
+                brainRestartRunning to brainRestartThread
+            }
+            if (retryRunning && retryThread == null) return false
+            if (retryThread == null) {
+                Log.e("MudifAgent", "brain restart retry could not start, turn refused")
+                return false
+            }
+            try {
+                retryThread.join(BRAIN_RESTART_WAIT_TIMEOUT_MS)
+            } catch (_: InterruptedException) {
+            }
+            val retryStillRunning = synchronized(brainRestartLock) { brainRestartRunning }
+            if (retryStillRunning) {
+                Log.e("MudifAgent", "brain restart retry still running after wait, turn refused")
+                return false
+            }
+            val retryFailed = synchronized(brainRestartLock) { brainRestartFailed }
+            if (retryFailed) {
+                Log.e("MudifAgent", "brain restart retry failed, turn refused")
+                return false
+            }
+        }
+        return true
+    }
+
     /** Applies a brain picked on the provider screen: writes it to
      *  opencode.json and restarts the server (only when it is up).
      *  A cloud model needs its key in Settings (or on the provider
@@ -2075,9 +2270,6 @@ class AgentFragment : Fragment() {
             clearTurnFailed(requireContext())
             if (_binding != null) hideAgentAction()
         }
-        // p31: fresh session under the new brain.
-        sessionId = null
-        prefs().edit().remove(KEY_SESSION_ID).apply()
         updateBrainButton()
         // p34f fix 3: the key gate moved above, before the switch.
         // A pick reaching here has its key (or needs none).
@@ -2086,11 +2278,21 @@ class AgentFragment : Fragment() {
             getString(R.string.agent_brain_changed, picked.label),
             Toast.LENGTH_SHORT
         ).show()
-        if (AgentServer.isUp()) {
-            Thread {
-                AgentServer.stop(requireContext())
-                AgentServer.ensureStarted(requireContext())
-            }.start()
+        // p31: fresh session under the new brain. p35d: the clear
+        // and the restart start under brainRestartLock, as one
+        // atomic step, so a turn setting up at the same moment
+        // cannot read the old id or create a session on the old
+        // server between the two. isUp is probed outside the lock:
+        // it is a TCP probe of up to 3 x 1500 ms, and the lock is
+        // held only for the field write, the pref remove, and the
+        // thread start. restartBrainServer takes the same lock to
+        // set its flags; that nested hold is the same thread, so
+        // it cannot deadlock.
+        val serverUp = AgentServer.isUp()
+        synchronized(brainRestartLock) {
+            sessionId = null
+            prefs().edit().remove(KEY_SESSION_ID).apply()
+            if (serverUp) restartBrainServer()
         }
     }
 
@@ -2343,6 +2545,10 @@ class AgentFragment : Fragment() {
         // Brain fix (plan section 11): first-token wait before the
         // local-slow chip offers a free cloud brain.
         private const val LOCAL_SLOW_CHIP_DELAY_MS = 60_000L
+        // p35c: longest a turn waits for a brain restart a pick
+        // started (stop up to 15 s, start poll up to 30 s, pid
+        // probes on top). Past this the turn refuses honestly.
+        private const val BRAIN_RESTART_WAIT_TIMEOUT_MS = 120_000L
         // Brain fix (plan section 10): user-pasted URLs, appended to
         // the fetch allowlist so the brain may open them.
         private val PASTED_URL_REGEX = Regex("https?://\\S+")

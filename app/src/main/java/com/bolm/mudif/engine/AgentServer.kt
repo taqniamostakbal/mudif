@@ -398,6 +398,43 @@ object AgentServer {
     }
 
     /**
+     * Restarts the OpenCode server and verifies the restart, so a
+     * brain-model pick takes effect before the next turn creates
+     * its session. Same verified pattern as the key-save restart
+     * in BrainProvidersAdapter: the old pid is read before the
+     * stop, the stop result is checked, and success needs the
+     * server answering afterwards on a new process with a
+     * different pid. Returns true only on that verified outcome,
+     * false when the stop failed, the start failed, or the new
+     * process cannot be confirmed (a failed probe reads as not
+     * verified, never as up). When the server is not running,
+     * there is nothing to stop; the start alone is verified.
+     * Never on the UI thread: stop waits up to 15 s, the start
+     * polls up to 30 s, and the pid probes add guest one-shots.
+     */
+    fun restart(context: Context): Boolean {
+        val portUp = isUp()
+        val oldPid = opencodePid(context)
+        Log.i(TAG, "restart: start (port up=$portUp, old pid=$oldPid)")
+        if (portUp || oldPid != null) {
+            if (!stop(context)) {
+                Log.e(TAG, "restart: stop failed, old server still running")
+                return false
+            }
+        }
+        val ensured = ensureStarted(context)
+        val newPid = opencodePid(context)
+        val pidChanged = oldPid == null || (newPid != null && newPid != oldPid)
+        val ok = ensured.up && newPid != null && pidChanged
+        if (ok) {
+            Log.i(TAG, "restart: verified (old pid=$oldPid, new pid=$newPid)")
+        } else {
+            Log.e(TAG, "restart: not verified (up=${ensured.up}, old pid=$oldPid, new pid=$newPid)")
+        }
+        return ok
+    }
+
+    /**
      * Pid of the running `opencode serve` process in the guest,
      * or null when no such process exists (or the guest probe
      * itself failed; the failure is logged). Never throws. Uses
