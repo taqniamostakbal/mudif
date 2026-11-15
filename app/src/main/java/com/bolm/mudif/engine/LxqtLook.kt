@@ -275,7 +275,12 @@ object LxqtLook {
     // P25 (2026-11-15, p44): p43 shipped a new arabic-cli.sh but
     // kept MARKER_VERSION at p24, so the new CLI never staged on
     // an existing rootfs. Bump to p25 so the p44 configs re-apply.
-    const val MARKER_VERSION = "p25"
+    // P26 (2026-11-15, p51): p51 ships a new arabic-cli.sh (token
+    // helpers, confirmation on the multi-arg ثبت, ازل, رقي, نظف),
+    // so an existing rootfs must re-apply to pick it up. The image
+    // stays p23; only the look version moves. Without this bump the
+    // CLI change repeats the exact p43 trap.
+    const val MARKER_VERSION = "p26"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"

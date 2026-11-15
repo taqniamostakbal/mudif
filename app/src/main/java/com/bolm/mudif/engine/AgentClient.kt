@@ -207,6 +207,12 @@ object AgentClient {
      * deny-all vision agent, so OpenCode sends no tools and Ollama
      * accepts the call), nothing on a normal turn (its tools are
      * untouched). An explicit non-null value wins over the rule.
+     *
+     * [isCloudVision]: p51. True only for a cloud vision turn (the
+     * file part is the only route there). A local turn with
+     * [imageBase64] set and this false fails honestly before
+     * posting: local vision must use VisionClient, never a file
+     * part (Break A/B). Default false.
      */
     fun sendPrompt(
         sessionId: String,
@@ -223,7 +229,8 @@ object AgentClient {
         // Default false, so the single call site is unchanged.
         testSilentTurn: Boolean = false,
         replyLanguage: String = "fusha",
-        agent: String? = null
+        agent: String? = null,
+        isCloudVision: Boolean = false
     ): TurnHandle {
         val handle = TurnHandle(sessionId, localStop)
         val finished = AtomicBoolean(false)
@@ -453,6 +460,15 @@ object AgentClient {
         // live text until the SSE stream signals idle/error.
         Thread {
             try {
+                // p51: a local file-part turn is impossible in code,
+                // not just by convention. OpenCode strips the image
+                // when modalities are missing (Break A) and the /v1
+                // text-first split is blind (Break B); local vision
+                // goes through VisionClient direct /api/chat.
+                if (imageBase64 != null && !isCloudVision) {
+                    failed("local vision must use VisionClient, not a file part")
+                    return@Thread
+                }
                 val parts = JSONArray().put(
                     JSONObject().put("type", "text").put("text", text)
                 )
@@ -839,7 +855,7 @@ object AgentClient {
                 "قاعدة المصدر: أي ادعاء على العالم الخارجي خاصو مصدر مقري. ما تذكر حتى رقم ولا تاريخ ولا رابط ما قريتيهش فالنتيجة ولا الصفحة. " +
                 "قاعدة الأدوات: استعمل أداة وحدة فكل مرة، وقرا النتيجة ديالها قبل الأداة اللي من بعدها. ما تعيطش لجوج أدوات على التوالي بلا قراءة. " +
                 "ما تستعملش webfetch ولا websearch المدمجين؛ أدوات مضيف للبحث والقراءة هوما الوحيدين. " +
-                "قاعدة الأوامر بالعربية: إلا كتب المستخدم جملة أمر بالفصحى بحال «ثبت فايرفوكس» ولا «اعرض الملفات» ترجمها لفعل الطرفية العربية ونفذها بأداة shell بلا ما تشرحها. الأفعال فـ /root/.config/mudif/arabic-cli.sh، حملها اللولة بهاد الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة كتكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. الأفعال اللي كتطلب تأكيد (ثبت، حدّث-النظام، نظف-الكاش) دوز ليها التأكيد حيت جملة المستخدم هي الموافقة: printf 'ن\\n' | ثبت فايرفوكس. من بعد التنفيذ قول للمستخدم النتيجة باختصار. " +
+                "قاعدة الأوامر بالعربية: إلا كتب المستخدم جملة أمر بالفصحى بحال «ثبت فايرفوكس» ولا «اعرض الملفات» ترجمها لفعل الطرفية العربية ونفذها بأداة shell بلا ما تشرحها. الأفعال فـ /root/.config/mudif/arabic-cli.sh، حملها اللولة بهاد الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة كتكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. ما تعيطش أبدا لـ apt ولا apt-get ولا dpkg مباشرة؛ النظام كيرفض التثبيت المباشر. استعمل ثبت والأفعال العربية الأخرى لكل تثبيت وإزالة وترقية. من بعد التنفيذ قول للمستخدم النتيجة باختصار. " +
                 "قاعدة الرؤية: إلا وصلك وصف للشاشة كنص، راهو من لقطة سطح مكتب الضيف، ثيق بيه وجاوب منو بوحدو، وما تعيطش أبدا لـ mudif_android_screenshot على ود هادشي: هاد الأداة كتشوف غير شاشة التيليفون، ماشي سطح المكتب. " +
                 "قاعدة التحكم فالنوافذ: تحكم فسطح المكتب بسميات النوافذ غير بأدوات mudif_desktop_windows وmudif_desktop_window وmudif_desktop_type وmudif_desktop_key، وما تخترع حتى إحداثيات بكسل، وما تستعملش إحداثيات أندرويد لأفعال سطح المكتب. من بعد كل فعل فالواجهة تحقق بلقطة تانية من mudif_desktop_screenshot قبل ما تقول ساليتي. $safetyDarija"
             "en" -> "You are Mudif Assistant, the Arabic assistant inside the Mudif system " +
@@ -867,9 +883,9 @@ object AgentClient {
                 "and run it with the shell tool instead of explaining it. The verbs live in " +
                 "/root/.config/mudif/arabic-cli.sh; source it first with: " +
                 ". /root/.config/mudif/arabic-cli.sh. Compound verbs use a hyphen: " +
-                "حدّث-النظام, نظف-الكاش, ابحث-عن-ملف. Verbs that ask for confirmation " +
-                "(ثبت, حدّث-النظام, نظف-الكاش) get the confirmation piped in, because the " +
-                "user's sentence is itself the approval: printf 'ن\\n' | ثبت فايرفوكس. " +
+                "حدّث-النظام, نظف-الكاش, ابحث-عن-ملف. Never call apt, apt-get or dpkg " +
+                "directly; the system refuses direct installs. Use ثبت and the other " +
+                "Arabic verbs for every install, removal and upgrade. " +
                 "After running, tell the user the result briefly. " +
                 "VISION RULE: if you receive a screen description as text, it comes from a guest desktop capture, so trust it and answer from it only, and never call mudif_android_screenshot for that: that tool sees only the phone display, never the desktop. " +
                 "WINDOW RULE: control the desktop by window NAME only, with mudif_desktop_windows, mudif_desktop_window, mudif_desktop_type and mudif_desktop_key. Never invent pixel coordinates, and never use Android coordinates for desktop actions. After every interface action, verify with a second mudif_desktop_screenshot before reporting it done. $safetyEn"
@@ -886,7 +902,7 @@ object AgentClient {
                 "قاعدة المصدر: كل ادعاء عن العالم الخارجي يحتاج مصدرا مقروءا. لا تذكر رقما ولا تاريخا ولا رابطا لم تقرأه في نتيجة بحث أو صفحة. " +
                 "قاعدة الأدوات: استعمل أداة واحدة في كل مرة، واقرأ نتيجتها قبل الأداة التالية. لا تستدعي أداتين على التوالي بلا قراءة. " +
                 "لا تستعمل webfetch ولا websearch المدمجتين؛ أدوات مضيف للبحث والقراءة هي الوحيدة. " +
-                "قاعدة الأوامر العربية: إن كتب المستخدم جملة أمر بالفصحى مثل «ثبت فايرفوكس» أو «اعرض الملفات» فترجمها إلى فعل الطرفية العربية ونفذها بأداة shell بدلا من شرحها. الأفعال في /root/.config/mudif/arabic-cli.sh، حمّلها أولا بهذا الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة تكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. الأفعال التي تطلب تأكيدا (ثبت، حدّث-النظام، نظف-الكاش) مرّر لها التأكيد لأن جملة المستخدم نفسها هي الموافقة: printf 'ن\\n' | ثبت فايرفوكس. بعد التنفيذ أخبر المستخدم بالنتيجة باختصار. " +
+                "قاعدة الأوامر العربية: إن كتب المستخدم جملة أمر بالفصحى مثل «ثبت فايرفوكس» أو «اعرض الملفات» فترجمها إلى فعل الطرفية العربية ونفذها بأداة shell بدلا من شرحها. الأفعال في /root/.config/mudif/arabic-cli.sh، حمّلها أولا بهذا الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة تكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. لا تستدعِ apt ولا apt-get ولا dpkg مباشرة أبدا؛ النظام يرفض التثبيت المباشر. استعمل ثبت والأفعال العربية الأخرى لكل تثبيت وإزالة وترقية. بعد التنفيذ أخبر المستخدم بالنتيجة باختصار. " +
                 "قاعدة الرؤية: إن وصلك وصف للشاشة كنص، فهو من لقطة سطح مكتب الضيف، فثق به وأجب منه فقط، ولا تستدعِ mudif_android_screenshot أبدا لذلك: تلك الأداة ترى شاشة الهاتف فقط، وليست سطح المكتب. " +
                 "قاعدة التحكم بالنوافذ: تحكم بسطح المكتب بأسماء النوافذ فقط عبر أدوات mudif_desktop_windows وmudif_desktop_window وmudif_desktop_type وmudif_desktop_key، ولا تخترع إحداثيات بكسل أبدا، ولا تستعمل إحداثيات أندرويد لأفعال سطح المكتب. بعد كل فعل واجهة تحقق بلقطة ثانية من mudif_desktop_screenshot قبل أن تبلغ عن إنجازه. $safetyFusha"
         }

@@ -26,6 +26,27 @@ _تأكيد() {
   esac
 }
 
+# _apt-allow-issue يكتب رمزا لمرة واحدة (16 حرفا ست عشرية) لامر
+# apt التالي، و_apt-allow-revoke يلغيه. الرمز يعيش مدة استدعاء
+# apt فقط. ان تعذرت الكتابة لا يصدران شيئا (الفعل يفشل بصوت
+# عال عند الحارس بدلا من الصمت).
+_apt-allow-issue() {
+  local tok epoch
+  tok=$(od -An -tx1 -N8 /dev/urandom 2>/dev/null | tr -d ' \n')
+  epoch=$(date +%s)
+  if [ -n "$tok" ] && printf '%s %s\n' "$tok" "$epoch" > /root/.config/mudif/.apt-token 2>/dev/null; then
+    chmod 600 /root/.config/mudif/.apt-token 2>/dev/null
+    export MUDIF_APT_TOKEN="$tok"
+  fi
+  return 0
+}
+
+_apt-allow-revoke() {
+  rm -f /root/.config/mudif/.apt-token 2>/dev/null
+  unset MUDIF_APT_TOKEN
+  return 0
+}
+
 # _عدد-الاسطر يعد اسطر نص (0 للنص الفارغ).
 _عدد-الاسطر() {
   printf '%s\n' "$1" | grep -c .
@@ -166,7 +187,11 @@ _عدد-الاسطر() {
       apt=$(printf '%s' "$m" | cut -f3); method=$(printf '%s' "$m" | cut -f5)
       if [ "$method" != "apt" ] || [ -z "$apt" ]; then echo "البرنامج $1 لا يثبت عبر apt."; return 1; fi
       _تأكيد "تثبيت $1 ($apt)" || return 1
+      _apt-allow-issue
+      trap '_apt-allow-revoke' EXIT
       apt install -y "$apt" && echo "تم تثبيت $1."
+      _apt-allow-revoke
+      trap - EXIT
       return 0
     elif [ "$n" -gt 1 ]; then
       echo "يوجد $n برامج بهذا الاسم:"
@@ -174,25 +199,59 @@ _عدد-الاسطر() {
       return 1
     fi
   fi
+  _تأكيد "تثبيت $*" || return 1
+  _apt-allow-issue
+  trap '_apt-allow-revoke' EXIT
   apt install -y "$@"
+  local rc=$?
+  _apt-allow-revoke
+  trap - EXIT
+  return $rc
 }
 
 ازل() {
   if [ "$#" -eq 0 ]; then echo "الاستعمال: ازل <حزمة...>"; return 1; fi
+  _تأكيد "إزالة $*" || return 1
+  _apt-allow-issue
+  trap '_apt-allow-revoke' EXIT
   apt remove "$@"
+  local rc=$?
+  _apt-allow-revoke
+  trap - EXIT
+  return $rc
 }
 
 رقي() {
+  _تأكيد "ترقية النظام" || return 1
+  _apt-allow-issue
+  trap '_apt-allow-revoke' EXIT
   apt update && apt full-upgrade
+  local rc=$?
+  _apt-allow-revoke
+  trap - EXIT
+  return $rc
 }
 
 حدّث-النظام() {
   _تأكيد "تحديث النظام كاملا" || return 1
+  _apt-allow-issue
+  trap '_apt-allow-revoke' EXIT
   apt update && apt upgrade -y && echo "تم تحديث النظام."
+  local rc=$?
+  _apt-allow-revoke
+  trap - EXIT
+  return $rc
 }
 
 نظف() {
+  _تأكيد "تنظيف النظام" || return 1
+  _apt-allow-issue
+  trap '_apt-allow-revoke' EXIT
   apt autoremove && apt autoclean && echo "تم التنظيف."
+  local rc=$?
+  _apt-allow-revoke
+  trap - EXIT
+  return $rc
 }
 
 نظف-الكاش() {

@@ -42,8 +42,13 @@ object VisionClient {
 
     /** Describes the JPEG bytes, or null on any failure (the caller
      *  reports it honestly instead of inventing a description).
-     *  Never called on the UI thread. */
-    fun describe(jpegBytes: ByteArray): String? {
+     *  Never called on the UI thread. [question] is the user's own
+     *  question in their reply language; when null the fixed
+     *  VISION_PROMPT is used (back-compat). The question and the
+     *  image travel in ONE user message with the mudif-vision system
+     *  prompt (p51: probes A/B proved that shape; a split message
+     *  is blind). */
+    fun describe(jpegBytes: ByteArray, question: String? = null): String? {
         return try {
             val base64 = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
             val body = JSONObject().apply {
@@ -51,13 +56,20 @@ object VisionClient {
                 put("stream", false)
                 put(
                     "messages",
-                    org.json.JSONArray().put(
-                        JSONObject().apply {
-                            put("role", "user")
-                            put("content", VISION_PROMPT)
-                            put("images", org.json.JSONArray().put(base64))
-                        }
-                    )
+                    org.json.JSONArray()
+                        .put(
+                            JSONObject().apply {
+                                put("role", "system")
+                                put("content", AgentServer.SYSTEM_PROMPT_VISION)
+                            }
+                        )
+                        .put(
+                            JSONObject().apply {
+                                put("role", "user")
+                                put("content", question ?: VISION_PROMPT)
+                                put("images", org.json.JSONArray().put(base64))
+                            }
+                        )
                 )
             }.toString()
             val conn = URL(OLLAMA_CHAT_URL).openConnection() as HttpURLConnection
@@ -75,13 +87,20 @@ object VisionClient {
             }
             val raw = conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
             conn.disconnect()
-            val description = JSONObject(raw)
+            val replyJson = JSONObject(raw)
+            val description = replyJson
                 .optJSONObject("message")
                 ?.optString("content", "")
                 ?.trim()
                 ?.takeIf { it.isNotEmpty() }
             if (description != null) {
-                Log.i(TAG, "describe: source=$SOURCE_LABEL model=${AgentServer.VISION_MODEL} imageBytes=${jpegBytes.size} descriptionChars=${description.length}")
+                // p51: the token counts prove the image really
+                // reached the model (~1220 prompt tokens); under
+                // ~1000 is a failed vision turn even if the text
+                // looks plausible.
+                val promptEvalCount = replyJson.optInt("prompt_eval_count", -1)
+                val evalCount = replyJson.optInt("eval_count", -1)
+                Log.i(TAG, "describe: source=$SOURCE_LABEL model=${AgentServer.VISION_MODEL} imageBytes=${jpegBytes.size} descriptionChars=${description.length} promptEvalCount=$promptEvalCount evalCount=$evalCount")
             }
             // Strip em/en dashes at the source so the stored description is dash-free.
             description?.replace('\u2014', ' ')?.replace('\u2013', ' ')
