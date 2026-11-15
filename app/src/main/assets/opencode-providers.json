@@ -32,6 +32,14 @@
             "output": 4096
           },
           "name": "Qwen 3.8 27B (Groq, preview)"
+        },
+        "meta-llama/llama-4-scout-17b-16e-instruct": {
+          "limit": {
+            "context": 131072,
+            "output": 4096
+          },
+          "name": "Llama 4 Scout (Groq)",
+          "vision": true
         }
       },
       "name": "Groq",
@@ -71,6 +79,14 @@
             "output": 4096
           },
           "name": "GLM 5.3 (HF)"
+        },
+        "Qwen/Qwen2.5-VL-72B-Instruct": {
+          "limit": {
+            "context": 32768,
+            "output": 4096
+          },
+          "name": "Qwen 2.5 VL 72B (HF)",
+          "vision": true
         }
       },
       "name": "Hugging Face Inference",
@@ -242,6 +258,30 @@
             "output": 4096
           },
           "name": "Nemotron 3.5 Lightning Free (OpenRouter)"
+        },
+        "google/gemma-3-27b-it:free": {
+          "limit": {
+            "context": 98304,
+            "output": 4096
+          },
+          "name": "Gemma 3 27B Free (OpenRouter)",
+          "vision": true
+        },
+        "meta-llama/llama-4-maverick:free": {
+          "limit": {
+            "context": 131072,
+            "output": 4096
+          },
+          "name": "Llama 4 Maverick Free (OpenRouter)",
+          "vision": true
+        },
+        "qwen/qwen-2.5-vl-72b-instruct:free": {
+          "limit": {
+            "context": 32768,
+            "output": 4096
+          },
+          "name": "Qwen 2.5 VL 72B Free (OpenRouter)",
+          "vision": true
         }
       },
       "name": "OpenRouter",
@@ -398,7 +438,8 @@
             "context": 262144,
             "output": 4096
           },
-          "name": "Gemma 4 31B IT (Token Lab)"
+          "name": "Gemma 4 31B IT (Token Lab)",
+          "vision": true
         }
       },
       "name": "AMD Token Lab",
