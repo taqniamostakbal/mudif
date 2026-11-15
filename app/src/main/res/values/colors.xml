@@ -3,6 +3,21 @@
     <color name="mudif_purple">#593BFE</color>
     <color name="mudif_purple_dark">#4527D6</color>
     <color name="mudif_pill">#E4DEFF</color>
+    <!-- p55: bottom nav on the purple gradient card: white icons
+         and labels in both states, the selected pill white at 20%
+         alpha, the unselected labels white at 70% so the selected
+         tab stands out. Same in both modes: the card is purple
+         day and night. -->
+    <color name="nav_white">#FFFFFF</color>
+    <color name="nav_selected_pill">#33FFFFFF</color>
+    <color name="nav_label_unselected">#B3FFFFFF</color>
+    <!-- p56: text on the purple gradient cards. White is 6.03:1 at
+         the light end (#593BFE) and 9.50:1 at the dark end (#3D2BB5);
+         #E6E6FF (secondary text) is 4.92:1 to 7.75:1; both pass
+         WCAG AA at both ends, day and night (the cards are purple
+         in both modes). Dividers on gradient cards are white 20%. -->
+    <color name="card_text_secondary">#E6E6FF</color>
+    <color name="card_divider">#33FFFFFF</color>
     <color name="mudif_unselected">#424242</color>
     <color name="mudif_teal">#00E5CC</color>
 
