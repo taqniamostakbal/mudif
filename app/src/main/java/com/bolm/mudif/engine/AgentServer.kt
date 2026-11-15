@@ -3,6 +3,7 @@ package com.bolm.mudif.engine
 import android.content.Context
 import android.util.Log
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Socket
 import org.json.JSONObject
@@ -97,6 +98,7 @@ object AgentServer {
     private const val OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
     private const val OLLAMA_PS_URL = "http://127.0.0.1:11434/api/ps"
     private const val OLLAMA_PULL_URL = "http://127.0.0.1:11434/api/pull"
+    private const val OLLAMA_DELETE_URL = "http://127.0.0.1:11434/api/delete"
     private const val PULL_READ_TIMEOUT_MS = 120_000
     private const val STOP_VERIFY_DELAY_MS = 2_000L
 
@@ -167,15 +169,51 @@ object AgentServer {
      *  on the UI thread (network). */
     fun hasBrainModel(): Boolean? = hasModel(BRAIN_MODEL)
 
+    /** Handle for one in-flight model pull. [requestCancel] aborts
+     *  the transfer from the client side: closing the pull
+     *  connection cancels Ollama's download, because its pull
+     *  handler runs on the HTTP request context (ollama v0.40.16
+     *  server/routes.go PullHandler). Partial blobs stay on disk,
+     *  so a later pull for the same model resumes them instead of
+     *  starting over (transfer/download.go keeps partial .tmp
+     *  files for blobs of 64 MB or more and re-fetches them with
+     *  a Range header). Never throws. */
+    class PullHandle {
+        @Volatile var cancelled: Boolean = false
+        @Volatile private var connection: HttpURLConnection? = null
+
+        internal fun attach(conn: HttpURLConnection) {
+            connection = conn
+        }
+
+        internal fun detach(conn: HttpURLConnection) {
+            if (connection === conn) connection = null
+        }
+
+        fun requestCancel() {
+            cancelled = true
+            try {
+                connection?.disconnect()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     /** Downloads a model from Ollama (POST /api/pull, SSE
      *  progress). [onProgress] gets (downloadedBytes, totalBytes)
      *  on the calling thread; the caller posts to the UI thread.
-     *  Retries once on failure. Returns true when the model is
-     *  present afterwards. Never called on the UI thread. */
-    fun pullModel(model: String, onProgress: (Long, Long) -> Unit): Boolean {
+     *  Retries once on failure, never after a user cancel through
+     *  [handle]: a cancelled pull returns false at once, with the
+     *  partial blobs left on disk for a later resume. Returns true
+     *  when the model is present afterwards. Never called on the
+     *  UI thread. */
+    fun pullModel(model: String, onProgress: (Long, Long) -> Unit, handle: PullHandle? = null): Boolean {
         repeat(2) { attempt ->
+            if (handle?.cancelled == true) return false
+            var conn: HttpURLConnection? = null
             try {
-                val conn = java.net.URL(OLLAMA_PULL_URL).openConnection() as java.net.HttpURLConnection
+                conn = java.net.URL(OLLAMA_PULL_URL).openConnection() as java.net.HttpURLConnection
+                handle?.attach(conn)
                 conn.requestMethod = "POST"
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json")
@@ -190,6 +228,7 @@ object AgentServer {
                 conn.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
+                        if (handle?.cancelled == true) return false
                         val obj = try { JSONObject(line ?: "") } catch (_: Exception) { continue }
                         val status = obj.optString("status")
                         if (status == "success") return true
@@ -199,10 +238,41 @@ object AgentServer {
                     }
                 }
             } catch (e: Exception) {
+                if (handle?.cancelled == true) return false
                 Log.w(TAG, "pullModel($model) failed (attempt ${attempt + 1})", e)
+            } finally {
+                if (conn != null) handle?.detach(conn)
             }
         }
         return hasModel(model) == true
+    }
+
+    /** Deletes a model from Ollama (DELETE /api/delete). Returns
+     *  true when the delete went through: HTTP 200, or 404 when
+     *  no manifest exists yet, which is the normal case for a
+     *  pull that never completed. Partial blobs left behind are
+     *  not freed at once; Ollama reclaims them with its own
+     *  mark-and-sweep pass after its one-hour grace period. Never
+     *  called on the UI thread. */
+    fun deleteModel(model: String): Boolean {
+        return try {
+            val conn = java.net.URL(OLLAMA_DELETE_URL).openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "DELETE"
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = PROBE_TIMEOUT_MS
+            conn.readTimeout = PROBE_TIMEOUT_MS
+            val body = JSONObject().put("name", model).toString()
+            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val code = conn.responseCode
+            if (code == 200 || code == 404) true else {
+                Log.w(TAG, "deleteModel($model): HTTP $code")
+                false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "deleteModel($model) failed", e)
+            false
+        }
     }
 
     /** Downloads the brain model from Ollama (POST /api/pull, SSE

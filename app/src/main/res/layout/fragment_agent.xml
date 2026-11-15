@@ -417,12 +417,17 @@
         <!-- Brain download card (p22): shown when Ollama answers but
              the model is missing. One-tap pull with a real progress
              bar, no terminal. Hidden once the model is present.
-             p34f: a slim horizontal banner (~48dp) overlaid at the
-             bottom of the list, never in flow. The text and the
-             download button share one row; the progress bar only
-             appears while a download runs. The fragment lifts the
-             list's bottom padding while the banner shows, so the
-             newest message never hides behind it. -->
+             p34f: a slim horizontal banner overlaid at the bottom
+             of the list, never in flow. The text and the download
+             button share one row; the progress bar only appears
+             while a download runs. The fragment lifts the list's
+             bottom padding while the banner shows, so the newest
+             message never hides behind it.
+             p47: compact card (~51dp): 6dp padding, 12sp one-line
+             text, a short button, a 3dp progress bar. While a
+             download runs the main button pauses it and the X
+             button cancels it (and deletes the partial model);
+             while paused the main button resumes. -->
         <LinearLayout
             android:id="@+id/brain_download_card"
             android:layout_width="match_parent"
@@ -430,10 +435,10 @@
             android:layout_gravity="bottom"
             android:orientation="vertical"
             android:background="@drawable/search_box_bg"
-            android:padding="8dp"
+            android:padding="6dp"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
-            android:layout_marginBottom="8dp"
+            android:layout_marginBottom="6dp"
             android:visibility="gone">
 
             <LinearLayout
@@ -448,8 +453,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/brain_download_title"
-                    android:textSize="13sp"
-                    android:maxLines="2"
+                    android:textSize="12sp"
+                    android:maxLines="1"
                     android:ellipsize="end"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/cairo" />
@@ -460,17 +465,31 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:minHeight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
                     android:text="@string/brain_download_button"
                     android:fontFamily="@font/cairo"
-                    android:textSize="13sp"
-                    app:cornerRadius="22dp" />
+                    android:textSize="12sp"
+                    app:cornerRadius="16dp" />
+
+                <ImageButton
+                    android:id="@+id/btn_brain_download_cancel"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@android:drawable/ic_menu_close"
+                    android:contentDescription="@string/download_cancel"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <ProgressBar
                 android:id="@+id/brain_download_progress"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="3dp"
                 android:layout_marginTop="4dp"
                 android:max="100"
                 android:progress="0"

@@ -211,7 +211,8 @@ class AgentFragment : Fragment() {
             hideAgentAction()
         }
         updateProfileCardVisibility()
-        binding.btnBrainDownload.setOnClickListener { startBrainDownload() }
+        binding.btnBrainDownload.setOnClickListener { onBrainDownloadAction() }
+        binding.btnBrainDownloadCancel.setOnClickListener { cancelBrainDownload() }
         checkBrainModelOnOpen()
         refreshVisionChip()
 
@@ -742,6 +743,16 @@ class AgentFragment : Fragment() {
     // ------------------------------------------------- brain download (p22)
 
     private var brainDownloadRunning = false
+    // p47: pause/resume/cancel for the download card. [pullHandle]
+    // is the live handle of the pull in flight, if any;
+    // [lastDownloadPct] keeps the percent across a pause so the
+    // paused state shows it; [downloadPaused] and
+    // [downloadCancelled] are set on the UI thread by the card
+    // buttons and read by the pull thread's completion block.
+    private var pullHandle: AgentServer.PullHandle? = null
+    private var downloadPaused = false
+    private var downloadCancelled = false
+    private var lastDownloadPct = 0
     // Vision increment 1: the same card downloads the vision model
     // too. [downloadModel] remembers which one the card is offering.
     private var downloadModel: String = AgentServer.BRAIN_MODEL
@@ -750,11 +761,18 @@ class AgentFragment : Fragment() {
      *  missing). */
     private fun showBrainDownloadCard(model: String = AgentServer.BRAIN_MODEL) {
         downloadModel = model
+        downloadPaused = false
+        downloadCancelled = false
+        lastDownloadPct = 0
+        pullHandle = null
         binding.brainDownloadCard.visibility = View.VISIBLE
+        binding.btnBrainDownloadCancel.visibility = View.GONE
         // p34f fix 8: the banner overlays the list; lift the
         // bottom padding so the newest message never hides behind it.
+        // p47: the card is compact now (~51dp), so the lift drops
+        // from 64dp to 56dp.
         val pad = (12 * resources.displayMetrics.density).toInt()
-        val lift = (64 * resources.displayMetrics.density).toInt()
+        val lift = (56 * resources.displayMetrics.density).toInt()
         binding.agentRecycler.setPadding(pad, pad, pad, lift)
         binding.brainDownloadProgress.visibility = View.GONE
         binding.brainDownloadProgress.progress = 0
@@ -772,6 +790,7 @@ class AgentFragment : Fragment() {
 
     private fun hideBrainDownloadCard() {
         binding.brainDownloadCard.visibility = View.GONE
+        binding.btnBrainDownloadCancel.visibility = View.GONE
         // p34f fix 8: banner gone, the padding lift goes with it.
         val pad = (12 * resources.displayMetrics.density).toInt()
         binding.agentRecycler.setPadding(pad, pad, pad, pad)
@@ -801,17 +820,115 @@ class AgentFragment : Fragment() {
         }.start()
     }
 
-    /** One-tap pull with a real progress bar (no terminal). */
+    /** The card's main button does three jobs by state: start the
+     *  download when idle, pause it while it runs, resume it when
+     *  paused. */
+    private fun onBrainDownloadAction() {
+        when {
+            brainDownloadRunning -> pauseBrainDownload()
+            downloadPaused -> resumeBrainDownload()
+            else -> startBrainDownload()
+        }
+    }
+
+    /** Pause: abort the pull in flight. The partial blobs stay on
+     *  disk, so resume re-issues the pull and Ollama continues
+     *  from them instead of starting over. */
+    private fun pauseBrainDownload() {
+        if (!brainDownloadRunning) return
+        downloadPaused = true
+        binding.btnBrainDownload.isEnabled = false
+        pullHandle?.requestCancel()
+    }
+
+    /** Resume after a pause: a fresh pull for the same model.
+     *  Ollama skips blobs it already has and resumes partial
+     *  ones, so the percent climbs from where it stopped. */
+    private fun resumeBrainDownload() {
+        if (brainDownloadRunning || !downloadPaused) return
+        downloadPaused = false
+        startBrainDownload()
+    }
+
+    /** Cancel: abort the pull in flight (if any) and delete the
+     *  model, so the card goes back to the not-downloaded state. */
+    private fun cancelBrainDownload() {
+        if (brainDownloadRunning) {
+            downloadCancelled = true
+            binding.btnBrainDownload.isEnabled = false
+            binding.btnBrainDownloadCancel.isEnabled = false
+            pullHandle?.requestCancel()
+        } else if (downloadPaused) {
+            downloadCancelled = true
+            downloadPaused = false
+            deleteDownloadedModel()
+        }
+    }
+
+    /** Best-effort delete of the (partial) model, then the card
+     *  back to its idle state. The delete runs off the UI thread;
+     *  the card reset does not wait for it. */
+    private fun deleteDownloadedModel() {
+        val model = downloadModel
+        Thread {
+            val deleted = AgentServer.deleteModel(model)
+            val act = activity ?: return@Thread
+            act.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                Log.i("MudifAgent", "cancelBrainDownload delete $model -> $deleted")
+                Toast.makeText(
+                    requireContext(),
+                    if (deleted) R.string.download_cancelled
+                    else R.string.download_cancel_failed,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }.start()
+        resetBrainDownloadCard()
+    }
+
+    /** The card back to its idle (not downloading) state. */
+    private fun resetBrainDownloadCard() {
+        brainDownloadRunning = false
+        downloadPaused = false
+        downloadCancelled = false
+        lastDownloadPct = 0
+        pullHandle = null
+        binding.brainDownloadProgress.visibility = View.GONE
+        binding.brainDownloadProgress.progress = 0
+        binding.btnBrainDownloadCancel.visibility = View.GONE
+        binding.btnBrainDownload.isEnabled = true
+        binding.btnBrainDownloadCancel.isEnabled = true
+        val isVision = downloadModel == AgentServer.VISION_MODEL
+        binding.brainDownloadText.text = getString(
+            if (isVision) R.string.vision_download_title
+            else R.string.brain_download_title
+        )
+        binding.btnBrainDownload.text = getString(
+            if (isVision) R.string.vision_download_button
+            else R.string.brain_download_button
+        )
+    }
+
+    /** One-tap pull with a real progress bar (no terminal). While
+     *  it runs, the main button pauses and the X button cancels;
+     *  while paused, the main button resumes. */
     private fun startBrainDownload() {
         if (brainDownloadRunning) return
         brainDownloadRunning = true
-        binding.btnBrainDownload.isEnabled = false
+        downloadCancelled = false
+        downloadPaused = false
+        val handle = AgentServer.PullHandle()
+        pullHandle = handle
+        binding.btnBrainDownload.text = getString(R.string.download_pause)
+        binding.btnBrainDownloadCancel.visibility = View.VISIBLE
         binding.brainDownloadProgress.visibility = View.VISIBLE
-        binding.brainDownloadProgress.progress = 0
+        binding.brainDownloadProgress.progress = lastDownloadPct
         val appContext = context?.applicationContext
         if (appContext == null) {
             brainDownloadRunning = false
-            binding.btnBrainDownload.isEnabled = true
+            pullHandle = null
+            resetBrainDownloadCard()
             return
         }
         Thread {
@@ -820,12 +937,13 @@ class AgentFragment : Fragment() {
             AgentServer.ensureStarted(appContext)
             val model = downloadModel
             val isVision = model == AgentServer.VISION_MODEL
-            val ok = AgentServer.pullModel(model) { completed, total ->
+            val ok = AgentServer.pullModel(model, { completed, total ->
                 val act = activity ?: return@pullModel
                 act.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
                     if (total > 0) {
                         val pct = (completed * 100 / total).toInt().coerceIn(0, 100)
+                        lastDownloadPct = pct
                         binding.brainDownloadProgress.progress = pct
                         binding.brainDownloadText.text =
                             getString(
@@ -834,26 +952,51 @@ class AgentFragment : Fragment() {
                             )
                     }
                 }
-            }
+            }, handle)
             val act = activity ?: return@Thread
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 brainDownloadRunning = false
-                binding.btnBrainDownload.isEnabled = true
-                if (ok) {
-                    hideBrainDownloadCard()
-                    Toast.makeText(
-                        requireContext(),
-                        if (isVision) R.string.vision_download_done
-                        else R.string.brain_download_done,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    // A downloaded vision model enables the chip.
-                    refreshVisionChip()
-                } else {
-                    binding.brainDownloadText.text =
-                        getString(R.string.brain_download_failed)
-                    binding.brainDownloadProgress.visibility = View.GONE
+                pullHandle = null
+                when {
+                    downloadCancelled -> {
+                        // Aborted by the cancel button: delete the
+                        // (partial) model and reset the card.
+                        downloadCancelled = false
+                        deleteDownloadedModel()
+                    }
+                    ok -> {
+                        downloadPaused = false
+                        hideBrainDownloadCard()
+                        Toast.makeText(
+                            requireContext(),
+                            if (isVision) R.string.vision_download_done
+                            else R.string.brain_download_done,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        // A downloaded vision model enables the chip.
+                        refreshVisionChip()
+                    }
+                    downloadPaused -> {
+                        // Aborted by the pause button: keep the
+                        // percent, offer resume, keep cancel.
+                        binding.btnBrainDownload.isEnabled = true
+                        binding.btnBrainDownload.text =
+                            getString(R.string.download_resume)
+                        binding.brainDownloadText.text =
+                            getString(R.string.download_paused, lastDownloadPct)
+                    }
+                    else -> {
+                        binding.btnBrainDownload.isEnabled = true
+                        binding.brainDownloadText.text =
+                            getString(R.string.brain_download_failed)
+                        binding.brainDownloadProgress.visibility = View.GONE
+                        binding.btnBrainDownloadCancel.visibility = View.GONE
+                        binding.btnBrainDownload.text = getString(
+                            if (isVision) R.string.vision_download_button
+                            else R.string.brain_download_button
+                        )
+                    }
                 }
             }
         }.start()

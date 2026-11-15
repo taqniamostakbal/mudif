@@ -590,7 +590,7 @@
     <string name="agent_vision_chip_unavailable_desktop">See the screen, unavailable: the desktop is not running</string>
     <string name="agent_vision_chip_unavailable_model">See the screen, unavailable: the vision model is not downloaded</string>
     <string name="agent_vision_chip_unavailable_service">See the screen, unavailable: the vision service is down</string>
-    <string name="vision_download_title">The vision model (qwen2.5vl:3b) is not downloaded, download it here (about 3.2 GB, on Wi-Fi)</string>
+    <string name="vision_download_title">Vision model not downloaded (3.2 GB)</string>
     <string name="vision_download_button">Download the vision model</string>
     <string name="vision_download_downloading">Downloading the vision model… %1$d%%</string>
     <string name="vision_download_done">Vision model downloaded, the assistant can now see the screen</string>
@@ -631,11 +631,17 @@
     <string name="vp_agent_key_exa_desc">Free Exa search key, the assistant uses it to search the internet</string>
     <string name="vp_agent_key_tavily_title">Tavily key</string>
     <string name="vp_agent_key_tavily_desc">Free Tavily search key, the assistant uses it to search the internet</string>
-    <string name="brain_download_title">The brain is not downloaded, download it here (about 1.4GB, on Wi-Fi)</string>
+    <string name="brain_download_title">Brain not downloaded (1.4 GB)</string>
     <string name="brain_download_button">Download the brain</string>
     <string name="brain_download_downloading">Downloading the brain… %1$d%%</string>
     <string name="brain_download_done">The brain is downloaded, the assistant is ready</string>
     <string name="brain_download_failed">Download failed, check the internet and try again</string>
+    <string name="download_pause">Pause</string>
+    <string name="download_resume">Resume</string>
+    <string name="download_cancel">Cancel download</string>
+    <string name="download_paused">Paused… %1$d%%</string>
+    <string name="download_cancelled">Download cancelled</string>
+    <string name="download_cancel_failed">Download cancelled, partial files remain</string>
     <string name="agent_brain_title">Brain</string>
     <string name="agent_brain_local">Local (Qwen3 1.7B)</string>
     <string name="agent_brain_local_short">Local</string>

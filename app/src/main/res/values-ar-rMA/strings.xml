@@ -609,11 +609,17 @@
     <string name="vp_agent_key_exa_desc">مفتاح بحث Exa المجاني، كيستعملو المساعد باش يقلب فالإنترنت</string>
     <string name="vp_agent_key_tavily_title">مفتاح Tavily</string>
     <string name="vp_agent_key_tavily_desc">مفتاح بحث Tavily المجاني، كيستعملو المساعد باش يقلب فالإنترنت</string>
-    <string name="brain_download_title">العقل ما محملش، حملو من هنا (حوالي 1.4GB، على الواي فاي)</string>
+    <string name="brain_download_title">العقل ما محملش (1.4GB)</string>
     <string name="brain_download_button">حمّل العقل</string>
     <string name="brain_download_downloading">كنحمّل العقل… %1$d%%</string>
     <string name="brain_download_done">تحمّل العقل، المساعد واجد</string>
     <string name="brain_download_failed">ما قدرناش نحمّلو، تأكد من الإنترنت وعاود المحاولة</string>
+    <string name="download_pause">وقّف</string>
+    <string name="download_resume">كمّل</string>
+    <string name="download_cancel">لغي التحميل</string>
+    <string name="download_paused">واقف… %1$d%%</string>
+    <string name="download_cancelled">تلغى التحميل</string>
+    <string name="download_cancel_failed">تلغى التحميل ولكن بقات ملفات جزئية</string>
     <string name="agent_brain_title">العقل</string>
     <string name="agent_brain_local">محلي (Qwen3 1.7B)</string>
     <string name="agent_brain_local_short">محلي</string>
@@ -651,7 +657,7 @@
     <string name="agent_vision_failed">ما قدرناش نقراو الشاشة، عاود المحاولة</string>
     <string name="agent_vision_chip_unavailable_desktop">شوف الشاشة، ما متوفرش: سطح المكتب واقف</string>
     <string name="agent_vision_chip_unavailable_model">شوف الشاشة، ما متوفرش: موديل الرؤية ما محملش</string>
-    <string name="vision_download_title">موديل الرؤية (qwen2.5vl:3b) ما محملش، حملو من هنا (حوالي 3.2GB، على الواي فاي)</string>
+    <string name="vision_download_title">موديل الرؤية ما محملش (3.2GB)</string>
     <string name="vision_download_button">حمّل موديل الرؤية</string>
     <string name="vision_download_downloading">كنحمّل موديل الرؤية… %1$d%%</string>
     <string name="vision_download_done">تحمّل موديل الرؤية، المساعد دابا كيشوف الشاشة</string>

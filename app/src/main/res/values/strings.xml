@@ -592,11 +592,17 @@
     <string name="agent_server_retry">إعادة المحاولة</string>
     <string name="agent_servers_down">خوادم المساعد متوقفة، وفشلت إعادة التشغيل التلقائية، أعد المحاولة</string>
     <string name="agent_servers_restarted">عادت خوادم المساعد للعمل</string>
-    <string name="brain_download_title">العقل غير محمّل، حمّله من هنا (حوالي 1.4GB، على الواي فاي)</string>
+    <string name="brain_download_title">العقل غير محمّل (1.4GB)</string>
     <string name="brain_download_button">تحميل العقل</string>
     <string name="brain_download_downloading">جارٍ تحميل العقل… %1$d%%</string>
     <string name="brain_download_done">تم تحميل العقل، المساعد جاهز</string>
     <string name="brain_download_failed">تعذّر التحميل، تحقّق من الإنترنت وحاول مجددا</string>
+    <string name="download_pause">إيقاف مؤقت</string>
+    <string name="download_resume">استئناف</string>
+    <string name="download_cancel">إلغاء التحميل</string>
+    <string name="download_paused">متوقف مؤقتا… %1$d%%</string>
+    <string name="download_cancelled">ألغي التحميل</string>
+    <string name="download_cancel_failed">ألغي التحميل لكن بقيت ملفات جزئية</string>
     <string name="agent_mode_chat">المحادثة</string>
     <string name="agent_mode_console">وحدة التحكم</string>
     <string name="agent_reply_language">لغة الرد</string>
@@ -652,7 +658,7 @@
     <string name="agent_vision_chip_unavailable_desktop">شوف الشاشة، غير متوفر: سطح المكتب متوقف</string>
     <string name="agent_vision_chip_unavailable_model">شوف الشاشة، غير متوفر: نموذج الرؤية غير محمّل</string>
     <string name="agent_vision_chip_unavailable_service">شوف الشاشة، غير متوفر: خدمة الرؤية متوقفة</string>
-    <string name="vision_download_title">نموذج الرؤية (qwen2.5vl:3b) غير محمّل، حمّله من هنا (حوالي 3.2GB، على الواي فاي)</string>
+    <string name="vision_download_title">نموذج الرؤية غير محمّل (3.2GB)</string>
     <string name="vision_download_button">تحميل نموذج الرؤية</string>
     <string name="vision_download_downloading">جارٍ تحميل نموذج الرؤية… %1$d%%</string>
     <string name="vision_download_done">تم تحميل نموذج الرؤية، صار المساعد يرى الشاشة</string>
