@@ -84,7 +84,20 @@ class BrainProvidersAdapter(
                 LayoutInflater.from(ctx), b.providerModels, false
             )
             val isCurrent = model.id == currentModel
-            row.root.text = if (isCurrent) "✓ ${model.name}" else model.name
+            // Vision increment 2: a vision-capable model carries the
+            // badge; the picked vision model adds a check. Tap still
+            // picks the text brain; a long press picks the vision
+            // model instead (see below).
+            val visionModel = AgentFragment.getVisionModel(ctx)
+            val isVisionPicked = model.id == visionModel
+            val suffix = buildString {
+                if (model.vision) {
+                    append(" • ")
+                    append(ctx.getString(R.string.brain_providers_vision_badge))
+                }
+                if (isVisionPicked) append(" ✓")
+            }
+            row.root.text = (if (isCurrent) "✓ " else "") + model.name + suffix
             if (isCurrent) {
                 row.root.backgroundTintList =
                     ContextCompat.getColorStateList(ctx, R.color.mudif_purple)
@@ -93,6 +106,37 @@ class BrainProvidersAdapter(
                 )
             }
             row.root.setOnClickListener { onPickModel(model.id) }
+            if (model.vision) {
+                // Long press toggles this model as the vision model
+                // (the model the "شوف الشاشة" chip sends the
+                // screenshot to). Long-pressing the picked one
+                // again clears it back to local vision. The row is
+                // refreshed in place; the screen stays open.
+                row.root.setOnLongClickListener {
+                    val current = AgentFragment.getVisionModel(ctx)
+                    if (current == model.id) {
+                        AgentFragment.setVisionModel(ctx, "")
+                        Toast.makeText(
+                            ctx,
+                            ctx.getString(
+                                R.string.brain_providers_vision_set,
+                                ctx.getString(R.string.agent_brain_local_short)
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        AgentFragment.setVisionModel(ctx, model.id)
+                        Toast.makeText(
+                            ctx,
+                            ctx.getString(R.string.brain_providers_vision_set, model.name),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    val pos = providerHolder.bindingAdapterPosition
+                    if (pos >= 0) notifyItemChanged(pos)
+                    true
+                }
+            }
             b.providerModels.addView(row.root)
         }
 

@@ -656,4 +656,8 @@
     <string name="agent_attach_desc">إرفاق</string>
     <string name="agent_clear_history_short">مسح</string>
     <string name="tv_no_wireless_settings_body">هذا الهاتف لا يحتوي على صفحة العرض اللاسلكي في إعداداته، لذلك لا توجد قائمة تلفاز يفتحها التطبيق. للعرض على التلفاز: على هواتف هواوي: الإعدادات، المزيد من الاتصالات، العرض اللاسلكي. على هواتف سامسونغ: بلاطة Smart View في الإعدادات السريعة، أو DeX. أو استعمل البث اللاسلكي إن كان متاحا على هذا الهاتف.</string>
+    <string name="brain_providers_vision_badge">يرى الشاشة</string>
+    <string name="brain_providers_vision_set">نموذج الرؤية: %1$s</string>
+    <string name="agent_vision_cloud_sent">أرسلت لقطة الشاشة إلى %1$s</string>
+    <string name="agent_vision_key_missing">هذا النموذج يحتاج مفتاح %1$s، أضفه من شاشة المنصات</string>
 </resources>

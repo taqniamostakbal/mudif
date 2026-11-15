@@ -164,6 +164,21 @@ class AgentFragment : Fragment() {
         replyLanguage = prefs().getString(KEY_REPLY_LANGUAGE, AgentMessage.REPLY_FUSHA)
             ?: AgentMessage.REPLY_FUSHA
         brainModel = prefs().getString(KEY_BRAIN_MODEL, BRAIN_LOCAL) ?: BRAIN_LOCAL
+        // Vision increment 2: a cloud vision turn that died with
+        // the view (rotation, process death) leaves its restore
+        // pending in prefs; apply it now, before the server starts,
+        // so the text brain is back. No restart here: the server
+        // is not up yet, and the next ensureStarted reads the
+        // config as written. A failed write keeps the pref, so a
+        // later turn can still restore.
+        val pendingRestore = prefs().getString(KEY_PENDING_BRAIN_PICK, null)
+        if (!pendingRestore.isNullOrBlank() && pendingRestore != brainModel) {
+            if (AgentServer.setModel(requireContext(), pendingRestore)) {
+                brainModel = pendingRestore
+                prefs().edit().putString(KEY_BRAIN_MODEL, brainModel).apply()
+                prefs().edit().remove(KEY_PENDING_BRAIN_PICK).apply()
+            }
+        }
         voiceOutOn = prefs().getBoolean(KEY_VOICE_OUT, false)
         sessionId = prefs().getString(KEY_SESSION_ID, null)
         messages.addAll(loadMessages())
@@ -893,7 +908,7 @@ class AgentFragment : Fragment() {
      * increment 1) is what the agent saw on the screen; it is sent
      * as a second text part, observed context, never an instruction.
      */
-    private fun startTurn(text: String, screenContext: String? = null) {
+    private fun startTurn(text: String, screenContext: String? = null, imageBase64: String? = null) {
         // p34f fix 4: a new turn starts, the old failure is spent.
         clearTurnFailed(requireContext())
         turnRunning = true
@@ -1303,7 +1318,7 @@ class AgentFragment : Fragment() {
             }
             val handle = AgentClient.sendPrompt(
                 useSid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
-                screenContext, localStop, testSilentTurn = silentHook,
+                screenContext, imageBase64, localStop, testSilentTurn = silentHook,
                 replyLanguage = replyLanguage
             )
             act.runOnUiThread {
@@ -1407,9 +1422,48 @@ class AgentFragment : Fragment() {
                 refreshVisionChip()
                 return@runTurnThread
             }
+            // Vision increment 2: a picked cloud vision model (with
+            // its key) replaces the local describe step; the local
+            // model gate is skipped then, because the local model
+            // is not needed at all.
+            val visionModelId = getVisionModel(appContext)
+            // loadBrainOptions reads the asset through
+            // requireContext; a detach in this window must fail
+            // the cloud lookup, never wedge the turn.
+            val cloudOption = try {
+                visionModelId.takeIf { it.isNotBlank() }?.let { id ->
+                    loadBrainOptions().firstOrNull { it.id == id }
+                }
+            } catch (e: Exception) {
+                null
+            }
+            val cloudKeyMissing = cloudOption?.let { opt ->
+                opt.env?.let { env ->
+                    val prefKey = BrainProviders.prefKeyForEnv(env)
+                    prefKey == null ||
+                        com.bolm.mudif.ui.settings.ViewerPrefs.prefs(appContext)
+                            .getString(prefKey, "").isNullOrBlank()
+                } ?: false
+            } ?: false
+            val cloudActive = cloudOption != null && !cloudKeyMissing
+            if (cloudOption != null && cloudKeyMissing) {
+                // The user picked cloud vision but never pasted the
+                // key: fail honestly with the remedy, never fall
+                // back to local silently.
+                failTurnInBackground(
+                    act, appContext, null,
+                    appContext.getString(
+                        R.string.agent_vision_key_missing, cloudOption.env ?: ""
+                    )
+                ) { startVisionTurn(question) }
+                refreshVisionChip()
+                return@runTurnThread
+            }
             // Vision model gate: missing means the download card,
-            // not a turn that can only fail.
-            val hasVisionModel = AgentServer.hasModel(AgentServer.VISION_MODEL)
+            // not a turn that can only fail. Skipped for cloud
+            // vision: the local model is not needed there.
+            val hasVisionModel = if (cloudActive) true
+                else AgentServer.hasModel(AgentServer.VISION_MODEL)
             Log.i("MudifAgent", "startVisionTurn gate hasVisionModel=$hasVisionModel")
             if (hasVisionModel == false) {
                 turnRunning = false
@@ -1452,6 +1506,57 @@ class AgentFragment : Fragment() {
                 shot.readBytes()
             } catch (e: Exception) {
                 null
+            }
+            if (cloudActive && cloudOption != null) {
+                // Cloud vision: the screenshot itself goes to the
+                // vision model as a file part, and the reply IS the
+                // description. The text brain is restored when this
+                // turn ends (see applyPendingBrainPick).
+                val imageBase64 = jpeg?.let {
+                    android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP)
+                }
+                // Charter: the screenshot is deleted after the turn,
+                // success or failure; the bytes already live in memory.
+                try { shot.delete() } catch (e: Exception) { }
+                if (imageBase64 == null) {
+                    failTurnInBackground(
+                        act, appContext, null,
+                        appContext.getString(R.string.agent_vision_capture_failed)
+                    ) { startVisionTurn(question) }
+                    return@runTurnThread
+                }
+                act.runOnUiThread {
+                    if (_binding == null) {
+                        // Phase 3: view gone. No description exists
+                        // yet, so there is nothing to keep; the
+                        // flags clear so the chat never wedges.
+                        turnRunning = false
+                        currentTurn = null
+                        streamingIndex = -1
+                        return@runOnUiThread
+                    }
+                    // Switch to the vision model first; the text
+                    // brain is recorded for the restore. If the
+                    // switch refuses (no key, write failed) the
+                    // turn fails honestly instead of sending the
+                    // image to a model that cannot see it.
+                    pendingBrainPick = brainModel
+                    prefs().edit().putString(KEY_PENDING_BRAIN_PICK, brainModel).apply()
+                    applyBrainPick(cloudOption.id)
+                    if (brainModel != cloudOption.id) {
+                        onTurnFailed(null, getString(R.string.agent_brain_failed))
+                        return@runOnUiThread
+                    }
+                    appendMessage(
+                        AgentMessage(
+                            AgentMessage.ROLE_AGENT,
+                            getString(R.string.agent_vision_cloud_sent, cloudOption.label),
+                            replyLanguage
+                        )
+                    )
+                    startTurn(question, null, imageBase64)
+                }
+                return@runTurnThread
             }
             val description = jpeg?.let { VisionClient.describe(it) }
             // Charter: the screenshot is deleted after the turn,
@@ -1526,17 +1631,23 @@ class AgentFragment : Fragment() {
                 X11Session.isTcpDisplayOpen() &&
                 X11Session.isDesktopSessionAlive(appContext)
             val hasVision = AgentServer.hasModel(AgentServer.VISION_MODEL)
+            // Vision increment 2: a picked cloud vision model makes
+            // the chip work without the local model. A picked model
+            // whose key is missing still enables the chip: tapping
+            // it fails honestly with the key remedy.
+            val cloudVision = appContext != null &&
+                getVisionModel(appContext).isNotBlank()
             val act = activity ?: return@Thread
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
-                val enabled = desktopUp && hasVision == true
+                val enabled = desktopUp && (hasVision == true || cloudVision)
                 // Phase 3: three states, three reasons. hasModel
                 // returns null when Ollama is unreachable; that
                 // is a dead SERVICE, not a missing model.
                 val labelRes = when {
                     !desktopUp -> R.string.agent_vision_chip_unavailable_desktop
-                    hasVision == null -> R.string.agent_vision_chip_unavailable_service
-                    hasVision == false -> R.string.agent_vision_chip_unavailable_model
+                    hasVision == null && !cloudVision -> R.string.agent_vision_chip_unavailable_service
+                    hasVision == false && !cloudVision -> R.string.agent_vision_chip_unavailable_model
                     else -> R.string.agent_vision_chip
                 }
                 binding.chipVision.isEnabled = enabled
@@ -1655,6 +1766,26 @@ class AgentFragment : Fragment() {
         if (spoken.isNotEmpty()) speakAgent(spoken)
     }
 
+    /**
+     * Vision increment 2: a cloud vision turn switches the brain to
+     * the vision model and records the text brain in
+     * pendingBrainPick (plus the durable pref); the turn's terminal
+     * paths call this, so the brain is restored. A user pick made
+     * mid-turn overwrites the field and wins. When the view is gone
+     * the pref is left alone, so the next launch still restores.
+     * UI thread only (applyBrainPick toasts).
+     */
+    private fun applyPendingBrainPick() {
+        if (!isAdded) return
+        val pending = pendingBrainPick
+            ?: prefs().getString(KEY_PENDING_BRAIN_PICK, null)
+            ?: return
+        if (_binding == null) return
+        pendingBrainPick = null
+        prefs().edit().remove(KEY_PENDING_BRAIN_PICK).apply()
+        applyBrainPick(pending)
+    }
+
     private fun endTurnUi() {
         turnRunning = false
         streamingIndex = -1
@@ -1672,10 +1803,9 @@ class AgentFragment : Fragment() {
         hideAgentAction()
         hideSlowBrainChip()
         // Brain fix (plan section 5): a brain picked mid-turn applies
-        // now that the turn ended.
-        val pending = pendingBrainPick
-        pendingBrainPick = null
-        if (pending != null) applyBrainPick(pending)
+        // now that the turn ended. Vision increment 2 reuses this
+        // for the cloud-vision restore (see applyPendingBrainPick).
+        applyPendingBrainPick()
     }
 
     /** The visible verdict for a failed turn, from a machine reason
@@ -1726,6 +1856,9 @@ class AgentFragment : Fragment() {
         appendMessage(AgentMessage(AgentMessage.ROLE_AGENT, verdict, replyLanguage))
         showTurnFailedUi(reason, onRetry)
         speakAgent(verdict)
+        // Vision increment 2: a failed cloud vision turn still
+        // restores the text brain (same hook as endTurnUi).
+        applyPendingBrainPick()
     }
 
     /** Phase 3: the watchdog's restart failed; retries it from the
@@ -1815,6 +1948,9 @@ class AgentFragment : Fragment() {
             refreshMessagesUi()
             showTurnFailedUi(reason, onRetry)
             speakAgent(verdict)
+            // Vision increment 2: a background-path failure of a
+            // cloud vision turn still restores the text brain.
+            applyPendingBrainPick()
         }
     }
 
@@ -2547,9 +2683,33 @@ class AgentFragment : Fragment() {
             }
             prefs.edit().putString(KEY_REPLY_LANGUAGE, reply).apply()
         }
+
+        /** Vision increment 2: the picked cloud vision model id
+         *  ("" = local vision). Read by the provider screen to mark
+         *  the picked row and by the vision turn and the chip. */
+        fun getVisionModel(context: Context): String =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_VISION_MODEL, "") ?: ""
+
+        /** Vision increment 2: stores the picked cloud vision model
+         *  id ("" = back to local vision). */
+        fun setVisionModel(context: Context, modelId: String) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putString(KEY_VISION_MODEL, modelId).apply()
+        }
         private const val KEY_VOICE_OUT = "voice_out"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_BRAIN_MODEL = "brain_model"
+        // Vision increment 2: the picked cloud vision model id
+        // ("google/gemini-2.5-flash"), or "" for local vision.
+        // Written by the provider screen (long-press a vision
+        // model) and read by the vision turn and the chip.
+        private const val KEY_VISION_MODEL = "vision_model"
+        // Vision increment 2: the text brain a cloud vision turn
+        // must restore when it ends. Durable, so a turn that died
+        // with the view (rotation, process death) still restores
+        // on the next launch (see onViewCreated).
+        private const val KEY_PENDING_BRAIN_PICK = "pending_brain_pick"
         // p34f fix 4: a failed turn persists here, so Retry survives
         // a relaunch. The flag alone is view state otherwise, and
         // the last-user-message field dies with the process.

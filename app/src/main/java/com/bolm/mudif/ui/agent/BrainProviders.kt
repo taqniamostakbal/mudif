@@ -15,7 +15,7 @@ data class BrainProvider(
     val models: List<BrainModel>
 )
 
-data class BrainModel(val id: String, val name: String)
+data class BrainModel(val id: String, val name: String, val vision: Boolean = false)
 
 /** The 10 free platforms from opencode-providers.json, in display
  *  order: local first, then the no-key free models, then the keyed
@@ -59,7 +59,11 @@ object BrainProviders {
                     .map { mk ->
                         BrainModel(
                             "$key/$mk",
-                            modelsObj.optJSONObject(mk)?.optString("name", mk) ?: mk
+                            modelsObj.optJSONObject(mk)?.optString("name", mk) ?: mk,
+                            // Vision increment 2: the "vision" flag in
+                            // opencode-providers.json marks models
+                            // that can see a screenshot.
+                            modelsObj.optJSONObject(mk)?.optBoolean("vision", false) ?: false
                         )
                     }
                 if (models.isEmpty()) continue

@@ -139,6 +139,10 @@
       "models": {
         "qwen3:1.7b": {
           "name": "Qwen 3 1.7B (local)"
+        },
+        "qwen2.5vl:3b": {
+          "name": "Qwen2.5VL 3B",
+          "vision": true
         }
       },
       "name": "Ollama (local)",
@@ -260,6 +264,7 @@
       "models": {
         "gemini-2.5-flash": {
           "name": "Gemini 2.5 Flash",
+          "vision": true,
           "limit": {
             "context": 1048576,
             "output": 8192
@@ -267,6 +272,7 @@
         },
         "gemini-2.5-flash-lite": {
           "name": "Gemini 2.5 Flash-Lite",
+          "vision": true,
           "limit": {
             "context": 1048576,
             "output": 8192
@@ -274,6 +280,7 @@
         },
         "gemini-2.0-flash": {
           "name": "Gemini 2.0 Flash",
+          "vision": true,
           "limit": {
             "context": 1048576,
             "output": 8192

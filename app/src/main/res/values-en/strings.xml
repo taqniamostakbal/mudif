@@ -656,4 +656,8 @@
     <string name="agent_attach_desc">Attach</string>
     <string name="agent_clear_history_short">Clear</string>
     <string name="tv_no_wireless_settings_body">This phone has no wireless display page in its settings, so there is no TV list for the app to open. To show on the TV: on Huawei phones: Settings, More connections, Wireless projection. On Samsung phones: the Smart View tile in Quick Settings, or DeX. Or use wireless cast if it is available on this phone.</string>
+    <string name="brain_providers_vision_badge">Sees the screen</string>
+    <string name="brain_providers_vision_set">Vision model: %1$s</string>
+    <string name="agent_vision_cloud_sent">Sent a screenshot to %1$s</string>
+    <string name="agent_vision_key_missing">This model needs the %1$s key, add it on the provider screen</string>
 </resources>

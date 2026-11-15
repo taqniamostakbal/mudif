@@ -654,4 +654,8 @@
     <string name="vision_download_downloading">كنحمّل موديل الرؤية… %1$d%%</string>
     <string name="vision_download_done">تحمّل موديل الرؤية، المساعد دابا كيشوف الشاشة</string>
     <string name="tv_no_wireless_settings_body">هاد التيليفون ما فيهش صفحة العرض اللاسلكي فالإعدادات ديالو، داكشي علاش التطبيق ما يقدرش يفتح ليك قائمة ديال التلفاز. باش تعرض على التلفاز: فتيليفونات هواوي: الإعدادات، المزيد من الاتصالات، العرض اللاسلكي. فتيليفونات سامسونغ: بلاطة Smart View فالإعدادات السريعة، ولا DeX. ولا استعمل البث اللاسلكي إلا كان متاح فهاد التيليفون.</string>
+    <string name="brain_providers_vision_badge">كيشوف الشاشة</string>
+    <string name="brain_providers_vision_set">موديل الرؤية: %1$s</string>
+    <string name="agent_vision_cloud_sent">سيفطت لقطة الشاشة لـ %1$s</string>
+    <string name="agent_vision_key_missing">هاد الموديل خاصو مفتاح %1$s، زيدو من شاشة المنصات</string>
 </resources>

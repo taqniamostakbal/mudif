@@ -75,6 +75,10 @@ TIMEOUTS = {
     "mudif_android_swipe": 30,
     "mudif_android_screenshot": 60,
     "mudif_desktop_screenshot": 60,
+    "mudif_desktop_windows": 30,
+    "mudif_desktop_window": 120,
+    "mudif_desktop_type": 30,
+    "mudif_desktop_key": 30,
     "mudif_logs": 30,
     "mudif_web_search": 60,
     "mudif_web_fetch": 60,
@@ -167,6 +171,46 @@ TOOLS = [
         "name": "mudif_desktop_screenshot",
         "description": "One still screenshot of the Debian guest desktop (the computer screen inside Mudif) as base64 JPEG. Use this when the user asks what is on the desktop or computer screen. This is the ONLY screenshot tool that sees the guest desktop; mudif_android_screenshot sees only the Android phone display.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "mudif_desktop_windows",
+        "description": "List the open windows on the Debian guest desktop by name, with size and position. Use this to find a window's exact name before acting on it.",
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "mudif_desktop_window",
+        "description": "Act on one guest desktop window by NAME: activate (bring to front), close, or minimize. The name is matched as a substring of the window title; zero or several matches is an error, never a guess. Installs xdotool on first use. After any action, verify with mudif_desktop_screenshot before reporting it done.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Window title, or part of it."},
+                "action": {"type": "string", "description": "activate, close, or minimize."},
+            },
+            "required": ["name", "action"],
+        },
+    },
+    {
+        "name": "mudif_desktop_type",
+        "description": "Type text into the focused guest desktop window, or into the named window (activated first). The text goes to the desktop, never to the phone. Never type a password.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Text to type."},
+                "window": {"type": "string", "description": "Optional window title to activate first."},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "mudif_desktop_key",
+        "description": "Press keys on the guest desktop, like 'Return', 'Escape', 'Tab', or 'ctrl+s'. Keys are X keysyms; several groups press in sequence. Never press a destructive key without the user's explicit approval.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "keys": {"type": "string", "description": "Keys to press, e.g. 'ctrl+s' or 'Escape'."},
+            },
+            "required": ["keys"],
+        },
     },
     {
         "name": "mudif_logs",
@@ -342,6 +386,221 @@ def desktop_screenshot(arguments):
     return {"source": "guest_desktop_x11grab", "ok": True, "format": "jpeg",
             "display": DESKTOP_DISPLAY, "size": "%dx%d" % (width, height),
             "data": base64.b64encode(data).decode("ascii")}
+
+
+# --------------------------------------------- guest desktop actions
+# Vision increment 2: act by window NAME, never by invented pixel
+# coordinates. The window list comes from xwininfo (in the image);
+# actions go through xdotool, installed on demand the first time
+# one is needed (tiny package, into the persistent guest rootfs,
+# never baked into the image). Names are matched in Python against
+# the xwininfo list, so no user text ever reaches xdotool as a
+# regex. All commands run as argv lists, never through a shell.
+
+DESKTOP_ACTION_TOOLS = {
+    "mudif_desktop_windows", "mudif_desktop_window",
+    "mudif_desktop_type", "mudif_desktop_key",
+}
+_KEY_TOKEN = re.compile(r"^[A-Za-z0-9_]+(\+[A-Za-z0-9_]+)*$")
+
+
+def _ensure_xdotool():
+    """xdotool on demand: already installed is a no-op; otherwise
+    one apt install. Returns (True, None) or (False, error)."""
+    if shutil.which("xdotool"):
+        return True, None
+    env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
+    try:
+        upd = subprocess.run(
+            ["apt-get", "update"], stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE, timeout=300, text=True, env=env)
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, "apt-get update failed: %s" % e
+    if upd.returncode != 0:
+        return False, "apt-get update failed with exit %d" % upd.returncode
+    try:
+        ins = subprocess.run(
+            ["apt-get", "install", "-y", "--no-install-recommends", "xdotool"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            timeout=300, text=True, env=env)
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, "apt-get install xdotool failed: %s" % e
+    if ins.returncode != 0:
+        return False, "apt-get install xdotool failed with exit %d" % ins.returncode
+    if not shutil.which("xdotool"):
+        return False, "xdotool still not found after install"
+    return True, None
+
+
+def _list_windows():
+    """Top-level guest windows from xwininfo (in the image, no
+    xdotool needed). Returns (windows, None) or (None, error dict).
+    Windows are {id, title, width, height, x, y} with absolute
+    positions; tiny helpers (Firefox and Geany spawn 200x200
+    top-level helpers) and nameless windows are dropped, so a bare
+    program name matches its real window."""
+    try:
+        proc = subprocess.run(
+            ["xwininfo", "-root", "-tree", "-display", DESKTOP_DISPLAY],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            timeout=30, text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        return None, {"ok": False, "error": "xwininfo failed: %s" % e}
+    if proc.returncode != 0:
+        return None, {"ok": False, "error": "xwininfo failed with exit %d" % proc.returncode}
+    windows = []
+    for line in (proc.stdout or "").splitlines():
+        match = re.search(
+            r'^\s*(0x[0-9a-fA-F]+)\s+"([^"]*)".*?(\d+)x(\d+)\+(-?\d+)\+(-?\d+)\s+\+(-?\d+)\+(-?\d+)\s*$',
+            line)
+        if not match:
+            continue
+        width, height = int(match.group(3)), int(match.group(4))
+        if width <= 200 and height <= 200:
+            continue
+        title = match.group(2)
+        if not title:
+            continue
+        windows.append({"id": match.group(1), "title": title,
+                        "width": width, "height": height,
+                        "x": int(match.group(7)), "y": int(match.group(8))})
+    return windows, None
+
+
+def _match_window(name):
+    """One window whose title contains name (case-insensitive).
+    Returns (window, None), or (None, error dict). Zero or several
+    matches is an error, never a guess."""
+    windows, error = _list_windows()
+    if error is not None:
+        return None, error
+    needle = name.lower()
+    matches = [w for w in windows if needle in w["title"].lower()]
+    if not matches:
+        return None, {"ok": False, "error": "no window matches '%s'" % name,
+                      "windows": [w["title"] for w in windows]}
+    if len(matches) > 1:
+        return None, {"ok": False, "error": "several windows match '%s', be more specific" % name,
+                      "matches": [w["title"] for w in matches]}
+    return matches[0], None
+
+
+def desktop_windows(arguments):
+    """The open guest windows, by name."""
+    windows, error = _list_windows()
+    if error is not None:
+        return error
+    return {"ok": True, "windows": windows}
+
+
+def desktop_window(arguments):
+    """Activate, close, or minimize one window, by name."""
+    name = (arguments.get("name") or "").strip()
+    action = (arguments.get("action") or "").strip()
+    if not name:
+        return {"ok": False, "error": "window name is empty"}
+    if action not in ("activate", "close", "minimize"):
+        return {"ok": False, "error": "unknown action: %s (activate, close, minimize)" % action}
+    window, error = _match_window(name)
+    if error is not None:
+        return error
+    ok, err = _ensure_xdotool()
+    if not ok:
+        return {"ok": False, "error": err}
+    cmd = {"activate": ["xdotool", "windowactivate", "--sync", window["id"]],
+           "close": ["xdotool", "windowclose", window["id"]],
+           "minimize": ["xdotool", "windowminimize", window["id"]]}[action]
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                              timeout=TIMEOUTS["mudif_desktop_window"], text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"ok": False, "error": "xdotool failed: %s" % e}
+    if proc.returncode != 0:
+        return {"ok": False, "error": "xdotool %s failed with exit %d" % (action, proc.returncode)}
+    return {"ok": True, "action": action, "window": window["title"], "id": window["id"]}
+
+
+def desktop_type(arguments):
+    """Type text into the focused window, or into a named window
+    (activated first)."""
+    text = arguments.get("text")
+    if text is None or text == "":
+        return {"ok": False, "error": "text is empty"}
+    window_name = (arguments.get("window") or "").strip()
+    ok, err = _ensure_xdotool()
+    if not ok:
+        return {"ok": False, "error": err}
+    window = None
+    if window_name:
+        window, error = _match_window(window_name)
+        if error is not None:
+            return error
+        try:
+            act = subprocess.run(
+                ["xdotool", "windowactivate", "--sync", window["id"]],
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                timeout=30, text=True)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"ok": False, "error": "xdotool activate failed: %s" % e}
+        if act.returncode != 0:
+            return {"ok": False, "error": "could not activate window '%s'" % window["title"]}
+    try:
+        proc = subprocess.run(
+            ["xdotool", "type", "--clearmodifiers", "--", text],
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            timeout=TIMEOUTS["mudif_desktop_type"], text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"ok": False, "error": "xdotool type failed: %s" % e}
+    if proc.returncode != 0:
+        return {"ok": False, "error": "xdotool type failed with exit %d" % proc.returncode}
+    out = {"ok": True, "typed_chars": len(text)}
+    if window is not None:
+        out["window"] = window["title"]
+    return out
+
+
+def desktop_key(arguments):
+    """Press X keys on the guest desktop."""
+    keys = arguments.get("keys")
+    if isinstance(keys, str):
+        groups = keys.split()
+    elif isinstance(keys, list):
+        groups = [str(k) for k in keys]
+    else:
+        return {"ok": False, "error": "keys must be a string like 'ctrl+s' or a list"}
+    if not groups:
+        return {"ok": False, "error": "keys is empty"}
+    for group in groups:
+        if not _KEY_TOKEN.match(group):
+            return {"ok": False, "error": "bad key: %s" % group}
+    ok, err = _ensure_xdotool()
+    if not ok:
+        return {"ok": False, "error": err}
+    try:
+        proc = subprocess.run(
+            ["xdotool", "key", "--clearmodifiers"] + groups,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            timeout=TIMEOUTS["mudif_desktop_key"], text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"ok": False, "error": "xdotool key failed: %s" % e}
+    if proc.returncode != 0:
+        return {"ok": False, "error": "xdotool key failed with exit %d" % proc.returncode}
+    return {"ok": True, "keys": groups}
+
+
+def desktop_action_call(name, arguments):
+    """Dispatch one desktop action tool. Errors live in the dict."""
+    os.environ.setdefault("DISPLAY", DESKTOP_DISPLAY)
+    try:
+        if name == "mudif_desktop_windows":
+            return desktop_windows(arguments)
+        if name == "mudif_desktop_window":
+            return desktop_window(arguments)
+        if name == "mudif_desktop_type":
+            return desktop_type(arguments)
+        return desktop_key(arguments)
+    except Exception as e:  # Never let one bad call kill the server.
+        return {"ok": False, "error": "internal error: %s" % e}
 
 
 # ------------------------------------------------------- web tools
@@ -753,6 +1012,17 @@ def handle(request):
             # Guest desktop capture: no bridge token needed; errors
             # live in the dict, like the web tools.
             result = desktop_screenshot(arguments)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
+                },
+            }
+        if name in DESKTOP_ACTION_TOOLS:
+            # Guest desktop actions (vision increment 2): no bridge
+            # token needed; errors live in the dict, like the web tools.
+            result = desktop_action_call(name, arguments)
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,

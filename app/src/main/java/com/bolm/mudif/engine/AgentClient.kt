@@ -181,6 +181,15 @@ object AgentClient {
      * and never as a system-prompt edit. Null (the default) sends
      * exactly the one text part as before.
      *
+     * [imageBase64]: vision increment 2 (cloud vision). When
+     * non-null, the turn carries a file part
+     * ({type:"file", mime:"image/jpeg",
+     * url:"data:image/jpeg;base64,..."}) with the desktop
+     * screenshot, so a vision-capable cloud model sees the screen
+     * directly. Shape verified against the rig's live OpenCode
+     * /doc (FilePartInput: type, mime, url required). Null (the
+     * default) sends no file part.
+     *
      * [testSilentTurn]: test-only hook (item 4). When true, the
      * turn parks after the watchdog is armed and performs zero
      * network I/O, so the watchdog is the only thing that can
@@ -198,6 +207,7 @@ object AgentClient {
         systemPrompt: String,
         callbacks: TurnCallbacks,
         screenContext: String? = null,
+        imageBase64: String? = null,
         // Phase 3: stops the local model on timeout, error, or Stop.
         // The caller supplies it only for local-brain turns; cloud
         // turns pass null (no local model to stop).
@@ -442,6 +452,16 @@ object AgentClient {
                     parts.put(
                         JSONObject().put("type", "text")
                             .put("text", visionPrefix(replyLanguage, screenContext))
+                    )
+                }
+                // Vision increment 2: the cloud vision turn sends
+                // the screenshot itself, as a file part, so the
+                // vision model sees the screen directly.
+                if (imageBase64 != null) {
+                    parts.put(
+                        JSONObject().put("type", "file")
+                            .put("mime", "image/jpeg")
+                            .put("url", "data:image/jpeg;base64,$imageBase64")
                     )
                 }
                 val body = JSONObject().apply {
@@ -801,7 +821,8 @@ object AgentClient {
                 "قاعدة الأدوات: استعمل أداة وحدة فكل مرة، وقرا النتيجة ديالها قبل الأداة اللي من بعدها. ما تعيطش لجوج أدوات على التوالي بلا قراءة. " +
                 "ما تستعملش webfetch ولا websearch المدمجين؛ أدوات مضيف للبحث والقراءة هوما الوحيدين. " +
                 "قاعدة الأوامر بالعربية: إلا كتب المستخدم جملة أمر بالفصحى بحال «ثبت فايرفوكس» ولا «اعرض الملفات» ترجمها لفعل الطرفية العربية ونفذها بأداة shell بلا ما تشرحها. الأفعال فـ /root/.config/mudif/arabic-cli.sh، حملها اللولة بهاد الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة كتكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. الأفعال اللي كتطلب تأكيد (ثبت، حدّث-النظام، نظف-الكاش) دوز ليها التأكيد حيت جملة المستخدم هي الموافقة: printf 'ن\\n' | ثبت فايرفوكس. من بعد التنفيذ قول للمستخدم النتيجة باختصار. " +
-                "قاعدة الرؤية: إلا وصلك وصف للشاشة كنص، راهو من لقطة سطح مكتب الضيف، ثيق بيه وجاوب منو بوحدو، وما تعيطش أبدا لـ mudif_android_screenshot على ود هادشي: هاد الأداة كتشوف غير شاشة التيليفون، ماشي سطح المكتب. $safetyDarija"
+                "قاعدة الرؤية: إلا وصلك وصف للشاشة كنص، راهو من لقطة سطح مكتب الضيف، ثيق بيه وجاوب منو بوحدو، وما تعيطش أبدا لـ mudif_android_screenshot على ود هادشي: هاد الأداة كتشوف غير شاشة التيليفون، ماشي سطح المكتب. " +
+                "قاعدة التحكم فالنوافذ: تحكم فسطح المكتب بسميات النوافذ غير بأدوات mudif_desktop_windows وmudif_desktop_window وmudif_desktop_type وmudif_desktop_key، وما تخترع حتى إحداثيات بكسل، وما تستعملش إحداثيات أندرويد لأفعال سطح المكتب. من بعد كل فعل فالواجهة تحقق بلقطة تانية من mudif_desktop_screenshot قبل ما تقول ساليتي. $safetyDarija"
             "en" -> "You are Mudif Assistant, the Arabic assistant inside the Mudif system " +
                 "on the phone. Answer in English, briefly. Carry out tasks with " +
                 "the tools available, and tell only the truth: if you do not know something, say " +
@@ -831,7 +852,8 @@ object AgentClient {
                 "(ثبت, حدّث-النظام, نظف-الكاش) get the confirmation piped in, because the " +
                 "user's sentence is itself the approval: printf 'ن\\n' | ثبت فايرفوكس. " +
                 "After running, tell the user the result briefly. " +
-                "VISION RULE: if you receive a screen description as text, it comes from a guest desktop capture, so trust it and answer from it only, and never call mudif_android_screenshot for that: that tool sees only the phone display, never the desktop. $safetyEn"
+                "VISION RULE: if you receive a screen description as text, it comes from a guest desktop capture, so trust it and answer from it only, and never call mudif_android_screenshot for that: that tool sees only the phone display, never the desktop. " +
+                "WINDOW RULE: control the desktop by window NAME only, with mudif_desktop_windows, mudif_desktop_window, mudif_desktop_type and mudif_desktop_key. Never invent pixel coordinates, and never use Android coordinates for desktop actions. After every interface action, verify with a second mudif_desktop_screenshot before reporting it done. $safetyEn"
             else -> "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
                 "أجب بالعربية الفصحى وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
                 "إن لم تعرف شيئا قل لا أعرف، ولا تخترع نتيجة. " +
@@ -846,7 +868,8 @@ object AgentClient {
                 "قاعدة الأدوات: استعمل أداة واحدة في كل مرة، واقرأ نتيجتها قبل الأداة التالية. لا تستدعي أداتين على التوالي بلا قراءة. " +
                 "لا تستعمل webfetch ولا websearch المدمجتين؛ أدوات مضيف للبحث والقراءة هي الوحيدة. " +
                 "قاعدة الأوامر العربية: إن كتب المستخدم جملة أمر بالفصحى مثل «ثبت فايرفوكس» أو «اعرض الملفات» فترجمها إلى فعل الطرفية العربية ونفذها بأداة shell بدلا من شرحها. الأفعال في /root/.config/mudif/arabic-cli.sh، حمّلها أولا بهذا الأمر: . /root/.config/mudif/arabic-cli.sh. الأفعال المركبة تكتب بشرطة: حدّث-النظام، نظف-الكاش، ابحث-عن-ملف. الأفعال التي تطلب تأكيدا (ثبت، حدّث-النظام، نظف-الكاش) مرّر لها التأكيد لأن جملة المستخدم نفسها هي الموافقة: printf 'ن\\n' | ثبت فايرفوكس. بعد التنفيذ أخبر المستخدم بالنتيجة باختصار. " +
-                "قاعدة الرؤية: إن وصلك وصف للشاشة كنص، فهو من لقطة سطح مكتب الضيف، فثق به وأجب منه فقط، ولا تستدعِ mudif_android_screenshot أبدا لذلك: تلك الأداة ترى شاشة الهاتف فقط، وليست سطح المكتب. $safetyFusha"
+                "قاعدة الرؤية: إن وصلك وصف للشاشة كنص، فهو من لقطة سطح مكتب الضيف، فثق به وأجب منه فقط، ولا تستدعِ mudif_android_screenshot أبدا لذلك: تلك الأداة ترى شاشة الهاتف فقط، وليست سطح المكتب. " +
+                "قاعدة التحكم بالنوافذ: تحكم بسطح المكتب بأسماء النوافذ فقط عبر أدوات mudif_desktop_windows وmudif_desktop_window وmudif_desktop_type وmudif_desktop_key، ولا تخترع إحداثيات بكسل أبدا، ولا تستعمل إحداثيات أندرويد لأفعال سطح المكتب. بعد كل فعل واجهة تحقق بلقطة ثانية من mudif_desktop_screenshot قبل أن تبلغ عن إنجازه. $safetyFusha"
         }
     }
 }
