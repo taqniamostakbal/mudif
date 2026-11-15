@@ -789,7 +789,10 @@ class AgentFragment : Fragment() {
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 when {
-                    !hasBrain -> showBrainDownloadCard()
+                    // p43: a cloud brain needs no local model
+                    // download, so the brain card stays hidden;
+                    // the vision offer below is untouched.
+                    !hasBrain && brainModel == BRAIN_LOCAL -> showBrainDownloadCard()
                     hasVision == false -> showBrainDownloadCard(AgentServer.VISION_MODEL)
                     else -> hideBrainDownloadCard()
                 }

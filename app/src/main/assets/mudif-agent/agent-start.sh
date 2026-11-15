@@ -57,6 +57,12 @@ if [ -f "$MUDIF_HOME/keys.env" ]; then
     echo "keys.env: loaded"
 fi
 
+# وكيل مضيف: طرفية الوكيل غير تفاعلية (لا إدخال فيها) وجملة
+# المستخدم في الدردشة هي الموافقة، فأوامر التثبيت تقبل تلقائيا
+# في صدفة الوكيل فقط. الطرفية البشرية (qterminal) لا ترى هذا
+# المتغير أبدا، فتبقى تسأل. يسري بعد إعادة تشغيل opencode.
+export MUDIF_AGENT=1
+
 # OpenCode: the agent server. Flags proven on the rig
 # (opencode serve listening on http://127.0.0.1:4096).
 if ! pgrep -f "opencode serve" >/dev/null 2>&1; then
