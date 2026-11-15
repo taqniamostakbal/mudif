@@ -598,6 +598,12 @@ object AgentServer {
      * - "agent"."mudif": the Mudif system prompt (Fusha default);
      *   the chat also sends a per-message system prompt, which wins
      *   when the server honours it.
+     * - "agent"."mudif-vision": the vision agent (p42, describe-only
+     *   prompt, permission deny-all). OpenCode 1.19.5 sends the
+     *   session agent's full tool set on every turn and Ollama 400s
+     *   models without tool support (qwen2.5vl:3b); a deny-all
+     *   permission resolves zero tools, so a vision turn carries
+     *   none. Added only when missing, like "mudif".
      *
      * When no config exists at all, a minimal one is created with
      * the rig-proven local Ollama provider (qwen3:1.7b). Nothing is
@@ -705,6 +711,21 @@ object AgentServer {
         if (!agents.has("mudif")) {
             agents.put("mudif", JSONObject().put("prompt", SYSTEM_PROMPT_FUSHA))
         }
+        // p42: the vision agent. The merge does NOT cover the agent
+        // section the way the p41 model-level merge covers providers
+        // (no agent merge exists), so mudif-vision is staged with
+        // the same add-if-missing mechanism as "mudif" above.
+        // Permission deny-all resolves zero tools in OpenCode
+        // (Permission.fromConfig + disabled), so a vision turn
+        // sends no tool definitions and Ollama accepts the call.
+        if (!agents.has("mudif-vision")) {
+            agents.put(
+                "mudif-vision",
+                JSONObject()
+                    .put("prompt", SYSTEM_PROMPT_VISION)
+                    .put("permission", JSONObject().put("*", "deny"))
+            )
+        }
         config.put("agent", agents)
         configFile.parentFile?.mkdirs()
         if (configFile.exists()) {
@@ -797,6 +818,20 @@ object AgentServer {
     const val SYSTEM_PROMPT_FUSHA =
         "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
             "أجب بالعربية الفصحى وباختصار. نفّذ المهام بالأدوات المتاحة، وقل الحقيقة فقط: " +
+            "إن لم تعرف شيئا قل لا أعرف، ولا تخترع نتيجة. " +
+            "لا تحذف أي شيء، ولا ترسل أي رسالة، ولا تدفع أي مبلغ، ولا تؤكد أي هوية نيابة عن المستخدم " +
+            "إلا بعد موافقته الصريحة."
+
+    /**
+     * p42: the mudif-vision agent prompt. Same Fusha identity as
+     * [SYSTEM_PROMPT_FUSHA], describe-only: it promises no tool
+     * use, because the vision agent has no tools (permission
+     * deny-all). A vision turn describes the screenshot it was
+     * sent and nothing else.
+     */
+    const val SYSTEM_PROMPT_VISION =
+        "أنت مساعد مضيف، المساعد العربي داخل نظام مضيف على الهاتف. " +
+            "أجب بالعربية الفصحى وباختصار. صف ما تراه في الصورة فقط، وقل الحقيقة فقط: " +
             "إن لم تعرف شيئا قل لا أعرف، ولا تخترع نتيجة. " +
             "لا تحذف أي شيء، ولا ترسل أي رسالة، ولا تدفع أي مبلغ، ولا تؤكد أي هوية نيابة عن المستخدم " +
             "إلا بعد موافقته الصريحة."

@@ -200,6 +200,13 @@ object AgentClient {
      * [systemPrompt]). Used only to word the vision context part
      * in the turn's language; the system prompts themselves are
      * untouched. Default "fusha", so older call sites are unchanged.
+     *
+     * [agent]: p42. Agent override for the prompt_async body. Null
+     * (the default) derives it from the turn shape: "mudif-vision"
+     * when [imageBase64] is non-null (a vision turn runs under the
+     * deny-all vision agent, so OpenCode sends no tools and Ollama
+     * accepts the call), nothing on a normal turn (its tools are
+     * untouched). An explicit non-null value wins over the rule.
      */
     fun sendPrompt(
         sessionId: String,
@@ -215,7 +222,8 @@ object AgentClient {
         // Consolidated fix, item 4: test-only silent-turn hook.
         // Default false, so the single call site is unchanged.
         testSilentTurn: Boolean = false,
-        replyLanguage: String = "fusha"
+        replyLanguage: String = "fusha",
+        agent: String? = null
     ): TurnHandle {
         val handle = TurnHandle(sessionId, localStop)
         val finished = AtomicBoolean(false)
@@ -467,6 +475,17 @@ object AgentClient {
                 val body = JSONObject().apply {
                     put("parts", parts)
                     put("system", systemPrompt)
+                    // p42: vision turns run under the deny-all
+                    // mudif-vision agent. OpenCode 1.19.5 sends the
+                    // session agent's full tool set on every turn
+                    // and Ollama 400s models without tool support
+                    // (qwen2.5vl:3b); with no tools resolved the
+                    // call carries none. Normal turns carry no
+                    // agent override, so their tools are untouched.
+                    // An explicit [agent] value wins; null derives
+                    // it from the turn shape (image present or not).
+                    val turnAgent = agent ?: if (imageBase64 != null) "mudif-vision" else null
+                    if (turnAgent != null) put("agent", turnAgent)
                 }.toString()
                 var asyncCode = postPromptAsync(activeSessionId, body)
                 Log.i(TAG, "prompt_async code=$asyncCode")
