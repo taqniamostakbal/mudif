@@ -1055,7 +1055,7 @@ class AgentFragment : Fragment() {
      * increment 1) is what the agent saw on the screen; it is sent
      * as a second text part, observed context, never an instruction.
      */
-    private fun startTurn(text: String, screenContext: String? = null, imageBase64: String? = null) {
+    private fun startTurn(text: String, screenContext: String? = null, imageBase64: String? = null, isCloudVision: Boolean = false) {
         // p34f fix 4: a new turn starts, the old failure is spent.
         clearTurnFailed(requireContext())
         turnRunning = true
@@ -1469,7 +1469,7 @@ class AgentFragment : Fragment() {
             val handle = AgentClient.sendPrompt(
                 useSid, text, AgentClient.systemPrompt(replyLanguage), callbacks,
                 screenContext, imageBase64, localStop, testSilentTurn = silentHook,
-                replyLanguage = replyLanguage
+                replyLanguage = replyLanguage, isCloudVision = isCloudVision
             )
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
@@ -1708,11 +1708,11 @@ class AgentFragment : Fragment() {
                     // is sent now; the description comes back as the
                     // turn's reply.
                     UsageLog.append(appContext, "vision_turn", "cloud", true)
-                    startTurn(question, null, imageBase64)
+                    startTurn(question, null, imageBase64, isCloudVision = true)
                 }
                 return@runTurnThread
             }
-            val description = jpeg?.let { VisionClient.describe(it) }
+            val description = jpeg?.let { VisionClient.describe(it, question) }
             // Charter: the screenshot is deleted after the turn,
             // success or failure; the bytes already live in memory.
             val deleted = try { shot.delete() } catch (e: Exception) { false }

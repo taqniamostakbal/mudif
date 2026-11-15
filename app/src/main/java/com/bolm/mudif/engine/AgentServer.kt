@@ -49,6 +49,8 @@ object AgentServer {
     private const val START_SCRIPT_GUEST_PATH = "root/.config/mudif/agent-start.sh"
     private const val MCP_PROXY_ASSET = "mudif-agent/mudif-mcp-server.py"
     private const val MCP_PROXY_GUEST_PATH = "root/.config/mudif/mudif-mcp-server.py"
+    // p51: the apt guard wrapper (one asset, three install paths).
+    private const val APT_GUARD_ASSET = "mudif-cli/apt-guard.sh"
     private const val OPENCODE_CONFIG_GUEST_PATH = "root/.config/opencode/opencode.json"
     private const val OPENCODE_CONFIG_BACKUP_GUEST_PATH =
         "root/.config/opencode/opencode.json.mudif-bak"
@@ -301,6 +303,14 @@ object AgentServer {
         if (!stageStartScript(context)) {
             Log.e(TAG, "ensureStarted: could not stage $START_SCRIPT_ASSET")
             return EnsureResult(false, REASON_STAGE_FAILED)
+        }
+        // p51: install the apt guard on EVERY agent start, never
+        // marker-gated (the p43 lesson: a marker-gated change never
+        // reaches an existing rootfs). Best-effort like the MCP
+        // staging, but LOUD: a silent miss means ثبت enforcement is
+        // absent. A failure here never blocks the server itself.
+        if (!installAptGuard(context)) {
+            Log.e(TAG, "ensureStarted: apt guard install failed, ثبت enforcement absent")
         }
         // Best-effort: the MCP proxy lets OpenCode reach the Android
         // bridge. If its staging fails, the server still starts and
@@ -627,13 +637,85 @@ object AgentServer {
     }
 
     /**
+     * p51: installs the apt guard wrapper at /usr/bin/apt,
+     * /usr/bin/apt-get and /usr/bin/dpkg in the guest rootfs. The
+     * real binary is moved aside to <name>.mudif-real and the asset
+     * takes its place. Runs on EVERY ensureStarted (never
+     * marker-gated) so it self-heals after an apt package upgrade
+     * replaces /usr/bin/apt. Returns false only on a real failure
+     * (the caller logs it loudly); one broken path does not fail
+     * the other two.
+     */
+    private fun installAptGuard(context: Context): Boolean {
+        val assetBytes = try {
+            context.assets.open(APT_GUARD_ASSET).use { it.readBytes() }
+        } catch (e: Exception) {
+            Log.e(TAG, "installAptGuard: missing asset $APT_GUARD_ASSET", e)
+            return false
+        }
+        val rootfs = DebianSystem.debianRootfsDir(context)
+        var ok = true
+        for (name in arrayOf("apt", "apt-get", "dpkg")) {
+            val main = File(rootfs, "usr/bin/$name")
+            val backup = File(rootfs, "usr/bin/$name.mudif-real")
+            try {
+                if (!main.exists()) {
+                    Log.e(TAG, "installAptGuard: /usr/bin/$name missing from rootfs, skipping")
+                    ok = false
+                    continue
+                }
+                if (java.nio.file.Files.isSymbolicLink(main.toPath())) {
+                    Log.e(TAG, "installAptGuard: /usr/bin/$name is a symlink, refusing to replace")
+                    ok = false
+                    continue
+                }
+                val firstLine = try {
+                    main.bufferedReader().use { it.readLine() }
+                } catch (e: Exception) {
+                    null
+                }
+                if (firstLine == "# mudif-apt-guard v1") {
+                    continue
+                }
+                if (!backup.exists()) {
+                    if (!main.renameTo(backup)) {
+                        Log.e(TAG, "installAptGuard: could not move /usr/bin/$name aside")
+                        ok = false
+                        continue
+                    }
+                }
+                main.outputStream().use { out -> out.write(assetBytes) }
+                main.setExecutable(true, false)
+                main.setReadable(true, false)
+                val installed = try {
+                    main.readBytes().contentEquals(assetBytes) &&
+                        main.bufferedReader().use { it.readLine() } == "# mudif-apt-guard v1"
+                } catch (e: Exception) {
+                    false
+                }
+                if (!installed) {
+                    Log.e(TAG, "installAptGuard: verify failed for /usr/bin/$name, restoring")
+                    main.delete()
+                    backup.renameTo(main)
+                    ok = false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "installAptGuard: /usr/bin/$name failed", e)
+                ok = false
+            }
+        }
+        return ok
+    }
+
+    /**
      * Model-level merge of one asset provider entry into the provider
-     * already present in the running config. Only two things change:
+     * already present in the running config. Only three things change:
      * models missing from the existing provider are added whole
-     * (name, vision flag, limits), and the "vision" flag of models
-     * that already exist is synced from the asset. Provider-level
-     * fields (npm, options, baseURL), existing model names, the
-     * top-level "model" pick and any keys are never touched.
+     * (name, vision flag, modalities, limits), and the "vision" flag
+     * and the "modalities" object of models that already exist are
+     * synced from the asset. Provider-level fields (npm, options,
+     * baseURL), existing model names, the top-level "model" pick and
+     * any keys are never touched.
      */
     private fun mergeProviderModels(existing: JSONObject?, assetEntry: JSONObject) {
         if (existing == null) return
@@ -646,11 +728,26 @@ object AgentServer {
             val assetModel = assetModels.optJSONObject(modelName) ?: continue
             if (!models.has(modelName)) {
                 models.put(modelName, JSONObject(assetModel.toString()))
-            } else if (assetModel.has("vision")) {
+            } else {
                 val model = models.optJSONObject(modelName)
-                if (model != null && (!model.has("vision")
-                            || model.optBoolean("vision") != assetModel.optBoolean("vision"))) {
-                    model.put("vision", assetModel.optBoolean("vision"))
+                if (model != null) {
+                    if (assetModel.has("vision") &&
+                        (!model.has("vision")
+                                || model.optBoolean("vision") != assetModel.optBoolean("vision"))) {
+                        model.put("vision", assetModel.optBoolean("vision"))
+                    }
+                    // p51: Break A. OpenCode strips the image file
+                    // part when capabilities.input.image is false,
+                    // and that flag comes from modalities, never
+                    // from "vision". Sync it like the vision flag.
+                    val assetModalities = assetModel.optJSONObject("modalities")
+                    if (assetModalities != null) {
+                        val existingModalities = model.optJSONObject("modalities")
+                        if (existingModalities == null ||
+                            existingModalities.toString() != assetModalities.toString()) {
+                            model.put("modalities", JSONObject(assetModalities.toString()))
+                        }
+                    }
                 }
             }
         }
@@ -702,7 +799,8 @@ object AgentServer {
                 put("options", JSONObject().put("baseURL", "http://127.0.0.1:11434/v1"))
                 put("models", JSONObject()
                     .put("qwen3:1.7b", JSONObject().put("name", "Qwen3 1.7B local"))
-                    .put("qwen2.5vl:3b", JSONObject().put("name", "Qwen2.5VL 3B").put("vision", true)))
+                    .put("qwen2.5vl:3b", JSONObject().put("name", "Qwen2.5VL 3B").put("vision", true)
+                        .put("modalities", JSONObject().put("input", org.json.JSONArray().put("text").put("image")))))
             }
             config.put("provider", JSONObject().put("ollama", ollama))
             config.put("model", "ollama/qwen3:1.7b")
