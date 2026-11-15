@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import com.bolm.mudif.R
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.TerminalSession
+import com.bolm.mudif.engine.UsageLog
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.store.StoreProgram
@@ -87,6 +88,10 @@ object AppLauncher {
                 // that the program opened, failures were invisible
                 // (output goes to /dev/null). Now a real check decides.
                 val started = verifyStarted(appCtx, program)
+                // Slice 1 (agent-as-OS): the launch is logged only
+                // once it is verified running; ok is the real
+                // verifyStarted result, never assumed.
+                UsageLog.append(appCtx, "app_launched", program.id, started)
                 uiHandler.post {
                     if (!fragment.isAdded) return@post
                     onBusy?.invoke(false)

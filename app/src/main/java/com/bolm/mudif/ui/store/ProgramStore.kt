@@ -5,6 +5,7 @@ import com.bolm.mudif.R
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.TerminalResult
 import com.bolm.mudif.engine.TerminalSession
+import com.bolm.mudif.engine.UsageLog
 import java.io.File
 
 /** Live install state of one program, shown on its card. */
@@ -180,7 +181,7 @@ object ProgramStore {
         arch: String,
         onProgress: ((stage: String, percent: Int?) -> Unit)? = null
     ): TerminalResult {
-        return when (program.method) {
+        val result = when (program.method) {
             "apt" -> {
                 // Same command as before (dpkg --configure -a, then
                 // update && install), with stage markers at the real
@@ -268,6 +269,13 @@ object ProgramStore {
             }
             else -> TerminalResult(context.getString(R.string.ui_store_unknown_method), -1, false)
         }
+        // Slice 1 (agent-as-OS): one log line per finished store
+        // install, whichever path asked for it (agent bridge, Store
+        // tab, category, games). ok is the install command's own
+        // exit code; the bridge's separate dpkg verification still
+        // decides what the agent reports as installed.
+        UsageLog.append(context, "store_install", program.id, result.exitCode == 0)
+        return result
     }
 
     /**

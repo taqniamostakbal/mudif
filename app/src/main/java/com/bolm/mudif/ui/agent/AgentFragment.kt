@@ -41,6 +41,7 @@ import com.bolm.mudif.engine.AgentSupervisorService
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
 import com.bolm.mudif.engine.TerminalSession
+import com.bolm.mudif.engine.UsageLog
 import com.bolm.mudif.engine.VisionCapture
 import com.bolm.mudif.engine.VisionClient
 import com.bolm.mudif.engine.X11Session
@@ -954,6 +955,9 @@ class AgentFragment : Fragment() {
             onTurnFailed(null)
             return
         }
+        // Slice 1 (agent-as-OS): the turn itself is logged, with
+        // the CLI verb when the user wrote one, else "chat".
+        UsageLog.append(appContext, "chat_command", UsageLog.verbOrChat(text), true)
         runTurnThread {
             // Brain fix (plan section 10): user-pasted URLs join the
             // fetch allowlist so the brain may open them. Best-effort,
@@ -1557,6 +1561,10 @@ class AgentFragment : Fragment() {
                             replyLanguage
                         )
                     )
+                    // Slice 1 (agent-as-OS): the cloud vision turn
+                    // is sent now; the description comes back as the
+                    // turn's reply.
+                    UsageLog.append(appContext, "vision_turn", "cloud", true)
                     startTurn(question, null, imageBase64)
                 }
                 return@runTurnThread
@@ -1611,6 +1619,9 @@ class AgentFragment : Fragment() {
                         replyLanguage
                     )
                 )
+                // Slice 1 (agent-as-OS): the local description was
+                // just shown; the brain answers with it now.
+                UsageLog.append(appContext, "vision_turn", "local", true)
                 startTurn(question, description)
             }
         }

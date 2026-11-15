@@ -220,7 +220,7 @@ TOOLS = [
     },
     {
         "name": "mudif_web_search",
-        "description": "Web search: Exa first, Tavily second, DuckDuckGo HTML when no key is set. Returns titles, URLs and snippets. Never invents a result.",
+        "description": "Web search: Exa first, Tavily second, then DuckDuckGo HTML, FreeSerp and Wikipedia when no key is set. Returns titles, URLs and snippets. Never invents a result.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -246,6 +246,15 @@ TOOLS = [
             "type": "object",
             "properties": {"query": {"type": "string", "description": "Question to answer."}},
             "required": ["query"],
+        },
+    },
+    {
+        "name": "mudif_usage_log",
+        "description": "Read the last N lines of the local usage log (what the user opened, installed, or asked for, on this phone only). Read-only: it cannot write, change, or delete the log. Cite it as 'حسب سجل الاستعمال' when you answer from it.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"count": {"type": "integer", "description": "How many last lines to read (default 10, max 50)."}},
+            "required": [],
         },
     },
 ]
@@ -624,6 +633,37 @@ def desktop_action_call(name, arguments):
         return {"ok": False, "error": "internal error: %s" % e}
 
 
+# ------------------------------------------------------- usage log
+# Slice 1 of agent-as-OS (agent-as-os/DESIGN.md section 5). The app
+# writes one JSONL line per action into filesDir/tmp, which the guest
+# reads as /tmp/usage-log.jsonl. This tool only READS that file:
+# grep usage-log in this file to prove no other access exists.
+# Errors live in the dict, like the web and desktop tools.
+USAGE_LOG_FILE = "/tmp/usage-log.jsonl"
+
+
+def usage_log(arguments):
+    """Read the last N lines of the local usage log. Read-only."""
+    count = arguments.get("count", 10)
+    try:
+        count = int(count)
+    except (TypeError, ValueError):
+        count = 10
+    count = max(1, min(count, 50))
+    try:
+        with open(USAGE_LOG_FILE, "r", encoding="utf-8") as log_file:
+            lines = log_file.read().splitlines()
+    except OSError:
+        return {"ok": False, "error": "no usage log yet"}
+    entries = []
+    for line in lines[-count:]:
+        try:
+            entries.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return {"ok": True, "entries": entries}
+
+
 # ------------------------------------------------------- web tools
 # Brain fix phase 1 (BRAIN-FIX-PLAN.md sections 9-10). No bridge
 # involved: these tools call the search providers and the web
@@ -665,6 +705,18 @@ def _post_json(url, payload, headers, timeout):
     """POST a JSON body, return the parsed dict. WebError on failure."""
     data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        raise WebError("HTTP %d from %s" % (e.code, url))
+    except urllib.error.URLError as e:
+        raise WebError("cannot reach %s: %s" % (url, e.reason))
+
+
+def _get_json(url, headers, timeout):
+    """GET a URL, return the parsed dict. WebError on failure."""
+    request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8", "replace"))
@@ -829,8 +881,68 @@ def _ddg_search(query, count):
     return results
 
 
+def _parse_freeserp(data, count):
+    """FreeSerp JSON results into title/url/snippet rows."""
+    results = []
+    for item in (data.get("results") or [])[:count]:
+        url = (item.get("url") or "").strip()
+        title = _clean_text(item.get("title") or "")
+        snippet = _clean_text(item.get("ai_summary") or "")
+        if url and title:
+            results.append({"title": title, "url": url, "snippet": snippet})
+    if not results:
+        raise WebError("FreeSerp returned no results")
+    return results
+
+
+def _freeserp_search(query, count):
+    """FreeSerp keyless JSON search (own index, no key, no signup).
+    Published terms on freeserp.ai: free, no hard quota, a few
+    requests per second, cache when possible. The agent= parameter
+    identifies the caller, as their FAQ asks."""
+    url = ("https://freeserp.ai/api.php?index=web&q="
+           + urllib.parse.quote_plus(query)
+           + "&size=%d&agent=Mudif" % count)
+    data = _get_json(url, {"User-Agent": _USER_AGENT}, 20)
+    if not data.get("ok"):
+        raise WebError("FreeSerp error: %s" % (data.get("engine_error") or "unknown"))
+    return _parse_freeserp(data, count)
+
+
+_WIKI_UA = "Mudif/0.1 (https://github.com/taqniamostakbal/mudif)"
+
+
+def _parse_wikipedia(data, lang, count):
+    """MediaWiki list=search JSON into title/url/snippet rows."""
+    results = []
+    for item in ((data.get("query") or {}).get("search") or [])[:count]:
+        title = (item.get("title") or "").strip()
+        if not title:
+            continue
+        url = ("https://%s.wikipedia.org/wiki/" % lang
+               + urllib.parse.quote(title.replace(" ", "_")))
+        results.append({"title": title, "url": url,
+                        "snippet": _clean_text(item.get("snippet") or "")})
+    if not results:
+        raise WebError("Wikipedia returned no results")
+    return results
+
+
+def _wikipedia_search(query, count):
+    """Wikipedia list=search, no key. Arabic queries go to the Arabic
+    edition, everything else to English. Wikimedia policy requires a
+    descriptive User-Agent, so this call identifies the app."""
+    lang = "ar" if re.search(r"[\u0600-\u06FF]", query) else "en"
+    url = ("https://%s.wikipedia.org/w/api.php?action=query&list=search"
+           "&srsearch=%s&srlimit=%d&format=json&formatversion=2"
+           % (lang, urllib.parse.quote_plus(query), count))
+    data = _get_json(url, {"User-Agent": _WIKI_UA}, 15)
+    return _parse_wikipedia(data, lang, count)
+
+
 def web_search(arguments):
-    """Exa, else Tavily, else DuckDuckGo HTML. One try per provider."""
+    """Exa, else Tavily, else DuckDuckGo HTML, else FreeSerp, else
+    Wikipedia. One try per provider; the last two need no key."""
     query = (arguments.get("query") or "").strip()
     if not query:
         return {"source": "none", "error": "search failed: empty query"}
@@ -856,6 +968,14 @@ def web_search(arguments):
         return _search_result("duckduckgo", _ddg_search(query, count))
     except WebError as e:
         errors.append("duckduckgo: %s" % e)
+    try:
+        return _search_result("freeserp", _freeserp_search(query, count))
+    except WebError as e:
+        errors.append("freeserp: %s" % e)
+    try:
+        return _search_result("wikipedia", _wikipedia_search(query, count))
+    except WebError as e:
+        errors.append("wikipedia: %s" % e)
     return {"source": "none", "error": "search failed: " + "; ".join(errors)}
 
 
@@ -1044,6 +1164,17 @@ def handle(request):
             # Guest desktop actions (vision increment 2): no bridge
             # token needed; errors live in the dict, like the web tools.
             result = desktop_action_call(name, arguments)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
+                },
+            }
+        if name == "mudif_usage_log":
+            # Slice 1 (agent-as-OS): local log read, no bridge token
+            # needed; errors live in the dict, like the web tools.
+            result = usage_log(arguments)
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
