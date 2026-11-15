@@ -156,8 +156,8 @@ class BottomNavView @JvmOverloads constructor(
         val holder = holders[id] ?: return
         holder.pill.visibility = View.VISIBLE
         holder.label.setTextColor(selectedColor())
-        holder.tintCallback.value =
-            PorterDuffColorFilter(selectedColor(), PorterDuff.Mode.SRC_ATOP)
+        holder.tintCallback.setValue(
+            PorterDuffColorFilter(selectedColor(), PorterDuff.Mode.SRC_ATOP))
         if (!animate) {
             holder.icon.progress = 0f
             return
@@ -173,8 +173,8 @@ class BottomNavView @JvmOverloads constructor(
         holder.icon.progress = 0f
         holder.pill.visibility = View.GONE
         holder.label.setTextColor(unselectedColor())
-        holder.tintCallback.value =
-            PorterDuffColorFilter(unselectedColor(), PorterDuff.Mode.SRC_ATOP)
+        holder.tintCallback.setValue(
+            PorterDuffColorFilter(unselectedColor(), PorterDuff.Mode.SRC_ATOP))
     }
 
     private fun selectedColor(): Int =
