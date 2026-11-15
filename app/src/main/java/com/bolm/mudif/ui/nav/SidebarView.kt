@@ -93,8 +93,11 @@ class SidebarView @JvmOverloads constructor(
         Row(R.id.nav_profile, R.drawable.ic_person, R.string.tab_profile)
     )
 
-    // Same second group as the old drawer_menu.xml: tools, not
-    // destinations, so they never take the active state.
+    // p53: EVERY row takes the active state when tapped, tools
+    // included. The old comment said tools "never take the active
+    // state": MainActivity never called setSelected for them, so on
+    // Anas's phone no settings row and no tool row ever showed the
+    // purple pill. The pill marks the last tapped row.
     private val toolRows = listOf(
         Row(R.id.drawer_language, R.drawable.ic_menu, R.string.drawer_language),
         Row(R.id.drawer_settings, R.drawable.ic_settings, R.string.viewer_settings_title),
@@ -118,7 +121,8 @@ class SidebarView @JvmOverloads constructor(
         applyStateInstant()
     }
 
-    /** Marks [itemId] active in both states. Tool rows never match. */
+    /** Marks [itemId] active in both states. Any row id matches,
+     *  tools included (p53). */
     fun setSelected(itemId: Int) {
         selectedId = itemId
         refreshSelection()
@@ -400,7 +404,17 @@ class SidebarView @JvmOverloads constructor(
             isClickable = true
             isFocusable = true
             foreground = resolveSelectableBackground()
-            setOnClickListener { onItemSelected?.invoke(item.id) }
+            // p53: the pill follows the tap itself, for every row.
+            // MainActivity only calls setSelected for destinations
+            // (and profile); the tool rows open activities and
+            // dialogs without touching the selection, which is why
+            // they never showed the pill. Marking here, before the
+            // emit, makes the tapped row active no matter what the
+            // routing does next.
+            setOnClickListener {
+                setSelected(item.id)
+                onItemSelected?.invoke(item.id)
+            }
         }
         val bg = View(context).apply {
             visibility = GONE
