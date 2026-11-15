@@ -189,6 +189,8 @@
     <string name="language_first_run_title">ختار لغة التطبيق</string>
     <string name="language_first_run_body">تقدر تبدل اللغة فأي وقت من حسابي ← اللغة.</string>
     <string name="drawer_language">اللغة</string>
+    <string name="sidebar_collapse">طي الشريط الجانبي</string>
+    <string name="sidebar_expand">توسيع الشريط الجانبي</string>
     <string name="viewer_scale_ignored_note">مقياس العرض ما خدامش ملي يكون وضع الدقة «دقيقة» ولا «مخصصة».</string>
     <string name="arcade_desc_retroarch">محاكي ديال بزاف ديال الأنظمة</string>
     <string name="arcade_desc_ppsspp">محاكي PSP</string>

@@ -71,25 +71,30 @@ class MainActivity : AppCompatActivity() {
             animateNavSelection(previousNavItemId, item.itemId)
             previousNavItemId = item.itemId
             show(frag)
+            binding.navView.setSelected(item.itemId)
             true
         }
 
         // P19 Phase 2: side menu (navigation drawer). The 5 main items
         // select the matching bottom-nav tab (its listener shows the
         // fragment); the second group opens the settings, the logs, or
-        // the About dialog.
-        binding.navView.setNavigationItemSelectedListener { item ->
-            when (item.itemId) {
+        // the About dialog. p46: the drawer content is now the custom
+        // SidebarView (expanded panel / collapsed rail); it emits the
+        // same item ids, so this routing is unchanged.
+        binding.navView.onItemSelected = { itemId ->
+            when (itemId) {
                 R.id.nav_home, R.id.nav_store, R.id.nav_apps,
                 R.id.nav_games, R.id.nav_agent ->
-                    binding.bottomNav.selectedItemId = item.itemId
+                    binding.bottomNav.selectedItemId = itemId
                 // Profile is NOT in the bottom nav: BottomNavigationView
                 // throws at inflate time with more than 5 items
                 // (IllegalArgumentException), which crashed the app on
                 // launch. Profile lives in the drawer only; show it
                 // directly instead of routing through the bottom nav.
-                R.id.nav_profile ->
+                R.id.nav_profile -> {
+                    binding.navView.setSelected(R.id.nav_profile)
                     show(ProfileFragment())
+                }
                 R.id.drawer_settings ->
                     startActivity(Intent(this, SettingsActivity::class.java))
                 R.id.drawer_control_center ->
@@ -102,8 +107,11 @@ class MainActivity : AppCompatActivity() {
                     MudifDialog.about(this)
             }
             binding.drawerLayout.closeDrawer(GravityCompat.START)
-            true
         }
+
+        // Keep the sidebar active row in sync with the tab the app
+        // actually shows (restored selection included).
+        binding.navView.setSelected(binding.bottomNav.selectedItemId)
 
         // Back closes an open drawer instead of leaving the app.
         // (OnBackPressedCallback is in the base activity artifact, so

@@ -189,6 +189,8 @@
     <string name="language_first_run_title">اختار لغة التطبيق</string>
     <string name="language_first_run_body">تقدر تبدل اللغة في أي وقت من حسابي ← اللغة.</string>
     <string name="drawer_language">اللغة</string>
+    <string name="sidebar_collapse">طي الشريط الجانبي</string>
+    <string name="sidebar_expand">توسيع الشريط الجانبي</string>
     <string name="viewer_scale_ignored_note">مقياس العرض لا يعمل عندما يكون وضع الدقة «دقيقة» أو «مخصصة».</string>
     <string name="arcade_desc_retroarch">محاكي متعدد الأنظمة</string>
     <string name="arcade_desc_ppsspp">محاكي PSP</string>

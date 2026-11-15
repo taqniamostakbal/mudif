@@ -189,6 +189,8 @@
     <string name="language_first_run_title">Choose the app language</string>
     <string name="language_first_run_body">You can change the language anytime from Profile → Language.</string>
     <string name="drawer_language">Language</string>
+    <string name="sidebar_collapse">Collapse sidebar</string>
+    <string name="sidebar_expand">Expand sidebar</string>
     <string name="viewer_scale_ignored_note">Display scale has no effect when resolution mode is Exact or Custom.</string>
     <string name="arcade_desc_retroarch">Multi-system emulator</string>
     <string name="arcade_desc_ppsspp">PSP emulator</string>
