@@ -557,6 +557,36 @@ object AgentServer {
     }
 
     /**
+     * Model-level merge of one asset provider entry into the provider
+     * already present in the running config. Only two things change:
+     * models missing from the existing provider are added whole
+     * (name, vision flag, limits), and the "vision" flag of models
+     * that already exist is synced from the asset. Provider-level
+     * fields (npm, options, baseURL), existing model names, the
+     * top-level "model" pick and any keys are never touched.
+     */
+    private fun mergeProviderModels(existing: JSONObject?, assetEntry: JSONObject) {
+        if (existing == null) return
+        val assetModels = assetEntry.optJSONObject("models") ?: return
+        val models = existing.optJSONObject("models")
+            ?: JSONObject().also { existing.put("models", it) }
+        val names = assetModels.keys()
+        while (names.hasNext()) {
+            val modelName = names.next()
+            val assetModel = assetModels.optJSONObject(modelName) ?: continue
+            if (!models.has(modelName)) {
+                models.put(modelName, JSONObject(assetModel.toString()))
+            } else if (assetModel.has("vision")) {
+                val model = models.optJSONObject(modelName)
+                if (model != null && (!model.has("vision")
+                            || model.optBoolean("vision") != assetModel.optBoolean("vision"))) {
+                    model.put("vision", assetModel.optBoolean("vision"))
+                }
+            }
+        }
+    }
+
+    /**
      * Merges the Mudif agent blocks into the guest's opencode.json
      * WITHOUT touching anything else in the file: the user's model,
      * provider and agent settings are preserved byte-for-byte in
@@ -588,11 +618,15 @@ object AgentServer {
         }
         if (!configFile.exists()) {
             // Rig-proven shape (evidence/opencode.json): local Ollama.
+            // qwen2.5vl:3b rides along so the vision model is declared
+            // from the first launch, not only after a merge.
             val ollama = JSONObject().apply {
                 put("npm", "@ai-sdk/openai-compatible")
                 put("name", "Ollama (local)")
                 put("options", JSONObject().put("baseURL", "http://127.0.0.1:11434/v1"))
-                put("models", JSONObject().put("qwen3:1.7b", JSONObject().put("name", "Qwen3 1.7B local")))
+                put("models", JSONObject()
+                    .put("qwen3:1.7b", JSONObject().put("name", "Qwen3 1.7B local"))
+                    .put("qwen2.5vl:3b", JSONObject().put("name", "Qwen2.5VL 3B").put("vision", true)))
             }
             config.put("provider", JSONObject().put("ollama", ollama))
             config.put("model", "ollama/qwen3:1.7b")
@@ -601,14 +635,15 @@ object AgentServer {
             // providers and point at the local model.
             config.put("model", "ollama/qwen3:1.7b")
         }
-        // p22 - free cloud providers: merge the 9 providers from the
+        // p22 - free cloud providers: merge the 10 providers from the
         // bundled opencode-providers.json (groq, huggingface, llm7,
         // ollama, opencode, openrouter, google, cohere, mistral, tokenlab,
         // 45 models, no keys in the asset; the keys come from
-        // settings via keys.env). Only the providers MISSING from
-        // the config are added, so the rig-proven local Ollama entry
-        // (with its npm package) and any provider the user added
-        // himself are never replaced.
+        // settings via keys.env). Providers MISSING from the config
+        // are added whole; providers already present are merged at
+        // the MODEL level (missing models added, vision flags synced),
+        // so the rig-proven local Ollama entry (with its npm package)
+        // and any provider the user added himself are never replaced.
         // The asset uses "package"/"settings"; the rig-proven
         // opencode shape is "npm"/"options", so those keys are
         // renamed on the way in. The default model stays Local
@@ -622,8 +657,14 @@ object AgentServer {
                 val names = providersJson.keys()
                 while (names.hasNext()) {
                     val name = names.next()
-                    if (providers.has(name)) continue
                     val entry = providersJson.optJSONObject(name) ?: continue
+                    if (providers.has(name)) {
+                        // p41: the provider is already there (upgrade, or
+                        // the minimal config just created it), so merge at
+                        // the MODEL level instead of skipping wholesale.
+                        mergeProviderModels(providers.optJSONObject(name), entry)
+                        continue
+                    }
                     val normalized = JSONObject(entry.toString())
                     if (normalized.has("package") && !normalized.has("npm")) {
                         normalized.put("npm", normalized.remove("package"))

@@ -203,11 +203,12 @@ TOOLS = [
     },
     {
         "name": "mudif_desktop_key",
-        "description": "Press keys on the guest desktop, like 'Return', 'Escape', 'Tab', or 'ctrl+s'. Keys are X keysyms; several groups press in sequence. Never press a destructive key without the user's explicit approval.",
+        "description": "Press keys on the guest desktop, like 'Return', 'Escape', 'Tab', or 'ctrl+s'. Keys are X keysyms; several groups press in sequence. Pass 'window' to activate a named window first in the same call, so the keys land there even when focus drifts. Never press a destructive key without the user's explicit approval.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "keys": {"type": "string", "description": "Keys to press, e.g. 'ctrl+s' or 'Escape'."},
+                "window": {"type": "string", "description": "Optional window title to activate first."},
             },
             "required": ["keys"],
         },
@@ -560,7 +561,9 @@ def desktop_type(arguments):
 
 
 def desktop_key(arguments):
-    """Press X keys on the guest desktop."""
+    """Press X keys on the guest desktop, or into a named window
+    (activated first, in the same call, so focus cannot drift
+    away between calls)."""
     keys = arguments.get("keys")
     if isinstance(keys, str):
         groups = keys.split()
@@ -573,9 +576,24 @@ def desktop_key(arguments):
     for group in groups:
         if not _KEY_TOKEN.match(group):
             return {"ok": False, "error": "bad key: %s" % group}
+    window_name = (arguments.get("window") or "").strip()
     ok, err = _ensure_xdotool()
     if not ok:
         return {"ok": False, "error": err}
+    window = None
+    if window_name:
+        window, error = _match_window(window_name)
+        if error is not None:
+            return error
+        try:
+            act = subprocess.run(
+                ["xdotool", "windowactivate", "--sync", window["id"]],
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                timeout=30, text=True)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"ok": False, "error": "xdotool activate failed: %s" % e}
+        if act.returncode != 0:
+            return {"ok": False, "error": "could not activate window '%s'" % window["title"]}
     try:
         proc = subprocess.run(
             ["xdotool", "key", "--clearmodifiers"] + groups,
@@ -585,7 +603,10 @@ def desktop_key(arguments):
         return {"ok": False, "error": "xdotool key failed: %s" % e}
     if proc.returncode != 0:
         return {"ok": False, "error": "xdotool key failed with exit %d" % proc.returncode}
-    return {"ok": True, "keys": groups}
+    out = {"ok": True, "keys": groups}
+    if window is not None:
+        out["window"] = window["title"]
+    return out
 
 
 def desktop_action_call(name, arguments):
