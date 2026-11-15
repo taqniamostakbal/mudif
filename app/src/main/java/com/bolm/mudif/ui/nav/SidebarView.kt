@@ -291,7 +291,7 @@ class SidebarView @JvmOverloads constructor(
             val logo = ImageView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
                 setImageResource(R.drawable.logo_mudif)
-                contentDescription = getString(R.string.app_name)
+                contentDescription = context.getString(R.string.app_name)
             }
             val titles = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -300,13 +300,13 @@ class SidebarView @JvmOverloads constructor(
                 ).apply { marginStart = dp(12) }
             }.also { col ->
                 col.addView(TextView(context).apply {
-                    text = getString(R.string.app_name)
+                    text = context.getString(R.string.app_name)
                     textSize = 20f
                     typeface = lifta
                     setTextColor(onSurface)
                 })
                 col.addView(TextView(context).apply {
-                    text = getString(R.string.about_value)
+                    text = context.getString(R.string.about_value)
                     textSize = 12f
                     typeface = cairo
                     setTextColor(ColorUtils.setAlphaComponent(onSurface, 153))
@@ -319,7 +319,7 @@ class SidebarView @JvmOverloads constructor(
                 background = resolveAttrDrawable(
                     android.R.attr.selectableItemBackgroundBorderless
                 )
-                contentDescription = getString(R.string.sidebar_collapse)
+                contentDescription = context.getString(R.string.sidebar_collapse)
                 setOnClickListener { setCollapsed(true, animate = true) }
             }
             row.addView(logo)
@@ -337,7 +337,7 @@ class SidebarView @JvmOverloads constructor(
             col.addView(ImageView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
                 setImageResource(R.drawable.logo_mudif)
-                contentDescription = getString(R.string.app_name)
+                contentDescription = context.getString(R.string.app_name)
             })
             expandButton = ImageButton(context).apply {
                 layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
@@ -348,7 +348,7 @@ class SidebarView @JvmOverloads constructor(
                 background = resolveAttrDrawable(
                     android.R.attr.selectableItemBackgroundBorderless
                 )
-                contentDescription = getString(R.string.sidebar_expand)
+                contentDescription = context.getString(R.string.sidebar_expand)
                 setOnClickListener { setCollapsed(false, animate = true) }
             }
             col.addView(expandButton)
@@ -385,7 +385,7 @@ class SidebarView @JvmOverloads constructor(
                 marginStart = dp(20)
                 marginEnd = dp(16)
             }
-            text = getString(R.string.ui_drawer_settings_tools)
+            text = context.getString(R.string.ui_drawer_settings_tools)
             textSize = 14f
             typeface = cairo
             setTextColor(ColorUtils.setAlphaComponent(onSurface, 153))
