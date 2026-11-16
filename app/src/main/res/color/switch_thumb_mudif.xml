@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p64: the viewer-settings switch thumb. White in both states, so
+     it reads on the purple ON track and on the frosted OFF track. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false" android:color="#80FFFFFF" />
+    <item android:color="#FFFFFF" />
+</selector>

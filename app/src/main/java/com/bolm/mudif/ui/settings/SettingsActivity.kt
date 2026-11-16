@@ -31,7 +31,7 @@ import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 
 /**
  * P18.3, Viewer settings screen (Termux:X11), Fusha Arabic, Mudif style.
@@ -262,13 +262,28 @@ class SettingsActivity : MudifActivity() {
 
         when (setting) {
             is ViewerPrefs.SwitchSetting -> {
-                val sw = SwitchMaterial(this).apply {
+                // p64: MaterialSwitch (M3) replaces the obsolete
+                // SwitchMaterial (its own javadoc says so). It
+                // animates the thumb slide, grows the thumb 16 to
+                // 24dp, and cross-fades the track color with the
+                // thumb position (blendARGB), so the state change is
+                // a motion, not a snap. ON track is Mudif purple
+                // (#593BFE) with a white thumb; OFF is a frosted
+                // neutral, so the two states are unmistakable on
+                // the purple card. The old style used one white
+                // thumb + one translucent track for both states,
+                // so ON and OFF looked identical (Anas's report).
+                val sw = MaterialSwitch(this).apply {
                     isChecked = prefs.getBoolean(setting.key, setting.default)
-                    // p56: white thumb + translucent white track, so
-                    // the switch reads on the purple gradient card
-                    // (the default purple thumb would vanish on it).
-                    thumbTintList = ColorStateList.valueOf(Color.WHITE)
-                    trackTintList = ColorStateList.valueOf(0x80FFFFFF.toInt())
+                    thumbTintList = ContextCompat.getColorStateList(
+                        this@SettingsActivity, R.color.switch_thumb_mudif
+                    )
+                    trackTintList = ContextCompat.getColorStateList(
+                        this@SettingsActivity, R.color.switch_track_mudif
+                    )
+                    trackDecorationTintList = ContextCompat.getColorStateList(
+                        this@SettingsActivity, R.color.switch_track_decoration_mudif
+                    )
                     setOnCheckedChangeListener { _, checked ->
                         prefs.edit().putBoolean(setting.key, checked).apply()
                     }

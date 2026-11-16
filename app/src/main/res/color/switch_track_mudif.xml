@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p64: the viewer-settings switch track. ON is Mudif purple
+     (#593BFE, @color/mudif_purple) with a white thumb; OFF is a
+     frosted neutral (white at 35%) that reads as "off" on the purple
+     gradient card without looking like a classic gray switch.
+     MaterialSwitch cross-fades between the two colors with the thumb
+     position (blendARGB), so the change is animated, not instant. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false" android:color="#1FFFFFFF" />
+    <item android:state_checked="true" android:color="@color/mudif_purple" />
+    <item android:color="#59FFFFFF" />
+</selector>

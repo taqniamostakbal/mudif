@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p64: the viewer-settings switch track outline (the 2dp Material 3
+     track decoration). White at 40% for OFF, white at 25% for ON:
+     the soft rim keeps the ON pill's edge defined where the purple
+     track meets the purple gradient card, and the OFF pill crisp.
+     MaterialSwitch cross-fades it with the thumb position, like the
+     track fill. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false" android:color="#00000000" />
+    <item android:state_checked="true" android:color="#40FFFFFF" />
+    <item android:color="#66FFFFFF" />
+</selector>
