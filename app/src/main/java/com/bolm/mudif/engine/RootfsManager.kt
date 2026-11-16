@@ -617,13 +617,26 @@ object RootfsManager {
             val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
             val sub = if (abi.contains("x86_64")) "x86_64" else "arm64"
             val dest = File(rootfs, "usr/lib/libfakelink.so")
-            // Always refresh: an older (glibc) build may already exist here.
-            // The nolibc build is self-contained and works everywhere.
-            if (dest.exists()) dest.delete()
-            dest.parentFile?.mkdirs()
-            context.assets.open("fakelink/$sub/libfakelink.so").use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
+            // p69: copy only when the installed file is missing or
+            // differs (size, then bytes). The old code deleted and
+            // re-copied on EVERY proot invocation, including every
+            // one-shot, which is pure tax once the file is in
+            // place. A stale glibc build is caught by the size
+            // check in practice and by the byte check for certain:
+            // identical bytes are the same file. An unreadable
+            // destination counts as different, so a corrupt file
+            // is always overwritten, never kept.
+            val assetBytes = context.assets.open("fakelink/$sub/libfakelink.so").use { it.readBytes() }
+            val needsCopy = try {
+                if (!dest.exists()) true
+                else if (dest.length() != assetBytes.size.toLong()) true
+                else !dest.readBytes().contentEquals(assetBytes)
+            } catch (_: Exception) {
+                true
             }
+            if (!needsCopy) return
+            dest.parentFile?.mkdirs()
+            dest.writeBytes(assetBytes)
         } catch (_: Exception) { /* non-fatal */ }
     }
 

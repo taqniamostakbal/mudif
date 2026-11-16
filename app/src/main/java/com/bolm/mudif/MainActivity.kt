@@ -8,7 +8,6 @@ import com.bolm.mudif.ui.MudifActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.databinding.ActivityMainBinding
-import com.bolm.mudif.engine.AgentSupervisorService
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.settings.AppLanguage
 import com.bolm.mudif.ui.agent.AgentFragment
@@ -30,10 +29,21 @@ class MainActivity : MudifActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // p22 fix: start the agent servers in the background on app
-        // launch, so opencode (4096) is up without opening the agent
-        // tab. ensureStarted is a no-op when the engine is not ready.
-        AgentSupervisorService.start(this)
+        // p69: the agent supervisor is NOT started here anymore.
+        // Starting it at app launch booted the whole Debian guest
+        // plus ollama serve plus the Node opencode server, held a
+        // 2 h wake lock and ran the 15 s watchdog, all before the
+        // user did anything, and that background load raced the
+        // app UI and any desktop entry on the same phone CPU. Tiny
+        // runs nothing until the user opens the desktop, and neither
+        // does Mudif now. The assistant still works: AgentFragment
+        // starts the supervisor (best-effort) on the first turn
+        // (startTurn/startVisionTurn) before ensureStarted, and
+        // VncActivity starts the servers once the desktop is
+        // confirmed running. Nothing else at app launch needs the
+        // servers: Home/Store/Profile never touch AgentServer, and
+        // hasBrainModel() returns null (unknown) while Ollama is
+        // down, which the agent tab already handles.
 
         // First run only: ask once which language the app speaks.
         // Safe here: it runs after setContentView, shows a plain
