@@ -280,7 +280,14 @@ object LxqtLook {
     // so an existing rootfs must re-apply to pick it up. The image
     // stays p23; only the look version moves. Without this bump the
     // CLI change repeats the exact p43 trap.
-    const val MARKER_VERSION = "p26"
+    // P27 (2026-11-16, p59): p59 stages the lxqt-about shim (the
+    // FancyMenu About button hardcodes the `lxqt-about` command;
+    // the shim redirects it to Mudif's own About page) plus the
+    // updated mudif-about.py (app version 0.1.0 + owner), and the
+    // patched fancymenu_ar.qm inside translations.zip (the app's
+    // zip overwrites the image's patched copy on every update, so
+    // the label fix must live in the zip itself).
+    const val MARKER_VERSION = "p27"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -289,6 +296,8 @@ object LxqtLook {
     private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
     private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
+    private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
+    private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
     private const val TRANSLATIONS_ZIP_ASSET = "translations.zip"
     private const val THEME_ZIP_ASSET = "mudif-theme.zip"
@@ -400,6 +409,30 @@ object LxqtLook {
                     input.copyTo(out)
                 }
             }
+            // p59 - the FancyMenu About button hardcodes the
+            // `lxqt-about` command (lxqtfancymenuwindow.cpp
+            // runAboutgDialog); the LXQt dialog was removed in
+            // p20, so the button errored "No Executable". The shim
+            // redirects it to Mudif's own About page, and the
+            // updated mudif-about.py carries the app version +
+            // owner. Both are staged here (not only baked in the
+            // image) so an existing phone picks them up on this
+            // update. setExecutable: the panel execs both files,
+            // and a fresh outputStream file would be 644.
+            val binDir = File(rootfs, "usr/local/bin")
+            binDir.mkdirs()
+            context.assets.open(ABOUT_SHIM_ASSET).use { input ->
+                File(binDir, "lxqt-about").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            File(binDir, "lxqt-about").setExecutable(true, false)
+            context.assets.open(ABOUT_PY_ASSET).use { input ->
+                File(binDir, "mudif-about").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            File(binDir, "mudif-about").setExecutable(true, false)
             // P8FIX2: the scheme MUST live in the system dir
             // /usr/share/qtermwidget6/color-schemes/ (the built-in
             // COLORSCHEMES_DIR). qtermwidget's get_color_schemes_dirs()

@@ -1,0 +1,13 @@
+#!/bin/sh
+# Mudif p59: the FancyMenu About button hardcodes the `lxqt-about`
+# command (lxqtfancymenuwindow.cpp runAboutgDialog). The LXQt About
+# dialog was removed in p20, so the button errored "No Executable".
+# This shim redirects that button to Mudif's own About page
+# (/usr/local/bin/mudif-about). No LXQt code runs. The name
+# lxqt-about survives only as this technical-layer path, the same
+# rule as the other binaries (p19.2); nothing visible says LXQt.
+if curl -fsS -o /dev/null http://127.0.0.1:8898/ 2>/dev/null; then
+    exec /usr/local/bin/mudif-firefox http://127.0.0.1:8898/
+else
+    exec /usr/local/bin/mudif-about --open
+fi
