@@ -40,10 +40,11 @@ import java.util.concurrent.Executors
  *    with a timestamp, so the next death record shows whether
  *    the system warned us first. The cache rebuilds on demand
  *    (icons re-decode), so shedding can never break a screen.
- *    (Lottie has no public cache-clear API in 6.7.1, verified
- *    against the v6.7.1 source listing; its 5 compositions are
- *    tiny JSONs re-parsed on demand, so there is nothing worth
- *    shedding there.)
+ *    (The Lottie cache class lives at
+ *    com.airbnb.lottie.model.LottieCompositionCache in 6.7.1,
+ *    not in com.airbnb.lottie; the shed deliberately skips
+ *    it: its 5 compositions are tiny JSONs re-parsed on
+ *    demand, so clearing it would save almost nothing.)
  *
  * 2. Prove the next death's cause. A heartbeat state file
  *    (filesDir/tmp/mudif-state.json) records the last known tab,
@@ -68,6 +69,21 @@ import java.util.concurrent.Executors
  * file is written atomically (temp file + rename) so a death
  * mid-write cannot corrupt it. All file IO runs on one daemon
  * thread and never throws: detection can never break the app.
+ *
+ * p79, FALSE POSITIVES (rig-proven, p78 round: 19 entries for 1
+ * real death): MudifApplication.onCreate runs in EVERY process of
+ * the app, including the fork's :xserver service process (its
+ * manifest declares android:process=":xserver"). Every desktop
+ * entry starts that process, its recordStart read the main
+ * process's state file (clean=false during normal use) and
+ * appended a "death" for a main process that was alive and still
+ * heartbeating afterwards (same session/pid, heartbeat continued).
+ * Two guards now: (1) the detector runs in the MAIN process only
+ * (process name == package name); (2) before appending, the
+ * previous session's pid must not still be our main process
+ * (cmdline exactly the package name, so pid reuse cannot fake
+ * it). A pause/resume cycle now adds no entry; a real unclean
+ * death still adds exactly one.
  */
 object AppDeathDetector {
 
@@ -91,6 +107,48 @@ object AppDeathDetector {
     @Volatile private var lastTrimLevel: String? = null
     @Volatile private var lastTrimTs = 0L
 
+    // p79: cached per process (each process has its own statics,
+    // so caching is correct). Null until the first check.
+    @Volatile private var mainProcess: Boolean? = null
+
+    /**
+     * p79: true only in the MAIN process (process name exactly the
+     * package name). Application.getProcessName needs API 28, the
+     * minSdk is 28. The :xserver service process (and any future
+     * secondary process) gets false and the detector stays silent
+     * there: its recordStart would otherwise read the main
+     * process's state file and count a live process as dead.
+     */
+    private fun isMainProcess(appCtx: Context): Boolean {
+        var v = mainProcess
+        if (v == null) {
+            v = try {
+                android.app.Application.getProcessName() == appCtx.packageName
+            } catch (_: Exception) {
+                false
+            }
+            mainProcess = v
+        }
+        return v
+    }
+
+    /**
+     * p79: true when a process with this pid is alive AND is our
+     * main process (its /proc/<pid>/cmdline is exactly the package
+     * name). A missing pid (dead process) reads as false. Pid
+     * reuse is safe: a reused pid belongs to another app (or to
+     * our :xserver process, whose cmdline carries the ":xserver"
+     * suffix), never to the main process under this exact name.
+     */
+    private fun isMainProcessAlive(appCtx: Context, pid: Int): Boolean {
+        return try {
+            val raw = File("/proc/$pid/cmdline").readBytes().toString(Charsets.UTF_8)
+            raw.trim('\u0000').trim() == appCtx.packageName
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /**
      * Call once per process start, from Application.onCreate,
      * before any activity exists. If the previous state file was
@@ -102,6 +160,9 @@ object AppDeathDetector {
      */
     fun recordStart(context: Context) {
         val appCtx = context.applicationContext
+        // p79: main process only. A secondary process start (the
+        // :xserver service on every desktop entry) is not a death.
+        if (!isMainProcess(appCtx)) return
         sessionId = UUID.randomUUID().toString()
         startedTs = System.currentTimeMillis()
         lastTab = "start"
@@ -118,7 +179,14 @@ object AppDeathDetector {
                     val prev = try { JSONObject(raw) } catch (_: Exception) { null }
                     val wasClean = prev?.optBoolean("clean", false) ?: false
                     val prevSession = prev?.optString("session", "")
-                    if (!wasClean && prevSession != sessionId) {
+                    val prevPid = prev?.optInt("pid", -1) ?: -1
+                    // p79: heartbeat-continuation check. When the
+                    // previous session's pid is still our main
+                    // process, it did not die: a second process
+                    // start (or a stale state file) must not count
+                    // as a death.
+                    val prevAlive = prevPid > 0 && isMainProcessAlive(appCtx, prevPid)
+                    if (!wasClean && prevSession != sessionId && !prevAlive) {
                         appendDeathLocked(appCtx, prev)
                     }
                 }
@@ -143,6 +211,8 @@ object AppDeathDetector {
         force: Boolean = false,
         foreground: Boolean = true
     ) {
+        // p79: main process only (see recordStart).
+        if (!isMainProcess(context.applicationContext)) return
         val now = System.currentTimeMillis()
         if (!force && now - lastHeartbeatMs < MIN_HEARTBEAT_MS) return
         lastHeartbeatMs = now
@@ -166,6 +236,8 @@ object AppDeathDetector {
      *  means the process died. */
     fun markCleanExit(context: Context) {
         val appCtx = context.applicationContext
+        // p79: main process only (see recordStart).
+        if (!isMainProcess(appCtx)) return
         io.execute {
             try {
                 val dir = stateDir(appCtx)
@@ -191,6 +263,9 @@ object AppDeathDetector {
      * a hash-map clear, a few milliseconds at most.
      */
     fun onMemoryPressure(context: Context, level: Int) {
+        // p79: main process only. The icon cache lives in the main
+        // process; shedding from :xserver would evict nothing.
+        if (!isMainProcess(context.applicationContext)) return
         lastTrimLevel = levelName(level)
         lastTrimTs = System.currentTimeMillis()
         try {
@@ -275,7 +350,7 @@ object AppDeathDetector {
                     file.writeText(lines.takeLast(MAX_DEATHS).joinToString("\n") + "\n")
                 }
             }
-            Log.i(TAG, "previous process died, last state recorded: ${lastState?.toString()}")
+            MudifLog.i(TAG, "previous process died, last state recorded: ${lastState?.toString()}")
         } catch (e: Exception) {
             Log.w(TAG, "appendDeath failed (best-effort)", e)
         }

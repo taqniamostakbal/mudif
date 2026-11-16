@@ -53,6 +53,7 @@ import com.bolm.mudif.ui.vnc.VncActivity
 import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
+import com.bolm.mudif.engine.MudifLog
 
 /**
  * Phase 4: the مساعد مضيف tab. Phase 5: the native chat is wired to
@@ -363,7 +364,7 @@ class AgentFragment : Fragment() {
         // has its Retry; re-derive it from the stored state here.
         // p34h: logged so the verifier can prove this runs on the
         // force-stop relaunch path.
-        Log.i("MudifAgent", "onViewCreated calling restoreFailedTurnUi")
+        MudifLog.i("MudifAgent", "onViewCreated calling restoreFailedTurnUi")
         restoreFailedTurnUi()
     }
 
@@ -404,7 +405,7 @@ class AgentFragment : Fragment() {
             // session. Same drop as Clear and model switch.
             sessionId = null
             prefs().edit().remove(KEY_SESSION_ID).apply()
-            Log.i("MudifAgent", "onDestroyView superseded live turn, dropped stored session id")
+            MudifLog.i("MudifAgent", "onDestroyView superseded live turn, dropped stored session id")
         }
         // Re-gate hole 5 (round 2): the marker must go here,
         // unconditionally. The turn is dead in every onDestroyView
@@ -588,7 +589,7 @@ class AgentFragment : Fragment() {
         if (stored.getBoolean(KEY_LAST_TURN_FAILED, false) &&
             stored.getString(KEY_FAILED_TURN_PICK, null) == null
         ) {
-            Log.i("MudifAgent", "markRefusedPick skipped, real turn failure pending")
+            MudifLog.i("MudifAgent", "markRefusedPick skipped, real turn failure pending")
             return
         }
         stored.edit()
@@ -626,7 +627,7 @@ class AgentFragment : Fragment() {
         if (_binding == null) return
         val failed = prefs().getBoolean(KEY_LAST_TURN_FAILED, false)
         val pick = prefs().getString(KEY_FAILED_TURN_PICK, null)
-        Log.i("MudifAgent", "restoreFailedTurnUi failed=$failed pick=$pick")
+        MudifLog.i("MudifAgent", "restoreFailedTurnUi failed=$failed pick=$pick")
         if (!failed) {
             // Consolidated fix item 1: a turn that died with the
             // process left no mark; detect it from the stored
@@ -706,7 +707,7 @@ class AgentFragment : Fragment() {
                 null,
                 if (isVision) ({ startVisionTurn(last.text) }) else null
             )
-            Log.i("MudifAgent", "restoreFailedTurnUi dangling user message detected isVision=$isVision")
+            MudifLog.i("MudifAgent", "restoreFailedTurnUi dangling user message detected isVision=$isVision")
             return true
         }
         val verdicts = setOf(
@@ -730,7 +731,7 @@ class AgentFragment : Fragment() {
                 null,
                 if (isVision && prevUser != null) ({ startVisionTurn(prevUser.text) }) else null
             )
-            Log.i("MudifAgent", "restoreFailedTurnUi dangling failure verdict detected isVision=$isVision")
+            MudifLog.i("MudifAgent", "restoreFailedTurnUi dangling failure verdict detected isVision=$isVision")
             return true
         }
         return false
@@ -916,7 +917,7 @@ class AgentFragment : Fragment() {
             val act = activity ?: return@Thread
             act.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
-                Log.i("MudifAgent", "cancelBrainDownload delete $model -> $deleted")
+                MudifLog.i("MudifAgent", "cancelBrainDownload delete $model -> $deleted")
                 Toast.makeText(
                     requireContext(),
                     if (deleted) R.string.download_cancelled
@@ -1208,7 +1209,7 @@ class AgentFragment : Fragment() {
             // fresh session would pin the old model.
             val restartOk = waitForBrainRestart(appContext)
             val ensured = AgentServer.ensureStarted(appContext)
-            Log.i("MudifAgent", "startTurn ensureStarted up=${ensured.up} reason=${ensured.reason} brainModel=$brainModel")
+            MudifLog.i("MudifAgent", "startTurn ensureStarted up=${ensured.up} reason=${ensured.reason} brainModel=$brainModel")
             val act = activity
             if (act == null) {
                 // Phase 3: no activity to post to; clear the flag
@@ -1234,7 +1235,7 @@ class AgentFragment : Fragment() {
             // the old unconditional gate killed every cloud turn on
             // a rig without qwen3:1.7b, before any session existed.
             val hasBrain = AgentServer.hasBrainModel()
-            Log.i("MudifAgent", "startTurn gate hasBrainModel=$hasBrain brainModel=$brainModel")
+            MudifLog.i("MudifAgent", "startTurn gate hasBrainModel=$hasBrain brainModel=$brainModel")
             if (brainModel == BRAIN_LOCAL && hasBrain == false) {
                 // Phase 3: the flag clears in the background thread
                 // first; endTurnUi only runs when the view is alive.
@@ -1295,7 +1296,7 @@ class AgentFragment : Fragment() {
                     sid = sessionId
                     if (sid.isNullOrBlank()) {
                         sid = AgentClient.createSession()
-                        Log.i("MudifAgent", "startTurn createSession ok=${!sid.isNullOrBlank()}")
+                        MudifLog.i("MudifAgent", "startTurn createSession ok=${!sid.isNullOrBlank()}")
                         if (!sid.isNullOrBlank()) {
                             sessionId = sid
                             appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -1447,7 +1448,7 @@ class AgentFragment : Fragment() {
                             )
                             markTurnFailed(act.applicationContext, false)
                             clearTurnInFlightMarker(act.applicationContext)
-                            Log.i("MudifAgent", "stale onError persisted seq=$thisTurnSeq")
+                            MudifLog.i("MudifAgent", "stale onError persisted seq=$thisTurnSeq")
                             return@runOnUiThread
                         }
                         if (_binding == null) {
@@ -1468,7 +1469,7 @@ class AgentFragment : Fragment() {
                             // still be durable, or no Retry survives
                             // a relaunch for it.
                             markTurnFailed(act, false)
-                            Log.i("MudifAgent", "onError view-gone marked failed")
+                            MudifLog.i("MudifAgent", "onError view-gone marked failed")
                             // Holes 3 and 6: this view-gone path ends
                             // the turn without endTurnUi, so record
                             // the terminal seq here.
@@ -1618,7 +1619,7 @@ class AgentFragment : Fragment() {
             // starts a server beside the restart thread.
             val restartOk = waitForBrainRestart(appContext)
             val ensured = AgentServer.ensureStarted(appContext)
-            Log.i("MudifAgent", "startVisionTurn ensureStarted up=${ensured.up} reason=${ensured.reason}")
+            MudifLog.i("MudifAgent", "startVisionTurn ensureStarted up=${ensured.up} reason=${ensured.reason}")
             val act = activity
             if (act == null) {
                 // Phase 3: no activity to post to; clear the flag
@@ -1680,7 +1681,7 @@ class AgentFragment : Fragment() {
             // vision: the local model is not needed there.
             val hasVisionModel = if (cloudActive) true
                 else AgentServer.hasModel(AgentServer.VISION_MODEL)
-            Log.i("MudifAgent", "startVisionTurn gate hasVisionModel=$hasVisionModel")
+            MudifLog.i("MudifAgent", "startVisionTurn gate hasVisionModel=$hasVisionModel")
             if (hasVisionModel == false) {
                 turnRunning = false
                 currentTurn = null
@@ -1782,12 +1783,12 @@ class AgentFragment : Fragment() {
             // Charter: the screenshot is deleted after the turn,
             // success or failure; the bytes already live in memory.
             val deleted = try { shot.delete() } catch (e: Exception) { false }
-            android.util.Log.d(
+            android.util.MudifLog.d(
                 "AgentFragment",
                 "vision shot deleted after turn: $deleted"
             )
             val seconds = (SystemClock.elapsedRealtime() - t0) / 1000.0
-            android.util.Log.d(
+            android.util.MudifLog.d(
                 "AgentFragment",
                 "vision read: capture+describe took ${"%.1f".format(Locale.US, seconds)} s"
             )
@@ -2065,7 +2066,7 @@ class AgentFragment : Fragment() {
     ) {
         // p34g logging: every failed turn is observable in logcat
         // by its machine reason; the detail text is never logged.
-        Log.i("MudifAgent", "onTurnFailed reason=$reason")
+        MudifLog.i("MudifAgent", "onTurnFailed reason=$reason")
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
@@ -2156,7 +2157,7 @@ class AgentFragment : Fragment() {
         // p34g logging: every background-path failure is observable
         // in logcat by its machine reason; the detail text is never
         // logged, only whether one was present.
-        Log.i("MudifAgent", "failTurnInBackground reason=$reason detailPresent=${!detail.isNullOrBlank()}")
+        MudifLog.i("MudifAgent", "failTurnInBackground reason=$reason detailPresent=${!detail.isNullOrBlank()}")
         turnRunning = false
         currentTurn = null
         streamingIndex = -1
@@ -2497,7 +2498,7 @@ class AgentFragment : Fragment() {
                     }
                 }
                 if (!rerun) break
-                Log.i("MudifAgent", "brain restart: another pick arrived mid-restart, running again")
+                MudifLog.i("MudifAgent", "brain restart: another pick arrived mid-restart, running again")
             }
             if (!ok) {
                 Log.e("MudifAgent", "brain restart failed, server still on the old model")
@@ -2505,7 +2506,7 @@ class AgentFragment : Fragment() {
                     Toast.makeText(appContext, R.string.agent_brain_failed, Toast.LENGTH_LONG).show()
                 }
             } else {
-                Log.i("MudifAgent", "brain restart verified on the picked model")
+                MudifLog.i("MudifAgent", "brain restart verified on the picked model")
             }
         }
         // p35c second attempt, hole 1: thread reference, running
@@ -2554,7 +2555,7 @@ class AgentFragment : Fragment() {
         }
         val failed = synchronized(brainRestartLock) { brainRestartFailed }
         if (failed) {
-            Log.i("MudifAgent", "brain restart failed earlier, retrying once for this turn")
+            MudifLog.i("MudifAgent", "brain restart failed earlier, retrying once for this turn")
             // p35c second attempt, hole 4: the retry runs through
             // the tracked restartBrainServer path, never a bare
             // AgentServer.restart, so it cannot run beside a
@@ -2630,7 +2631,7 @@ class AgentFragment : Fragment() {
                 // own Retry instead of being overwritten.
                 val turnFailedPending = prefs().getBoolean(KEY_LAST_TURN_FAILED, false) &&
                     prefs().getString(KEY_FAILED_TURN_PICK, null) == null
-                Log.i("MudifAgent", "applyBrainPick refused no key env=${picked.env} marked failed")
+                MudifLog.i("MudifAgent", "applyBrainPick refused no key env=${picked.env} marked failed")
                 markRefusedPick(requireContext(), picked.id)
                 if (_binding != null && !turnFailedPending) showTurnFailedUi(null) { applyBrainPick(picked.id) }
                 return

@@ -92,7 +92,7 @@ object PulseAudio {
             set-default-sink mudif_out
         """.trimIndent()
         java.io.File(dir, "default.pa").writeText(config + "\n")
-        Log.d(TAG, "guest pulseaudio config written")
+        MudifLog.d(TAG, "guest pulseaudio config written")
     }
 
     /**
@@ -144,7 +144,7 @@ object PulseAudio {
         audioTrack = null
         pumpRunning.set(false)
         GuestSession.sendCommand("pulseaudio --kill 2>/dev/null; pkill -f pulseaudio 2>/dev/null")
-        Log.d(TAG, "audio stopped")
+        MudifLog.d(TAG, "audio stopped")
     }
 
     /** The pump: TCP -> AudioTrack. Runs on its own thread. */
@@ -180,7 +180,7 @@ object PulseAudio {
             audioTrack = track
             track.play()
             pumpRunning.set(true)
-            Log.d(TAG, "pump connected, playing")
+            MudifLog.d(TAG, "pump connected, playing")
             val input = socket.getInputStream()
             val buf = ByteArray(8192)
             while (!stopRequested.get()) {
@@ -214,7 +214,7 @@ object PulseAudio {
             try { track?.release() } catch (_: Exception) { }
             if (track === audioTrack) audioTrack = null
             try { socket?.close() } catch (_: Exception) { }
-            Log.d(TAG, "pump ended, bytes=${bytesReceived.get()}")
+            MudifLog.d(TAG, "pump ended, bytes=${bytesReceived.get()}")
         }
     }
 

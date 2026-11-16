@@ -100,7 +100,7 @@ object VisionClient {
                 // looks plausible.
                 val promptEvalCount = replyJson.optInt("prompt_eval_count", -1)
                 val evalCount = replyJson.optInt("eval_count", -1)
-                Log.i(TAG, "describe: source=$SOURCE_LABEL model=${AgentServer.VISION_MODEL} imageBytes=${jpegBytes.size} descriptionChars=${description.length} promptEvalCount=$promptEvalCount evalCount=$evalCount")
+                MudifLog.i(TAG, "describe: source=$SOURCE_LABEL model=${AgentServer.VISION_MODEL} imageBytes=${jpegBytes.size} descriptionChars=${description.length} promptEvalCount=$promptEvalCount evalCount=$evalCount")
             }
             // Strip em/en dashes at the source so the stored description is dash-free.
             description?.replace('\u2014', ' ')?.replace('\u2013', ' ')

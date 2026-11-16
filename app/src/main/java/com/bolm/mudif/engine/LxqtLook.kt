@@ -1,7 +1,6 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
-import android.util.Log
 import java.io.File
 
 /**
@@ -348,11 +347,11 @@ object LxqtLook {
         // must report false honestly instead of writing configs for
         // programs that are not there.
         if (!File(rootfs, "usr/bin/startlxqt").exists()) {
-            Log.d(TAG, "startlxqt missing - Debian desktop set not installed")
+            MudifLog.d(TAG, "startlxqt missing - Debian desktop set not installed")
             return false
         }
         if (!File(rootfs, "usr/share/icons/bloom-dark").exists()) {
-            Log.d(TAG, "bloom-dark icons missing - deepin-icon-theme not installed")
+            MudifLog.d(TAG, "bloom-dark icons missing - deepin-icon-theme not installed")
             return false
         }
 
@@ -552,9 +551,9 @@ object LxqtLook {
                 idleTimeoutSec = 30,
                 maxTimeoutSec = 120
             )
-            Log.d(TAG, "icon cache build exit=${cacheResult.exitCode} out=${cacheResult.output.takeLast(200)}")
+            MudifLog.d(TAG, "icon cache build exit=${cacheResult.exitCode} out=${cacheResult.output.takeLast(200)}")
             if (!cacheResult.output.contains("ICON_CACHE_OK")) {
-                Log.d(TAG, "icon cache build failed - look not applied")
+                MudifLog.d(TAG, "icon cache build failed - look not applied")
                 return false
             }
             // P9FIX2 - the panel's start-button logo + a spacer
@@ -627,7 +626,7 @@ object LxqtLook {
             File(autostartDir, "lxqt-xscreensaver-autostart.desktop").writeText(XSCREENSAVER_HIDDEN)
             File(rootfs, "root/$MARKER").writeText("$MARKER_VERSION\n")
         } catch (e: Exception) {
-            Log.d(TAG, "look config write failed: ${e.message}")
+            MudifLog.d(TAG, "look config write failed: ${e.message}")
             return false
         }
         return true

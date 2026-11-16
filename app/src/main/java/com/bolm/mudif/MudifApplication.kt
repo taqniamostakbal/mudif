@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.ComponentCallbacks2
 import android.content.res.Configuration
 import com.bolm.mudif.engine.AppDeathDetector
+import com.bolm.mudif.engine.MudifLog
 
 /**
  * p74: the app had no Application class and no response to memory
@@ -24,6 +25,9 @@ class MudifApplication : Application(), ComponentCallbacks2 {
 
     override fun onCreate() {
         super.onCreate()
+        // p79 R7: init the log gate FIRST, before the detector
+        // (recordStart logs through MudifLog).
+        MudifLog.init(this)
         AppDeathDetector.recordStart(this)
     }
 

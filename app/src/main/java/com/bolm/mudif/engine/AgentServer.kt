@@ -293,7 +293,7 @@ object AgentServer {
      */
     fun ensureStarted(context: Context): EnsureResult {
         if (isUp()) {
-            Log.i(TAG, "ensureStarted: opencode already up on 4096, no start needed")
+            MudifLog.i(TAG, "ensureStarted: opencode already up on 4096, no start needed")
             return EnsureResult(true)
         }
         if (!DebianSystem.isReady(context)) {
@@ -345,7 +345,7 @@ object AgentServer {
         val deadline = System.currentTimeMillis() + START_POLL_TIMEOUT_MS
         while (System.currentTimeMillis() < deadline) {
             if (isUp()) {
-                Log.i(TAG, "ensureStarted: server up on 4096 after real start")
+                MudifLog.i(TAG, "ensureStarted: server up on 4096 after real start")
                 return EnsureResult(true)
             }
             try {
@@ -370,7 +370,7 @@ object AgentServer {
      */
     fun ensureOllamaStarted(context: Context): EnsureResult {
         if (isOllamaUp()) {
-            Log.i(TAG, "ensureOllamaStarted: ollama already up on 11434, no start needed")
+            MudifLog.i(TAG, "ensureOllamaStarted: ollama already up on 11434, no start needed")
             return EnsureResult(true)
         }
         if (!DebianSystem.isReady(context)) {
@@ -392,7 +392,7 @@ object AgentServer {
         val deadline = System.currentTimeMillis() + START_POLL_TIMEOUT_MS
         while (System.currentTimeMillis() < deadline) {
             if (isOllamaUp()) {
-                Log.i(TAG, "ensureOllamaStarted: ollama up on 11434 after real start")
+                MudifLog.i(TAG, "ensureOllamaStarted: ollama up on 11434 after real start")
                 return EnsureResult(true)
             }
             try {
@@ -439,10 +439,10 @@ object AgentServer {
         val portUp = isUp()
         val pidBefore = opencodePid(context)
         if (!portUp && pidBefore == null) {
-            Log.i(TAG, "stop: server already down (port closed, no process)")
+            MudifLog.i(TAG, "stop: server already down (port closed, no process)")
             return true
         }
-        Log.i(TAG, "stop: stopping opencode (port up=$portUp, pid=$pidBefore)")
+        MudifLog.i(TAG, "stop: stopping opencode (port up=$portUp, pid=$pidBefore)")
         try {
             TerminalSession.runCommandDebian(
                 context, "pkill -f 'opencode serv[e]' || true", 10, 30
@@ -451,12 +451,12 @@ object AgentServer {
             Log.w(TAG, "stop: pkill failed", e)
         }
         if (waitForDown(STOP_WAIT_TIMEOUT_MS) && opencodePid(context) == null) {
-            Log.i(TAG, "stop: server stopped (port closed, no process)")
+            MudifLog.i(TAG, "stop: server stopped (port closed, no process)")
             return true
         }
         // Graceful stop did not kill it in time; force it, or the
         // restart after this stop starts nothing.
-        Log.i(TAG, "stop: graceful stop timed out, sending SIGKILL")
+        MudifLog.i(TAG, "stop: graceful stop timed out, sending SIGKILL")
         try {
             TerminalSession.runCommandDebian(
                 context, "pkill -9 -f 'opencode serv[e]' || true", 10, 30
@@ -467,7 +467,7 @@ object AgentServer {
         if (waitForDown(STOP_KILL_WAIT_TIMEOUT_MS)) {
             val pidAfter = opencodePid(context)
             if (pidAfter == null) {
-                Log.i(TAG, "stop: server stopped after SIGKILL (port closed, no process)")
+                MudifLog.i(TAG, "stop: server stopped after SIGKILL (port closed, no process)")
                 return true
             }
             Log.e(TAG, "stop: port closed but process still alive after SIGKILL (pid=$pidAfter)")
@@ -495,7 +495,7 @@ object AgentServer {
     fun restart(context: Context): Boolean {
         val portUp = isUp()
         val oldPid = opencodePid(context)
-        Log.i(TAG, "restart: start (port up=$portUp, old pid=$oldPid)")
+        MudifLog.i(TAG, "restart: start (port up=$portUp, old pid=$oldPid)")
         if (portUp || oldPid != null) {
             if (!stop(context)) {
                 Log.e(TAG, "restart: stop failed, old server still running")
@@ -507,7 +507,7 @@ object AgentServer {
         val pidChanged = oldPid == null || (newPid != null && newPid != oldPid)
         val ok = ensured.up && newPid != null && pidChanged
         if (ok) {
-            Log.i(TAG, "restart: verified (old pid=$oldPid, new pid=$newPid)")
+            MudifLog.i(TAG, "restart: verified (old pid=$oldPid, new pid=$newPid)")
         } else {
             Log.e(TAG, "restart: not verified (up=${ensured.up}, old pid=$oldPid, new pid=$newPid)")
         }
@@ -624,11 +624,17 @@ object AgentServer {
      *  Returns false when the asset is missing or the copy is empty. */
     private fun stageAsset(context: Context, assetPath: String, guestPath: String): Boolean {
         return try {
+            val bytes = context.assets.open(assetPath).use { it.readBytes() }
             val dest = File(DebianSystem.debianRootfsDir(context), guestPath)
-            dest.parentFile?.mkdirs()
-            context.assets.open(assetPath).use { input ->
-                dest.outputStream().use { out -> input.copyTo(out) }
+            // p79 R8: bytes-compare gate. This stages on every
+            // ensureStarted that starts servers; an identical write
+            // would only touch mtime. A changed asset still stages
+            // (bytes differ means copy).
+            if (dest.exists() && dest.readBytes().contentEquals(bytes)) {
+                return true
             }
+            dest.parentFile?.mkdirs()
+            dest.writeBytes(bytes)
             dest.exists() && dest.length() > 0
         } catch (e: Exception) {
             Log.e(TAG, "stageAsset failed: $assetPath", e)
@@ -789,6 +795,9 @@ object AgentServer {
         } else {
             JSONObject()
         }
+        // p79 R8: deep copy of the on-disk config BEFORE the merge
+        // mutates it, for the content-compare gate at the end.
+        val original = if (configFile.exists()) JSONObject(config.toString()) else null
         if (!configFile.exists()) {
             // Rig-proven shape (evidence/opencode.json): local Ollama.
             // qwen2.5vl:3b rides along so the vision model is declared
@@ -872,7 +881,7 @@ object AgentServer {
             )
             config.put("mcp", mcp)
         } else {
-            Log.d(TAG, "mergeAgentConfig: MCP proxy not staged yet, skipping mcp block")
+            MudifLog.d(TAG, "mergeAgentConfig: MCP proxy not staged yet, skipping mcp block")
         }
         // Agent: the Mudif identity prompt (Fusha default).
         val agents = config.optJSONObject("agent") ?: JSONObject()
@@ -895,6 +904,15 @@ object AgentServer {
             )
         }
         config.put("agent", agents)
+        // p79 R8: content-compare gate. The merge is add-if-missing,
+        // so the common case is an identical config: skip the write
+        // (and the backup) when the merged result is similar to the
+        // file already on disk. similar() compares structure, not
+        // text, so formatting never forces a write.
+        if (original != null && original.similar(config)) {
+            MudifLog.d(TAG, "mergeAgentConfig: config unchanged, skipping write")
+            return
+        }
         configFile.parentFile?.mkdirs()
         if (configFile.exists()) {
             val backup = File(rootfs, OPENCODE_CONFIG_BACKUP_GUEST_PATH)
@@ -907,7 +925,7 @@ object AgentServer {
             }
         }
         configFile.writeText(config.toString(2))
-        Log.d(TAG, "mergeAgentConfig: wrote ${configFile.absolutePath}")
+        MudifLog.d(TAG, "mergeAgentConfig: wrote ${configFile.absolutePath}")
     }
 
     /**
@@ -943,8 +961,16 @@ object AgentServer {
             }
             val dest = File(DebianSystem.debianRootfsDir(context), KEYS_ENV_GUEST_PATH)
             dest.parentFile?.mkdirs()
-            dest.writeText(lines.toString())
-            Log.d(TAG, "writeKeysEnv: wrote $count keys")
+            // p79 R8: content-compare gate. Skips the write when the
+            // bytes are identical (the common case: no keys changed
+            // since the last ensureStarted).
+            val bytes = lines.toString().toByteArray(Charsets.UTF_8)
+            if (dest.exists() && dest.readBytes().contentEquals(bytes)) {
+                MudifLog.d(TAG, "writeKeysEnv: keys unchanged, skipping write")
+                return true
+            }
+            dest.writeBytes(bytes)
+            MudifLog.d(TAG, "writeKeysEnv: wrote $count keys")
             true
         } catch (e: Exception) {
             Log.w(TAG, "writeKeysEnv failed", e)
@@ -966,7 +992,7 @@ object AgentServer {
             val config = JSONObject(configFile.readText())
             config.put("model", modelId)
             configFile.writeText(config.toString(2))
-            Log.d(TAG, "setModel: model=$modelId")
+            MudifLog.d(TAG, "setModel: model=$modelId")
             true
         } catch (e: Exception) {
             Log.w(TAG, "setModel failed", e)
