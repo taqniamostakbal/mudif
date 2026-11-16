@@ -71,6 +71,28 @@ object ViewerPrefs {
             )
             e.putBoolean("extraKeysMigratedToCompact", true)
         }
+        // Portrait fix (2026-11-16, p65, Anas's image-410): the viewer
+        // opened in portrait and the landscape desktop (1170x540) was
+        // stretched onto the portrait surface, so the wallpaper text
+        // was huge and clipped and the desktop menu was squeezed.
+        // Root cause: the fork default for forceOrientation is "auto"
+        // (preferences.xml), and the fork's settings screen persists
+        // that "auto" the first time it is displayed. Mudif's
+        // putStringIfAbsent("forceOrientation", "landscape") below
+        // only fires when the key is ABSENT, so a stored "auto" is
+        // never corrected and the viewer follows device orientation
+        // (MainActivity onWindowFocusChanged: "auto" means
+        // UNSPECIFIED). Same failure family as the touchMode "1" bug
+        // above. One-time migration: "auto" -> "landscape". Never
+        // touch "portrait" or "reverse portrait" (a deliberate user
+        // choice in the settings screen). Runs once (flag), never on
+        // every launch, so a later user change is never overwritten.
+        if (!p.getBoolean("forceOrientationMigratedToLandscape", false)) {
+            if (p.getString("forceOrientation", null) == "auto") {
+                e.putString("forceOrientation", "landscape")
+            }
+            e.putBoolean("forceOrientationMigratedToLandscape", true)
+        }
         // Adaptive scale (2026-11-14, p23): the guest resolution is
         // computed from the real screen (DesktopScale), so a stored
         // exact resolution from an old default must not survive.
