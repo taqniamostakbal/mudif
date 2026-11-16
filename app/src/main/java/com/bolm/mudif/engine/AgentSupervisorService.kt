@@ -168,7 +168,7 @@ class AgentSupervisorService : Service() {
         Thread {
             try {
                 val stopped = AgentServer.stop(appCtx)
-                Log.i(TAG, "onDestroy: brain server stop result=$stopped")
+                MudifLog.i(TAG, "onDestroy: brain server stop result=$stopped")
             } catch (e: Exception) {
                 Log.w(TAG, "stop brain server failed", e)
             }
@@ -194,7 +194,7 @@ class AgentSupervisorService : Service() {
                 if (!ensured.up) {
                     Log.e(TAG, "brain server not up: ${ensured.reason}")
                 } else {
-                    Log.d(TAG, "bridge + brain server up")
+                    MudifLog.d(TAG, "bridge + brain server up")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "supervisor startup failed", e)
@@ -241,7 +241,7 @@ class AgentSupervisorService : Service() {
                 } catch (_: Exception) {
                     false
                 }
-                Log.i(TAG, "watchdog: probe opencode=$agentUp ollama=$ollamaUp")
+                MudifLog.i(TAG, "watchdog: probe opencode=$agentUp ollama=$ollamaUp")
                 if (agentUp && ollamaUp) {
                     opencodeFailures = 0
                     ollamaFailures = 0
@@ -252,13 +252,13 @@ class AgentSupervisorService : Service() {
                 if (ollamaUp) ollamaFailures = 0 else ollamaFailures++
                 if (opencodeFailures >= 2) {
                     opencodeFailures = 0
-                    Log.i(TAG, "watchdog: opencode down twice, restarting via ensureStarted")
+                    MudifLog.i(TAG, "watchdog: opencode down twice, restarting via ensureStarted")
                     val ensured = try {
                         AgentServer.ensureStarted(appCtx)
                     } catch (e: Exception) {
                         AgentServer.EnsureResult(false, e.message)
                     }
-                    Log.i(TAG, "watchdog: ensureStarted up=${ensured.up} reason=${ensured.reason}")
+                    MudifLog.i(TAG, "watchdog: ensureStarted up=${ensured.up} reason=${ensured.reason}")
                     if (!ensured.up && !downNotified) {
                         downNotified = true
                         appCtx.sendBroadcast(
@@ -272,17 +272,17 @@ class AgentSupervisorService : Service() {
                 if (ollamaFailures >= 2) {
                     ollamaFailures = 0
                     if (!agentUp) {
-                        Log.i(TAG, "watchdog: ollama down but opencode also down, start already attempted this round")
+                        MudifLog.i(TAG, "watchdog: ollama down but opencode also down, start already attempted this round")
                     } else if (AgentServer.isOllamaUp()) {
-                        Log.i(TAG, "watchdog: ollama recovered while opencode was restarting, no ollama restart needed")
+                        MudifLog.i(TAG, "watchdog: ollama recovered while opencode was restarting, no ollama restart needed")
                     } else {
-                        Log.i(TAG, "watchdog: ollama down twice, opencode up, restarting ollama alone")
+                        MudifLog.i(TAG, "watchdog: ollama down twice, opencode up, restarting ollama alone")
                         val restarted = try {
                             AgentServer.ensureOllamaStarted(appCtx)
                         } catch (e: Exception) {
                             AgentServer.EnsureResult(false, e.message)
                         }
-                        Log.i(TAG, "watchdog: ensureOllamaStarted up=${restarted.up} reason=${restarted.reason}")
+                        MudifLog.i(TAG, "watchdog: ensureOllamaStarted up=${restarted.up} reason=${restarted.reason}")
                         if (!restarted.up && !downNotified) {
                             downNotified = true
                             appCtx.sendBroadcast(

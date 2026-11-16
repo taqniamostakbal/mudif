@@ -437,7 +437,14 @@ object RootfsManager {
         val argv = bootArgvFor(context, rootfs, ready) ?: return null
         val script = File(context.filesDir, scriptName)
         val line = "exec " + argv.joinToString(" ") { shellQuote(it) }
-        script.writeText(line + "\n")
+        // p79 R8: content-compare gate. The boot argv is identical
+        // on every entry, so the script is rewritten identically
+        // each time; skip the write when the bytes match.
+        val bytes = (line + "\n").toByteArray(Charsets.UTF_8)
+        if (script.exists() && script.readBytes().contentEquals(bytes)) {
+            return script
+        }
+        script.writeBytes(bytes)
         return script
     }
 

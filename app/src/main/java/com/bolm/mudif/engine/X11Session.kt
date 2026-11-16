@@ -116,7 +116,7 @@ object X11Session {
         }
         app.startService(intent)
         xserverRunning = true
-        Log.d(TAG, "X server start requested for $DISPLAY (+TCP)")
+        MudifLog.d(TAG, "X server start requested for $DISPLAY (+TCP)")
         return true
     }
 
@@ -131,14 +131,14 @@ object X11Session {
     fun ensureXkbData(context: Context): Boolean {
         val xkbDir = File(DebianSystem.debianRootfsDir(context), "usr/share/X11/xkb")
         if (xkbDir.exists()) return true
-        Log.d(TAG, "XKB GUARD: xkb dir missing, reinstalling xkb-data")
+        MudifLog.d(TAG, "XKB GUARD: xkb dir missing, reinstalling xkb-data")
         val result = TerminalSession.runCommandDebian(
             context,
             "export DEBIAN_FRONTEND=noninteractive; dpkg --configure -a; apt-get update && apt-get install --reinstall -y xkb-data",
             idleTimeoutSec = 120,
             maxTimeoutSec = 600
         )
-        Log.d(TAG, "ensureXkbData exit=${result.exitCode} out=${result.output.takeLast(300)}")
+        MudifLog.d(TAG, "ensureXkbData exit=${result.exitCode} out=${result.output.takeLast(300)}")
         return xkbDir.exists()
     }
 
@@ -165,7 +165,7 @@ object X11Session {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         while (SystemClock.uptimeMillis() < deadline) {
             if (socket.exists()) {
-                Log.d(TAG, "X socket ready")
+                MudifLog.d(TAG, "X socket ready")
                 lastWaitResult = true
                 return true
             }
@@ -196,7 +196,7 @@ object X11Session {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         while (SystemClock.uptimeMillis() < deadline) {
             if (!socket.exists()) {
-                Log.d(TAG, "X socket gone, old server stopped")
+                MudifLog.d(TAG, "X socket gone, old server stopped")
                 return true
             }
             Thread.sleep(500)
@@ -230,11 +230,11 @@ object X11Session {
         val lock = File(tmpDir, ".X6-lock")
         var deleted = false
         if (socket.exists() && socket.delete()) {
-            Log.d(TAG, "Deleted stale X6 socket file")
+            MudifLog.d(TAG, "Deleted stale X6 socket file")
             deleted = true
         }
         if (lock.exists() && lock.delete()) {
-            Log.d(TAG, "Deleted stale .X6-lock file")
+            MudifLog.d(TAG, "Deleted stale .X6-lock file")
             deleted = true
         }
         return deleted
@@ -295,7 +295,7 @@ object X11Session {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         while (SystemClock.uptimeMillis() < deadline) {
             if (isTcpDisplayOpenOnce()) {
-                Log.d(TAG, "TCP display ready")
+                MudifLog.d(TAG, "TCP display ready")
                 return true
             }
             Thread.sleep(500)
@@ -322,7 +322,7 @@ object X11Session {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         while (SystemClock.uptimeMillis() < deadline) {
             if (!isTcpDisplayOpenOnce()) {
-                Log.d(TAG, "TCP display closed, old server dead")
+                MudifLog.d(TAG, "TCP display closed, old server dead")
                 return true
             }
             Thread.sleep(500)
@@ -421,7 +421,7 @@ object X11Session {
             val options = android.app.ActivityOptions.makeBasic()
                 .setLaunchDisplayId(display.displayId)
             context.startActivity(intent, options.toBundle())
-            Log.d(TAG, "viewer opened on external display ${display.displayId} ($resolution)")
+            MudifLog.d(TAG, "viewer opened on external display ${display.displayId} ($resolution)")
             true
         } catch (e: Exception) {
             Log.e(TAG, "openViewerOnDisplay failed: ${e.message}")
@@ -493,7 +493,7 @@ object X11Session {
         // ambiguity: the startup stderr is provably this run's.
         val stamp = System.currentTimeMillis() / 1000
         val ok = GuestSession.sendCommand("$cmd > /root/$desktop-session-$stamp.log 2>&1 &")
-        if (ok) Log.d(TAG, "$desktop command sent through PTY session")
+        if (ok) MudifLog.d(TAG, "$desktop command sent through PTY session")
         else Log.e(TAG, "PTY session not available for $desktop")
         // p30 icon fix (LXQt only): backgrounded loop in the PTY
         // shell. Polls every 0.5 s (up to 30 s) for lxqt-session,
@@ -564,7 +564,7 @@ object X11Session {
             idleTimeoutSec = 15,
             maxTimeoutSec = 30
         )
-        Log.d(TAG, "killDesktopProcesses exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "killDesktopProcesses exit=${result.exitCode} out=${result.output}")
         return result.output.contains("DESKTOP_CLEANED")
     }
 
@@ -590,7 +590,7 @@ object X11Session {
             idleTimeoutSec = 15,
             maxTimeoutSec = 30
         )
-        Log.d(TAG, "killDebianDesktopProcesses exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "killDebianDesktopProcesses exit=${result.exitCode} out=${result.output}")
         return result.output.contains("DESKTOP_CLEANED")
     }
 
@@ -627,7 +627,7 @@ object X11Session {
                 try {
                     Runtime.getRuntime().exec(arrayOf("kill", "-9", pid.toString())).waitFor()
                     killed++
-                    Log.d(TAG, "killOrphanedAptProcesses killed pid=$pid line=${line.trim()}")
+                    MudifLog.d(TAG, "killOrphanedAptProcesses killed pid=$pid line=${line.trim()}")
                 } catch (_: Exception) { /* already gone */ }
             }
         } catch (e: Exception) {
@@ -641,7 +641,7 @@ object X11Session {
                 maxTimeoutSec = 30
             )
         } catch (_: Exception) { /* best-effort */ }
-        Log.d(TAG, "killOrphanedAptProcesses killed=$killed")
+        MudifLog.d(TAG, "killOrphanedAptProcesses killed=$killed")
         return true
     }
 
@@ -694,7 +694,7 @@ object X11Session {
             idleTimeoutSec = 60,
             maxTimeoutSec = 300
         )
-        Log.d(TAG, "ensurePixbufLoaders exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "ensurePixbufLoaders exit=${result.exitCode} out=${result.output}")
         return result.output.contains("PIXBUF_OK")
     }
 
@@ -711,7 +711,7 @@ object X11Session {
             idleTimeoutSec = 60,
             maxTimeoutSec = 300
         )
-        Log.d(TAG, "ensureXkb exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "ensureXkb exit=${result.exitCode} out=${result.output}")
         return result.exitCode == 0
     }
 
@@ -728,7 +728,7 @@ object X11Session {
             idleTimeoutSec = 60,
             maxTimeoutSec = 300
         )
-        Log.d(TAG, "ensureDesktopPackages exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "ensureDesktopPackages exit=${result.exitCode} out=${result.output}")
         return result.exitCode == 0
     }
 
@@ -745,7 +745,7 @@ object X11Session {
             idleTimeoutSec = 120,
             maxTimeoutSec = 1200
         )
-        Log.d(TAG, "ensureDesktopApps exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "ensureDesktopApps exit=${result.exitCode} out=${result.output}")
         return result.exitCode == 0
     }
 
@@ -764,7 +764,7 @@ object X11Session {
             idleTimeoutSec = 120,
             maxTimeoutSec = 900
         )
-        Log.d(TAG, "ensureLxqt exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "ensureLxqt exit=${result.exitCode} out=${result.output}")
         return result.exitCode == 0
     }
 
@@ -781,7 +781,7 @@ object X11Session {
             idleTimeoutSec = 120,
             maxTimeoutSec = 1200
         )
-        Log.d(TAG, "ensureXfce exit=${result.exitCode} out=${result.output}")
+        MudifLog.d(TAG, "ensureXfce exit=${result.exitCode} out=${result.output}")
         return result.exitCode == 0
     }
 
@@ -861,10 +861,10 @@ object X11Session {
             reason = if (alive) "live lxqt-session and live openbox"
             else parseDesktopDeadReason(result.output)
         } catch (e: Exception) {
-            Log.i("MudifAgent", "isDesktopSessionAlive alive=false reason=guest down (${e.message})")
+            MudifLog.i("MudifAgent", "isDesktopSessionAlive alive=false reason=guest down (${e.message})")
             return false
         }
-        Log.i("MudifAgent", "isDesktopSessionAlive alive=$alive reason=$reason")
+        MudifLog.i("MudifAgent", "isDesktopSessionAlive alive=$alive reason=$reason")
         return alive
     }
 
@@ -915,14 +915,14 @@ object X11Session {
             }
             lastOutput = result.output
             if (result.output.contains(aliveToken)) {
-                Log.i("MudifAgent", "isDesktopRunning desktop=$desktop debian=$debian alive=true")
+                MudifLog.i("MudifAgent", "isDesktopRunning desktop=$desktop debian=$debian alive=true")
                 return true
             }
             if (attempt == 0) Thread.sleep(3000)
         }
         val reason = if (desktop == "xfce") "session, window manager or panel missing"
         else parseDesktopDeadReason(lastOutput)
-        Log.i("MudifAgent", "isDesktopRunning desktop=$desktop debian=$debian alive=false reason=$reason")
+        MudifLog.i("MudifAgent", "isDesktopRunning desktop=$desktop debian=$debian alive=false reason=$reason")
         return false
     }
 
@@ -1034,7 +1034,7 @@ object X11Session {
             false
         }
         lastInstallResult = null
-        Log.d(TAG, "ensureDebianDesktop (P17 marker check) ok=$ok")
+        MudifLog.d(TAG, "ensureDebianDesktop (P17 marker check) ok=$ok")
         return ok
     }
 }

@@ -199,7 +199,7 @@ object GuestSession {
             alive = true
             lastExitCode = -1
             lastError = null
-            Log.d(TAG, "PTY session created (host /system/bin/sh)")
+            MudifLog.d(TAG, "PTY session created (host /system/bin/sh)")
             true
         } catch (e: Exception) {
             lastError = "PTY session creation failed: ${e.message}"
@@ -281,7 +281,7 @@ object GuestSession {
         while (SystemClock.uptimeMillis() < deadline) {
             if (marker.exists()) {
                 ptyProbeOk = true
-                Log.d(TAG, "PTY probe OK (marker seen)")
+                MudifLog.d(TAG, "PTY probe OK (marker seen)")
                 return true
             }
             if (!alive) {
@@ -365,7 +365,7 @@ object GuestSession {
             if (marker.exists()) {
                 booted = true
                 currentSystem = system
-                Log.d(TAG, "Guest shell alive (marker seen, system=$system)")
+                MudifLog.d(TAG, "Guest shell alive (marker seen, system=$system)")
                 return true
             }
             if (!alive) {
@@ -392,6 +392,6 @@ object GuestSession {
         session = null
         alive = false
         booted = false
-        Log.d(TAG, "PTY session stopped")
+        MudifLog.d(TAG, "PTY session stopped")
     }
 }

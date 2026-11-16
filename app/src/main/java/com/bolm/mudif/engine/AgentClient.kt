@@ -118,7 +118,7 @@ object AgentClient {
             localStop?.let { stop ->
                 Thread {
                     val outcome = try { stop() } catch (e: Exception) { "error: ${e.message}" }
-                    Log.i(TAG, "local model stop: $outcome")
+                    MudifLog.i(TAG, "local model stop: $outcome")
                 }.start()
             }
         }
@@ -139,7 +139,7 @@ object AgentClient {
             val body = conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
             conn.disconnect()
             val id = JSONObject(body).optString("id", "").ifEmpty { null }
-            Log.i(TAG, "createSession: HTTP $code id=${id ?: "null"}")
+            MudifLog.i(TAG, "createSession: HTTP $code id=${id ?: "null"}")
             id
         } catch (e: Exception) {
             Log.w(TAG, "createSession failed", e)
@@ -161,10 +161,10 @@ object AgentClient {
             val code = conn.responseCode
             conn.disconnect()
             val known = code in 200..299
-            Log.i(TAG, "sessionKnown: HTTP $code known=$known")
+            MudifLog.i(TAG, "sessionKnown: HTTP $code known=$known")
             known
         } catch (e: Exception) {
-            Log.i(TAG, "sessionKnown failed: ${e.message}")
+            MudifLog.i(TAG, "sessionKnown failed: ${e.message}")
             false
         }
     }
@@ -244,12 +244,12 @@ object AgentClient {
         // Phase 4, fix 1: the id this turn actually uses. Re-created
         // below when blank or unknown to the server.
         var activeSessionId = sessionId
-        Log.i(TAG, "sendPrompt entry local=${localStop != null} session=${if (sessionId.isBlank()) "blank" else "supplied"}")
+        MudifLog.i(TAG, "sendPrompt entry local=${localStop != null} session=${if (sessionId.isBlank()) "blank" else "supplied"}")
 
         fun failed(message: String) {
             if (finished.compareAndSet(false, true)) {
                 turnDone.set(true)
-                Log.i(TAG, "failed: $message")
+                MudifLog.i(TAG, "failed: $message")
                 try {
                     handle.sseConnection?.disconnect()
                 } catch (_: Exception) {
@@ -264,7 +264,7 @@ object AgentClient {
                 localStop?.let { stop ->
                     Thread {
                         val outcome = try { stop() } catch (e: Exception) { "error: ${e.message}" }
-                        Log.i(TAG, "local model stop: $outcome")
+                        MudifLog.i(TAG, "local model stop: $outcome")
                     }.start()
                 }
                 callbacks.onError(message)
@@ -286,7 +286,7 @@ object AgentClient {
             }
             if (finished.compareAndSet(false, true)) {
                 turnDone.set(true)
-                Log.i(TAG, "done: final text len=${cleanText.length}")
+                MudifLog.i(TAG, "done: final text len=${cleanText.length}")
                 try {
                     handle.sseConnection?.disconnect()
                 } catch (_: Exception) {
@@ -300,7 +300,7 @@ object AgentClient {
         // ended. failed() is idempotent, so a late wake-up after a
         // normal end is a no-op. Covers createSession, the
         // session check, and a postPromptAsync that never returns.
-        Log.i(TAG, "timeout armed 300 s")
+        MudifLog.i(TAG, "timeout armed 300 s")
         Thread {
             val interrupted = try {
                 Thread.sleep(TURN_TIMEOUT_MS)
@@ -313,7 +313,7 @@ object AgentClient {
             // the network down but must not silence this timer;
             // only a user Stop does that, via stoppedByUser.
             if (!handle.stoppedByUser && !turnDone.get()) {
-                Log.i(TAG, "timeout firing interrupted=$interrupted superseded=${handle.cancelled}")
+                MudifLog.i(TAG, "timeout firing interrupted=$interrupted superseded=${handle.cancelled}")
                 failed(if (interrupted) "watchdog interrupted before reply" else "timeout: no reply within 300 s")
             }
         }.apply { isDaemon = true }.start()
@@ -326,7 +326,7 @@ object AgentClient {
         // so the watchdog is the only thing that can end it,
         // or a user Stop through the returned handle.
         if (testSilentTurn) {
-            Log.i(TAG, "test hook: silent turn armed, parking until watchdog")
+            MudifLog.i(TAG, "test hook: silent turn armed, parking until watchdog")
             Thread {
                 while (!turnDone.get() && !handle.cancelled) {
                     try {
@@ -352,7 +352,7 @@ object AgentClient {
             }
             activeSessionId = fresh
             handle.retargetSession(fresh)
-            Log.i(TAG, "session re-created id=$fresh")
+            MudifLog.i(TAG, "session re-created id=$fresh")
         }
         if (turnDone.get()) return handle
 
@@ -445,7 +445,7 @@ object AgentClient {
                                 else -> { /* heartbeat, connected, ... */ }
                             }
                         } catch (e: Exception) {
-                            Log.d(TAG, "SSE: unparsable event: ${json.take(200)}", e)
+                            MudifLog.d(TAG, "SSE: unparsable event: ${json.take(200)}", e)
                         }
                     }
                 }
@@ -504,7 +504,7 @@ object AgentClient {
                     if (turnAgent != null) put("agent", turnAgent)
                 }.toString()
                 var asyncCode = postPromptAsync(activeSessionId, body)
-                Log.i(TAG, "prompt_async code=$asyncCode")
+                MudifLog.i(TAG, "prompt_async code=$asyncCode")
                 // Phase 4, fix 1: 404 means the server does not know
                 // this session (it died between the check and the
                 // post). One fresh session and one re-post; the code
@@ -516,7 +516,7 @@ object AgentClient {
                         // fresh one exists. Fail now instead of
                         // trying the blocking endpoint on a session
                         // the server already rejected.
-                        Log.i(TAG, "prompt_async 404 re-create failed")
+                        MudifLog.i(TAG, "prompt_async 404 re-create failed")
                         failed("could not create session")
                         return@Thread
                     }
@@ -524,7 +524,7 @@ object AgentClient {
                     handle.retargetSession(fresh)
                     pollBaselineId = lastAssistantMessageId(activeSessionId)
                     asyncCode = postPromptAsync(activeSessionId, body)
-                    Log.i(TAG, "prompt_async retry code=$asyncCode")
+                    MudifLog.i(TAG, "prompt_async retry code=$asyncCode")
                 }
                 // The watchdog may have fired while posting.
                 if (turnDone.get()) return@Thread
@@ -559,7 +559,7 @@ object AgentClient {
                         // stream dropped; a finished message with no
                         // new text for 2 polls ends the turn too.
                         if (unchangedPolls >= 2 && pollMessageFinished(activeSessionId, pollBaselineId)) {
-                            Log.i(TAG, "poll finished end len=${lastText.get().length}")
+                            MudifLog.i(TAG, "poll finished end len=${lastText.get().length}")
                             done(lastText.get())
                             return@Thread
                         }
@@ -580,7 +580,7 @@ object AgentClient {
                 if (asyncCode == 404 || asyncCode == 405) {
                     if (turnDone.get()) return@Thread
                     val finalText = postMessageBlocking(activeSessionId, body)
-                    Log.i(TAG, "blocking reply len=${finalText?.length ?: -1}")
+                    MudifLog.i(TAG, "blocking reply len=${finalText?.length ?: -1}")
                     if (turnDone.get()) return@Thread
                     // Consolidated fix, item 4b: same rule as the
                     // poll tail above. A superseded turn exits
@@ -616,7 +616,7 @@ object AgentClient {
             conn.responseCode
             conn.disconnect()
         } catch (e: Exception) {
-            Log.d(TAG, "abort failed (best-effort)", e)
+            MudifLog.d(TAG, "abort failed (best-effort)", e)
         }
     }
 
@@ -643,7 +643,7 @@ object AgentClient {
         try {
             val system = JSONObject(body).optString("system", "")
             if (system.isNotEmpty()) {
-                Log.i(TAG, "prompt_async system: len=${system.length} head=${system.take(80)}")
+                MudifLog.i(TAG, "prompt_async system: len=${system.length} head=${system.take(80)}")
             }
         } catch (_: Exception) {
         }
@@ -751,7 +751,7 @@ object AgentClient {
             }
             null
         } catch (e: Exception) {
-            Log.d(TAG, "latestAssistantMessage failed", e)
+            MudifLog.d(TAG, "latestAssistantMessage failed", e)
             null
         }
     }

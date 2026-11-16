@@ -70,7 +70,7 @@ object ScreenRecorder {
         while (System.currentTimeMillis() < deadline) {
             if (pidFile(context).exists()) {
                 currentFile = out
-                Log.d(TAG, "recording started -> ${out.name}")
+                MudifLog.d(TAG, "recording started -> ${out.name}")
                 return out
             }
             Thread.sleep(200)

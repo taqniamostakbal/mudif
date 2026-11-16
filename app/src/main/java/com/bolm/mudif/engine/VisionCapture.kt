@@ -92,7 +92,7 @@ object VisionCapture {
                 "shot exists=${shot.exists()} size=${shot.length()}")
             return CaptureResult.Failed(REASON_CAPTURE_FAILED)
         }
-        Log.i(TAG, "capture: source=$SOURCE_LABEL display=$SOURCE_DISPLAY size=$size file=$SHOT_GUEST_PATH bytes=${shot.length()}")
+        MudifLog.i(TAG, "capture: source=$SOURCE_LABEL display=$SOURCE_DISPLAY size=$size file=$SHOT_GUEST_PATH bytes=${shot.length()}")
         return CaptureResult.Ok(shot, shot.length())
     }
 

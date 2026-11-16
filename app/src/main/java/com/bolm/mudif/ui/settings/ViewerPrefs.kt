@@ -2,9 +2,9 @@ package com.bolm.mudif.ui.settings
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 
 import com.bolm.mudif.R
+import com.bolm.mudif.engine.MudifLog
 
 /**
  * P18.3, Viewer settings (Termux:X11) in Fusha Arabic, Mudif style.
@@ -128,7 +128,7 @@ object ViewerPrefs {
         putBooleanIfAbsent("additionalKbdVisible", false)
         e.apply()
         // Log the effective mode so the rig proves it (MOUSE-PLAN Step 1).
-        Log.d("Mudif", "touchMode=" + (p.getString("touchMode", "?") ?: "?"))
+        MudifLog.d("Mudif", "touchMode=" + (p.getString("touchMode", "?") ?: "?"))
     }
 
     sealed class Setting {
@@ -395,6 +395,14 @@ object ViewerPrefs {
                 R.string.vp_agent_key_exa_desc, ""),
             text("agent_key_tavily", R.string.vp_agent_key_tavily_title,
                 R.string.vp_agent_key_tavily_desc, "")
+        )),
+        // p79 R7: debug-logging toggle. The switch writes the same
+        // key MudifLog reads (KEY_DEBUG_LOGGING); the viewer ignores
+        // the unknown key. Default OFF: debug lines stay silent in
+        // the shipped build until the user turns this on.
+        Section(R.string.vp_section_diagnostics, listOf(
+            switch("debug_logging", R.string.vp_debug_logging_title,
+                R.string.vp_debug_logging_desc, false)
         ))
     )
 }

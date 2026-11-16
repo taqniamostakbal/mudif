@@ -16,6 +16,7 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import com.bolm.mudif.engine.MudifLog
 
 /**
  * Phase 6, the agent's hands and eyes on the Android layer.
@@ -72,7 +73,7 @@ class MudifAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        Log.d(TAG, "service connected")
+        MudifLog.d(TAG, "service connected")
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {

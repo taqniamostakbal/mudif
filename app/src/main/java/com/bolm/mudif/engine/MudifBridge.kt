@@ -146,7 +146,7 @@ object MudifBridge {
             }, "mudif-bridge-accept").apply { isDaemon = true }
             acceptThread = thread
             thread.start()
-            Log.d(TAG, "listening on $HOST:$PORT")
+            MudifLog.d(TAG, "listening on $HOST:$PORT")
             true
         } catch (e: Exception) {
             Log.e(TAG, "start failed", e)
@@ -170,7 +170,7 @@ object MudifBridge {
         }
         serverSocket = null
         acceptThread = null
-        Log.d(TAG, "stopped")
+        MudifLog.d(TAG, "stopped")
     }
 
     private fun acceptLoop(appCtx: Context, socket: ServerSocket) {

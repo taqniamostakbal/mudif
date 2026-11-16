@@ -21,6 +21,7 @@ import com.bolm.mudif.databinding.ItemBrainSearchBinding
 import com.bolm.mudif.engine.AgentServer
 import com.bolm.mudif.ui.settings.ViewerPrefs
 import com.google.android.material.button.MaterialButton
+import com.bolm.mudif.engine.MudifLog
 
 /** One card per free AI platform. A model row selects that model as
  *  the brain (the Activity returns it to the chat). The key row saves
@@ -227,14 +228,14 @@ class BrainProvidersAdapter(
         Thread {
             val portUp = AgentServer.isUp()
             val oldPid = AgentServer.opencodePid(appCtx)
-            Log.i(TAG, "key save restart: start (port up=$portUp, old pid=$oldPid)")
+            MudifLog.i(TAG, "key save restart: start (port up=$portUp, old pid=$oldPid)")
             if (!portUp && oldPid == null) {
-                Log.i(TAG, "key save restart: server was not running, no restart needed, key loads at next start")
+                MudifLog.i(TAG, "key save restart: server was not running, no restart needed, key loads at next start")
                 showRestartToast(appCtx, "تم حفظ المفتاح، وسيُحمَّل عند تشغيل الخادم التالي")
                 return@Thread
             }
             val stopped = AgentServer.stop(appCtx)
-            Log.i(TAG, "key save restart: stop result=$stopped (old pid=$oldPid)")
+            MudifLog.i(TAG, "key save restart: stop result=$stopped (old pid=$oldPid)")
             if (!stopped) {
                 Log.e(TAG, "key save restart: stop failed, old server still running, new key not loaded")
                 showRestartToast(appCtx, "فشلت إعادة التشغيل، وسيُحمَّل المفتاح عند التشغيل التالي")
@@ -243,7 +244,7 @@ class BrainProvidersAdapter(
             val ensured = AgentServer.ensureStarted(appCtx)
             val newPid = AgentServer.opencodePid(appCtx)
             val pidChanged = oldPid == null || (newPid != null && newPid != oldPid)
-            Log.i(TAG, "key save restart: ensureStarted up=${ensured.up} reason=${ensured.reason} new pid=$newPid pidChanged=$pidChanged")
+            MudifLog.i(TAG, "key save restart: ensureStarted up=${ensured.up} reason=${ensured.reason} new pid=$newPid pidChanged=$pidChanged")
             if (ensured.up && newPid != null && pidChanged) {
                 showRestartToast(appCtx, "تمت إعادة تشغيل الخادم")
             } else {

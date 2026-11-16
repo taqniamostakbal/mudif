@@ -233,7 +233,7 @@ object TvStreamer {
         while (System.currentTimeMillis() < playDeadline) {
             if (playlist.exists() && playlist.length() > 0) {
                 state = TvState.STREAMING
-                Log.d(TAG, "streaming: ${streamUrl()} ts=${tsUrl()}")
+                MudifLog.d(TAG, "streaming: ${streamUrl()} ts=${tsUrl()}")
                 return true
             }
             if (!isPidAlive(context)) break
@@ -318,7 +318,7 @@ object TvStreamer {
             }
             val listener = object : NsdManager.RegistrationListener {
                 override fun onServiceRegistered(info: NsdServiceInfo) {
-                    Log.d(TAG, "NSD registered: ${info.serviceName} :${info.port}")
+                    MudifLog.d(TAG, "NSD registered: ${info.serviceName} :${info.port}")
                 }
                 override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
                     Log.w(TAG, "NSD registration failed: $errorCode (manual IP still works)")
@@ -392,7 +392,7 @@ object TvStreamer {
                     port = p
                     running = true
                     acceptThread = Thread { acceptLoop() }.apply { isDaemon = true; start() }
-                    Log.d(TvStreamer.TAG, "HTTP server on port $port")
+                    MudifLog.d(TvStreamer.TAG, "HTTP server on port $port")
                     return true
                 } catch (_: Exception) {
                     // Port busy: try the next one.

@@ -100,7 +100,7 @@ object CastManager {
                 sessionListener, CastSession::class.java
             )
             available = true
-            Log.d(TAG, "Cast available")
+            MudifLog.d(TAG, "Cast available")
         } catch (e: Exception) {
             available = false
             lastError = context.getString(R.string.ui_cast_unavailable, e.message)
@@ -159,7 +159,7 @@ object CastManager {
                 .setMetadata(metadata)
                 .build()
             client.load(media)
-            Log.d(TAG, "Cast load sent: $hlsUrl")
+            MudifLog.d(TAG, "Cast load sent: $hlsUrl")
             true
         } catch (e: Exception) {
             lastError = appContext?.getString(R.string.ui_cast_start_failed, e.message)

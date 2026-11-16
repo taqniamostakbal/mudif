@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -15,7 +16,6 @@ import androidx.core.content.ContextCompat
 import androidx.mediarouter.app.MediaRouteChooserDialogFragment
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityVncBinding
-import com.bolm.mudif.engine.AgentServer
 import com.bolm.mudif.engine.CastManager
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.DesktopDiagnostics
@@ -32,6 +32,7 @@ import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.settings.ViewerPrefs
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import com.bolm.mudif.engine.MudifLog
 
 /**
  * P5.22 RADICAL REBUILD, X11 desktop via Termux:X11, Tiny
@@ -549,13 +550,21 @@ class VncActivity : MudifActivity() {
         // Toast is guarded by `destroyed` in case the user pressed
         // Back before the launch finished.
         Thread {
-            Thread.sleep(4000)
+            // p79 R2: wait for the viewer to ATTACH instead of a
+            // fixed 4 s sleep. MainActivity.isConnected() is the
+            // fork's own attach flag (LorieView.connected(), public
+            // static, no fork change): false until the viewer socket
+            // connects to the X server. Poll every 200 ms, cap 4 s,
+            // so this is never slower than the old sleep. A 500 ms
+            // settle after the flag first reads true lets the RandR
+            // resize land (the flag flips when connect() returns,
+            // the resize is issued in the same tryConnect block).
+            // P6.5 still holds: the desktop launches only after the
+            // viewer attached and resized, never before.
+            waitForViewerAttach()
             val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
-            // Real-computer #8: the 3 s sleep here was redundant ,
-            // isDesktopRunning already polls twice (up to 20 s each
-            // with a 3 s gap). The 4 s sleep above stays: the viewer
-            // must attach and resize the server BEFORE the desktop
-            // launches (P6.5), and there is no event for that.
+            // Real-computer #8: isDesktopRunning already polls twice
+            // (up to 20 s each with a 3 s gap), no extra sleep here.
             val running = X11Session.isDesktopRunning(this, DESKTOP_LXQT, true)
             // Real-computer #1: audio starts with the desktop when
             // enabled. Own thread: the pump connects (up to ~6 s)
@@ -563,17 +572,14 @@ class VncActivity : MudifActivity() {
             if (sent && running && PulseAudio.isEnabled(this)) {
                 Thread { PulseAudio.start(this) }.start()
             }
-            // p21: the brain servers start with the desktop. Before,
-            // nothing started them on boot: the only callers of
-            // AgentServer.ensureStarted were the agent tab (on send)
-            // and the supervisor service (never started). Own thread:
-            // ensureStarted polls up to 30 s and must not delay the
-            // Toast below.
-            if (sent && running) {
-                startAgentServersInBackground()
-            }
+            // p79 R1: the brain servers do NOT start with the
+            // desktop anymore. Nothing starts until the user asks
+            // for it (Tiny/Winlator/Mobox rule): ollama + opencode
+            // start on the first assistant turn only
+            // (AgentServer.ensureStarted, called on send). A
+            // desktop-only entry now pays no server startup at all.
             val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
-            Log.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
+            MudifLog.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
             // P18.5: fire a pending app launch (from the Apps tab)
             // only now that the desktop is confirmed running. The
             // command goes through the PTY session, like the desktop
@@ -584,7 +590,7 @@ class VncActivity : MudifActivity() {
             pendingLaunchApp = null
             val appLaunched = if (appToLaunch != null && sent && running) {
                 val ok = GuestSession.sendCommand(appToLaunch)
-                Log.d("VncActivity", "pending app launch: sent=$ok cmd=$appToLaunch")
+                MudifLog.d("VncActivity", "pending app launch: sent=$ok cmd=$appToLaunch")
                 ok
             } else {
                 false
@@ -605,22 +611,29 @@ class VncActivity : MudifActivity() {
     }
 
     /**
-     * p21: start the agent brain (opencode 4096, ollama 11434) on a
-     * background thread. ensureStarted stages the start script and
-     * runs it on the persistent GuestSession PTY, so the servers live
-     * as long as the desktop session does (a one-shot probe proot
-     * would reap them on exit, which is what the p21 rig test saw
-     * for the manually started servers). Idempotent: a re-entry
-     * costs nothing when the servers are already up.
+     * p79 R2: wait until the viewer attached to the X server, cap
+     * 4 s. Polls the fork's own attach flag every 200 ms; a 500 ms
+     * settle after the first true lets the RandR resize land. The
+     * cap keeps this never slower than the old fixed 4 s sleep; on
+     * timeout the launch proceeds exactly as before.
      */
-    private fun startAgentServersInBackground() {
-        Thread {
-            val ensured = AgentServer.ensureStarted(applicationContext)
-            Log.d(
-                "VncActivity",
-                "agent servers on desktop boot: up=${ensured.up} reason=${ensured.reason}"
-            )
-        }.apply { isDaemon = true }.start()
+    private fun waitForViewerAttach(timeoutMs: Long = 4000) {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            val attached = try {
+                com.termux.x11.MainActivity.isConnected()
+            } catch (_: Exception) {
+                false
+            }
+            if (attached) {
+                val remaining = deadline - SystemClock.uptimeMillis()
+                if (remaining > 500) Thread.sleep(500)
+                MudifLog.d("VncActivity", "viewer attached, launching desktop")
+                return
+            }
+            Thread.sleep(200)
+        }
+        MudifLog.d("VncActivity", "viewer attach not seen in ${timeoutMs}ms, launching desktop anyway")
     }
 
     private fun setStatus(text: String) {
@@ -812,7 +825,7 @@ class VncActivity : MudifActivity() {
                 desktopOk, lookOk,
                 DesktopDiagnostics.hypothesisDebian(this@VncActivity)
             )
-            Log.d("VncActivity", "diagnostics:\n$report")
+            MudifLog.d("VncActivity", "diagnostics:\n$report")
             lastDiagnostics = report
             runOnUiThread {
                 val ok = GuestSession.alive && GuestSession.booted && tcpOk
@@ -972,10 +985,10 @@ class VncActivity : MudifActivity() {
         if (!GuestSession.alive || !GuestSession.booted) return false
         if (!X11Session.isTcpDisplayOpen()) return false
         if (!X11Session.isDesktopSessionAlive(this)) return false
-        Log.d("VncActivity", "fast reattach: session healthy, opening viewer directly")
-        // p21: the session survived, but the brain servers may not
-        // have; ensureStarted is a no-op when they are already up.
-        startAgentServersInBackground()
+        MudifLog.d("VncActivity", "fast reattach: session healthy, opening viewer directly")
+        // p79 R1: the brain servers are NOT started here anymore.
+        // They start on the first assistant turn only
+        // (AgentServer.ensureStarted, called on send).
         val appToLaunch = pendingLaunchApp
         pendingLaunchApp = null
         if (appToLaunch != null) GuestSession.sendCommand(appToLaunch)

@@ -221,6 +221,9 @@
     <string name="vp_section_user_actions">إجراءات المستخدم</string>
     <string name="vp_section_other">أخرى</string>
     <string name="vp_section_agent_keys">مفاتيح الذكاء الاصطناعي</string>
+    <string name="vp_section_diagnostics">التشخيص</string>
+    <string name="vp_debug_logging_title">التسجيل المفصّل</string>
+    <string name="vp_debug_logging_desc">يظهر رسائل التصحيح في سجل النظام. شغّله فقط عند تشخيص مشكلة، وأطفئه في الاستعمال العادي.</string>
     <string name="vp_agent_key_groq_title">مفتاح Groq</string>
     <string name="vp_agent_key_groq_desc">مفتاح Groq المجاني (console.groq.com)، لنماذج gpt-oss و Qwen السحابية</string>
     <string name="vp_agent_key_hf_title">رمز Hugging Face</string>
