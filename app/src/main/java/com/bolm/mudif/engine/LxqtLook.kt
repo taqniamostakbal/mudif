@@ -287,7 +287,13 @@ object LxqtLook {
     // patched fancymenu_ar.qm inside translations.zip (the app's
     // zip overwrites the image's patched copy on every update, so
     // the label fix must live in the zip itself).
-    const val MARKER_VERSION = "p27"
+    // P28 (2026-11-16, p63): p63 adds [System] Terminal=qterminal
+    // to the staged pcmanfm settings.conf (the xterm error dialog
+    // in image-408: every Open Terminal tap failed because the
+    // staged file never set Terminal and pcmanfm-qt fell back to
+    // its hardcoded "xterm"). An existing rootfs must re-apply to
+    // pick it up; without this bump the fix repeats the p43 trap.
+    const val MARKER_VERSION = "p28"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -727,7 +733,19 @@ XCURSOR_SIZE=48
     // P23: DesktopIconSize=93 (Nova 9 adaptive output, 12.0 mm on
     // the glass); the image base carries it, a real device writes
     // its own via pcmanfmSettingsConf(scale).
-    private const val PCMANFM_SETTINGS_CONF = """[Desktop]
+    // p63: [System] Terminal=qterminal. pcmanfm-qt 2.1.0 falls back
+    // to a hardcoded Terminal="xterm" when the key is missing
+    // (settings.cpp:215), and the user settings.conf staged here
+    // is the only file it reads once its dir exists (profileDir),
+    // so the system default Terminal=x-terminal-emulator is never
+    // seen. xterm is not installed; every Open Terminal tap showed
+    // "Failed to execute child process 'xterm'" and piled up one
+    // "خطا" entry per tap (image-408). qterminal is installed and
+    // is already the panel and menu terminal.
+    private const val PCMANFM_SETTINGS_CONF = """[System]
+Terminal=qterminal
+
+[Desktop]
 Wallpaper=/usr/share/backgrounds/mudif-wallpaper-pomegranate.png
 WallpaperMode=stretch
 DesktopIconSize=93
