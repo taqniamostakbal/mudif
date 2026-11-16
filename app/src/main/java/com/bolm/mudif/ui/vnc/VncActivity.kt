@@ -921,8 +921,23 @@ class VncActivity : MudifActivity() {
             }
 
             // 3. Wait ONLY for the socket file (Tiny waitForFile).
+            // p78: the socket file can appear LATE under memory
+            // pressure (rig-proven: the failure dialog fired while
+            // the detailed log showed socket X6 exists + tcp 6006
+            // open). startXServer returns at once, so the 15 s
+            // window can expire while the server is still coming
+            // up. Before declaring the server dead, give the TCP
+            // listener its chance: if it answers, the server is up
+            // and the boot continues (step 3b re-checks it right
+            // after). Only when TCP also stays closed is the
+            // failure real. Falsifier: if the dialog still fires
+            // AND the log at dialog time shows TCP 6006 open, the
+            // mechanism is deeper than a slow start.
             if (!X11Session.waitForXSocket(this, 15000)) {
-                return XResult(false, getString(R.string.ui_vnc_status_x_nosocket))
+                setStatus(getString(R.string.ui_vnc_status_wait_tcp))
+                if (!X11Session.waitForTcpDisplay(10000)) {
+                    return XResult(false, getString(R.string.ui_vnc_status_x_nosocket))
+                }
             }
 
             // 3b. Wait until the server accepts TCP on
