@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import android.net.ConnectivityManager
 import com.bolm.mudif.R
 import android.os.Build
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
@@ -273,8 +274,9 @@ object RootfsManager {
         File(context.filesDir, "proot_tmp").apply { mkdirs() }
         // DNS fix: the minirootfs ships without a working resolv.conf, so
         // name resolution fails inside proot ("DNS: transient error").
-        // Write public DNS servers into the guest's resolv.conf.
-        ensureDns(rootfs)
+        // p66: the guest uses the phone's own DNS servers (see
+        // ensureDns); public resolvers are only the fallback.
+        ensureDns(context, rootfs)
         // /tmp must be writable for X servers (lock files, sockets).
         ensureWritableTmp(rootfs)
         // /var/lib/xkb must be writable for XKB keymap compilation.
@@ -461,9 +463,7 @@ object RootfsManager {
     }
 
     /**
-     * Ensures the guest can resolve DNS names. The Alpine minirootfs has no
-     * usable /etc/resolv.conf, and Android's DNS is not reachable via
-     * standard paths, so we write public resolvers into the guest.
+     * Ensures the guest can resolve DNS names.
      *
      * P6.1 FIX (proven by the P6 test, 2026-11-07): the old check
      * ("contains nameserver") accepted Debian's shipped stub
@@ -471,9 +471,20 @@ object RootfsManager {
      * NOTHING under proot, apt then failed on every name and the
      * whole XFCE install died. Only a REAL (non-loopback) nameserver
      * counts as working DNS; a stub/loopback-only file is overwritten.
-     * A genuine non-loopback nameserver (e.g. the user's own) is left alone.
+     *
+     * p66: the guest uses the PHONE's DNS servers (the same servers
+     * Android itself resolves with, read from ConnectivityManager),
+     * not hardcoded public ones. The image bakes 8.8.8.8/1.1.1.1 and
+     * the old code wrote those whenever the file had no real
+     * nameserver; on a network that blocks third-party DNS (inwi is
+     * reported to do exactly this) the whole guest is then offline
+     * while the phone itself works, which is the Firefox "nothing
+     * loads at all" report. This runs on every proot invocation, so
+     * the file follows Wi-Fi/mobile-data changes with no marker bump.
+     * Public resolvers are only the fallback when Android reports no
+     * DNS at all, and a genuine non-loopback file is left alone then.
      */
-    private fun ensureDns(rootfs: File) {
+    private fun ensureDns(context: Context, rootfs: File) {
         val resolvConf = File(rootfs, "etc/resolv.conf")
         val current = try {
             if (resolvConf.exists()) resolvConf.readText() else ""
@@ -482,25 +493,41 @@ object RootfsManager {
             .map { it.trim() }
             .filter { it.startsWith("nameserver") }
             .mapNotNull { it.split(Regex("\\s+")).getOrNull(1) }
-        val hasRealDns = servers.any { s ->
-            !s.startsWith("127.") && s != "::1" && s != "localhost"
+        val android = androidDnsServers(context)
+        val wanted = when {
+            android.isNotEmpty() -> android
+            servers.any { s ->
+                !s.startsWith("127.") && s != "::1" && s != "localhost"
+            } -> return
+            else -> listOf("8.8.8.8", "1.1.1.1")
         }
-        if (!hasRealDns) {
+        if (servers == wanted) return
+        try {
+            resolvConf.parentFile?.mkdirs()
+            // Debian ships resolv.conf as a symlink to the systemd
+            // stub; replace the link with a real file, or the write
+            // lands in the stub target instead of the guest's file.
             try {
-                resolvConf.parentFile?.mkdirs()
-                // Debian ships resolv.conf as a symlink to the systemd
-                // stub; replace the link with a real file, or the write
-                // lands in the stub target instead of the guest's file.
-                try {
-                    if (java.nio.file.Files.isSymbolicLink(resolvConf.toPath())) {
-                        android.system.Os.remove(resolvConf.absolutePath)
-                    }
-                } catch (_: Exception) {
-                    // not a symlink (the normal case for proot-distro)
+                if (java.nio.file.Files.isSymbolicLink(resolvConf.toPath())) {
+                    android.system.Os.remove(resolvConf.absolutePath)
                 }
-                resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
-            } catch (_: Exception) { /* non-fatal */ }
-        }
+            } catch (_: Exception) {
+                // not a symlink (the normal case for proot-distro)
+            }
+            resolvConf.writeText(wanted.joinToString("") { "nameserver $it\n" })
+        } catch (_: Exception) { /* non-fatal */ }
+    }
+
+    /** DNS servers of the phone's active network, empty when none are reported. */
+    private fun androidDnsServers(context: Context): List<String> {
+        return try {
+            val cm = context.applicationContext
+                .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val props = cm.activeNetwork?.let { cm.getLinkProperties(it) }
+                ?: return emptyList()
+            props.dnsServers.mapNotNull { it.hostAddress?.takeIf { h -> h.isNotBlank() } }
+                .distinct().take(3)
+        } catch (_: Exception) { emptyList() }
     }
 
     /**
