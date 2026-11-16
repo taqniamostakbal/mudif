@@ -297,7 +297,14 @@ object LxqtLook {
     // (mudif-dl.sh) so an existing phone picks it up on this
     // update; without the bump the store would keep the old
     // single-stream curl download.
-    const val MARKER_VERSION = "p29"
+    // P30 (2026-11-16, p72): p72 adds -y to the apt calls in
+    // ازل (apt remove), رقي (apt full-upgrade) and نظف (apt
+    // autoremove) in the staged arabic-cli.sh. The p51 rig round
+    // proved ازل aborts at apt's own Y/n prompt under the agent
+    // (stdin EOF); رقي and نظف carry the same gap in source.
+    // An existing rootfs must re-apply to pick it up; without
+    // this bump the fix repeats the p43 trap.
+    const val MARKER_VERSION = "p30"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"

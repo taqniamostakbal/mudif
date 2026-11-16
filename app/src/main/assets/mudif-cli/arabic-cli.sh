@@ -214,7 +214,7 @@ _عدد-الاسطر() {
   _تأكيد "إزالة $*" || return 1
   _apt-allow-issue
   trap '_apt-allow-revoke' EXIT
-  apt remove "$@"
+  apt remove -y "$@"
   local rc=$?
   _apt-allow-revoke
   trap - EXIT
@@ -225,7 +225,7 @@ _عدد-الاسطر() {
   _تأكيد "ترقية النظام" || return 1
   _apt-allow-issue
   trap '_apt-allow-revoke' EXIT
-  apt update && apt full-upgrade
+  apt update && apt full-upgrade -y
   local rc=$?
   _apt-allow-revoke
   trap - EXIT
@@ -247,7 +247,7 @@ _عدد-الاسطر() {
   _تأكيد "تنظيف النظام" || return 1
   _apt-allow-issue
   trap '_apt-allow-revoke' EXIT
-  apt autoremove && apt autoclean && echo "تم التنظيف."
+  apt autoremove -y && apt autoclean && echo "تم التنظيف."
   local rc=$?
   _apt-allow-revoke
   trap - EXIT
