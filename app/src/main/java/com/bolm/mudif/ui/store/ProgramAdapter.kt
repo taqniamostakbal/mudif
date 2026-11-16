@@ -6,7 +6,6 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import androidx.core.content.ContextCompat
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemProgramBinding
 import com.bolm.mudif.databinding.ItemSectionHeaderBinding
@@ -43,6 +42,13 @@ class ProgramAdapter(
      * see nothing. A full notifyDataSetChanged here rebound every
      * visible row on every status refresh, which amplified the
      * scroll ANR (defect 2).
+     *
+     * p73: the change is delivered as a payload, so the row takes
+     * the status-only path ([ProgramHolder.bindState]) instead of
+     * a full rebind: no icon reload, no drawable inflation, no
+     * text reset, no new click listeners. A batch status refresh
+     * that changes 200 rows costs 200 status updates, not 200
+     * full rebinds.
      */
     fun refreshStates(states: Map<String, ProgramState>, evidence: Map<String, String>) {
         val oldStates = this.states
@@ -66,7 +72,7 @@ class ProgramAdapter(
         for (position in currentList.indices) {
             val item = currentList[position]
             if (item is StoreListItem.Program && changed.contains(item.program.id)) {
-                notifyItemChanged(position)
+                notifyItemChanged(position, PAYLOAD_STATE)
             }
         }
     }
@@ -92,9 +98,24 @@ class ProgramAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        onBindViewHolder(holder, position, emptyList())
+    }
+
+    /** p73: with a state payload the row takes the status-only
+     *  path; without one it takes the full bind. Headers have no
+     *  state and always take the full bind. */
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
         when (val item = getItem(position)) {
             is StoreListItem.Header -> (holder as HeaderHolder).bind(item)
-            is StoreListItem.Program -> (holder as ProgramHolder).bind(item.program, position)
+            is StoreListItem.Program -> {
+                val programHolder = holder as ProgramHolder
+                if (payloads.contains(PAYLOAD_STATE)) programHolder.bindState(item.program)
+                else programHolder.bind(item.program, position)
+            }
         }
     }
 
@@ -147,7 +168,7 @@ class ProgramAdapter(
             // this holder is still bound to this program.
             binding.programLetter.text = program.name.firstOrNull()?.toString() ?: "؟"
             val cat = StoreCategory.forKey(program.category)
-            binding.programLetter.background = ContextCompat.getDrawable(
+            binding.programLetter.background = DrawableCache.get(
                 ctx, cat?.gradientRes ?: R.drawable.cat_all
             )
             binding.programLetter.visibility = View.VISIBLE
@@ -161,9 +182,7 @@ class ProgramAdapter(
             }
 
             val state = states[program.id] ?: ProgramState.UNKNOWN
-            val busy = state == ProgramState.CHECKING ||
-                state == ProgramState.INSTALLING ||
-                state == ProgramState.UNINSTALLING
+            bindState(program, state)
             // Tested badge: rig-verified install only. The catalog
             // value names the arch + date (e.g. "x86_64 · 2026-11-10");
             // a null/blank value hides the badge entirely.
@@ -175,6 +194,36 @@ class ProgramAdapter(
             } else {
                 binding.programTestedBadge.visibility = View.GONE
             }
+
+            binding.btnVerify.setOnClickListener { onVerify(program) }
+            binding.btnInstall.setOnClickListener { onInstall(program) }
+            binding.btnUninstall.setOnClickListener { onUninstall(program) }
+
+            // p70: the entrance animation runs only for the first
+            // screenful. Rows bound during a fling never animate:
+            // before this, every first bind started an AnimatorSet
+            // that was never cancelled on recycle, so a fling left
+            // dozens of sets mutating recycled views.
+            if (position < 12 && animatedIds.add(program.id)) {
+                CardEntrance.play(binding.root, CardEntrance.staggerDelay(position))
+            }
+        }
+
+        /** p73: status-only rebind. Updates nothing but the live
+         *  state views: status text, evidence, progress spinner,
+         *  button enabled states. No icon load, no drawable
+         *  inflation, no text reset, no new click listeners, no
+         *  animation. The full [bind] delegates its state section
+         *  here so the two paths can never drift apart. */
+        fun bindState(program: StoreProgram) {
+            bindState(program, states[program.id] ?: ProgramState.UNKNOWN)
+        }
+
+        private fun bindState(program: StoreProgram, state: ProgramState) {
+            val ctx = binding.root.context
+            val busy = state == ProgramState.CHECKING ||
+                state == ProgramState.INSTALLING ||
+                state == ProgramState.UNINSTALLING
             binding.programProgress.visibility = if (busy) View.VISIBLE else View.GONE
             binding.programStatus.text = when (state) {
                 ProgramState.INSTALLED -> ctx.getString(R.string.store_status_installed)
@@ -195,18 +244,6 @@ class ProgramAdapter(
             binding.btnVerify.isEnabled = !busy
             binding.btnInstall.isEnabled = !busy && state != ProgramState.INSTALLED
             binding.btnUninstall.isEnabled = !busy && state == ProgramState.INSTALLED
-            binding.btnVerify.setOnClickListener { onVerify(program) }
-            binding.btnInstall.setOnClickListener { onInstall(program) }
-            binding.btnUninstall.setOnClickListener { onUninstall(program) }
-
-            // p70: the entrance animation runs only for the first
-            // screenful. Rows bound during a fling never animate:
-            // before this, every first bind started an AnimatorSet
-            // that was never cancelled on recycle, so a fling left
-            // dozens of sets mutating recycled views.
-            if (position < 12 && animatedIds.add(program.id)) {
-                CardEntrance.play(binding.root, CardEntrance.staggerDelay(position))
-            }
         }
     }
 
@@ -214,6 +251,9 @@ class ProgramAdapter(
         private const val TYPE_HEADER = 0
         private const val TYPE_PROGRAM = 1
         private const val ICON_TILE_DP = 56
+        /** p73: payload marking a status-only rebind (see
+         *  [ProgramHolder.bindState]). */
+        private const val PAYLOAD_STATE = "state"
 
         private val DIFF = object : DiffUtil.ItemCallback<StoreListItem>() {
             override fun areItemsTheSame(old: StoreListItem, new: StoreListItem): Boolean {

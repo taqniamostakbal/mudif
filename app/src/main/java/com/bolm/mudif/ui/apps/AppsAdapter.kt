@@ -3,11 +3,11 @@ package com.bolm.mudif.ui.apps
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemAppBinding
 import com.bolm.mudif.ui.CardEntrance
+import com.bolm.mudif.ui.store.DrawableCache
 import com.bolm.mudif.ui.store.StoreCategory
 import com.bolm.mudif.ui.store.StoreIconLoader
 import com.bolm.mudif.ui.store.StoreProgram
@@ -77,7 +77,7 @@ class AppsAdapter(
             // this holder is still bound to this program.
             appLetter.text = p.name.firstOrNull()?.toString() ?: "؟"
             val cat = StoreCategory.forKey(p.category)
-            appLetter.background = ContextCompat.getDrawable(
+            appLetter.background = DrawableCache.get(
                 ctx, cat?.gradientRes ?: R.drawable.cat_all
             )
             appLetter.visibility = View.VISIBLE
