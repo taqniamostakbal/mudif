@@ -2,96 +2,111 @@
 <!-- Phase 1c: dedicated category page. Tapping a category card in the
      store opens this page (slide transition) with only that category's
      programs, a search box scoped to the category, and the same
-     verify/install/uninstall actions. Back returns to the store. -->
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+     verify/install/uninstall actions as the store. Back returns to
+     the store.
+     p73 ROOT FIX (scroll ANR, Anas 03:41 screenshot): this layout
+     used to be a NestedScrollView holding a wrap_content
+     RecyclerView with nestedScrollingEnabled=false. That pattern
+     disables view recycling entirely: the RecyclerView is measured
+     with UNSPECIFIED height, so opening a category created + bound
+     + measured ALL of its cards at once (office 225, dev 238,
+     media 242) on the main thread, every status refresh re-measured
+     the whole list once per changed row, and onViewRecycled never
+     fired, so the p70 cancel fixes were dead code on this screen.
+     That is the 5-second main-thread block behind the ANR dialog.
+     The p28/p30 fix applied the same correction to the store page
+     and never reached this page. Now the screen is a plain vertical
+     LinearLayout (the p30 pattern): the header and the search box
+     stay fixed above the list, and the RecyclerView is 0dp +
+     weight=1, scrolls on its own, and only binds the ~10 visible
+     cards. All view ids are unchanged, so the fragment code is
+     untouched. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
+    android:orientation="vertical"
     android:background="?attr/colorSurface">
 
     <LinearLayout
+        android:id="@+id/category_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/mudif_purple"
+        android:padding="24dp">
+
+        <ImageButton
+            android:id="@+id/back_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_back"
+            android:contentDescription="@string/back" />
 
         <LinearLayout
-            android:id="@+id/category_header"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@color/mudif_purple"
-            android:padding="24dp">
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="8dp">
 
-            <ImageButton
-                android:id="@+id/back_button"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@android:color/transparent"
-                android:src="@drawable/ic_back"
-                android:contentDescription="@string/back" />
-
-            <LinearLayout
-                android:layout_width="0dp"
+            <TextView style="@style/Widget.Mudif.HeaderTitle"
+                android:id="@+id/category_title"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:paddingStart="8dp">
+                android:textSize="28sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="@font/lifta" />
 
-                <TextView style="@style/Widget.Mudif.HeaderTitle"
-                    android:id="@+id/category_title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="28sp"
-                    android:textColor="@android:color/white"
-                    android:fontFamily="@font/lifta" />
-
-                <TextView style="@style/Widget.Mudif.HeaderSubtitle"
-                    android:id="@+id/category_subtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textSize="14sp"
-                    android:textColor="#DCD6FF"
-                    android:fontFamily="@font/cairo" />
-            </LinearLayout>
+            <TextView style="@style/Widget.Mudif.HeaderSubtitle"
+                android:id="@+id/category_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="14sp"
+                android:textColor="#DCD6FF"
+                android:fontFamily="@font/cairo" />
         </LinearLayout>
-
-        <EditText style="@style/Widget.Mudif.SearchBox"
-            android:id="@+id/search_box"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/search_box_bg"
-            android:drawableStart="@android:drawable/ic_menu_search"
-            android:drawablePadding="8dp"
-            android:padding="12dp"
-            android:hint="@string/store_search_hint"
-            android:fontFamily="@font/cairo"
-            android:inputType="text"
-            android:imeOptions="actionSearch"
-            android:maxLines="1" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/programs_recycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:nestedScrollingEnabled="false"
-            android:padding="12dp" />
-
-        <TextView style="@style/TextAppearance.Mudif.Caption"
-            android:id="@+id/empty_state"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:padding="32dp"
-            android:text="@string/store_no_results"
-            android:textSize="16sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:fontFamily="@font/cairo"
-            android:visibility="gone" />
     </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+
+    <EditText style="@style/Widget.Mudif.SearchBox"
+        android:id="@+id/search_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/search_box_bg"
+        android:drawableStart="@android:drawable/ic_menu_search"
+        android:drawablePadding="8dp"
+        android:padding="12dp"
+        android:hint="@string/store_search_hint"
+        android:fontFamily="@font/cairo"
+        android:inputType="text"
+        android:imeOptions="actionSearch"
+        android:maxLines="1" />
+
+    <!-- The programs list scrolls on its own (weight=1 fills the rest
+         of the screen). It recycles views, so a 225-program category
+         only binds the ~10 visible cards instead of all of them. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/programs_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:padding="12dp" />
+
+    <TextView style="@style/TextAppearance.Mudif.Caption"
+        android:id="@+id/empty_state"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="32dp"
+        android:text="@string/store_no_results"
+        android:textSize="16sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:fontFamily="@font/cairo"
+        android:visibility="gone" />
+</LinearLayout>

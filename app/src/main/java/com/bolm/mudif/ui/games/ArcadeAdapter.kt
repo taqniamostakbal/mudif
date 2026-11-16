@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemGameBinding
 import com.bolm.mudif.ui.CardEntrance
+import com.bolm.mudif.ui.store.DrawableCache
 import com.bolm.mudif.ui.store.ProgramState
 import com.bolm.mudif.ui.store.StoreIconLoader
 import com.bolm.mudif.ui.store.StoreProgram
@@ -91,7 +92,9 @@ class ArcadeAdapter(
             // (the per-category colors are gone, like the rest of
             // the app). The icon tile keeps its per-category
             // gradient: it is an icon well, not a card.
-            cardBg.setBackgroundResource(R.drawable.home_stat_gradient)
+            // p73: the gradient comes from the shared ConstantState
+            // cache, not a fresh XML inflation per bind.
+            cardBg.background = DrawableCache.get(ctx, R.drawable.home_stat_gradient)
             if (position < 12 && animatedIds.add(program.id)) {
                 CardEntrance.play(root, CardEntrance.staggerDelay(position))
             }
