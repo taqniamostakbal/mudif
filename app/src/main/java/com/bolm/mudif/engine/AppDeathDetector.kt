@@ -6,7 +6,6 @@ import android.content.Context
 import android.os.Debug
 import android.os.Process
 import android.util.Log
-import com.airbnb.lottie.LottieCompositionCache
 import com.bolm.mudif.ui.store.StoreIconLoader
 import org.json.JSONObject
 import java.io.File
@@ -37,12 +36,14 @@ import java.util.concurrent.Executors
  *
  * 1. Shed on pressure. [onMemoryPressure] is called from
  *    MudifApplication.onTrimMemory / onLowMemory. It evicts the
- *    store icon bitmap cache (12 MB) and the Lottie composition
- *    cache, and records the trim level with a timestamp, so the
- *    next death record shows whether the system warned us first.
- *    The caches rebuild on demand (icons re-decode, Lottie
- *    re-parses its small JSONs), so shedding can never break a
- *    screen.
+ *    store icon bitmap cache (12 MB) and records the trim level
+ *    with a timestamp, so the next death record shows whether
+ *    the system warned us first. The cache rebuilds on demand
+ *    (icons re-decode), so shedding can never break a screen.
+ *    (Lottie has no public cache-clear API in 6.7.1, verified
+ *    against the v6.7.1 source listing; its 5 compositions are
+ *    tiny JSONs re-parsed on demand, so there is nothing worth
+ *    shedding there.)
  *
  * 2. Prove the next death's cause. A heartbeat state file
  *    (filesDir/tmp/mudif-state.json) records the last known tab,
@@ -183,11 +184,11 @@ object AppDeathDetector {
 
     /**
      * The system says memory is tight. Shed every rebuildable
-     * cache now (icon bitmaps re-decode, Lottie re-parses its
-     * small JSONs), record the level and time in the state file,
-     * and heartbeat so the record is fresh. Called on the main
-     * thread from Application.onTrimMemory / onLowMemory; the
-     * evictions are hash-map clears, a few milliseconds at most.
+     * cache now (icon bitmaps re-decode), record the level and
+     * time in the state file, and heartbeat so the record is
+     * fresh. Called on the main thread from
+     * Application.onTrimMemory / onLowMemory; the eviction is
+     * a hash-map clear, a few milliseconds at most.
      */
     fun onMemoryPressure(context: Context, level: Int) {
         lastTrimLevel = levelName(level)
@@ -196,11 +197,6 @@ object AppDeathDetector {
             StoreIconLoader.evictAll()
         } catch (e: Exception) {
             Log.w(TAG, "icon cache evict failed", e)
-        }
-        try {
-            LottieCompositionCache.getInstance().clear()
-        } catch (e: Exception) {
-            Log.w(TAG, "lottie cache clear failed", e)
         }
         heartbeat(context, tab = lastTab, action = "trim_${levelName(level)}", force = true, foreground = lastForeground)
     }
