@@ -110,7 +110,10 @@ dependencies {
     // the foreground activity is the fork's MainActivity, not
     // VncActivity). The fix is in the fork's MainActivity
     // (OnBackInvokedCallback + dispatchKeyEvent + onBackPressed).
-    implementation("com.github.taqniamostakbal:termux-x11:7e1bfe68b07e9026218397a3cf383b42999f4b2f") {
+    // p58: fork commit 1f1fc6af compacts the mouse bar to a fixed
+    // 164x102dp, gear opens the viewer settings, raw Trackpad drag
+    // (cursor moves on the first pixel, no 8dp slop dead zone).
+    implementation("com.github.taqniamostakbal:termux-x11:1f1fc6af9a0e977c466185a696c7218189d2094b") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
