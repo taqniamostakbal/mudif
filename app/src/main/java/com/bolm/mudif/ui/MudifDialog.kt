@@ -202,6 +202,7 @@ object MudifDialog {
     class Progress(private val dialog: AlertDialog, view: View) {
         private val status: TextView = view.findViewById(R.id.dialog_status)
         private val bar: ProgressBar = view.findViewById(R.id.dialog_bar)
+        private val pauseBtn: MaterialButton = view.findViewById(R.id.dialog_btn_pause)
 
         fun setStatus(text: String) {
             status.text = text
@@ -214,6 +215,14 @@ object MudifDialog {
 
         fun setIndeterminate(indeterminate: Boolean) {
             bar.isIndeterminate = indeterminate
+        }
+
+        /** p68: show the Pause button; tapping it calls [onPause] and
+         * does NOT dismiss the dialog (the install thread dismisses
+         * it when the killed guest command returns). */
+        fun setOnPauseListener(onPause: () -> Unit) {
+            pauseBtn.visibility = View.VISIBLE
+            pauseBtn.setOnClickListener { onPause() }
         }
 
         fun dismiss() {

@@ -654,6 +654,11 @@
     <string name="download_cancel">إلغاء التحميل</string>
     <string name="download_dismiss">إخفاء</string>
     <string name="download_paused">متوقف مؤقتا… %1$d%%</string>
+    <!-- p68: download library. -->
+    <string name="store_dl_from_cache">من المكتبة</string>
+    <string name="store_dl_paused_resume">متوقف مؤقتا… %1$d%%، اضغط تثبيت للاستئناف</string>
+    <string name="store_dl_speed">%1$s MB/s</string>
+    <string name="store_dl_eta">المتبقي %1$s ث</string>
     <string name="download_cancelled">ألغي التحميل</string>
     <string name="download_cancel_failed">ألغي التحميل لكن بقيت ملفات جزئية</string>
     <string name="agent_brain_title">العقل</string>
