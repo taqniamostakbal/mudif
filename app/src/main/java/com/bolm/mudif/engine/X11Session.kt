@@ -468,10 +468,20 @@ object X11Session {
         // dbus-launch does NOT work (its temporary bus never
         // reaches the store). Keep chmod +x and the xattr as
         // belt-and-suspenders. Best-effort; never blocks the desktop.
+        // p78: the trust treatment covers EVERY .desktop file on
+        // ~/Desktop, not just mudif-launcher.desktop (rig-proven:
+        // any other staged icon, e.g. Craft Anything, stays
+        // untrusted with the red "!" and double-click shows the
+        // trust dialog instead of launching). The glob covers
+        // whatever the store or the user placed there; the
+        // /usr/share/applications copy of the launcher keeps its
+        // own line (that dir is NOT globbed: trusting 1000+
+        // system entries is pointless, the desktop icon is the
+        // ~/Desktop copy).
         try {
             GuestSession.sendCommand(
-                "chmod +x /root/Desktop/mudif-launcher.desktop /usr/share/applications/mudif-launcher.desktop 2>/dev/null; " +
-                "python3 -c \"import os; os.setxattr('/root/Desktop/mudif-launcher.desktop', 'user.metadata::trust', b'true')\" 2>/dev/null; " +
+                "chmod +x /root/Desktop/*.desktop /usr/share/applications/mudif-launcher.desktop 2>/dev/null; " +
+                "python3 -c \"import os,glob; [os.setxattr(f, 'user.metadata::trust', b'true') for f in glob.glob('/root/Desktop/*.desktop')]\" 2>/dev/null; " +
                 "python3 -c \"import os; os.setxattr('/usr/share/applications/mudif-launcher.desktop', 'user.metadata::trust', b'true')\" 2>/dev/null"
             )
         } catch (_: Exception) { }
@@ -494,9 +504,13 @@ object X11Session {
         // unreadable). Best-effort; the loop exits on its own.
         if (ok && desktop == "lxqt") {
             val d = "$"
+            // p78: gio set runs over EVERY staged desktop file on
+            // ~/Desktop (same glob as the chmod/xattr step above);
+            // the loop still breaks on the first fully-successful
+            // pass, and still retries for 30 s when a set fails.
             val trustLoop = "( for i in ${d}(seq 1 60); do for pid in ${d}(pgrep -f '[l]xqt-session'); do " +
                 "bus=${d}(tr '\\0' '\\n' < /proc/${d}pid/environ 2>/dev/null | grep '^DBUS_SESSION_BUS_ADDRESS=' | cut -d= -f2-); " +
-                "if [ -n \"${d}bus\" ]; then DBUS_SESSION_BUS_ADDRESS=\"${d}bus\" gio set /root/Desktop/mudif-launcher.desktop metadata::trust true 2>/dev/null && " +
+                "if [ -n \"${d}bus\" ]; then for f in /root/Desktop/*.desktop; do DBUS_SESSION_BUS_ADDRESS=\"${d}bus\" gio set \"${d}f\" metadata::trust true 2>/dev/null; done && " +
                 "DBUS_SESSION_BUS_ADDRESS=\"${d}bus\" gio set /usr/share/applications/mudif-launcher.desktop metadata::trust true 2>/dev/null && break 2; fi; done; sleep 0.5; done ) " +
                 "> /root/icon-trust-$stamp.log 2>&1 &"
             try {

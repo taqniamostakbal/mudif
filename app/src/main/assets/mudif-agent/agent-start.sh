@@ -23,8 +23,36 @@ MUDIF_HOME=/root/.config/mudif
 mkdir -p "$MUDIF_HOME"
 
 # Ollama: the local model host. OLLAMA_HOST pins it to loopback.
+# p78: a STRAY ollama can own 11434 from OUTSIDE the guest
+# (rig-proven: the server ran in another mount namespace with
+# HOME=/root = the Android system root, "mkdir /root: permission
+# denied"). pgrep alone cannot tell the stray from the good
+# server, and the stray answers /api/tags with an error, so a
+# blind "already running" leaves the brain permanently broken.
+# Probe first: a valid server answers /api/tags with a "models"
+# list within 20 s. Only a process that never answers validly
+# is killed and replaced by the real in-guest server
+# (OLLAMA_HOME pins the models dir to the guest /root, so the
+# server can never land on the Android /root again). A
+# good-but-slow server is never killed: it answers inside the
+# 20 s wait and the kill path is never reached.
+ollama_ok() {
+    curl -fsS http://127.0.0.1:11434/api/tags 2>/dev/null | grep -q '"models"'
+}
+wait_ollama() {
+    i=1
+    while [ "$i" -le 20 ]; do
+        if ollama_ok; then
+            echo "ollama: answering on 11434"
+            return 0
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    return 1
+}
 if ! pgrep -x ollama >/dev/null 2>&1; then
-    (OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$MUDIF_HOME/ollama.log" 2>&1 &)
+    (OLLAMA_HOME=/root/.ollama OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$MUDIF_HOME/ollama.log" 2>&1 &)
     echo "ollama: started"
 else
     echo "ollama: already running (pid $(pgrep -x ollama | head -1))"
@@ -32,19 +60,18 @@ fi
 
 # Wait for Ollama to answer before starting OpenCode, so the model
 # is reachable when the first prompt arrives. 20 s cap: if Ollama
-# never answers, OpenCode still starts and reports the real error
-# on the first prompt instead of hanging the chat.
-i=1
-while [ "$i" -le 20 ]; do
-    if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
-        echo "ollama: answering on 11434"
-        break
+# never answers, the stray is killed and the real in-guest server
+# is started in its place, then waited on again.
+if ! wait_ollama; then
+    echo "ollama: NOT answering after 20 s, killing stray"
+    pkill -x ollama 2>/dev/null
+    i=1
+    while [ "$i" -le 10 ] && pgrep -x ollama >/dev/null 2>&1; do sleep 1; i=$((i + 1)); done
+    (OLLAMA_HOME=/root/.ollama OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$MUDIF_HOME/ollama.log" 2>&1 &)
+    echo "ollama: restarted in-guest"
+    if ! wait_ollama; then
+        echo "ollama: STILL not answering after restart (see $MUDIF_HOME/ollama.log)"
     fi
-    sleep 1
-    i=$((i + 1))
-done
-if [ "$i" -gt 20 ]; then
-    echo "ollama: NOT answering after 20 s (see $MUDIF_HOME/ollama.log)"
 fi
 
 # API keys for the cloud providers (written by the app from the
