@@ -38,6 +38,7 @@ import com.bolm.mudif.databinding.FragmentAgentBinding
 import com.bolm.mudif.engine.AgentClient
 import com.bolm.mudif.engine.AgentServer
 import com.bolm.mudif.engine.AgentSupervisorService
+import com.bolm.mudif.engine.AppDeathDetector
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
 import com.bolm.mudif.engine.TerminalSession
@@ -1108,6 +1109,11 @@ class AgentFragment : Fragment() {
      * as a second text part, observed context, never an instruction.
      */
     private fun startTurn(text: String, screenContext: String? = null, imageBase64: String? = null, isCloudVision: Boolean = false) {
+        // p74: heartbeat before the heavy work starts, so a
+        // death mid-turn leaves a fresh memory snapshot behind.
+        // requireContext is safe here: startTurn only runs with
+        // a live fragment (clearTurnFailed below uses it too).
+        AppDeathDetector.heartbeat(requireContext(), tab = "AgentFragment", action = "turn_send", force = true, foreground = true)
         // p57: read the reply language live here, at turn start, so
         // a language change takes effect on this turn. The system
         // prompt, the vision prefix, and every built-in reply below
@@ -1941,6 +1947,9 @@ class AgentFragment : Fragment() {
         saveMessages()
         adapter.submitList(messages.toList())
         binding.agentRecycler.scrollToPosition(messages.size - 1)
+        // p74: throttled heartbeat during a long turn, so a death
+        // mid-stream leaves a memory snapshot no older than 5 s.
+        AppDeathDetector.heartbeat(requireContext(), tab = "AgentFragment", action = "turn_stream", foreground = true)
     }
 
     private fun finishTurn(finalText: String) {
@@ -1949,6 +1958,9 @@ class AgentFragment : Fragment() {
         // appends a second copy of the reply, and a stopped turn
         // would speak its aborted text.
         if (!turnRunning) return
+        // p74: the turn completed; record where we are and how
+        // much memory the device has left.
+        AppDeathDetector.heartbeat(requireContext(), tab = "AgentFragment", action = "turn_reply", force = true, foreground = true)
         // Brain fix (plan section 3): an empty final text is a
         // failure, never a silent success. The Nemotron empty reply
         // used to end the turn with no message and no Retry.

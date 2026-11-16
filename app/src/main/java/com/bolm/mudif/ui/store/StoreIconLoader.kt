@@ -135,6 +135,19 @@ object StoreIconLoader {
         imageView.tag = null
     }
 
+    /**
+     * p74: drop every cached bitmap now (memory-pressure shed).
+     * Called from AppDeathDetector.onMemoryPressure when the
+     * system says memory is tight. Evicted bitmaps are simply
+     * decoded again on the next bind; the missing-icon set is
+     * kept, so known-missing icons are not re-probed. Pending
+     * decodes are untouched: their results land in the (now
+     * empty) cache as usual.
+     */
+    fun evictAll() {
+        cache.evictAll()
+    }
+
     /** Decode the PNG downsampled so neither side exceeds [targetPx]. */
     private fun decodeSampled(context: Context, iconName: String, targetPx: Int): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }

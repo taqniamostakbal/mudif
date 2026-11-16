@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import com.bolm.mudif.engine.AppDeathDetector
 import com.bolm.mudif.ui.MudifActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
@@ -154,11 +155,23 @@ class MainActivity : MudifActivity() {
     }
 
     private fun show(fragment: Fragment) {
+        // p74: the tab is part of the death-detector heartbeat,
+        // so a death leaves the last shown screen behind.
+        AppDeathDetector.heartbeat(this, tab = fragment.javaClass.simpleName, action = "tab", foreground = true)
         supportFragmentManager.beginTransaction()
             .setCustomAnimations(
                 R.anim.fragment_fade_enter, R.anim.fragment_fade_exit
             )
             .replace(R.id.nav_host, fragment)
             .commit()
+    }
+
+    override fun onDestroy() {
+        // p74: a real user exit (BACK out of the last activity)
+        // is a clean exit, not a death. A process kill never runs
+        // onDestroy, so an unmarked state always means the
+        // process died.
+        if (isFinishing) AppDeathDetector.markCleanExit(this)
+        super.onDestroy()
     }
 }
