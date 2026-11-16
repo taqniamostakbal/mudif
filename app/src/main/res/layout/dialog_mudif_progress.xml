@@ -38,4 +38,19 @@
         android:progress="0"
         android:progressTint="@android:color/white"
         android:indeterminateTint="@android:color/white" />
+
+    <!-- p68: Pause button for store downloads (hidden unless the
+         caller wires it via Progress.setOnPauseListener). Tapping it
+         does NOT dismiss the dialog; the install thread returns on
+         its own once the guest command is killed. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/dialog_btn_pause"
+        style="@style/Widget.Mudif.Button.SecondaryOnPurple"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/download_pause"
+        android:fontFamily="@font/cairo"
+        android:textSize="14sp"
+        android:visibility="gone" />
 </LinearLayout>

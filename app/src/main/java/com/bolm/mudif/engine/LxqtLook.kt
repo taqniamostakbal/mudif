@@ -293,7 +293,11 @@ object LxqtLook {
     // staged file never set Terminal and pcmanfm-qt fell back to
     // its hardcoded "xterm"). An existing rootfs must re-apply to
     // pick it up; without this bump the fix repeats the p43 trap.
-    const val MARKER_VERSION = "p28"
+    // P29 (2026-11-16, p68): p68 stages the download library
+    // (mudif-dl.sh) so an existing phone picks it up on this
+    // update; without the bump the store would keep the old
+    // single-stream curl download.
+    const val MARKER_VERSION = "p29"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -301,6 +305,7 @@ object LxqtLook {
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
     private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
+    private const val DL_ASSET = "mudif-cli/mudif-dl.sh"
     private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
     private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
     private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
@@ -405,6 +410,18 @@ object LxqtLook {
                 File(mudifConfDir, "arabic-cli.sh").outputStream().use { out ->
                     input.copyTo(out)
                 }
+            }
+            // p68 - the download library (segmented aria2c + resume +
+            // on-device cache + mirror-pick). Staged here (not only
+            // baked in the image) so an existing phone picks it up on
+            // this update. setExecutable: ProgramStore execs it via
+            // `sh`, but the CLI / terminal can call it directly too.
+            context.assets.open(DL_ASSET).use { input ->
+                val dlFile = File(mudifConfDir, "mudif-dl.sh")
+                dlFile.outputStream().use { out ->
+                    input.copyTo(out)
+                }
+                dlFile.setExecutable(true, false)
             }
             // CLI v2: the Arabic-name to apt mapping (programs.tsv,
             // generated from store-catalog.json). The CLI resolves

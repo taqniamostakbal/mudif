@@ -19,6 +19,7 @@ import com.bolm.mudif.ui.store.ProgramStore
 import com.bolm.mudif.ui.store.StoreCatalog
 import com.bolm.mudif.ui.store.StoreProgram
 import com.google.android.material.snackbar.Snackbar
+import java.util.Locale
 
 /**
  * Mudif Arcade, wired to the real store (the P19 "install coming
@@ -202,35 +203,69 @@ class GamesFragment : Fragment() {
         setState(program.id, ProgramState.INSTALLING)
         val appCtx = requireContext().applicationContext
         // Visible progress dialog (stage + real percentage when the
-        // install reports one). Non-cancelable: there is no way to
-        // cancel a running guest install, same as the system install.
+        // install reports one). p68: the dialog has a Pause button
+        // now; a pause kills the guest command, the partial file
+        // stays, and the next Install resumes it (or the cached copy).
         val progress = MudifDialog.progress(requireContext(), program.name)
         progress.setStatus(getString(R.string.store_status_installing))
         progress.setIndeterminate(true)
+        val control = ProgramStore.DownloadControl()
+        progress.setOnPauseListener { control.pause() }
         // Foreground service + WakeLock: the install keeps running
         // when the user leaves the app or the screen turns off.
         InstallService.start(appCtx, getString(R.string.ui_service_install_program, program.name))
         Thread {
-            val result = ProgramStore.install(appCtx, program, guestArch) { stage, percent ->
-                InstallService.updateProgress(
-                    if (percent != null) "$stage $percent%" else stage, percent
-                )
+            // p68: the status line composes the last stage + percent +
+            // speed + ETA, whichever the library has reported so far.
+            // appCtx strings here: the fragment may be detached
+            // mid-download, the application context never is.
+            var lastStage = appCtx.getString(R.string.store_status_installing)
+            var lastPercent: Int? = null
+            var lastSpeed: String? = null
+            fun refreshStatus() {
+                val base = if (lastPercent != null) "$lastStage $lastPercent%" else lastStage
+                val line = if (lastSpeed != null) "$base · $lastSpeed" else base
+                val pct = lastPercent
                 uiHandler.post {
                     if (!isAdded) return@post
-                    if (percent != null) {
-                        progress.setProgress(percent * 10)
-                        progress.setStatus("$stage $percent%")
-                    } else {
-                        progress.setIndeterminate(true)
-                        progress.setStatus(stage)
-                    }
+                    if (pct != null) progress.setProgress(pct * 10) else progress.setIndeterminate(true)
+                    progress.setStatus(line)
                 }
             }
+            val result = ProgramStore.install(
+                appCtx, program, guestArch,
+                onProgress = { stage, percent ->
+                    lastStage = stage
+                    lastPercent = percent
+                    InstallService.updateProgress(
+                        if (percent != null) "$stage $percent%" else stage, percent
+                    )
+                    refreshStatus()
+                },
+                onSpeed = { mbps, etaSec ->
+                    val speed = appCtx.getString(
+                        R.string.store_dl_speed,
+                        String.format(Locale.US, "%.1f", mbps)
+                    )
+                    lastSpeed = if (etaSec != null) {
+                        "$speed · " + appCtx.getString(
+                            R.string.store_dl_eta,
+                            String.format(Locale.US, "%d", etaSec)
+                        )
+                    } else {
+                        speed
+                    }
+                    refreshStatus()
+                },
+                control = control
+            )
             // Verify step: show the checking stage while it runs.
             uiHandler.post {
                 if (!isAdded) return@post
-                progress.setIndeterminate(true)
-                progress.setStatus(getString(R.string.store_status_checking))
+                if (!control.paused) {
+                    progress.setIndeterminate(true)
+                    progress.setStatus(getString(R.string.store_status_checking))
+                }
             }
             val (verified, _) = if (result.exitCode == 0) {
                 ProgramStore.verify(appCtx, program)
@@ -248,7 +283,17 @@ class GamesFragment : Fragment() {
                 progress.dismiss()
                 InstallService.stop(appCtx)
                 if (!isAdded || _binding == null) return@post
-                if (result.exitCode == 0 && verified) {
+                if (control.paused) {
+                    // p68: not a failure. The partial file stays, the
+                    // next Install resumes it (or the cached copy).
+                    states[program.id] = ProgramState.NOT_INSTALLED
+                    adapter.refreshStates(states)
+                    Snackbar.make(
+                        binding.root,
+                        getString(R.string.store_dl_paused_resume, lastPercent ?: 0),
+                        Snackbar.LENGTH_LONG
+                    ).show()
+                } else if (result.exitCode == 0 && verified) {
                     states[program.id] = ProgramState.INSTALLED
                     adapter.refreshStates(states)
                     Snackbar.make(

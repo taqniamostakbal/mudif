@@ -25,6 +25,28 @@ object ProgramStore {
     /** Staging dir inside the guest for downloaded .debs and assets. */
     private const val STORE_TMP = "/tmp/mudif-store"
 
+    /** Guest path of the p68 download library (staged by LxqtLook). */
+    private const val MUDIF_DL = "/root/.config/mudif/mudif-dl.sh"
+
+    /**
+     * p68: pause handle for a running store download. The dialog's
+     * Pause button calls [pause]; it kills the guest command, the
+     * partial file stays (aria2c control file beside it), and the
+     * next Install resumes from the offset or from the cache.
+     * A pause during the dpkg phase is possible too; the next
+     * Install re-runs dpkg -i on the cached file, which repairs it.
+     */
+    class DownloadControl {
+        @Volatile
+        var command: TerminalSession.GuestCommand? = null
+        @Volatile
+        var paused = false
+        fun pause() {
+            paused = true
+            command?.cancel()
+        }
+    }
+
     /** Guest CPU architecture from uname -m, e.g. aarch64 or x86_64.
      *  p70: cached once known. Every list open used to spawn a full
      *  proot process (dozens of binds + DNS/tmp setup) just to run
@@ -178,27 +200,30 @@ object ProgramStore {
 
     /**
      * Runs a guest command, translating MUDIF_STAGE: / MUDIF_PROGRESS:
-     * marker lines into [onProgress] calls and stripping the markers
-     * from the returned output, so failure diagnostics show the real
-     * error instead of progress noise. A null [onProgress] runs the
-     * command exactly as before (no streaming, no stripping).
+     * / MUDIF_SPEED: / MUDIF_CACHE_HIT marker lines into [onProgress]
+     * / [onSpeed] calls and stripping the markers from the returned
+     * output, so failure diagnostics show the real error instead of
+     * progress noise. A null [onProgress] runs the command exactly
+     * as before (no streaming, no stripping).
      * Stage text is Arabic (shown in the progress dialog as-is);
      * percent is 0..100 when the install reports a real one,
      * null when it does not (the dialog stays indeterminate).
+     * [control] (p68) runs the command through a cancelable handle;
+     * null keeps the old one-shot path.
      */
     private fun runWithProgress(
         context: Context,
         command: String,
         idleTimeoutSec: Long,
         maxTimeoutSec: Long,
-        onProgress: ((stage: String, percent: Int?) -> Unit)?
+        onProgress: ((stage: String, percent: Int?) -> Unit)?,
+        onSpeed: ((mbps: Double, etaSec: Long?) -> Unit)? = null,
+        control: DownloadControl? = null
     ): TerminalResult {
         if (onProgress == null) {
             return TerminalSession.runCommandDebian(context, command, idleTimeoutSec, maxTimeoutSec)
         }
-        val result = TerminalSession.runCommandDebian(
-            context, command, idleTimeoutSec, maxTimeoutSec
-        ) { line ->
+        val onLine: (String) -> Unit = { line ->
             when {
                 line.startsWith("MUDIF_STAGE:") -> {
                     onProgress(line.removePrefix("MUDIF_STAGE:"), null)
@@ -206,6 +231,15 @@ object ProgramStore {
                 line.startsWith("MUDIF_PROGRESS:") -> {
                     val pct = line.removePrefix("MUDIF_PROGRESS:").trim().toIntOrNull()
                     if (pct != null) onProgress(context.getString(R.string.downloading), pct.coerceIn(0, 100))
+                }
+                line.startsWith("MUDIF_SPEED:") -> {
+                    val parts = line.removePrefix("MUDIF_SPEED:").trim().split(":")
+                    val mbps = parts.getOrNull(0)?.toDoubleOrNull()
+                    val eta = parts.getOrNull(1)?.toLongOrNull()?.takeIf { it >= 0 }
+                    if (mbps != null) onSpeed?.invoke(mbps, eta)
+                }
+                line.startsWith("MUDIF_CACHE_HIT") -> {
+                    onProgress(context.getString(R.string.store_dl_from_cache), null)
                 }
                 else -> {
                     // apt's own download progress, when it prints one:
@@ -217,8 +251,16 @@ object ProgramStore {
                 }
             }
         }
+        val result = if (control != null) {
+            val guest = TerminalSession.startCommandDebian(context, command, idleTimeoutSec, maxTimeoutSec, onLine)
+                ?: return TerminalResult(context.getString(R.string.ui_term_not_ready_mudif), -1, false)
+            control.command = guest
+            guest.await()
+        } else {
+            TerminalSession.runCommandDebian(context, command, idleTimeoutSec, maxTimeoutSec, onLine)
+        }
         val clean = result.output.lines()
-            .filter { !it.startsWith("MUDIF_STAGE:") && !it.startsWith("MUDIF_PROGRESS:") }
+            .filter { !it.startsWith("MUDIF_STAGE:") && !it.startsWith("MUDIF_PROGRESS:") && !it.startsWith("MUDIF_SPEED:") && !it.startsWith("MUDIF_CACHE_HIT") }
             .joinToString("\n").trim()
         return if (clean.isEmpty()) result else result.copy(output = clean)
     }
@@ -226,25 +268,33 @@ object ProgramStore {
     /** Installs the program in the guest. Caller must post-verify.
      * [onProgress] (optional) reports the real stage and, when the
      * install can measure it, a real 0..100 percentage. Nothing is
-     * faked: a stage without a measurable percentage reports null. */
+     * faked: a stage without a measurable percentage reports null.
+     * [onSpeed] (p68) reports the real download speed in MB/s and
+     * the ETA in seconds (null when unknown). [control] (p68) is the
+     * pause handle; null keeps the old non-cancelable path. */
     fun install(
         context: Context,
         program: StoreProgram,
         arch: String,
-        onProgress: ((stage: String, percent: Int?) -> Unit)? = null
+        onProgress: ((stage: String, percent: Int?) -> Unit)? = null,
+        onSpeed: ((mbps: Double, etaSec: Long?) -> Unit)? = null,
+        control: DownloadControl? = null
     ): TerminalResult {
         val result = when (program.method) {
             "apt" -> {
                 // Same command as before (dpkg --configure -a, then
                 // update && install), with stage markers at the real
                 // phase boundaries. The && keeps "install only runs
-                // if update succeeded".
+                // if update succeeded". p68: mirror-pick runs first
+                // (once per device, marker-gated, no-op after that)
+                // and measures the Debian mirrors before apt fetches.
                 val cmd = """
+                    sh $MUDIF_DL mirror-pick
                     dpkg --configure -a
                     echo "MUDIF_STAGE:${context.getString(R.string.store_stage_update)}"
                     DEBIAN_FRONTEND=noninteractive apt-get update && echo "MUDIF_STAGE:${context.getString(R.string.store_stage_install)}" && DEBIAN_FRONTEND=noninteractive apt-get install -y ${program.apt}
                 """.trimIndent()
-                runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress)
+                runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress, onSpeed, control)
             }
             "deb" -> {
                 val url = debUrlFor(program, arch)
@@ -261,6 +311,11 @@ object ProgramStore {
                 // The old code used $STORE_TMP / $url / $file without
                 // ever assigning them, so EVERY deb install failed
                 // with "mkdir: missing operand" + curl errors.
+                // p68: the download itself goes through the library
+                // (segmented aria2c + resume + on-device cache) instead
+                // of a single curl stream. The loop also reports the
+                // real speed (MB/s, exponential-ish average of the
+                // last samples) and the ETA in seconds.
                 val urlQ = "'" + url.replace("'", "'\\''") + "'"
                 val fileQ = "'" + file.replace("'", "'\\''") + "'"
                 val cmd = """
@@ -270,11 +325,24 @@ object ProgramStore {
                     mkdir -p ${'$'}STORE_TMP
                     echo "MUDIF_STAGE:${context.getString(R.string.store_stage_download)}"
                     total=${'$'}(curl -fsSLI "${'$'}url" | grep -i '^content-length:' | tail -1 | awk '{print ${'$'}2}' | tr -d '\r')
-                    curl -fsSL -o ${'$'}STORE_TMP/${'$'}file "${'$'}url" &
+                    sh $MUDIF_DL dl "${'$'}url" "${'$'}STORE_TMP/${'$'}file" &
                     dl_pid=${'$'}!
+                    prev_got=0; prev_t=${'$'}(date +%s); ema=0
                     while kill -0 "${'$'}dl_pid" 2>/dev/null; do
+                      got=${'$'}(stat -c%s ${'$'}STORE_TMP/${'$'}file 2>/dev/null || echo 0)
+                      now=${'$'}(date +%s)
+                      dt=${'$'}((now - prev_t))
+                      if [ "${'$'}dt" -ge 1 ]; then
+                        inst=${'$'}(((got - prev_got) / dt))
+                        if [ "${'$'}ema" -eq 0 ]; then ema=${'$'}inst; else ema=${'$'}(((ema + inst) / 2)); fi
+                        prev_got=${'$'}got; prev_t=${'$'}now
+                        if [ -n "${'$'}total" ] && [ "${'$'}total" -gt 0 ] && [ "${'$'}ema" -gt 0 ]; then
+                          mbps=${'$'}(awk -v b=${'$'}ema 'BEGIN { printf "%.1f", b/1048576 }')
+                          eta=${'$'}(((total - got) / ema))
+                          echo "MUDIF_SPEED:${'$'}mbps:${'$'}eta"
+                        fi
+                      fi
                       if [ -n "${'$'}total" ] && [ "${'$'}total" -gt 0 ]; then
-                        got=${'$'}(stat -c%s ${'$'}STORE_TMP/${'$'}file 2>/dev/null || echo 0)
                         echo "MUDIF_PROGRESS:${'$'}((got*100/total))"
                       else
                         echo "${context.getString(R.string.store_stage_download)}"
@@ -286,7 +354,7 @@ object ProgramStore {
                     dpkg -i ${'$'}STORE_TMP/${'$'}file || { dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -f -y; }
                     dpkg-query -W -f='${'$'}{Status}' ${program.debPackage} 2>/dev/null | grep -q "install ok installed"
                 """.trimIndent()
-                runWithProgress(context, "($cmd) 2>&1", 180, 3600, onProgress)
+                runWithProgress(context, "($cmd) 2>&1", 180, 3600, onProgress, onSpeed, control)
             }
             "script" -> {
                 if (!stageAssetToGuest(context, program.script!!, "$STORE_TMP/${program.script}")) {
