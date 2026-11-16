@@ -4,7 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
@@ -15,7 +15,7 @@ import com.bolm.mudif.R
  *  that opens the provider's key page. Tapping a model returns it
  *  to the chat (EXTRA_PICKED_MODEL); the chat applies it through the
  *  existing setModel backend and resets the session. */
-class BrainProvidersActivity : AppCompatActivity() {
+class BrainProvidersActivity : MudifActivity() {
 
     companion object {
         const val EXTRA_CURRENT_MODEL = "current_model"

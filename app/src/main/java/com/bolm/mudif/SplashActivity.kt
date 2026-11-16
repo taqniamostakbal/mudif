@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 
 /**
  * Launcher splash: purple brand screen (logo + name + slogan) shown
@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
  * display (900 ms); MainActivity does nothing heavy at startup, so
  * the splash never blocks startup work.
  */
-class SplashActivity : AppCompatActivity() {
+class SplashActivity : MudifActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val goMain = Runnable {

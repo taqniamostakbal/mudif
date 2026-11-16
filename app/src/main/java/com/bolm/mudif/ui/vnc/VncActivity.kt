@@ -10,7 +10,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.annotation.DrawableRes
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import androidx.core.content.ContextCompat
 import androidx.mediarouter.app.MediaRouteChooserDialogFragment
 import com.bolm.mudif.R
@@ -67,7 +67,7 @@ import java.util.concurrent.atomic.AtomicReference
  * kill the session or the X server (P5.11 kept): the desktop stays
  * alive until the app process dies or the next entry reboots it.
  */
-class VncActivity : AppCompatActivity() {
+class VncActivity : MudifActivity() {
 
     private lateinit var binding: ActivityVncBinding
 

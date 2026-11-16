@@ -23,7 +23,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import com.bolm.mudif.R
@@ -39,7 +39,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial
  * (com.bolm.mudif_preferences); the viewer's OnSharedPreferenceChangeListener
  * applies it live, no restart needed.
  */
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : MudifActivity() {
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->

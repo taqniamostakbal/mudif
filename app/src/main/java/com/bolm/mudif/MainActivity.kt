@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.databinding.ActivityMainBinding
@@ -22,7 +22,7 @@ import com.bolm.mudif.ui.profile.ProfileFragment
 import com.bolm.mudif.ui.settings.SettingsActivity
 import com.bolm.mudif.ui.store.StoreFragment
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : MudifActivity() {
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {

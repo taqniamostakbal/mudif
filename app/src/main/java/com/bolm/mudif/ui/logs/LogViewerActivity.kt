@@ -5,7 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityLogViewerBinding
 import com.bolm.mudif.engine.DesktopDiagnostics
@@ -18,7 +18,7 @@ import com.bolm.mudif.engine.DesktopDiagnostics
  *
  * Entry points: the desktop screen (VncActivity) and the حسابي tab.
  */
-class LogViewerActivity : AppCompatActivity() {
+class LogViewerActivity : MudifActivity() {
 
     private lateinit var binding: ActivityLogViewerBinding
 

@@ -1,6 +1,8 @@
 package com.bolm.mudif.ui.settings
 
 import android.content.Context
+import android.content.res.Configuration
+import java.util.Locale
 import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
@@ -27,6 +29,20 @@ import com.google.android.material.button.MaterialButton
  * language. p57: the link is unconditional now; the old manual
  * reply-language menu is gone, so the agent always follows the
  * app language.
+ * p61: setApplicationLocales alone does NOT move the visible UI.
+ * MainActivity declares locale in configChanges, so AppCompat's
+ * live-switch path only updates the Resources object in place and
+ * never re-inflates the already drawn views, and the saved tag was
+ * never applied at cold start at all (no Application class, no
+ * attachBaseContext anywhere), so a fresh install showed the system
+ * language while the row still claimed Arabic. wrapBaseContext()
+ * below is the real application: every activity wraps its base
+ * context with the saved tag before any resource is loaded, so the
+ * saved language is the effective locale on every start and after
+ * every switch, with no restart needed beyond the relaunch apply()
+ * already does. It never touches Locale.setDefault, so the p50
+ * Latin-digits formatting (Locale.US pinned at each call site)
+ * cannot regress.
  */
 object AppLanguage {
 
@@ -38,6 +54,29 @@ object AppLanguage {
     const val TAG_ENGLISH = "en"
 
     val TAGS = listOf(TAG_FUSHA, TAG_DARIJA, TAG_ENGLISH)
+
+    /** Locale for a saved tag; unknown tags fall back to Fusha. */
+    fun localeForTag(tag: String): Locale = when (tag) {
+        TAG_DARIJA -> Locale.forLanguageTag(TAG_DARIJA)
+        TAG_ENGLISH -> Locale.forLanguageTag(TAG_ENGLISH)
+        else -> Locale.forLanguageTag(TAG_FUSHA)
+    }
+
+    /** Wrap [context] so its resources resolve in the saved app
+     *  language. Called from every activity's attachBaseContext
+     *  (see MudifActivity) before any layout or string is loaded.
+     *  Returns the context unchanged when it already carries the
+     *  saved locale, so a normal start costs nothing. */
+    fun wrapBaseContext(context: Context): Context {
+        val tag = currentTag(context)
+        val locale = localeForTag(tag)
+        val current = context.resources.configuration.locales.get(0)
+        if (current == locale) return context
+        val config = Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        config.setLayoutDirection(locale)
+        return context.createConfigurationContext(config)
+    }
 
     /** Current tag; Fusha ("ar") when nothing was chosen yet. */
     fun currentTag(context: Context): String {

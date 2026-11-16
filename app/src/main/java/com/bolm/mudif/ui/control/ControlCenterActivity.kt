@@ -14,7 +14,7 @@ import android.os.StatFs
 import android.provider.Settings
 import android.view.View
 import android.widget.SeekBar
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityControlCenterBinding
 import java.io.File
@@ -33,7 +33,7 @@ import java.util.Locale
  * - CPU: two /proc/stat samples 500 ms apart. RAM: ActivityManager.
  *   Storage: StatFs. All refreshed by the "تحديث" button.
  */
-class ControlCenterActivity : AppCompatActivity() {
+class ControlCenterActivity : MudifActivity() {
     private lateinit var binding: ActivityControlCenterBinding
     private lateinit var audio: AudioManager
 
