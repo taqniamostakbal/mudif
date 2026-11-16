@@ -244,7 +244,12 @@ object X11Session {
      * P5.24: one 800ms connect can fail under load right after the
      * desktop starts (P5.23 test: the dialog said false while
      * /proc/net/tcp proved LISTEN + ESTABLISHED). Retry 3 times so a
-     * single slow connect does not report a dead socket. */
+     * single slow connect does not report a dead socket. Decision
+     * points (fast reattach, the step-4 gate, the post-close guard
+     * in runXStartup) keep this 3-attempt probe. The two polling
+     * waits below use isTcpDisplayOpenOnce instead: the wait loop
+     * itself retries, so the inner retry only made each poll
+     * iteration cost up to 3 s (3x800ms + 2x300ms). */
     fun isTcpDisplayOpen(): Boolean {
         repeat(3) { attempt ->
             try {
@@ -260,16 +265,36 @@ object X11Session {
         return false
     }
 
+    /** One 800ms TCP probe, no retries. ONLY for the polling waits
+     *  below: the wait loop itself is the retry, so a failed single
+     *  attempt just means one more loop iteration 500 ms later.
+     *  Never use this for a one-shot decision (fast reattach, the
+     *  step-4 gate, the post-close guard): those keep the 3-attempt
+     *  isTcpDisplayOpen above (P5.24). */
+    private fun isTcpDisplayOpenOnce(): Boolean {
+        return try {
+            java.net.Socket().use { s ->
+                s.connect(java.net.InetSocketAddress("127.0.0.1", TCP_PORT), 800)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /**
      * Wait until the X server accepts TCP connections on
      * 127.0.0.1:6006. The Unix socket file can exist before the server
      * is ready to accept, so the socket check alone is not enough.
      * A connect+immediate-close is harmless to the server.
+     * p69: polls with the single-attempt probe (the loop is the
+     * retry); the old 3-attempt probe made each iteration cost up
+     * to 3 s, so the 10 s timeout only polled ~3 times.
      */
     fun waitForTcpDisplay(timeoutMs: Long = 10000): Boolean {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         while (SystemClock.uptimeMillis() < deadline) {
-            if (isTcpDisplayOpen()) {
+            if (isTcpDisplayOpenOnce()) {
                 Log.d(TAG, "TCP display ready")
                 return true
             }
@@ -287,11 +312,16 @@ object X11Session {
      * signal, unlike the socket FILE, which a SIGKILLed server
      * never deletes (see waitForXSocketGone). Returns false on
      * timeout: the old server survived the stop.
+     * p69: polls with the single-attempt probe (the loop is the
+     * retry). The destructive step after this wait
+     * (deleteStaleXSocketFiles) stays guarded by the 3-attempt
+     * isTcpDisplayOpen in runXStartup, so a transient single
+     * failure can never delete a live server's socket files.
      */
     fun waitForTcpDisplayClosed(timeoutMs: Long = 10000): Boolean {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         while (SystemClock.uptimeMillis() < deadline) {
-            if (!isTcpDisplayOpen()) {
+            if (!isTcpDisplayOpenOnce()) {
                 Log.d(TAG, "TCP display closed, old server dead")
                 return true
             }
