@@ -61,7 +61,7 @@ class AppsAdapter(
         val ctx = holder.binding.root.context
         val busy = busyIds.contains(p.id)
         with(holder.binding) {
-            if (animatedIds.add(p.id)) {
+            if (position < 12 && animatedIds.add(p.id)) {
                 CardEntrance.play(root, CardEntrance.staggerDelay(position))
             }
             appName.text = p.name
@@ -98,6 +98,14 @@ class AppsAdapter(
     }
 
     override fun getItemCount() = items.size
+
+    /** p70: stop the row's entrance animation and its pending icon
+     *  load when the row leaves the screen. */
+    override fun onViewRecycled(holder: Holder) {
+        super.onViewRecycled(holder)
+        CardEntrance.cancel(holder.binding.root)
+        StoreIconLoader.cancel(holder.binding.appIcon)
+    }
 
     companion object {
         private const val ICON_TILE_DP = 56

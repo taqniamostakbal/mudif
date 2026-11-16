@@ -35,6 +35,9 @@ class AppsFragment : Fragment() {
     private var installed: List<StoreProgram> = emptyList()
     private val busyIds = HashSet<String>()
     private var loaded = false
+    // p70: the last check failed (guest unreachable). The button
+    // then retries the check instead of opening the store.
+    private var checkFailed = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,7 +56,13 @@ class AppsFragment : Fragment() {
         )
         binding.recycler.adapter = adapter
         binding.btnGoStore.setOnClickListener {
-            (activity as? MainActivity)?.selectTab(R.id.nav_store)
+            if (checkFailed) {
+                checkFailed = false
+                showLoading()
+                loadInstalled()
+            } else {
+                (activity as? MainActivity)?.selectTab(R.id.nav_store)
+            }
         }
         showLoading()
         loadInstalled()
@@ -93,10 +102,24 @@ class AppsFragment : Fragment() {
             // Reverted to the binary test only, as in P18.5-tip.
             val launchable = all.filter { it.binary != null }
             val map = ProgramStore.batchStatus(appCtx, launchable)
+            if (map == null) {
+                // p70: the check itself failed. Never show this as
+                // "nothing installed": that silent lie is the defect.
+                uiHandler.post {
+                    if (!isAdded) return@post
+                    loaded = true
+                    checkFailed = true
+                    installed = emptyList()
+                    adapter.submitList(emptyList())
+                    showCheckFailed()
+                }
+                return@Thread
+            }
             val list = launchable.filter { map[it.id] == true }
             uiHandler.post {
                 if (!isAdded) return@post
                 loaded = true
+                checkFailed = false
                 installed = list
                 adapter.submitList(list)
                 if (list.isEmpty()) {
@@ -121,7 +144,21 @@ class AppsFragment : Fragment() {
         binding.emptyTitle.text = title
         binding.emptyMessage.text = message
         binding.emptyMessage.visibility = View.VISIBLE
+        binding.btnGoStore.text = getString(R.string.apps_go_to_store)
         binding.btnGoStore.visibility = if (showButton) View.VISIBLE else View.GONE
+        binding.emptyState.visibility = View.VISIBLE
+        binding.recycler.visibility = View.GONE
+    }
+
+    /** The guest check itself failed: never show this as "nothing
+     *  installed" (that silent lie is the p70 defect). The button
+     *  retries the check instead of opening the store. */
+    private fun showCheckFailed() {
+        binding.emptyTitle.text = getString(R.string.apps_check_failed_title)
+        binding.emptyMessage.text = getString(R.string.apps_check_failed_text)
+        binding.emptyMessage.visibility = View.VISIBLE
+        binding.btnGoStore.text = getString(R.string.ui_vnc_fail_retry)
+        binding.btnGoStore.visibility = View.VISIBLE
         binding.emptyState.visibility = View.VISIBLE
         binding.recycler.visibility = View.GONE
     }

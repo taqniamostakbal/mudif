@@ -5,9 +5,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
+import android.util.LruCache
 import android.widget.ImageView
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 /**
  * One shared icon loader for the store, games, and apps lists.
@@ -19,22 +21,41 @@ import java.util.concurrent.Executors
  * recycled holder never shows a stale icon. The placeholder the
  * caller drew stays visible until the bitmap arrives.
  *
- * Cache rules: decoded bitmaps live in a non-null map, and failed
- * opens are recorded once in [missingIcons]. A missing icon therefore
- * costs one failed open ever, not one per bind (the old nullable
- * getOrPut cache re-ran the failing open on every rebind, because a
- * stored null reads back as absent).
+ * Cache rules: decoded bitmaps live in a bounded 12 MB LRU (p70:
+ * the old unbounded map kept every icon forever, 32.8 MB for the
+ * full catalog), and failed opens are recorded once in
+ * [missingIcons]. A missing icon therefore costs one failed open
+ * ever, not one per bind (the old nullable getOrPut cache re-ran
+ * the failing open on every rebind, because a stored null reads
+ * back as absent). Decodes for recycled rows are cancelled by
+ * [cancel], so a fling no longer queues work for off-screen rows.
  */
 object StoreIconLoader {
 
     private val executor = Executors.newFixedThreadPool(2)
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private val cache = ConcurrentHashMap<String, Bitmap>()
+    /**
+     * p70: bounded LRU cache, 12 MB. The old cache was an unbounded
+     * map that kept every decoded icon forever: the real catalog
+     * decodes to 32.8 MB at 56dp (934 icons x 36 KB), retained for
+     * the life of the process, and a fling filled it to the top
+     * while the decode queue behind it kept growing. 12 MB holds
+     * about 340 icons, far more than any visible window plus
+     * scrollback; evicted bitmaps are simply decoded again.
+     * LruCache is thread-safe, so the pool thread (put) and the main
+     * thread (get) share it directly.
+     */
+    private const val MAX_CACHE_KB = 12 * 1024
+    private val cache = object : LruCache<String, Bitmap>(MAX_CACHE_KB) {
+        override fun sizeOf(key: String, value: Bitmap): Int =
+            maxOf(1, value.byteCount / 1024)
+    }
     private val missingIcons = ConcurrentHashMap.newKeySet<String>()
 
     private val pendingLock = Any()
     private val pending = HashMap<String, MutableList<Pending>>()
+    private val running = HashMap<String, Future<*>>()
 
     private data class Pending(
         val view: ImageView,
@@ -67,25 +88,51 @@ object StoreIconLoader {
             val list = pending.getOrPut(iconName) { mutableListOf() }
             list.add(Pending(imageView, onResult))
             if (list.size > 1) return
-        }
-        executor.execute {
-            val targetPx = (targetDp * appContext.resources.displayMetrics.density + 0.5f).toInt()
-            val bitmap = decodeSampled(appContext, iconName, targetPx)
-            mainHandler.post {
-                val waiting: List<Pending>
-                synchronized(pendingLock) {
-                    waiting = pending.remove(iconName) ?: emptyList()
-                }
-                if (bitmap != null) {
-                    cache[iconName] = bitmap
-                } else {
-                    missingIcons.add(iconName)
-                }
-                for (item in waiting) {
-                    if (item.view.tag == iconName) item.onResult(bitmap)
+            running[iconName] = executor.submit {
+                val targetPx = (targetDp * appContext.resources.displayMetrics.density + 0.5f).toInt()
+                val bitmap = decodeSampled(appContext, iconName, targetPx)
+                mainHandler.post {
+                    val waiting: List<Pending>
+                    synchronized(pendingLock) {
+                        waiting = pending.remove(iconName) ?: emptyList()
+                        running.remove(iconName)
+                    }
+                    if (bitmap != null) {
+                        cache.put(iconName, bitmap)
+                    } else {
+                        missingIcons.add(iconName)
+                    }
+                    for (item in waiting) {
+                        if (item.view.tag == iconName) item.onResult(bitmap)
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * Drop a recycled view's pending deliveries (p70). A fling used
+     * to queue icon decodes for rows that had already scrolled off
+     * screen, and the callbacks held the recycled ImageViews; the
+     * tag check only skipped the final apply. Adapters call this
+     * from onViewRecycled: the view leaves every waiting list, and
+     * an icon left with no waiters has its queued decode cancelled
+     * before it runs. A decode already running finishes harmlessly:
+     * its waiting list is empty, so the bitmap is only cached.
+     */
+    fun cancel(imageView: ImageView) {
+        synchronized(pendingLock) {
+            val emptied = ArrayList<String>()
+            for ((icon, list) in pending) {
+                list.removeAll { it.view === imageView }
+                if (list.isEmpty()) emptied.add(icon)
+            }
+            for (icon in emptied) {
+                pending.remove(icon)
+                running.remove(icon)?.cancel(false)
+            }
+        }
+        imageView.tag = null
     }
 
     /** Decode the PNG downsampled so neither side exceeds [targetPx]. */

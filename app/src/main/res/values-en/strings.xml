@@ -55,6 +55,10 @@
     <string name="apps_subtitle">Your installed programs, launch with one tap</string>
     <string name="apps_empty_title">No programs installed yet</string>
     <string name="apps_empty_text">Install programs from the store and they will appear here to launch with one tap.</string>
+    <!-- p70: the installed check itself failed (not "nothing
+         installed"). The Apps tab shows this with a retry button. -->
+    <string name="apps_check_failed_title">Could not check installed programs</string>
+    <string name="apps_check_failed_text">The system could not be reached to check installed programs. Try again.</string>
     <string name="apps_system_not_ready">The Mudif system is not installed yet, install it from the store first</string>
     <string name="apps_go_to_store">Browse the store</string>
     <string name="apps_launch">Launch</string>

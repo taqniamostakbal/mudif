@@ -10,4 +10,7 @@
     <item name="nav_apps" type="id" />
     <item name="nav_games" type="id" />
     <item name="nav_agent" type="id" />
+    <!-- p70: tag key for the running CardEntrance AnimatorSet on a
+         list row, so onViewRecycled can cancel it. -->
+    <item name="card_entrance_animator" type="id" />
 </resources>

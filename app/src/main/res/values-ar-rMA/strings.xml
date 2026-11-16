@@ -55,6 +55,10 @@
     <string name="apps_subtitle">البرامج المثبتة ديالك، شغّلها بضغطة وحدة</string>
     <string name="apps_empty_title">ما كاين حتى برنامج مثبت دابا</string>
     <string name="apps_empty_text">ثبّت برامج من المتجر وغادي تظهر هنا باش تشغّلها بضغطة وحدة.</string>
+    <!-- p70: the installed check itself failed (not "nothing
+         installed"). The Apps tab shows this with a retry button. -->
+    <string name="apps_check_failed_title">ما قدرناش نفحصو البرامج المثبتة</string>
+    <string name="apps_check_failed_text">ما وصلناش للنظام باش نفحصو البرامج. عاود المحاولة.</string>
     <string name="apps_system_not_ready">نظام مضيف ما زال ما تثبّتش، ثبّتو من المتجر أولا</string>
     <string name="apps_go_to_store">تصفح المتجر</string>
     <string name="apps_launch">تشغيل</string>

@@ -25,11 +25,23 @@ object ProgramStore {
     /** Staging dir inside the guest for downloaded .debs and assets. */
     private const val STORE_TMP = "/tmp/mudif-store"
 
-    /** Guest CPU architecture from uname -m, e.g. aarch64 or x86_64. */
+    /** Guest CPU architecture from uname -m, e.g. aarch64 or x86_64.
+     *  p70: cached once known. Every list open used to spawn a full
+     *  proot process (dozens of binds + DNS/tmp setup) just to run
+     *  uname -m, before the list could appear. The arch never
+     *  changes on a device, so a non-empty result is cached for the
+     *  life of the process; an empty result (guest not ready) is
+     *  never cached, so a later install is still detected. */
+    @Volatile
+    private var cachedArch: String? = null
+
     fun guestArch(context: Context): String {
+        cachedArch?.let { return it }
         val r = TerminalSession.runCommandDebian(context, "uname -m", 30, 60)
         val arch = r.output.trim()
-        return if (r.exitCode == 0 && arch.isNotEmpty()) arch else ""
+        val result = if (r.exitCode == 0 && arch.isNotEmpty()) arch else ""
+        if (result.isNotEmpty()) cachedArch = result
+        return result
     }
 
     fun isArm64(arch: String): Boolean = arch == "aarch64" || arch == "arm64"
@@ -42,43 +54,83 @@ object ProgramStore {
     fun debUrlFor(program: StoreProgram, arch: String): String? =
         if (isArm64(arch)) program.debArm64 else program.deb
 
-    /** Shell test that is true when the program is installed.
-     * P18.6: dpkg -s exits 0 for "rc" packages (removed, config
-     * files remain), so it reported uninstalled programs as
-     * installed. dpkg-query + "install ok installed" (the test
-     * verify() already uses) is true only for really installed
-     * packages. */
-    fun verifySnippet(program: StoreProgram): String = when (program.method) {
-        "apt" -> "dpkg-query -W -f='\${Status}' ${program.apt} 2>/dev/null | grep -q \"install ok installed\""
-        "deb" -> "dpkg-query -W -f='\${Status}' ${program.debPackage} 2>/dev/null | grep -q \"install ok installed\""
-        "script" -> "command -v ${program.binary} >/dev/null 2>&1"
-        "font" -> if (program.font != null) {
-            "[ -f /usr/share/fonts/truetype/lifta/${program.font} ]"
-        } else {
-            "dpkg-query -W -f='\${Status}' ${program.apt} 2>/dev/null | grep -q \"install ok installed\""
-        }
-        else -> "false"
-    }
-
     /**
-     * Installed state for many programs in ONE guest call. Each line
-     * of output is "<id>=1" or "<id>=0". Programs missing from the
-     * result keep their previous state.
+     * Installed state for many programs in ONE guest call.
+     *
+     * p70: the old implementation built ONE shell script with one
+     * dpkg-query process PER program (1,139 checks = a 153,054-byte
+     * command string) and passed it as a single argv element to
+     * /bin/sh -c. Linux refuses any argv element over 131,072 bytes
+     * (MAX_ARG_STRLEN, E2BIG; proven: 131,071 works, 131,072 fails),
+     * so ProcessBuilder.start() threw on EVERY full-list check, the
+     * runner returned exit -1, and this function returned an empty
+     * map, which every caller read as "nothing installed". The store
+     * (1,226 checks, 166,733 bytes) failed the same way; only small
+     * category pages (at most 242 checks, about 33 KB) ever worked.
+     * The new implementation asks the guest ONE question per data
+     * source (the whole dpkg database in one dpkg-query, one
+     * command -v loop for the 6 script binaries, one file test for
+     * the font), so the script stays under 2 KB, runs in about a
+     * second, and agrees with verify() exactly: a package counts as
+     * installed only when its Status is "install ok installed".
+     *
+     * Returns null when the guest check itself fails (guest
+     * unreachable, timeout). Callers must NOT read null as "nothing
+     * installed": the store keeps UNKNOWN, the Apps tab shows a
+     * check-failed state with a retry.
      */
-    fun batchStatus(context: Context, programs: List<StoreProgram>): Map<String, Boolean> {
+    fun batchStatus(context: Context, programs: List<StoreProgram>): Map<String, Boolean>? {
         if (programs.isEmpty()) return emptyMap()
         val script = StringBuilder()
-        for (p in programs) {
-            script.append("if ").append(verifySnippet(p))
-                .append("; then echo ").append(p.id)
-                .append("=1; else echo ").append(p.id).append("=0; fi\n")
+        script.append("dpkg-query -W -f='\${Package} \${Status}\\n' 2>/dev/null || echo 'DPKG_FAILED'\n")
+        val scriptBins = programs.filter { it.method == "script" }
+            .mapNotNull { it.binary }.distinct()
+        for (bin in scriptBins) {
+            val q = "'" + bin.replace("'", "'\\''") + "'"
+            script.append("command -v ").append(q)
+                .append(" >/dev/null 2>&1 && echo 'BIN:").append(bin).append("'\n")
         }
-        val r = TerminalSession.runCommandDebian(context, script.toString(), 60, 300)
-        if (r.exitCode != 0) return emptyMap()
-        val out = HashMap<String, Boolean>()
+        val fontPrograms = programs.filter { it.method == "font" && it.font != null }
+        for (p in fontPrograms) {
+            val path = "/usr/share/fonts/truetype/lifta/${p.font}"
+            val q = "'" + path.replace("'", "'\\''") + "'"
+            script.append("[ -f ").append(q).append(" ] && echo 'FONT:")
+                .append(p.id).append("'\n")
+        }
+        // The last line decides the shell exit code, and a missing
+        // binary or font is a normal "not installed", not a failure:
+        // without this, a missing lifta font made the whole script
+        // exit 1 and batchStatus reported "check failed" even
+        // though the dpkg data was fine. A real dpkg failure is
+        // signalled by the DPKG_FAILED line above, not the code.
+        script.append("true\n")
+        val r = TerminalSession.runCommandDebian(context, script.toString(), 30, 120)
+        if (r.exitCode != 0) return null
+        val installedPkgs = HashSet<String>()
+        val foundBins = HashSet<String>()
+        val foundFonts = HashSet<String>()
         for (line in r.output.lines()) {
-            val parts = line.trim().split("=")
-            if (parts.size == 2) out[parts[0]] = parts[1] == "1"
+            val trimmed = line.trim()
+            when {
+                trimmed == "DPKG_FAILED" -> return null
+                trimmed.endsWith("install ok installed") ->
+                    installedPkgs.add(trimmed.substringBefore(' '))
+                trimmed.startsWith("BIN:") ->
+                    foundBins.add(trimmed.removePrefix("BIN:").trim())
+                trimmed.startsWith("FONT:") ->
+                    foundFonts.add(trimmed.removePrefix("FONT:").trim())
+            }
+        }
+        val out = HashMap<String, Boolean>()
+        for (p in programs) {
+            out[p.id] = when (p.method) {
+                "apt" -> p.apt != null && installedPkgs.contains(p.apt)
+                "deb" -> p.debPackage != null && installedPkgs.contains(p.debPackage)
+                "script" -> p.binary != null && foundBins.contains(p.binary)
+                "font" -> if (p.font != null) foundFonts.contains(p.id)
+                    else p.apt != null && installedPkgs.contains(p.apt)
+                else -> false
+            }
         }
         return out
     }

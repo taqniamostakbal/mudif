@@ -128,11 +128,13 @@ class GamesFragment : Fragment() {
         }.start()
     }
 
-    /** One guest call for all games; missing entries keep UNKNOWN. */
+    /** One guest call for all games; missing entries keep UNKNOWN.
+     *  A null map means the check itself failed: leave every state
+     *  UNKNOWN (never show a failed check as "not installed"). */
     private fun refreshStatuses() {
         val appCtx = requireContext().applicationContext
         Thread {
-            val map = ProgramStore.batchStatus(appCtx, games)
+            val map = ProgramStore.batchStatus(appCtx, games) ?: return@Thread
             uiHandler.post {
                 if (!isAdded || _binding == null) return@post
                 for ((id, installed) in map) {

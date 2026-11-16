@@ -81,6 +81,15 @@ class CategoryCardAdapter(
 
     override fun getItemCount() = categories.size
 
+    /** p70: stop the card's entrance animation when the card leaves
+     *  the screen. No icon load to cancel here (vector resource).
+     *  Only 9 categories exist, so the position gate is moot: all
+     *  of them are on the first screen by definition. */
+    override fun onViewRecycled(holder: Holder) {
+        super.onViewRecycled(holder)
+        CardEntrance.cancel(holder.binding.root)
+    }
+
     private fun dp(v: Int, holder: Holder): Int =
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, v.toFloat(),

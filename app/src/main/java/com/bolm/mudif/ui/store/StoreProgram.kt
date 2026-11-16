@@ -122,9 +122,29 @@ enum class StoreCategory(
     }
 }
 
-/** Loads the catalog JSON from assets. Throws on a malformed file. */
+/** Loads the catalog JSON from assets. Throws on a malformed file.
+ *  p70: parsed once per process and cached. Every list open
+ *  (store, category, apps, games, home stats, agent bridge) used
+ *  to re-parse the 745 KB JSON from scratch before showing
+ *  anything, which is a visible part of "any list takes very long
+ *  to show the programs". The asset never changes at runtime, so
+ *  the parsed list is immutable and safe to share; callers only
+ *  read or filter it, never mutate it. */
 object StoreCatalog {
+    @Volatile
+    private var cached: List<StoreProgram>? = null
+
     fun load(context: Context): List<StoreProgram> {
+        cached?.let { return it }
+        synchronized(this) {
+            cached?.let { return it }
+            val parsed = parse(context)
+            cached = parsed
+            return parsed
+        }
+    }
+
+    private fun parse(context: Context): List<StoreProgram> {
         val text = context.assets.open("store-catalog.json")
             .bufferedReader().use { it.readText() }
         val arr = JSONObject(text).getJSONArray("programs")

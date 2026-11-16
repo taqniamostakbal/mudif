@@ -141,11 +141,13 @@ class StoreCategoryFragment : Fragment() {
         }.start()
     }
 
-    /** One guest call for all programs; missing entries keep UNKNOWN. */
+    /** One guest call for all programs; missing entries keep UNKNOWN.
+     *  A null map means the check itself failed: leave every state
+     *  UNKNOWN (never show a failed check as "not installed"). */
     private fun refreshAllStatuses() {
         val appCtx = requireContext().applicationContext
         Thread {
-            val map = ProgramStore.batchStatus(appCtx, programs)
+            val map = ProgramStore.batchStatus(appCtx, programs) ?: return@Thread
             uiHandler.post {
                 if (!isAdded) return@post
                 for ((id, installed) in map) {

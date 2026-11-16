@@ -92,7 +92,7 @@ class ArcadeAdapter(
             // the app). The icon tile keeps its per-category
             // gradient: it is an icon well, not a card.
             cardBg.setBackgroundResource(R.drawable.home_stat_gradient)
-            if (animatedIds.add(program.id)) {
+            if (position < 12 && animatedIds.add(program.id)) {
                 CardEntrance.play(root, CardEntrance.staggerDelay(position))
             }
 
@@ -132,6 +132,14 @@ class ArcadeAdapter(
     }
 
     override fun getItemCount() = items.size
+
+    /** p70: stop the card's entrance animation and its pending icon
+     *  load when the card leaves the screen. */
+    override fun onViewRecycled(holder: Holder) {
+        super.onViewRecycled(holder)
+        CardEntrance.cancel(holder.binding.root)
+        StoreIconLoader.cancel(holder.binding.gameIcon)
+    }
 
     companion object {
         private const val ICON_TILE_DP = 32
