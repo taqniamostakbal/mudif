@@ -121,10 +121,10 @@ dependencies {
     // (no WRITE_SECURE_SETTINGS write, no ADB dialog); the
     // accessibility service is manual now, enabled by hand in Android
     // Settings > Accessibility, and the switch opens that screen.
-    // p77: fork commit 6079a441 removes both mouse bars (only the X
+    // p77: fork commit 7a96cffa1 removes both mouse bars (only the X
     // arrow cursor stays) and replaces the "Not connected" stub
     // with Mudif's own screen (penguin, Arabic, start-desktop retry).
-    implementation("com.github.taqniamostakbal:termux-x11:6079a441cdf6626528c6103cbd740847e9ff4e69") {
+    implementation("com.github.taqniamostakbal:termux-x11:7a96cffa7db7ad1dd9ad5f2c4015dfe60cc22839") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
