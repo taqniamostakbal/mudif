@@ -27,10 +27,21 @@
     android:orientation="vertical"
     android:background="?attr/colorSurface">
 
+    <!-- p76: the header is a card, not a full-bleed bar. Before, it
+         was match_parent with no margins, so its gradient
+         background's 16dp corners sat flush against the screen
+         edges and the top corners were cut off (Anas 13:54
+         screenshot, office header). 16dp sides + 12dp top match
+         the search box below it; clipToOutline keeps the children
+         inside the rounded shape. -->
     <LinearLayout
         android:id="@+id/category_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="12dp"
+        android:clipToOutline="true"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:background="@color/mudif_purple"
