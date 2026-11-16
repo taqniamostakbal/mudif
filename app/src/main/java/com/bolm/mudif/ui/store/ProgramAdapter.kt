@@ -1,7 +1,5 @@
 package com.bolm.mudif.ui.store
 
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +10,7 @@ import androidx.core.content.ContextCompat
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemProgramBinding
 import com.bolm.mudif.databinding.ItemSectionHeaderBinding
+import com.bolm.mudif.ui.CardEntrance
 
 /** One row in the program list: a category header or a program card. */
 sealed class StoreListItem {
@@ -99,6 +98,15 @@ class ProgramAdapter(
         }
     }
 
+    /** p70: stop the row's entrance animation and its pending icon
+     *  load when the row leaves the screen. Without this, a fling
+     *  left dozens of AnimatorSets mutating recycled views and
+     *  queued icon decodes for off-screen rows. */
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        (holder as? ProgramHolder)?.recycle()
+    }
+
     inner class HeaderHolder(private val binding: ItemSectionHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(item: StoreListItem.Header) {
@@ -112,6 +120,15 @@ class ProgramAdapter(
 
     inner class ProgramHolder(private val binding: ItemProgramBinding) :
         RecyclerView.ViewHolder(binding.root) {
+
+        /** p70: cancel this row's entrance animation and pending
+         *  icon load when the row is recycled. Called from the
+         *  adapter's onViewRecycled, so a fling cannot leave
+         *  animators and decodes running for off-screen rows. */
+        fun recycle() {
+            CardEntrance.cancel(binding.root)
+            StoreIconLoader.cancel(binding.programIcon)
+        }
 
         fun bind(program: StoreProgram, position: Int) {
             val ctx = binding.root.context
@@ -182,18 +199,13 @@ class ProgramAdapter(
             binding.btnInstall.setOnClickListener { onInstall(program) }
             binding.btnUninstall.setOnClickListener { onUninstall(program) }
 
-            if (animatedIds.add(program.id)) {
-                val delay = (position.coerceAtMost(12) * 25).toLong()
-                val fade = ObjectAnimator.ofFloat(binding.root, View.ALPHA, 0f, 1f)
-                val slide = ObjectAnimator.ofFloat(
-                    binding.root, View.TRANSLATION_Y, 24f, 0f
-                )
-                AnimatorSet().apply {
-                    playTogether(fade, slide)
-                    duration = 200
-                    startDelay = delay
-                    start()
-                }
+            // p70: the entrance animation runs only for the first
+            // screenful. Rows bound during a fling never animate:
+            // before this, every first bind started an AnimatorSet
+            // that was never cancelled on recycle, so a fling left
+            // dozens of sets mutating recycled views.
+            if (position < 12 && animatedIds.add(program.id)) {
+                CardEntrance.play(binding.root, CardEntrance.staggerDelay(position))
             }
         }
     }
