@@ -113,7 +113,11 @@ dependencies {
     // p58: fork commit 1f1fc6af compacts the mouse bar to a fixed
     // 164x102dp, gear opens the viewer settings, raw Trackpad drag
     // (cursor moves on the first pixel, no 8dp slop dead zone).
-    implementation("com.github.taqniamostakbal:termux-x11:1f1fc6af9a0e977c466185a696c7218189d2094b") {
+    // p62: fork commit 0a8f91be turns the bar into a single-row pill
+    // (three 48dp zones with L/M/R mouse icons + 40dp gear, 208x56dp,
+    // 45 percent shorter, 30 percent less area) and drops the 100ms
+    // gear tap gate, so a normal deliberate tap opens the settings.
+    implementation("com.github.taqniamostakbal:termux-x11:0a8f91bed1f893a9b08168392a2fdce16b1472c1") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }
