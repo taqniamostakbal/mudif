@@ -98,7 +98,7 @@ class ProgramAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        onBindViewHolder(holder, position, emptyList())
+        onBindViewHolder(holder, position, mutableListOf<Any>())
     }
 
     /** p73: with a state payload the row takes the status-only
