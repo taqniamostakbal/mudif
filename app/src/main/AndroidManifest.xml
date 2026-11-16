@@ -53,11 +53,21 @@
             android:exported="false"
             android:label="@string/tab_terminal"
             android:windowSoftInputMode="adjustPan" />
+        <!-- p75: rotation must not recreate this activity on entry.
+             Without configChanges, entering from portrait destroyed
+             and recreated it (landscape lock): the new instance's
+             startDesktop() returned at once on the startInProgress
+             flag while the first instance's thread finished the
+             work against a destroyed activity, so startlxqt was
+             never sent and the status screen stalled. With the
+             rotation handled here, the same instance that started
+             the run finishes it and opens the viewer. -->
         <activity
             android:name=".ui.vnc.VncActivity"
             android:exported="false"
             android:label="@string/ui_vnc_activity_label"
             android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout"
             android:screenOrientation="landscape" />
         <activity
             android:name=".ui.settings.SettingsActivity"
