@@ -117,7 +117,11 @@ dependencies {
     // (three 48dp zones with L/M/R mouse icons + 40dp gear, 208x56dp,
     // 45 percent shorter, 30 percent less area) and drops the 100ms
     // gear tap gate, so a normal deliberate tap opens the settings.
-    implementation("com.github.taqniamostakbal:termux-x11:0a8f91bed1f893a9b08168392a2fdce16b1472c1") {
+    // p67: fork commit 39161487 makes KeyInterceptor.launch() passive
+    // (no WRITE_SECURE_SETTINGS write, no ADB dialog); the
+    // accessibility service is manual now, enabled by hand in Android
+    // Settings > Accessibility, and the switch opens that screen.
+    implementation("com.github.taqniamostakbal:termux-x11:391614871f0b74726458d4970c8e16d850f9b681") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }

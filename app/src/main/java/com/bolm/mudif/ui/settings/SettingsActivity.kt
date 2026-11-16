@@ -29,6 +29,7 @@ import androidx.core.content.res.ResourcesCompat
 import com.bolm.mudif.R
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
+import com.termux.x11.utils.KeyInterceptor
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -286,6 +287,25 @@ class SettingsActivity : MudifActivity() {
                     )
                     setOnCheckedChangeListener { _, checked ->
                         prefs.edit().putBoolean(setting.key, checked).apply()
+                        // p67: this switch used to write the pref and stop
+                        // there, so the viewer then demanded an ADB grant
+                        // to auto-start its accessibility service (the
+                        // card Anas reported). The service is manual now:
+                        // on ON, open Android Settings > Accessibility
+                        // and tell the user what to enable there, unless
+                        // the service is already running. A normal user
+                        // action, no ADB, no Developer options. On OFF,
+                        // only the pref changes.
+                        if (setting.key == "enableAccessibilityServiceAutomatically" && checked
+                            && !KeyInterceptor.isLaunched()
+                        ) {
+                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            Toast.makeText(
+                                this@SettingsActivity,
+                                getString(R.string.vp_accessibility_manual_toast),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
                 }
                 top.addView(sw)

@@ -276,8 +276,9 @@
     <string name="vp_dexmetakeycapture_desc">Capture the Meta (Win) key in Samsung Dex mode</string>
     <string name="vp_enableaccessibilityservice_title">Enable the accessibility service manually</string>
     <string name="vp_enableaccessibilityservice_desc">Open the system accessibility settings to intercept system shortcuts</string>
-    <string name="vp_enableaccessibilityserviceautomatically_title">Enable the accessibility service automatically</string>
-    <string name="vp_enableaccessibilityserviceautomatically_desc">Requires the WRITE_SECURE_SETTINGS permission</string>
+    <string name="vp_enableaccessibilityserviceautomatically_title">Intercept system shortcuts</string>
+    <string name="vp_enableaccessibilityserviceautomatically_desc">Enable it by hand in Android Settings > Accessibility.</string>
+    <string name="vp_accessibility_manual_toast">Enable Termux:X11 in Android Settings > Accessibility to intercept system shortcuts.</string>
     <string name="vp_pausekeyinterceptingwithesc_title">Pause key interception with Esc</string>
     <string name="vp_pausekeyinterceptingwithesc_desc">Requires intercepting system shortcuts</string>
     <string name="vp_filteroutwinkey_title">Filter out the intercepted Win key</string>
