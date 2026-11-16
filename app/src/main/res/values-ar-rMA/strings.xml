@@ -276,8 +276,9 @@
     <string name="vp_dexmetakeycapture_desc">التقاط مفتاح Meta (Win) فوضع سامسونج Dex</string>
     <string name="vp_enableaccessibilityservice_title">فعّل خدمة الوصول بيدك</string>
     <string name="vp_enableaccessibilityservice_desc">فتح إعدادات الوصول فالنظام لاعتراض اختصارات النظام</string>
-    <string name="vp_enableaccessibilityserviceautomatically_title">فعّل خدمة الوصول بوحدها</string>
-    <string name="vp_enableaccessibilityserviceautomatically_desc">خاصها إذن WRITE_SECURE_SETTINGS</string>
+    <string name="vp_enableaccessibilityserviceautomatically_title">اعتراض اختصارات النظام</string>
+    <string name="vp_enableaccessibilityserviceautomatically_desc">فعّلها بيدك من إعدادات أندرويد > إمكانية الوصول.</string>
+    <string name="vp_accessibility_manual_toast">فعّل Termux:X11 من إعدادات أندرويد > إمكانية الوصول باش يعترض اختصارات النظام.</string>
     <string name="vp_pausekeyinterceptingwithesc_title">وقّف اعتراض المفاتيح مؤقتا بمفتاح Esc</string>
     <string name="vp_pausekeyinterceptingwithesc_desc">خاصها اعتراض اختصارات النظام</string>
     <string name="vp_filteroutwinkey_title">صفّي مفتاح Win المعترض</string>
