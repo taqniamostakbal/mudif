@@ -5,7 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
@@ -26,7 +26,7 @@ import java.util.Locale
  * Safety: PID 1 (the container init) can never be killed from here
  *, killing it would kill the whole guest. Every kill asks first.
  */
-class TaskManagerActivity : AppCompatActivity() {
+class TaskManagerActivity : MudifActivity() {
 
     private lateinit var binding: ActivityTaskManagerBinding
     private val adapter = ProcessAdapter { process -> confirmKill(process) }

@@ -64,6 +64,18 @@ class ProfileFragment : Fragment() {
         binding.rowLanguage.setOnClickListener {
             (requireActivity() as? AppCompatActivity)?.let { AppLanguage.showPicker(it) }
         }
+        // p61: the row subtitle shows the language actually
+        // chosen, in the current UI language. It used to be a
+        // static layout string (language_value) that always read
+        // "Arabic" under an English UI, which is exactly the
+        // mismatch Anas reported.
+        binding.textLanguageValue.text = getString(
+            when (AppLanguage.currentTag(requireContext())) {
+                AppLanguage.TAG_DARIJA -> R.string.language_darija
+                AppLanguage.TAG_ENGLISH -> R.string.language_english
+                else -> R.string.language_fusha
+            }
+        )
         // p56: the About row opens the owner card (MudifDialog.about).
         // It used to show "coming soon"; the dialog exists since
         // Phase 1a and the sidebar already opens it.

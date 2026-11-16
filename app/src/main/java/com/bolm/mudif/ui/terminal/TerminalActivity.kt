@@ -1,7 +1,7 @@
 package com.bolm.mudif.ui.terminal
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import com.bolm.mudif.ui.MudifActivity
 import com.bolm.mudif.R
 
 /**
@@ -9,7 +9,7 @@ import com.bolm.mudif.R
  * Hosts TerminalFragment, kept separate from MainActivity because
  * BottomNavigationView supports a maximum of 5 items.
  */
-class TerminalActivity : AppCompatActivity() {
+class TerminalActivity : MudifActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_terminal)
