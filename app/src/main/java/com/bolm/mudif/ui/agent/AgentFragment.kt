@@ -1783,12 +1783,12 @@ class AgentFragment : Fragment() {
             // Charter: the screenshot is deleted after the turn,
             // success or failure; the bytes already live in memory.
             val deleted = try { shot.delete() } catch (e: Exception) { false }
-            android.util.MudifLog.d(
+            MudifLog.d(
                 "AgentFragment",
                 "vision shot deleted after turn: $deleted"
             )
             val seconds = (SystemClock.elapsedRealtime() - t0) / 1000.0
-            android.util.MudifLog.d(
+            MudifLog.d(
                 "AgentFragment",
                 "vision read: capture+describe took ${"%.1f".format(Locale.US, seconds)} s"
             )
