@@ -443,6 +443,14 @@ class VncActivity : MudifActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // p77: the viewer stub's "تشغيل سطح المكتب" button brings
+        // this activity forward to (re)start the desktop. Handled
+        // before the pending-app line below so a pending app launch
+        // is never clobbered by the retry.
+        if (intent.getBooleanExtra(EXTRA_START_DESKTOP, false)) {
+            startDesktop()
+            return
+        }
         // p36 defect 3: the viewer overlay routes its TV button here
         // (EXTRA_SHOW_TV_CHOOSER) so the user gets the same chooser
         // as btnTv, Cast first, instead of a direct settings open.
@@ -1019,6 +1027,13 @@ class VncActivity : MudifActivity() {
          * (showTvChooser) instead of restarting the desktop.
          */
         const val EXTRA_SHOW_TV_CHOOSER = "show_tv_chooser"
+        /**
+         * p77: set by the viewer stub's "تشغيل سطح المكتب" button
+         * (the fork's MainActivity). VncActivity is brought forward
+         * and onNewIntent (re)starts the desktop. A fresh instance
+         * needs no handling: onCreate auto-starts it.
+         */
+        const val EXTRA_START_DESKTOP = "start_desktop"
         /** P6, نظام مضيف: Debian 13.1 + LXQt, the ONE system. */
         const val DESKTOP_MUDIF = "mudif"
 
