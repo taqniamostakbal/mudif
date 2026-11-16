@@ -782,6 +782,41 @@ object AgentServer {
      * the rig-proven local Ollama provider (qwen3:1.7b). Nothing is
      * created that needs an account or a key.
      */
+    /**
+     * p79 R8: structural JSON equality for the merge gate.
+     * Android's org.json has no JSONObject.similar() (that exists
+     * only in upstream JSON-java), so the comparison is recursive:
+     * objects by key set + per-key values, arrays element-wise,
+     * numbers numerically (1 and 1.0 are the same JSON number),
+     * JSON null by identity. Formatting never matters.
+     */
+    private fun jsonSimilar(a: Any?, b: Any?): Boolean {
+        if (a === b) return true
+        if (a == null || b == null) return false
+        if (a is JSONObject && b is JSONObject) {
+            if (a.length() != b.length()) return false
+            val keys = a.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                if (!b.has(k)) return false
+                if (!jsonSimilar(a.opt(k), b.opt(k))) return false
+            }
+            return true
+        }
+        if (a is org.json.JSONArray && b is org.json.JSONArray) {
+            if (a.length() != b.length()) return false
+            for (i in 0 until a.length()) {
+                if (!jsonSimilar(a.opt(i), b.opt(i))) return false
+            }
+            return true
+        }
+        if (a is Number && b is Number) return a.toDouble() == b.toDouble()
+        if (a === JSONObject.NULL || b === JSONObject.NULL) {
+            return a === JSONObject.NULL && b === JSONObject.NULL
+        }
+        return a == b
+    }
+
     fun mergeAgentConfig(context: Context) {
         val rootfs = DebianSystem.debianRootfsDir(context)
         val configFile = File(rootfs, OPENCODE_CONFIG_GUEST_PATH)
@@ -906,10 +941,10 @@ object AgentServer {
         config.put("agent", agents)
         // p79 R8: content-compare gate. The merge is add-if-missing,
         // so the common case is an identical config: skip the write
-        // (and the backup) when the merged result is similar to the
-        // file already on disk. similar() compares structure, not
-        // text, so formatting never forces a write.
-        if (original != null && original.similar(config)) {
+        // (and the backup) when the merged result is structurally
+        // equal to the file already on disk. jsonSimilar compares
+        // structure, not text, so formatting never forces a write.
+        if (original != null && jsonSimilar(original, config)) {
             MudifLog.d(TAG, "mergeAgentConfig: config unchanged, skipping write")
             return
         }

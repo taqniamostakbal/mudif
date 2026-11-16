@@ -45,7 +45,15 @@ object MudifLog {
         if (isDebugEnabled()) Log.d(tag, msg)
     }
 
+    fun d(tag: String, msg: String, t: Throwable) {
+        if (isDebugEnabled()) Log.d(tag, msg, t)
+    }
+
     fun i(tag: String, msg: String) {
         if (isDebugEnabled()) Log.i(tag, msg)
+    }
+
+    fun i(tag: String, msg: String, t: Throwable) {
+        if (isDebugEnabled()) Log.i(tag, msg, t)
     }
 }
