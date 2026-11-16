@@ -625,6 +625,7 @@
     <string name="download_pause">وقّف</string>
     <string name="download_resume">كمّل</string>
     <string name="download_cancel">لغي التحميل</string>
+    <string name="download_dismiss">خبيها</string>
     <string name="download_paused">واقف… %1$d%%</string>
     <string name="download_cancelled">تلغى التحميل</string>
     <string name="download_cancel_failed">تلغى التحميل ولكن بقات ملفات جزئية</string>

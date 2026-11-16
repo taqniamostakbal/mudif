@@ -217,7 +217,14 @@ class AgentFragment : Fragment() {
         }
         updateProfileCardVisibility()
         binding.btnBrainDownload.setOnClickListener { onBrainDownloadAction() }
-        binding.btnBrainDownloadCancel.setOnClickListener { cancelBrainDownload() }
+        // p60: the X is state-aware. While a download runs (or is
+        // paused) it cancels, exactly as in p47. In idle state it
+        // dismisses the card instead: the card hides and the
+        // dismissal persists, so the nag stays gone across restarts.
+        binding.btnBrainDownloadCancel.setOnClickListener {
+            if (brainDownloadRunning || downloadPaused) cancelBrainDownload()
+            else dismissBrainDownloadCard()
+        }
         checkBrainModelOnOpen()
         refreshVisionChip()
 
@@ -771,7 +778,11 @@ class AgentFragment : Fragment() {
         lastDownloadPct = 0
         pullHandle = null
         binding.brainDownloadCard.visibility = View.VISIBLE
-        binding.btnBrainDownloadCancel.visibility = View.GONE
+        // p60: the X is visible in idle state too, as dismiss (not
+        // cancel: nothing is downloading). Its description says so.
+        binding.btnBrainDownloadCancel.visibility = View.VISIBLE
+        binding.btnBrainDownloadCancel.contentDescription =
+            getString(R.string.download_dismiss)
         // p34f fix 8: the banner overlays the list; lift the
         // bottom padding so the newest message never hides behind it.
         // p47: the card is compact now (~51dp), so the lift drops
@@ -801,6 +812,23 @@ class AgentFragment : Fragment() {
         binding.agentRecycler.setPadding(pad, pad, pad, pad)
     }
 
+    /** p60: was this model's download card dismissed? One flag per
+     *  model id, so dismissing the vision offer never hides the
+     *  brain offer (chat cannot work at all without the brain). */
+    private fun isDownloadDismissed(model: String): Boolean =
+        prefs().getString(KEY_DISMISSED_DOWNLOAD_MODEL, null) == model
+
+    /** p60: dismiss the idle card. Records the dismissed model so
+     *  the on-open nag stays hidden across restarts, then hides
+     *  the card. The download itself stays reachable: pick the
+     *  model on the provider screen and the next turn for it shows
+     *  the card again as the remedy. */
+    private fun dismissBrainDownloadCard() {
+        if (brainDownloadRunning || downloadPaused) return
+        prefs().edit().putString(KEY_DISMISSED_DOWNLOAD_MODEL, downloadModel).apply()
+        hideBrainDownloadCard()
+    }
+
     /** Background check when the tab opens: if Ollama answers but
      *  the model is missing, show the download card (no turn is started).
      *  The brain comes first (the chat needs it); when it is present
@@ -817,8 +845,15 @@ class AgentFragment : Fragment() {
                     // p43: a cloud brain needs no local model
                     // download, so the brain card stays hidden;
                     // the vision offer below is untouched.
-                    !hasBrain && brainModel == BRAIN_LOCAL -> showBrainDownloadCard()
-                    hasVision == false -> showBrainDownloadCard(AgentServer.VISION_MODEL)
+                    // p60: a dismissed offer stays hidden here;
+                    // the turn-failure gates below still show the
+                    // card as the remedy when the model is needed.
+                    !hasBrain && brainModel == BRAIN_LOCAL ->
+                        if (isDownloadDismissed(AgentServer.BRAIN_MODEL)) hideBrainDownloadCard()
+                        else showBrainDownloadCard()
+                    hasVision == false ->
+                        if (isDownloadDismissed(AgentServer.VISION_MODEL)) hideBrainDownloadCard()
+                        else showBrainDownloadCard(AgentServer.VISION_MODEL)
                     else -> hideBrainDownloadCard()
                 }
             }
@@ -901,7 +936,10 @@ class AgentFragment : Fragment() {
         pullHandle = null
         binding.brainDownloadProgress.visibility = View.GONE
         binding.brainDownloadProgress.progress = 0
-        binding.btnBrainDownloadCancel.visibility = View.GONE
+        // p60: back to idle, so the X is dismiss again, not cancel.
+        binding.btnBrainDownloadCancel.visibility = View.VISIBLE
+        binding.btnBrainDownloadCancel.contentDescription =
+            getString(R.string.download_dismiss)
         binding.btnBrainDownload.isEnabled = true
         binding.btnBrainDownloadCancel.isEnabled = true
         val isVision = downloadModel == AgentServer.VISION_MODEL
@@ -927,6 +965,10 @@ class AgentFragment : Fragment() {
         pullHandle = handle
         binding.btnBrainDownload.text = getString(R.string.download_pause)
         binding.btnBrainDownloadCancel.visibility = View.VISIBLE
+        // p60: while a download runs the X is cancel again (it was
+        // dismiss in idle); the tap dispatches on this state.
+        binding.btnBrainDownloadCancel.contentDescription =
+            getString(R.string.download_cancel)
         binding.brainDownloadProgress.visibility = View.VISIBLE
         binding.brainDownloadProgress.progress = lastDownloadPct
         val appContext = context?.applicationContext
@@ -2912,6 +2954,11 @@ class AgentFragment : Fragment() {
         private const val KEY_VOICE_OUT = "voice_out"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_BRAIN_MODEL = "brain_model"
+        // p60: the model id whose download card the user dismissed
+        // (brain or vision). The on-open nag respects it; the
+        // turn-failure gates do not, because the card is the remedy
+        // there and the picker has no download button of its own.
+        private const val KEY_DISMISSED_DOWNLOAD_MODEL = "dismissed_download_model"
         // Vision increment 2: the picked cloud vision model id
         // ("google/gemini-2.5-flash"), or "" for local vision.
         // Written by the provider screen (long-press a vision
