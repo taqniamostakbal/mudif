@@ -303,7 +303,7 @@ object LxqtLook {
     // (stdin EOF); رقي and نظف carry the same gap in source.
     // An existing rootfs must re-apply to pick it up; without
     // this bump the fix repeats the p43 trap.
-    const val MARKER_VERSION = "p30"
+    const val MARKER_VERSION = "p31"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
