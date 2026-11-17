@@ -145,7 +145,7 @@
         }
       },
       "name": "LLM7",
-      "package": "@opencode/ai/providers/openai-compatible",
+      "package": "@ai-sdk/openai-compatible",
       "settings": {
         "baseURL": "https://api.llm7.io/v1"
       },

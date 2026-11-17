@@ -787,6 +787,51 @@ object AgentServer {
      * baseURL), existing model names, the top-level "model" pick and
      * any keys are never touched.
      */
+    /**
+     * p93: backfill the npm package and options of an existing
+     * provider from the asset when they are missing. The p41
+     * model-level merge never touched these fields, so a provider
+     * added whole before the asset gained package/settings (llm7
+     * on the rig: env/models/name only) stayed uninitializable
+     * forever. Only fills what is missing; a present npm/options
+     * is never overwritten, except the known-wrong V2 package
+     * path, which no V1 config can install (the asset value is
+     * the source of truth for it). A block written in V2 form
+     * carries "package"/"settings" instead of "npm"/"options";
+     * those are renamed the same way the new-provider path does.
+     * Runs inside mergeAgentConfig, so the repair lands on the
+     * next server start after the install, with no image rebuild.
+     */
+    private const val V2_PACKAGE_PATH = "@opencode/ai/providers/openai-compatible"
+
+    private fun backfillProviderPackage(existing: JSONObject?, assetEntry: JSONObject) {
+        if (existing == null) return
+        if (existing.has("package") && !existing.has("npm")) {
+            existing.put("npm", existing.remove("package"))
+        }
+        if (existing.has("settings") && !existing.has("options")) {
+            existing.put("options", existing.remove("settings"))
+        }
+        val assetPackage = assetEntry.optString("package", "")
+        if (assetPackage.isNotBlank()) {
+            val currentNpm = existing.optString("npm", "")
+            if (currentNpm.isBlank()) {
+                existing.put("npm", assetPackage)
+            } else if (currentNpm == V2_PACKAGE_PATH && assetPackage != V2_PACKAGE_PATH) {
+                // An earlier merge renamed the V2 package path
+                // into the V1 npm field verbatim; V1 cannot
+                // install that path, so the provider never
+                // initializes. The asset value is the source
+                // of truth for it.
+                existing.put("npm", assetPackage)
+            }
+        }
+        val assetSettings = assetEntry.optJSONObject("settings")
+        if (assetSettings != null && !existing.has("options")) {
+            existing.put("options", JSONObject(assetSettings.toString()))
+        }
+    }
+
     private fun mergeProviderModels(existing: JSONObject?, assetEntry: JSONObject) {
         if (existing == null) return
         val assetModels = assetEntry.optJSONObject("models") ?: return
@@ -928,7 +973,16 @@ object AgentServer {
         // and any provider the user added himself are never replaced.
         // The asset uses "package"/"settings"; the rig-proven
         // opencode shape is "npm"/"options", so those keys are
-        // renamed on the way in. The default model stays Local
+        // renamed on the way in. p93: the rename also maps the
+        // VALUE, not just the key. The asset used to carry the V2
+        // package path (@opencode/ai/providers/openai-compatible)
+        // for llm7, google, cohere and mistral; that path is not
+        // a V1 npm package, so a verbatim rename left the provider
+        // uninitializable. The asset now carries the V1 package
+        // (@ai-sdk/openai-compatible) for llm7, and
+        // backfillProviderPackage repairs existing blocks (and
+        // corrects the wrong V2 value) instead of copying it.
+        // The default model stays Local
         // (ollama/qwen3:1.7b) unless the user picks another brain.
         try {
             val providersJson = JSONObject(
@@ -944,6 +998,12 @@ object AgentServer {
                         // p41: the provider is already there (upgrade, or
                         // the minimal config just created it), so merge at
                         // the MODEL level instead of skipping wholesale.
+                        // p93: also backfill npm/options, which the
+                        // model-level merge never touched (an llm7 block
+                        // added whole before the asset gained
+                        // package/settings stayed env/models/name only
+                        // and could never initialize).
+                        backfillProviderPackage(providers.optJSONObject(name), entry)
                         mergeProviderModels(providers.optJSONObject(name), entry)
                         continue
                     }
