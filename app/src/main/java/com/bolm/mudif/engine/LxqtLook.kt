@@ -434,12 +434,24 @@ object LxqtLook {
     // re-apply to pick it up. The image stays p23; only the
     // look version moves. Without this bump the fix repeats the
     // p43 trap.
-    const val MARKER_VERSION = "p36"
+    // P37 (2026-11-17, p91): p91 stages two rotating desktop
+    // wallpapers (mudif-wallpaper-premium.png, the dark premium
+    // penguin, and mudif-wallpaper-green.png, the green
+    // storybook penguin; both his picks) plus the rotate script
+    // and its LXQt autostart entry, so an existing rootfs must
+    // re-apply to pick them up. The image stays p23; only the
+    // look version moves. The gradient wallpaper stays staged
+    // and selectable; the rotation alternates only between the
+    // two new ones. Without this bump the change repeats the
+    // p43 trap.
+    const val MARKER_VERSION = "p37"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
     private const val WALLPAPER_BOLD_ASSET = "mudif-wallpaper-bold.png"
     private const val WALLPAPER_GRADIENT_ASSET = "mudif-wallpaper-gradient.png"
+    private const val WALLPAPER_PREMIUM_ASSET = "mudif-wallpaper-premium.png"
+    private const val WALLPAPER_GREEN_ASSET = "mudif-wallpaper-green.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
     private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
@@ -447,6 +459,7 @@ object LxqtLook {
     private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
     private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
     private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
+    private const val ROTATE_SH_ASSET = "mudif-cli/mudif-wallpaper-rotate.sh"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
     private const val TRANSLATIONS_ZIP_ASSET = "translations.zip"
     private const val THEME_ZIP_ASSET = "mudif-theme.zip"
@@ -619,6 +632,22 @@ object LxqtLook {
                     input.copyTo(out)
                 }
             }
+            // p91: the two rotating wallpapers are staged next to
+            // the others so they are selectable in the desktop
+            // wallpaper settings; the rotate script (below)
+            // alternates between these two only. The gradient
+            // stays staged and selectable, and stays the staged
+            // default in PCMANFM_SETTINGS_CONF.
+            context.assets.open(WALLPAPER_PREMIUM_ASSET).use { input ->
+                File(backgrounds, "mudif-wallpaper-premium.png").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            context.assets.open(WALLPAPER_GREEN_ASSET).use { input ->
+                File(backgrounds, "mudif-wallpaper-green.png").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
             val lxqtDir = File(rootfs, "root/.config/lxqt")
             lxqtDir.mkdirs()
             File(lxqtDir, "lxqt.conf").writeText(lxqtConf(scale))
@@ -702,6 +731,20 @@ object LxqtLook {
                 }
             }
             File(binDir, "mudif-about").setExecutable(true, false)
+            // p91 - the wallpaper rotator: alternates between the
+            // two new wallpapers on every desktop start and every
+            // 30 minutes while the desktop runs (state in
+            // root/.config/mudif/wallpaper-index, flock single
+            // instance). Staged here (not only baked in the image)
+            // so an existing phone picks it up on this update.
+            // setExecutable: the autostart entry execs it directly,
+            // and a fresh outputStream file would be 644.
+            context.assets.open(ROTATE_SH_ASSET).use { input ->
+                File(binDir, "mudif-wallpaper-rotate.sh").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            File(binDir, "mudif-wallpaper-rotate.sh").setExecutable(true, false)
             // P8FIX2: the scheme MUST live in the system dir
             // /usr/share/qtermwidget6/color-schemes/ (the built-in
             // COLORSCHEMES_DIR). qtermwidget's get_color_schemes_dirs()
@@ -871,6 +914,13 @@ object LxqtLook {
             // profile set), so the autostart is disabled the
             // same way powermanagement is.
             File(autostartDir, "lxqt-xscreensaver-autostart.desktop").writeText(XSCREENSAVER_HIDDEN)
+            // p91 - the wallpaper rotator autostart: LXQt runs
+            // root/.config/autostart/*.desktop on every desktop
+            // start (same mechanism as the xrdb entry above), so
+            // the rotator starts with the session and alternates
+            // the wallpaper. No systemd in the proot guest, so
+            // autostart (not a timer unit) is the mechanism.
+            File(autostartDir, "mudif-wallpaper-rotate.desktop").writeText(WALLPAPER_ROTATE_AUTOSTART)
             File(rootfs, "root/$MARKER").writeText("$MARKER_VERSION\n")
         } catch (e: Exception) {
             MudifLog.d(TAG, "look config write failed: ${e.message}")
@@ -1623,6 +1673,15 @@ Xcursor.size: 48
 Type=Application
 Name=xrdb-xresources
 Exec=xrdb -merge /root/.Xresources
+"""
+
+    // p91 - the wallpaper rotator autostart entry (see
+    // ensureLxqtLook). The script alternates the two new
+    // wallpapers; the Exec path is the staged script.
+    private const val WALLPAPER_ROTATE_AUTOSTART = """[Desktop Entry]
+Type=Application
+Name=mudif-wallpaper-rotate
+Exec=/usr/local/bin/mudif-wallpaper-rotate.sh
 """
 
     // p22 - screensaver: the image ships lxqt-xscreensaver-autostart
