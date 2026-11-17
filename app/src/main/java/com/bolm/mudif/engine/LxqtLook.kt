@@ -450,7 +450,20 @@ object LxqtLook {
     // re-apply to pick them up. The image stays p23; only the
     // look version moves. Without this bump the change repeats
     // the p43 trap.
-    const val MARKER_VERSION = "p39"
+    // P40 (2026-11-17, p96): p96 corrects the p95 panel fixes
+    // the rig refuted: [panel1] iconSize=48 (p95 wrote it into
+    // [General], which the panel never reads, so the penguin
+    // stayed 22px); both spacers back to fixed (the expandable
+    // centering hypothesis is falsified by the upstream layout
+    // code: an expandable spacer's sizeHint is 1px, the taskbar
+    // absorbs the leftover and pins its button to its start);
+    // and the ~/Desktop launcher copy is re-staged with
+    // Icon=mudif-launcher (p95 only rewrote the applications
+    // copy, so the desktop icon stayed the gear). An existing
+    // rootfs must re-apply to pick them up. The image stays p23;
+    // only the look version moves. Without this bump the change
+    // repeats the p43 trap.
+    const val MARKER_VERSION = "p40"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -889,6 +902,22 @@ object LxqtLook {
             val launcherDesktop = File(rootfs, "usr/share/applications/mudif-launcher.desktop")
             launcherDesktop.parentFile?.mkdirs()
             launcherDesktop.writeText(MUDIF_LAUNCHER_DESKTOP)
+            // p96: the DESKTOP copy (~/Desktop/mudif-launcher.desktop)
+            // was never re-staged. The p23 image baked it with
+            // Icon=system-run (build-image.sh copies the same file
+            // to both places at image time), and p95 only rewrote
+            // the /usr/share/applications copy above, so the live
+            // desktop icon stayed the WhiteSur gear (p95 F5). The
+            // desktop icon is this file, not the applications one.
+            // Same pattern as above: full rewrite from the same
+            // const (the file is Mudif's own, never user-edited).
+            // writeText truncates in place, so the inode, the +x
+            // mode and the metadata::trust xattr survive; the
+            // post-staging re-kill in VncActivity starts a fresh
+            // pcmanfm-desktop that reads the new Icon.
+            val desktopLauncher = File(rootfs, "root/Desktop/mudif-launcher.desktop")
+            desktopLauncher.parentFile?.mkdirs()
+            desktopLauncher.writeText(MUDIF_LAUNCHER_DESKTOP)
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
@@ -1323,19 +1352,22 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // Papirus-Dark + hicolor only, no mudif). Writing
         // iconTheme=WhiteSur-light here makes the panel use it.
         // P21: mudif -> WhiteSur-light (baked into the p21 image).
-        // p95 - [General] iconSize=48. The panel's own stylesheet
-        // (lxqtpanel.cpp updateStyleSheet) sets qproperty-iconSize
-        // from this value on every plugin button, and a widget's
-        // ancestor stylesheet beats the theme QSS, so the theme
-        // QSS cannot size the mainmenu button: the 22px default
-        // is what made the penguin a 29px sliver (p93 round). 48
-        // grows the penguin to 48px and every other panel icon
-        // with it (quicklaunch, tray, taskbar); the widths still
-        // fit (see the spacer note below). The panel preserves
-        // this value when it rewrites panel.conf on exit.
+        // p96 correction of the p95 note: [General] iconSize is
+        // NEVER read by the panel. lxqtpanel.cpp readSettings()
+        // does mSettings->beginGroup(mConfigGroup) with
+        // mConfigGroup = "panel1" (lxqtpanelapplication.cpp: the
+        // first panel is named panel1) and reads iconSize there,
+        // default PANEL_DEFAULT_ICON_SIZE 22 (lxqtpanellimits.h).
+        // updateStyleSheet() sizes the buttons from mIconSize,
+        // which is that [panel1] value. p95 wrote 48 into
+        // [General] and the penguin stayed 22px on the rig (p95
+        // F2), which is exactly what this code predicts. The
+        // stale [General] iconSize=48 line p95 wrote passes
+        // through the merge untouched (a dead key, never read);
+        // it is left in place because the merge has no key
+        // deletion mechanism and inventing one is out of scope.
         val generalKeys = linkedMapOf(
-            "iconTheme" to "WhiteSur-light",
-            "iconSize" to "48"
+            "iconTheme" to "WhiteSur-light"
         )
         // P11: the QuickLaunch plugin shows the 4 mockup apps
         // (file manager, terminal, browser, settings). The 4
@@ -1362,7 +1394,18 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // from [panel1] (default 32 when absent).
         // P23: adaptive (8.0 mm on the glass): 62px on the Nova 9,
         // 67 on a small phone, 48 on a tablet (the clamp floor).
-        val panel1Keys = linkedMapOf("panelSize" to scale.panelPx.toString())
+        // p96: iconSize=48 in [panel1] (see the generalKeys note:
+        // this is the section the panel actually reads). The
+        // merge replaces the rig's [panel1] iconSize=22 in place
+        // and the panel preserves it on exit (saveSettings writes
+        // it back into the same group). 48 grows the penguin to
+        // 48px and every other panel icon with it (quicklaunch,
+        // tray, taskbar); the panel height (62px on the Nova 9)
+        // still fits a 48px icon.
+        val panel1Keys = linkedMapOf(
+            "panelSize" to scale.panelPx.toString(),
+            "iconSize" to "48"
+        )
         // P14: the reference panel layout (mockups, mirrored for
         // RTL). Removed from the P13 list: showdesktop,
         // desktopswitch (the 4 3 2 1 pager), kbindicator (US S N C),
@@ -1376,8 +1419,14 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // p95: the "taskbar expands" expectation is FALSIFIED (p93
         // rig round: one window, one ~92px button, a 409px void
         // between the left group and the taskbar). The two spacers
-        // below are now expandable, which centers the taskbar
+        // below were made expandable to center the taskbar
         // instead (see the spacer note).
+        // p96: that centering is FALSIFIED too (p95 rig round:
+        // spacers ~306px vs ~10px; the upstream layout code gives
+        // an expandable spacer a 1px sizeHint, so it cannot split
+        // the leftover). The spacers below are fixed separators
+        // again; the button position now follows the iconSize 48
+        // widths (see the spacer note).
         // p90 (polish spec section 5): the two lined separators
         // return, in the plugins list and as sections below: one
         // after quicklaunch (launcher group | taskbar) and one
@@ -1414,33 +1463,49 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // The values below equal the defaults; they are written
         // explicitly so the separators are visible in panel.conf
         // and do not depend on a future default change.
-        // p95: both spacers become expandable, so the taskbar
-        // centers between two equal gaps. The p93 rig round
-        // measured a 409px void (guest x144-552) with no
-        // expandable item: the layout leaves leftover space
-        // unassigned (lxqtpanellayout.cpp setGeometryHoriz,
-        // expFactor=1 when nothing is expandable). ONE expandable
-        // spacer would only move the void to the other side (it
-        // takes ALL the leftover); two equal ones split it and
-        // center the taskbar. spaceType stays "lined": the line
-        // is painted by the theme QSS base #Spacer rule, NOT by
-        // the config value (P9FIX5: property-conditioned rules
-        // never match), so "invisible" would change nothing and
-        // an expandable spacer shows one vertical divider at its
-        // center (spacer-line.png is a 3x3 tile, repeat-y), not a
-        // long horizontal rule. size stays 8 (ignored while
-        // expandable, kept so the fixed size is documented).
-        // Widths still fit at iconSize 48: mainmenu 67 +
-        // quicklaunch ~275 + taskbar ~118 + tray ~220 +
-        // worldclock ~68 = ~748 of 848, the spacers split ~100.
+        // p96: the p95 expandable-spacer centering is REVERTED:
+        // the hypothesis is falsified by the upstream code, and
+        // the p95 rig round refuted it by measurement (spacers
+        // ~306px vs ~10px). The derivation, from lxqt-panel
+        // 2.1.0 panel/lxqtpanellayout.cpp setGeometryHoriz:
+        // expFactor = (panelWidth - nonExpWidth) / expWidth, and
+        // each expandable item gets sizeHint * expFactor. An
+        // expandable spacer's sizeHint is 1px (plugin-spacer/
+        // spacer.cpp setSizes: setMinimumSize({1, 1}) with an
+        // Expanding policy and no sizeHint override), so two
+        // spacers absorb ~2 * expFactor px total, about 5px, and
+        // can never center anything. The item that absorbs the
+        // leftover is the taskbar: isExpandable() is hardcoded
+        // true (plugin-taskbar/lxqttaskbarplugin.h) and its
+        // sizeHint is the button widths, so it takes ~99% of the
+        // leftover; its buttons are then pinned to its start
+        // edge (liblxqt lxqtgridlayout.cpp setGeometry: a single
+        // row starts at geometry.left(), itemWidth capped by the
+        // cell max 220, no centering step), which is why the p95
+        // rig showed a ~306px void INSIDE the taskbar, not
+        // between spacers. No config key centers taskbar buttons
+        // (the taskbar settings list has no alignment key); true
+        // centering needs a guest code change, out of scope for
+        // this app-only build. What the config CAN set is the
+        // button position: buttonCenter = mainmenuW +
+        // quicklaunchW + spacerW + buttonW / 2 (logical coords;
+        // the panel mirrors it in RTL). At iconSize 48 the left
+        // group grows (mainmenu ~67, quicklaunch ~5 x ~57) and
+        // the button moves right toward center; the rig round
+        // arbitrates whether it lands within 30px. The spacers
+        // go back to the p90 design: fixed 8px lined separators.
+        // spaceType stays "lined": the line is painted by the
+        // theme QSS base #Spacer rule, NOT by the config value
+        // (P9FIX5: property-conditioned rules never match), so
+        // "invisible" would change nothing.
         val spacerKeys = linkedMapOf(
             "size" to "8",
-            "expandable" to "true",
+            "expandable" to "false",
             "spaceType" to "lined"
         )
         val spacer2Keys = linkedMapOf(
             "size" to "8",
-            "expandable" to "true",
+            "expandable" to "false",
             "spaceType" to "lined"
         )
         val out = StringBuilder()
