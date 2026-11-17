@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.os.Bundle
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
@@ -30,6 +31,8 @@ import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.settings.ViewerPrefs
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import com.bolm.mudif.engine.MudifLog
@@ -561,6 +564,12 @@ class VncActivity : MudifActivity() {
             // the resize is issued in the same tryConnect block).
             // P6.5 still holds: the desktop launches only after the
             // viewer attached and resized, never before.
+            // p80: the check itself runs on the MAIN thread
+            // (isViewerConnected). The p79 direct call from this
+            // worker thread crashed the app 4/4: the first touch
+            // of MainActivity runs its static initializer, which
+            // creates a Handler (MainActivity.java:80) on the
+            // calling thread, which has no Looper.
             waitForViewerAttach()
             val sent = X11Session.launchDesktop(this, DESKTOP_LXQT)
             // Real-computer #8: isDesktopRunning already polls twice
@@ -616,16 +625,18 @@ class VncActivity : MudifActivity() {
      * settle after the first true lets the RandR resize land. The
      * cap keeps this never slower than the old fixed 4 s sleep; on
      * timeout the launch proceeds exactly as before.
+     *
+     * p80: the attach check runs on the MAIN thread, never on this
+     * worker thread ([isViewerConnected]). The p79 direct call
+     * crashed the app 4/4: the first touch of MainActivity runs
+     * its static initializer, which creates a Handler
+     * (MainActivity.java:80) on the calling thread, which has no
+     * Looper, so the <clinit> throws and the process dies.
      */
     private fun waitForViewerAttach(timeoutMs: Long = 4000) {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         while (SystemClock.uptimeMillis() < deadline) {
-            val attached = try {
-                com.termux.x11.MainActivity.isConnected()
-            } catch (_: Exception) {
-                false
-            }
-            if (attached) {
+            if (isViewerConnected()) {
                 val remaining = deadline - SystemClock.uptimeMillis()
                 if (remaining > 500) Thread.sleep(500)
                 MudifLog.d("VncActivity", "viewer attached, launching desktop")
@@ -634,6 +645,37 @@ class VncActivity : MudifActivity() {
             Thread.sleep(200)
         }
         MudifLog.d("VncActivity", "viewer attach not seen in ${timeoutMs}ms, launching desktop anyway")
+    }
+
+    /**
+     * p80: read the fork's attach flag on the MAIN thread only.
+     * MainActivity's static initializer creates a Handler, so the
+     * first touch of the class from a worker thread crashes the
+     * app (p79, 4/4 desktop entries). The worker thread blocks on
+     * a latch (2 s cap per check) while the main thread runs the
+     * call; a wedged main thread degrades to "not attached" for
+     * that check, never to a hang. Returns false, never throws.
+     */
+    private fun isViewerConnected(): Boolean {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            return try {
+                com.termux.x11.MainActivity.isConnected()
+            } catch (_: Exception) {
+                false
+            }
+        }
+        var result = false
+        val latch = CountDownLatch(1)
+        runOnUiThread {
+            result = try {
+                com.termux.x11.MainActivity.isConnected()
+            } catch (_: Exception) {
+                false
+            }
+            latch.countDown()
+        }
+        latch.await(2, TimeUnit.SECONDS)
+        return result
     }
 
     private fun setStatus(text: String) {
