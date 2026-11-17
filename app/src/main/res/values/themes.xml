@@ -1,15 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- p98: three themes. Glass Dark is the default (the samples'
+     deep purple dark); Clean Light keeps light windows; Royal
+     Gradient is the purple gradient. values-night/colors.xml is
+     DELETED: its neutral grey was NOT the sample's purple Glass
+     Dark, and the DayNight parent goes with it. Each theme is a
+     full Material3.NoActionBar style and defines every
+     semantic mudif* attr, so ?attr/mudif* references resolve in
+     all three themes. Theme.Mudif (the manifest theme) is a
+     parent alias of GlassDark; MudifActivity.setTheme swaps in
+     the saved theme before super.onCreate. -->
 <resources>
-    <style name="Theme.Mudif" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/mudif_purple</item>
-        <item name="colorOnPrimary">@android:color/white</item>
+
+    <!-- Glass Dark (default): deep purple dark windows. -->
+    <style name="Theme.Mudif.GlassDark" parent="Theme.Material3.NoActionBar">
+        <item name="colorPrimary">#593BFE</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorSecondary">@color/mudif_teal</item>
-        <item name="android:statusBarColor">@color/mudif_purple</item>
-        <item name="android:navigationBarColor">?attr/colorSurface</item>
-        <!-- Mudif design system (values/styles.xml): every card and every
-             unstyled button gets the Mudif look by default; an explicit
-             style on a view still wins over these defaults. -->
+        <item name="colorBackground">#1A142E</item>
+        <item name="colorSurface">#28233B</item>
+        <item name="colorOnSurface">#F2EFFF</item>
+        <item name="colorOnSurfaceVariant">#A99FD0</item>
+        <item name="android:windowBackground">@drawable/bg_window_gradient_dark</item>
+        <item name="android:statusBarColor">#1A142E</item>
+        <item name="android:navigationBarColor">#14101F</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="materialCardViewStyle">@style/Widget.Mudif.Card</item>
         <item name="buttonStyle">@style/Widget.Mudif.Button.Primary</item>
+        <item name="mudifCardBg">#28233B</item>
+        <item name="mudifCardStroke">#353047</item>
+        <item name="mudifTextPrimary">#F2EFFF</item>
+        <item name="mudifTextMuted">#A99FD0</item>
+        <item name="mudifNavBg">#14101F</item>
+        <item name="mudifNavActive">#593BFE</item>
+        <item name="mudifNavInactive">#A99FD0</item>
+        <item name="mudifNavActivePill">#2C1F6E</item>
+        <item name="mudifBubbleAgentBg">#3A345C</item>
+        <item name="mudifBubbleUserBg">#593BFE</item>
+        <item name="mudifBubbleUserText">#FFFFFF</item>
+        <item name="mudifBubbleUserMuted">#B3FFFFFF</item>
+        <item name="mudifAccent">#593BFE</item>
+        <item name="mudifOnAccent">#FFFFFF</item>
+        <item name="mudifStatusOk">#22C55E</item>
+        <item name="mudifWindowBg">@drawable/bg_window_gradient_dark</item>
+        <item name="mudifSidebarUnselected">#A99FD0</item>
     </style>
+
+    <!-- Clean Light: light windows, the p88 light palette. -->
+    <style name="Theme.Mudif.CleanLight" parent="Theme.Material3.NoActionBar">
+        <item name="colorPrimary">#593BFE</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">@color/mudif_teal</item>
+        <item name="colorBackground">#F7F5FF</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorOnSurface">#17112B</item>
+        <item name="colorOnSurfaceVariant">#6B6486</item>
+        <item name="android:windowBackground">@drawable/bg_window_gradient_light</item>
+        <item name="android:statusBarColor">#F7F5FF</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="materialCardViewStyle">@style/Widget.Mudif.Card</item>
+        <item name="buttonStyle">@style/Widget.Mudif.Button.Primary</item>
+        <item name="mudifCardBg">#FFFFFF</item>
+        <item name="mudifCardStroke">#E4E0F2</item>
+        <item name="mudifTextPrimary">#17112B</item>
+        <item name="mudifTextMuted">#6B6486</item>
+        <item name="mudifNavBg">#FFFFFF</item>
+        <item name="mudifNavActive">#593BFE</item>
+        <item name="mudifNavInactive">#6B6486</item>
+        <item name="mudifNavActivePill">#EDE9FF</item>
+        <item name="mudifBubbleAgentBg">#EFECF8</item>
+        <item name="mudifBubbleUserBg">#593BFE</item>
+        <item name="mudifBubbleUserText">#FFFFFF</item>
+        <item name="mudifBubbleUserMuted">#B3FFFFFF</item>
+        <item name="mudifAccent">#593BFE</item>
+        <item name="mudifOnAccent">#FFFFFF</item>
+        <item name="mudifStatusOk">#22C55E</item>
+        <item name="mudifWindowBg">@drawable/bg_window_gradient_light</item>
+        <item name="mudifSidebarUnselected">#424242</item>
+    </style>
+
+    <!-- Royal Gradient: the brand purple as a full gradient. -->
+    <style name="Theme.Mudif.RoyalGradient" parent="Theme.Material3.NoActionBar">
+        <item name="colorPrimary">#FFFFFF</item>
+        <item name="colorOnPrimary">#593BFE</item>
+        <item name="colorSecondary">@color/mudif_teal</item>
+        <item name="colorBackground">#593BFE</item>
+        <item name="colorSurface">#674CFE</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="colorOnSurfaceVariant">#CBC0F5</item>
+        <item name="android:windowBackground">@drawable/bg_window_gradient_royal</item>
+        <item name="android:statusBarColor">#593BFE</item>
+        <item name="android:navigationBarColor">#241647</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="materialCardViewStyle">@style/Widget.Mudif.Card</item>
+        <item name="buttonStyle">@style/Widget.Mudif.Button.Primary</item>
+        <item name="mudifCardBg">#674CFE</item>
+        <item name="mudifCardStroke">#765EFE</item>
+        <item name="mudifTextPrimary">#FFFFFF</item>
+        <item name="mudifTextMuted">#CBC0F5</item>
+        <item name="mudifNavBg">#241647</item>
+        <item name="mudifNavActive">#FFFFFF</item>
+        <item name="mudifNavInactive">#CBC0F5</item>
+        <item name="mudifNavActivePill">#8872E6</item>
+        <item name="mudifBubbleAgentBg">#65568C</item>
+        <item name="mudifBubbleUserBg">#FFFFFF</item>
+        <item name="mudifBubbleUserText">#593BFE</item>
+        <item name="mudifBubbleUserMuted">#6B6486</item>
+        <item name="mudifAccent">#FFFFFF</item>
+        <item name="mudifOnAccent">#593BFE</item>
+        <item name="mudifStatusOk">#22C55E</item>
+        <item name="mudifWindowBg">@drawable/bg_window_gradient_royal</item>
+        <item name="mudifSidebarUnselected">#CBC0F5</item>
+    </style>
+
+    <!-- Manifest theme: Glass Dark by default. MudifActivity swaps
+         in the saved theme before super.onCreate. -->
+    <style name="Theme.Mudif" parent="Theme.Mudif.GlassDark" />
 </resources>

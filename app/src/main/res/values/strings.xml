@@ -199,6 +199,14 @@
     <string name="language_desc">لغة واجهة التطبيق</string>
     <string name="language_first_run_title">اختار لغة التطبيق</string>
     <string name="language_first_run_body">تقدر تبدل اللغة في أي وقت من حسابي ← اللغة.</string>
+    <!-- p98: theme picker strings (Fusha). -->
+    <string name="theme_title">مظهر النظام</string>
+    <string name="theme_dark">الزجاجي الغامق</string>
+    <string name="theme_light">الفاتح النظيف</string>
+    <string name="theme_gradient">التدرج الملكي</string>
+    <string name="theme_desc">اختر مظهر التطبيق وسطح المكتب</string>
+    <string name="theme_desktop_note">يطبق على التطبيق فورا، وعلى سطح المكتب عند الدخول التالي</string>
+    <string name="theme_applied">تم تطبيق المظهر</string>
     <string name="drawer_language">اللغة</string>
     <string name="sidebar_collapse">طي الشريط الجانبي</string>
     <string name="sidebar_expand">توسيع الشريط الجانبي</string>

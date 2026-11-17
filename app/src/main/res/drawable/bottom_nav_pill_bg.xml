@@ -1,18 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- p55: the bottom nav card is the app's own purple gradient
-     (#593BFE to deeper violet #3D2BB5, diagonal 135 degrees), the
-     SAME gradient as the home stat cards and the hero (p50), with
-     16dp corners: rectangular, professional and modern, not the
-     40dp stadium pill. The gradient fills the whole card (it is
-     the card background, not an inner layout). The p53 1dp lavender
-     hairline is gone: a purple card is already distinct from the
-     near-white page, so no outline is needed. -->
+<!-- p98: the bottom nav card is a SOLID per-theme bar
+     (?attr/mudifNavBg: #14101F dark, #FFFFFF light, #241647
+     gradient), 16dp corners: rectangular, professional and
+     modern, not the 40dp stadium pill. The p55 purple gradient
+     nav card is RETIRED (Anas approved, 17 Nov); the purple
+     gradient stays on the home stat cards and the hero, which
+     are brand constants. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <gradient
-        android:startColor="#593BFE"
-        android:endColor="#3D2BB5"
-        android:angle="135"
-        android:type="linear" />
+    <solid android:color="?attr/mudifNavBg" />
     <corners android:radius="16dp" />
 </shape>

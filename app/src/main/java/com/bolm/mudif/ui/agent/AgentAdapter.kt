@@ -1,9 +1,12 @@
 package com.bolm.mudif.ui.agent
 
+import android.content.Context
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.AttrRes
 import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemAgentMessageBinding
@@ -43,11 +46,17 @@ data class AgentMessage(
  * p30 KissaKoti redesign: the timestamp sits INSIDE the bubble, on the
  * side the bubble is aligned to (agent = START, user = END); the
  * background is set on message_bubble, not on the text view.
- * The text color is NOT set here: it comes from the layout
- * (?attr/colorOnSurface, dark on the light bubbles). Resolving
- * textColorPrimary in code via TypedValue.data is unreliable (it is a
- * ColorStateList in Material3, so .data is not the color) and rendered
- * the text invisible on the rig (white on white, zero dark pixels).
+ * p98: the text and timestamp colors ARE set here, per role, from
+ * the theme attrs (user rows: mudifBubbleUserText / mudifBubbleUserMuted;
+ * agent rows: mudifTextPrimary / mudifTextMuted). The layout can only
+ * hold one color per view, and the user bubble inverts with the theme
+ * (purple in dark/light, white in gradient), so the text color must
+ * follow the role. The old trap does NOT apply to the mudif* attrs:
+ * they are literal colors in every theme, so TypedValue.data IS the
+ * color (textColorPrimary was a ColorStateList in Material3, so .data
+ * was not the color, and resolving it rendered the text invisible on
+ * the rig). The resolver still type-checks and falls back to the
+ * layout's current color, so a bad attr can never render invisible text.
  */
 class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
 
@@ -85,10 +94,20 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
                 messageRow.gravity = Gravity.END
                 messageAvatar.visibility = View.GONE
                 messageBubble.setBackgroundResource(R.drawable.agent_bubble_user)
+                // p98: white text on the purple user bubble (dark/light),
+                // purple text on the white user bubble (gradient).
+                messageText.setTextColor(resolveThemeColor(
+                    messageText.context, R.attr.mudifBubbleUserText, messageText.currentTextColor))
+                messageTime.setTextColor(resolveThemeColor(
+                    messageTime.context, R.attr.mudifBubbleUserMuted, messageTime.currentTextColor))
             } else {
                 messageRow.gravity = Gravity.START
                 messageAvatar.visibility = View.VISIBLE
                 messageBubble.setBackgroundResource(R.drawable.agent_bubble_agent)
+                messageText.setTextColor(resolveThemeColor(
+                    messageText.context, R.attr.mudifTextPrimary, messageText.currentTextColor))
+                messageTime.setTextColor(resolveThemeColor(
+                    messageTime.context, R.attr.mudifTextMuted, messageTime.currentTextColor))
             }
             // p31: the timestamp is always bottom-right inside the
             // bubble (KissaKoti). message_time is match_parent with
@@ -100,6 +119,21 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
     }
 
     override fun getItemCount() = items.size
+
+    /** Resolve a theme color attr to its color int. The mudif* attrs
+     *  are literal colors in every theme, so TypedValue.data IS the
+     *  color. The type is still checked: a non-color attr (or an
+     *  unresolved one) falls back to [fallback] (the layout's current
+     *  text color) instead of rendering invisible text. */
+    private fun resolveThemeColor(context: Context, @AttrRes attr: Int, fallback: Int): Int {
+        val tv = TypedValue()
+        if (context.theme.resolveAttribute(attr, tv, true) &&
+            tv.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT
+        ) {
+            return tv.data
+        }
+        return fallback
+    }
 
     /** WhatsApp-style time under each bubble (HH:mm, Latin digits). */
     private fun formatTime(time: Long): String =

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p98: window background gradient, Glass Dark theme.
+     Top #1A142E to bottom #100C1E (the sample's deep purple
+     Glass Dark). Referenced as ?attr/mudifWindowBg by the agent
+     and brain-providers screens, and as android:windowBackground
+     by Theme.Mudif.GlassDark. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#1A142E"
+        android:endColor="#100C1E"
+        android:angle="270"
+        android:type="linear" />
+</shape>

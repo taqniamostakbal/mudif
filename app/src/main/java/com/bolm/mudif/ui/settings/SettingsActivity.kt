@@ -87,6 +87,7 @@ class SettingsActivity : MudifActivity() {
         val container = findViewById<LinearLayout>(R.id.settings_container)
         container.removeAllViews()
         buildLanguageCard(container)
+        buildThemeCard(container)
         for (section in ViewerPrefs.SECTIONS) {
             val title = TextView(this).apply {
                 text = getString(section.titleRes)
@@ -224,6 +225,87 @@ class SettingsActivity : MudifActivity() {
         ).apply { topMargin = dp(8) }
         button.setOnClickListener { AppLanguage.showPicker(this) }
         cardBody.addView(button)
+        card.addView(cardBody)
+        container.addView(card)
+    }
+
+    /** App + desktop theme card, below the language card. Same
+     *  pattern as buildLanguageCard (purple gradient card, branded
+     *  picker button showing the current theme); picking a theme
+     *  applies it and relaunches the whole task. The note under
+     *  the button says the desktop re-skins on the next entry:
+     *  the app re-skins at once, the desktop cannot be re-skinned
+     *  live (no live path is proven), so the note keeps the
+     *  promise honest. */
+    private fun buildThemeCard(container: LinearLayout) {
+        val title = TextView(this).apply {
+            text = getString(R.string.theme_title)
+            textSize = 15f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
+            setPadding(dp(4), dp(18), dp(4), dp(8))
+        }
+        container.addView(title)
+        // p98: the theme card is a purple gradient card too
+        // (transparent MaterialCardView, gradient on the body).
+        val themeRipple = TypedValue().let { out ->
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, out, true)
+            ContextCompat.getDrawable(this, out.resourceId)
+        }
+        val card = MaterialCardView(this).apply {
+            radius = dp(14).toFloat()
+            cardElevation = dp(2).toFloat()
+            setCardBackgroundColor(Color.TRANSPARENT)
+            isClickable = true
+            isFocusable = true
+            foreground = themeRipple
+            stateListAnimator = android.animation.AnimatorInflater.loadStateListAnimator(
+                this@SettingsActivity, R.animator.card_press
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        val cardBody = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = ContextCompat.getDrawable(
+                this@SettingsActivity, R.drawable.card_gradient_compact
+            )
+            setPadding(dp(18), dp(12), dp(18), dp(12))
+        }
+        val desc = TextView(this).apply {
+            text = getString(R.string.theme_desc)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.card_text_secondary))
+        }
+        cardBody.addView(desc)
+        val labels = listOf(
+            getString(R.string.theme_dark),
+            getString(R.string.theme_light),
+            getString(R.string.theme_gradient)
+        )
+        val tags = AppTheme.TAGS
+        // Branded picker: a full-width button showing the current
+        // theme opens AppTheme's branded dialog.
+        val currentLabel = labels[tags.indexOf(AppTheme.currentTag(this)).coerceAtLeast(0)]
+        val button = LayoutInflater.from(this).inflate(
+            R.layout.item_select_option, cardBody, false
+        ) as MaterialButton
+        button.text = "$currentLabel ▾"
+        button.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(8) }
+        button.setOnClickListener { AppTheme.showPicker(this) }
+        cardBody.addView(button)
+        val note = TextView(this).apply {
+            text = getString(R.string.theme_desktop_note)
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.card_text_secondary))
+            setPadding(dp(0), dp(8), dp(0), dp(0))
+        }
+        cardBody.addView(note)
         card.addView(cardBody)
         container.addView(card)
     }
@@ -468,13 +550,13 @@ class SettingsActivity : MudifActivity() {
             "configureResponseToUserActions" -> {
                 // Scroll to the User actions section (it is section index 4).
                 // Title(0) + card(1) per section, plus the language
-                // title + card (2 children) prepended above them;
-                // section 4 starts at child 10.
+                // title + card and the theme title + card (4 children)
+                // prepended above them; section 4 starts at child 12.
                 val scroll = findViewById<ScrollView>(R.id.settings_scroll)
                 val container = findViewById<LinearLayout>(R.id.settings_container)
-                // Language title(0) + card(1), then Title+card per
-                // section; section 4 starts at child 10.
-                val target = container.getChildAt(10)
+                // Language title(0) + card(1) + theme title(2) + card(3),
+                // then Title+card per section; section 4 starts at child 12.
+                val target = container.getChildAt(12)
                 target?.let { scroll.post { scroll.smoothScrollTo(0, it.top) } }
             }
         }

@@ -1,0 +1,84 @@
+/* p98: Glass Dark variant of the Mudif dialog gtk.css (DESIGN.md
+   section 2a). Same selectors and specificity as the p89 light
+   file; only the colors change: dark dialog #1E1830, text #F2EFFF,
+   buttons #353047, links #8B7CF5. The warning icon stays #F67F53
+   in all three themes. GTK loads this file automatically at
+   startup ($XDG_CONFIG_HOME/gtk-3.0/gtk.css), BEFORE the theme
+   CSS, so every rule below beats Adwaita's by HIGHER SPECIFICITY
+   (two selectors vs Adwaita's one), never by load order. Scoped
+   to dialogs only: every other GTK widget keeps Adwaita untouched.
+   Staged by the p98 look at root/.config/gtk-3.0/gtk.css: the
+   active theme's variant overwrites the zip's light base. */
+
+/* Dark dialog card, light text. The .background class is on every
+   GtkWindow, so dialog.background (0,1,1) beats Adwaita's
+   .background rule (0,1,0); a bare dialog rule would lose. */
+dialog.background,
+messagedialog.background {
+    background-color: #1E1830;
+    color: #F2EFFF;
+}
+
+/* Message text: light. The primary line is already bold in Adwaita
+   (the live baseline render proves it); there is no "title" class
+   on the GTK 3.24 primary label (its style classes list is empty),
+   so no title selector is written here. This rule only pins the
+   text light, so it stays light even if a light theme reaches the app. */
+messagedialog label {
+    color: #F2EFFF;
+}
+
+/* Warning icon: orange triangle, as in the reference. GTK 3.24's
+   message dialog uses the symbolic dialog-warning icon, which
+   renders in the widget's foreground color; setting color here
+   makes it orange. Scoped to messagedialog only: a generic dialog
+   (e.g. an About dialog's logo image) must NOT be recolored.
+   Orange #F67F53 measured from the reference triangle. */
+messagedialog image {
+    color: #F67F53;
+}
+
+/* Dialog buttons: dark card-line gray, never filled with the accent,
+   not even the primary action (the reference shows both buttons
+   light gray in the light theme; the dark theme keeps the same
+   rule in its own colors). background-image: none clears Adwaita's
+   gradient, or the gradient would paint over the flat color. */
+dialog button,
+messagedialog button {
+    background-color: #353047;
+    background-image: none;
+    color: #F2EFFF;
+    border: 1px solid #353047;
+    border-radius: 6px;
+    padding: 6px 16px;
+}
+dialog button:hover,
+messagedialog button:hover {
+    background-color: #241D3D;
+}
+dialog button:active,
+messagedialog button:active {
+    background-color: #1A1428;
+}
+dialog button.suggested-action,
+messagedialog button.suggested-action {
+    background-color: #353047;
+    background-image: none;
+    color: #F2EFFF;
+    border-color: #353047;
+}
+
+/* Links inside dialogs: light purple, the only accent. Adwaita's
+   link is blue (#3584e4); dialog *:link (0,1,1) beats *:link (0,1,0). */
+dialog *:link,
+messagedialog *:link {
+    color: #8B7CF5;
+}
+dialog *:link:hover,
+messagedialog *:link:hover {
+    color: #B7A9F7;
+}
+dialog *:visited,
+messagedialog *:visited {
+    color: #6A5AE0;
+}

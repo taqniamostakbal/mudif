@@ -28,24 +28,29 @@
         <item name="cardElevation">2dp</item>
     </style>
 
-    <!-- Buttons. -->
+    <!-- Buttons. p98: Primary/Secondary/Text use ?attr/mudifAccent
+         (identical #593BFE in dark/light, white in gradient), and
+         Primary text uses ?attr/mudifOnAccent, so the buttons invert
+         with the gradient theme instead of vanishing on it.
+         OnPurple / SecondaryOnPurple / TextOnPurple stay: they sit
+         on purple surfaces, which are constant. -->
     <style name="Widget.Mudif.Button.Primary" parent="Widget.Material3.Button">
         <item name="android:fontFamily">@font/cairo</item>
-        <item name="android:textColor">@android:color/white</item>
-        <item name="backgroundTint">@color/mudif_purple</item>
+        <item name="android:textColor">?attr/mudifOnAccent</item>
+        <item name="backgroundTint">?attr/mudifAccent</item>
         <item name="cornerRadius">@dimen/radius_button</item>
     </style>
 
     <style name="Widget.Mudif.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:fontFamily">@font/cairo</item>
-        <item name="android:textColor">@color/mudif_purple</item>
-        <item name="strokeColor">@color/mudif_purple</item>
+        <item name="android:textColor">?attr/mudifAccent</item>
+        <item name="strokeColor">?attr/mudifAccent</item>
         <item name="cornerRadius">@dimen/radius_button</item>
     </style>
 
     <style name="Widget.Mudif.Button.Text" parent="Widget.Material3.Button.TextButton">
         <item name="android:fontFamily">@font/cairo</item>
-        <item name="android:textColor">@color/mudif_purple</item>
+        <item name="android:textColor">?attr/mudifAccent</item>
     </style>
 
     <!-- White pill button for use ON purple headers / the gradient hero
@@ -131,12 +136,13 @@
         <item name="android:textColor">#DCD6FF</item>
     </style>
 
-    <!-- Section header row (item_section_header.xml). -->
+    <!-- Section header row (item_section_header.xml). p98: purple
+         text becomes ?attr/mudifAccent (white in gradient theme). -->
     <style name="Widget.Mudif.SectionHeader" parent="android:Widget.TextView">
         <item name="android:fontFamily">@font/cairo</item>
         <item name="android:textSize">15sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/mudif_purple</item>
+        <item name="android:textColor">?attr/mudifAccent</item>
     </style>
 
     <!-- Search box (plain EditText on @drawable/search_box_bg; the
@@ -156,14 +162,16 @@
          background is @drawable/bottom_nav_pill_bg, its active pill
          is @drawable/bottom_nav_active_pill, its pill size is
          @dimen/nav_indicator_width/height (64x44dp since p52). No style here:
-         p55: the bar is the purple gradient, the icons and labels
-         are white (full white selected, 70% white unselected
-         labels), the active pill is white at 20% alpha. The old
+         p98: the bar is a SOLID per-theme bar (mudifNavBg), the
+         p55 purple gradient nav card is RETIRED; the icons and
+         labels use mudifNavActive / mudifNavInactive, the active
+         pill is mudifNavActivePill. The old
          Widget.Mudif.BottomNavigation styles were deleted with it. -->
 
-    <!-- Drawer navigation view: purple icons, on-surface text. -->
+    <!-- Drawer navigation view: purple icons, on-surface text.
+         p98: the icon tint is ?attr/mudifAccent (white in gradient). -->
     <style name="Widget.Mudif.NavigationView" parent="Widget.Material3.NavigationView">
-        <item name="itemIconTint">@color/mudif_purple</item>
+        <item name="itemIconTint">?attr/mudifAccent</item>
         <item name="itemTextColor">?attr/colorOnSurface</item>
     </style>
 

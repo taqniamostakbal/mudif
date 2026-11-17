@@ -64,7 +64,11 @@ class SidebarView @JvmOverloads constructor(
     private val onSurface: Int = resolveAttrColor(
         com.google.android.material.R.attr.colorOnSurface
     )
-    private val unselected: Int = ContextCompat.getColor(context, R.color.mudif_unselected)
+    // p98: the unselected color is the theme attr
+    // mudifSidebarUnselected (#A99FD0 dark, #424242 light,
+    // #CBC0F5 gradient). The old static R.color.mudif_unselected
+    // could not vary per theme.
+    private val unselected: Int = resolveAttrColor(R.attr.mudifSidebarUnselected)
     private val cairo = ResourcesCompat.getFont(context, R.font.cairo)
     private val lifta = ResourcesCompat.getFont(context, R.font.lifta)
 

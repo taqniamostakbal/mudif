@@ -5,13 +5,14 @@ import android.graphics.ColorFilter
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
+import androidx.annotation.AttrRes
 import com.airbnb.lottie.LottieAnimationView
 import com.airbnb.lottie.LottieProperty
 import com.airbnb.lottie.model.KeyPath
@@ -202,12 +203,24 @@ class BottomNavView @JvmOverloads constructor(
             PorterDuffColorFilter(unselectedColor(), PorterDuff.Mode.SRC_ATOP))
     }
 
+    // p98: nav colors resolve the theme attrs (mudifNavActive /
+    // mudifNavInactive). The old code returned nav_white in both
+    // states, which only worked on the retired p55 purple gradient
+    // bar. The attrs are literal colors in every theme, so
+    // TypedValue.data is the color itself (the AgentAdapter trap
+    // about ColorStateList attrs does not apply here).
     private fun selectedColor(): Int =
-        ContextCompat.getColor(context, R.color.nav_white)
+        resolveAttrColor(R.attr.mudifNavActive)
 
     private fun unselectedColor(): Int =
-        ContextCompat.getColor(context, R.color.nav_white)
+        resolveAttrColor(R.attr.mudifNavInactive)
 
     private fun labelUnselectedColor(): Int =
-        ContextCompat.getColor(context, R.color.nav_label_unselected)
+        resolveAttrColor(R.attr.mudifNavInactive)
+
+    private fun resolveAttrColor(@AttrRes attr: Int): Int {
+        val tv = TypedValue()
+        require(context.theme.resolveAttribute(attr, tv, true))
+        return tv.data
+    }
 }

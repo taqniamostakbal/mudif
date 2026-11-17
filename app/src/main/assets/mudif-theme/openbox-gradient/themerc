@@ -1,0 +1,96 @@
+!! Onyx by Dana Jansens
+!! inspired by "Carbon" by p0ng, and the ever so popular Vista glass look
+!! p98 Royal Gradient variant (DESIGN.md section 2a): menus
+!! #2A1B5E to #1A1038, text #FFFFFF, disabled #CBC0F5; titlebars
+!! #352276 active / #2A1B5E inactive, text #FFFFFF / #CBC0F5;
+!! glyphs #FFFFFF / #CBC0F5, borders and client #503F7C / #2A1B5E.
+!! Hover/pressed purples, OSD, fonts and padding are the current
+!! file, kept.
+
+!! Menu background
+menu.items.bg: flat gradient vertical
+menu.items.bg.color: #2A1B5E
+menu.items.bg.colorTo: #1A1038
+
+!! Menu text
+menu.items.text.color: #ffffff
+menu.items.justify: left
+menu.items.disabled.text.color: #CBC0F5
+
+!! Menu headers
+menu.title.bg: raised splitvertical gradient
+menu.title.bg.color: #352276
+menu.title.bg.colorTo: #241647
+menu.title.text.color: #FFFFFF
+menu.title.text.justify: center
+
+!! Selected menu item
+menu.items.active.bg: raised splitvertical gradient
+menu.items.active.bg.color: #593BFE
+menu.items.active.bg.colorTo: #3D2C9E
+menu.items.active.text.color: #f8f8f8
+
+!! Titlebar
+!! p88 (desktop polish spec section 3, Zorin white windows):
+!! flat white title bars (active #FFFFFF, inactive #F5F5F5),
+!! dark title text #333333, dark button glyphs #555555, light
+!! borders. Openbox draws square frames: true rounded corners
+!! ~16px and the drop shadow need a compositor (picom, ideas
+!! item 3, NOT built) - this build styles what openbox can draw.
+!! The menu colours above are the p85 fix, untouched.
+window.active.title.bg: flat solid
+window.active.title.bg.color: #352276
+window.inactive.title.bg: flat solid
+window.inactive.title.bg.color: #2A1B5E
+
+!! Titlebar text
+window.label.text.justify: center
+window.active.label.bg: parentrelative
+window.active.label.text.color: #FFFFFF
+window.inactive.label.bg: parentrelative
+window.inactive.label.text.color: #CBC0F5
+
+!! Window buttons
+window.*.button.*.bg: parentrelative
+window.active.button.*.hover.bg: flat splitvertical gradient border
+window.inactive.button.*.hover.bg: parentrelative
+window.*.button.*.pressed.bg: flat splitvertical gradient border
+
+window.active.button.*.hover.bg.color: #8B7CF5
+window.active.button.*.hover.bg.colorTo: #593BFE
+window.active.button.*.hover.bg.border.color: #593BFE
+
+window.active.button.*.pressed.bg.color: #3D2C9E
+window.active.button.*.pressed.bg.colorTo: #2A1F6E
+window.active.button.*.pressed.image.color: #898989
+window.active.button.*.pressed.bg.border.color: #2A1F6E
+window.inactive.button.*.pressed.bg.color: #8B7CF5
+window.inactive.button.*.pressed.bg.colorTo: #6A5AE0
+window.inactive.button.*.pressed.image.color: #b7fdef
+window.inactive.button.*.pressed.bg.border.color: #6A5AE0
+
+window.active.button.*.image.color: #FFFFFF
+window.active.button.disabled.image.color: #6B6486
+window.inactive.button.*.image.color: #CBC0F5
+window.inactive.button.disabled.image.color: #6B6486
+
+!! Borders
+window.active.border.color: #503F7C
+window.inactive.border.color: #503F7C
+window.inactive.title.separator.color: #503F7C
+border.width: 1
+padding.width: 4
+window.handle.width: 0
+window.active.client.color:  #2A1B5E
+window.inactive.client.color:  #2A1B5E
+window.client.padding.width: 1
+window.client.padding.height: 1
+menu.overlap: 0
+
+!! Font shadows
+menu.items.font:shadow=n
+
+!! On-screen displays
+osd.bg: gradient vertical flat
+osd.bg.color: #303030
+osd.bg.colorTo: #080808

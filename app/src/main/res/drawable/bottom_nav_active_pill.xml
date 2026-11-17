@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- p55: the selected tab's pill in the bottom nav (64x44dp,
-     16dp corners). On the purple gradient card it is white at
-     20% alpha (@color/nav_selected_pill), so the selected tab
-     reads clearly while the white icon and label sit on it. The
-     old pale #E4DEFF pill (mudif_pill) belonged to the white
-     card and is gone with it. -->
+<!-- p98: the selected tab's pill in the bottom nav (64x44dp,
+     16dp corners). It is the per-theme active pill
+     (?attr/mudifNavActivePill: #2C1F6E dark, #EDE9FF light,
+     #8872E6 gradient), so the selected tab reads clearly on the
+     solid per-theme bar while the active icon and label sit on
+     it. The p55 white-at-20% pill belonged to the purple
+     gradient bar and is gone with it. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/nav_selected_pill" />
+    <solid android:color="?attr/mudifNavActivePill" />
     <corners android:radius="16dp" />
 </shape>
