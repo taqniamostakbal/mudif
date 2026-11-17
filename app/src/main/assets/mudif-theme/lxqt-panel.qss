@@ -331,16 +331,28 @@ TrayIcon {
 
 /*
  * All menus
+ *
+ * p87 (desktop polish step 3, spec section 2 + section 9 right-click
+ * menus in the same language): the menus are the frosted LIGHT panel,
+ * not the dark purple. Solid near-white lavender #F7F5FF (NOT a
+ * translucent rgba): true frosted translucency is impossible in this
+ * guest - no compositor runs in the session and the FancyMenu window
+ * sets no WA_TranslucentBackground (lxqt-panel 2.1.4 source,
+ * plugin-fancymenu/lxqtfancymenuwindow.cpp; THEME-READINESS.md:93
+ * already proved menus are effectively opaque here). A translucent
+ * white would blend against the dark palette window color and render
+ * gray, not frosted white. The p85 dark-menu colors are superseded
+ * here on purpose: enabled text #333333 (spec section 7 body text),
+ * disabled #888888 (section 7 secondary text), selected stays
+ * #593BFE + white (the p85 active-row rule, unchanged).
  */
 
 QMenu {
     margin: 0px;
     padding: 2px;
-    border: 1px solid rgba(50, 50, 50, 80%);
-    border-bottom-color: rgba(0, 0, 0, 80%);
-    border-right-color: rgba(0, 0, 0, 80%);
-    background: rgba(61, 44, 158, 100%);
-    color: white;
+    border: 1px solid rgba(51, 51, 51, 20%);
+    background: #F7F5FF;
+    color: #333333;
 }
 
 QMenu::icon {
@@ -349,15 +361,15 @@ QMenu::icon {
 }
 
 QMenu QToolButton {
-    background-color: #3c3c3c;
+    background-color: transparent;
     padding: 5px;
     border: none;
-    color: white;
+    color: #333333;
     font: bold italic;
 }
 
 QMenu::separator {
-    background-color: #4c4c4c;
+    background-color: #D9D5E8;
     height: 1px;
 }
 
@@ -368,7 +380,7 @@ QMenu::item {
     border-right-width: 5px;
     padding: 6px 40px 6px 24px;
     background: transparent;
-    color: white;
+    color: #333333;
 }
 
 QMenu::item:selected {
@@ -381,20 +393,23 @@ QMenu::item:selected {
 }
 
 QMenu::item:selected:disabled {
-    background-color: palette(text);
+    /* p88: explicit #D9D5E8, NOT palette(text). The light palette
+       (spec section 3) makes palette(text) #333333, which would
+       paint a dark background behind disabled text here. */
+    background-color: #D9D5E8;
 }
 
 QMenu::item:disabled {
-    color: #9a9a9a;
+    color: #888888;
     background-color: transparent;
 }
 
 QMenu::right-arrow {
-    image: url(arrow-right.svg);
+    image: url(arrow-right-dark.svg);
 }
 
 QMenu::left-arrow {
-    image: url(arrow-left.svg);
+    image: url(arrow-left-dark.svg);
 }
 
 QMenu::indicator {
@@ -403,103 +418,146 @@ QMenu::indicator {
 }
 
 QMenu::indicator:non-exclusive:unchecked {
-    image: url(unchecked.svg);
+    image: url(unchecked-dark.svg);
 }
 
 QMenu::indicator:non-exclusive:checked {
-    image: url(checked.svg);
+    image: url(checked-dark.svg);
 }
 
 /*
  * Main menu
+ * p87: same frosted light language as #FancyMenu (spec section 2).
+ * This is the classic menu surface, not the active launcher (the panel
+ * uses type=fancymenu), but it gets the same treatment so the desktop
+ * does not carry two menu languages.
  */
 
 #MainMenu {
     margin: 2px;
     padding: 2px;
     border: none;
-    background: rgba(61, 44, 158, 100%);
+    background: #F7F5FF;
     qproperty-icon: url(mainmenu.png);
-    color: white;
+    color: #333333;
 }
 
 #MainMenu QLineEdit {
-    background: black;
-    border: 1px solid #3c3c3c;
-    border-bottom-width: 0px;
-    border-right-width: 0px;
-    border-left-width: 0px;
-    padding: 3px;
-    margin-bottom: 1px;
-    color: white;
+    background: #FFFFFF;
+    border: 1px solid rgba(51, 51, 51, 25%);
+    border-radius: 12px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    color: #333333;
     selection-background-color: #593BFE;
+    selection-color: white;
 }
 
 #MainMenu ActionView {
     border: none;
-    background: black;
-    color: white;
+    background: transparent;
+    color: #333333;
 }
 
 #MainMenu ActionView::item {
-    background: black;
-    color: white;
+    background: transparent;
+    color: #333333;
     border: none;
     padding: 4px 3px 4px 10px;
 }
 
 #MainMenu ActionView::item:hover {
-    background: #3D2C9E;
-    color: white;
+    background: rgba(89, 59, 254, 12%);
+    border-radius: 6px;
+    color: #333333;
 }
 
 #MainMenu ActionView::item:selected {
     background: #593BFE;
+    border-radius: 6px;
     color: white;
 }
 
 /*
+/*
  * Fancy menu
+ * p87: the launcher restyle (desktop polish spec section 2). Solid
+ * frosted-light panel #F7F5FF, dark text #333333, accent #593BFE only.
+ * Solid, NOT translucent: no compositor runs in this guest and the
+ * window sets no WA_TranslucentBackground (lxqt-panel 2.1.4 source),
+ * so an rgba white would blend against the dark palette window color
+ * and render gray. The rail (#CategoryView) is a subtle lavender
+ * strip over the same solid panel color. The rail sits on the RIGHT
+ * in RTL: that is a CONFIG change, not QSS - categoriesAtRight=false
+ * in the panel mainmenu keys (LxqtLook.kt mergePanelConf, p87) - the
+ * code default is true and QHBoxLayout mirrors it to the visual left.
+ */
+
+/*
+ * p95: the panel BUTTON (not the popup window below, which stays
+ * #F7F5FF). The #F7F5FF background here painted the white sliver
+ * the p93 round measured at the right edge, so the button is
+ * transparent now and the penguin sits on the dark panel. The
+ * button is ~67px wide (48px icon + 16px side padding + ~3px
+ * frame; measured 29 = 22 + 4 + 3 before). The 48px icon comes
+ * from panel.conf [General] iconSize, NOT from here: the panel's
+ * own stylesheet sets qproperty-iconSize on every plugin button
+ * and an ancestor stylesheet beats this theme QSS, so a
+ * qproperty-iconSize rule here would be silently dead. The
+ * LXQtFancyMenuWindow rule below is untouched (the popup stays
+ * light by design).
  */
 #FancyMenu {
     margin: 2px;
-    padding: 2px;
+    padding: 2px 8px;
     border: none;
-    background: rgba(61, 44, 158, 100%);
+    background: transparent;
     qproperty-icon: url(mainmenu.png);
-    color: white;
+    color: #333333;
+}
+
+#FancyMenu:hover {
+    background: rgba(255, 255, 255, 20%);
 }
 
 LXQtFancyMenuWindow {
-    background: rgba(61, 44, 158, 100%);/*solid purple: transparency disabled because buggy*/
+    background: #F7F5FF;
+    border-radius: 16px;
 }
 
 #FancyMenu QLineEdit {
-    background: rgba(255, 255, 255, 12%);
-    border: 1px solid rgba(255, 255, 255, 20%);
-    border-radius: 8px;
-    padding: 3px;
-    margin-bottom: 1px;
-    color: white;
+    background: #FFFFFF;
+    border: 1px solid rgba(51, 51, 51, 25%);
+    border-radius: 12px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    color: #333333;
     selection-background-color: #593BFE;
+    selection-color: white;
 }
 
 #FancyMenu #AppView {
-    border: 1px solid grey;
-    background: rgba(43, 24, 120, 100%);
-    color: white;
+    border: none;
+    background: transparent;
+    color: #333333;
+}
+
+#FancyMenu #CategoryView {
+    border: none;
+    background: rgba(89, 59, 254, 7%);
+    color: #333333;
 }
 
 #FancyMenu QListView::item {
-    color: white;
+    color: #333333;
     border: none;
     padding: 4px 3px 4px 10px;
 }
 
 #FancyMenu QListView::item:hover {
-    background: #3D2C9E;
+    background: rgba(89, 59, 254, 12%);
     border-radius: 6px;
-    color: white;
+    color: #333333;
 }
 
 #FancyMenu QListView::item:selected {
@@ -513,22 +571,28 @@ LXQtFancyMenuWindow {
     padding: 0px;
 }
 
+#FancyMenu QLabel {
+    color: #888888;
+}
+
 #FancyMenu QToolButton {
     margin: 3px;
     border-radius: 4px;
     border: 1px solid transparent;
     padding: 4px;
     background: transparent;
+    color: #333333;
 }
 
 #FancyMenu QToolButton:hover,
 #FancyMenu QToolButton:focus {
-    background: #3D2C9E;
-    border: 1px solid grey;
+    background: rgba(89, 59, 254, 12%);
+    border: 1px solid rgba(51, 51, 51, 25%);
 }
 
 #FancyMenu QToolButton:pressed {
     background: #593BFE;
+    color: white;
 }
 
 #FancyMenu QScrollBar:vertical {

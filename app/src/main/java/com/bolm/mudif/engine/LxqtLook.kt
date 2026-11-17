@@ -439,7 +439,18 @@ object LxqtLook {
     // writing wallpaper-index, so an existing rootfs must re-apply
     // to pick it up. The image stays p23; only the look version
     // moves. Without this bump the change repeats the p43 trap.
-    const val MARKER_VERSION = "p38"
+    // P39 (2026-11-17, p95): p95 stages a new panel.conf (both
+    // spacers expandable so the taskbar centers; [General]
+    // iconSize=48 so the mainmenu penguin grows), a new
+    // lxqt-panel.qss (the mainmenu button: transparent background,
+    // 8px side padding, ~67px wide), a new mudif-launcher icon +
+    // a corrected mudif-launcher.desktop (Icon=mudif-launcher),
+    // and the fixed rotator script (fd 9 closed before sleep,
+    // apply retries instead of exiting). An existing rootfs must
+    // re-apply to pick them up. The image stays p23; only the
+    // look version moves. Without this bump the change repeats
+    // the p43 trap.
+    const val MARKER_VERSION = "p39"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -868,6 +879,16 @@ object LxqtLook {
                 else -> null
             }
             panelConf.writeText(mergePanelConf(existingPanelConf, scale))
+            // p95: the corrected launcher desktop file (see
+            // MUDIF_LAUNCHER_DESKTOP). Overwrites the image's
+            // copy, the same pattern as lxqt.conf / panel.conf
+            // above: the file is Mudif's own, not a Debian
+            // package file. Written before the first desktop
+            // launch, so pcmanfm-desktop reads Icon=
+            // mudif-launcher from its first start.
+            val launcherDesktop = File(rootfs, "usr/share/applications/mudif-launcher.desktop")
+            launcherDesktop.parentFile?.mkdirs()
+            launcherDesktop.writeText(MUDIF_LAUNCHER_DESKTOP)
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
@@ -1302,7 +1323,20 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // Papirus-Dark + hicolor only, no mudif). Writing
         // iconTheme=WhiteSur-light here makes the panel use it.
         // P21: mudif -> WhiteSur-light (baked into the p21 image).
-        val generalKeys = linkedMapOf("iconTheme" to "WhiteSur-light")
+        // p95 - [General] iconSize=48. The panel's own stylesheet
+        // (lxqtpanel.cpp updateStyleSheet) sets qproperty-iconSize
+        // from this value on every plugin button, and a widget's
+        // ancestor stylesheet beats the theme QSS, so the theme
+        // QSS cannot size the mainmenu button: the 22px default
+        // is what made the penguin a 29px sliver (p93 round). 48
+        // grows the penguin to 48px and every other panel icon
+        // with it (quicklaunch, tray, taskbar); the widths still
+        // fit (see the spacer note below). The panel preserves
+        // this value when it rewrites panel.conf on exit.
+        val generalKeys = linkedMapOf(
+            "iconTheme" to "WhiteSur-light",
+            "iconSize" to "48"
+        )
         // P11: the QuickLaunch plugin shows the 4 mockup apps
         // (file manager, terminal, browser, settings). The 4
         // .desktop names are verified against the Debian Contents
@@ -1339,6 +1373,11 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // back an invisible spacer. A leftover [spacer] section in
         // an existing panel.conf is harmless (the panel loads
         // plugins ONLY from this list, so it is never loaded).
+        // p95: the "taskbar expands" expectation is FALSIFIED (p93
+        // rig round: one window, one ~92px button, a 409px void
+        // between the left group and the taskbar). The two spacers
+        // below are now expandable, which centers the taskbar
+        // instead (see the spacer note).
         // p90 (polish spec section 5): the two lined separators
         // return, in the plugins list and as sections below: one
         // after quicklaunch (launcher group | taskbar) and one
@@ -1375,14 +1414,33 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // The values below equal the defaults; they are written
         // explicitly so the separators are visible in panel.conf
         // and do not depend on a future default change.
+        // p95: both spacers become expandable, so the taskbar
+        // centers between two equal gaps. The p93 rig round
+        // measured a 409px void (guest x144-552) with no
+        // expandable item: the layout leaves leftover space
+        // unassigned (lxqtpanellayout.cpp setGeometryHoriz,
+        // expFactor=1 when nothing is expandable). ONE expandable
+        // spacer would only move the void to the other side (it
+        // takes ALL the leftover); two equal ones split it and
+        // center the taskbar. spaceType stays "lined": the line
+        // is painted by the theme QSS base #Spacer rule, NOT by
+        // the config value (P9FIX5: property-conditioned rules
+        // never match), so "invisible" would change nothing and
+        // an expandable spacer shows one vertical divider at its
+        // center (spacer-line.png is a 3x3 tile, repeat-y), not a
+        // long horizontal rule. size stays 8 (ignored while
+        // expandable, kept so the fixed size is documented).
+        // Widths still fit at iconSize 48: mainmenu 67 +
+        // quicklaunch ~275 + taskbar ~118 + tray ~220 +
+        // worldclock ~68 = ~748 of 848, the spacers split ~100.
         val spacerKeys = linkedMapOf(
             "size" to "8",
-            "expandable" to "false",
+            "expandable" to "true",
             "spaceType" to "lined"
         )
         val spacer2Keys = linkedMapOf(
             "size" to "8",
-            "expandable" to "false",
+            "expandable" to "true",
             "spaceType" to "lined"
         )
         val out = StringBuilder()
@@ -1677,6 +1735,29 @@ Exec=xrdb -merge /root/.Xresources
 Type=Application
 Name=mudif-wallpaper-rotate
 Exec=/usr/local/bin/mudif-wallpaper-rotate.sh
+"""
+
+    // p95 - the launcher's desktop file, corrected: the image
+    // bakes Icon=system-run (the WhiteSur gear), and the icon
+    // lookup checks WhiteSur-light before mudif, so a mudif
+    // system-run override would never win. The corrected file
+    // declares Icon=mudif-launcher, a name only the mudif theme
+    // provides (apps/64x64 in mudif-theme.zip: the system
+    // penguin mark). Staged here so an existing phone picks it
+    // up on this update; the image source
+    // (image-build/files/mudif-launcher/) carries the same Icon
+    // so the next image build agrees. launchDesktop still chmods
+    // +x and sets metadata::trust on this file after staging,
+    // so the staged copy needs no +x here.
+    private const val MUDIF_LAUNCHER_DESKTOP = """[Desktop Entry]
+Type=Application
+Name=Mudif Launcher
+Name[ar]=مشغّل مضيف
+Comment=Touch-friendly fullscreen app launcher (P19 Phase 4)
+Exec=/usr/local/bin/mudif-launcher --open
+Icon=mudif-launcher
+Terminal=false
+X-LXQt-Need-Tray=false
 """
 
     // p22 - screensaver: the image ships lxqt-xscreensaver-autostart

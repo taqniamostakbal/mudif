@@ -10,7 +10,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 
 /** p31: provider-selection screen. One Mudif-style card per free AI
- *  platform (10 platforms, 45 models from opencode-providers.json):
+ *  platform (9 platforms, 46 models from opencode-providers.json;
+ *  p95: Groq hidden, 5 models, by Anas's order):
  *  name + description + its free models + a "Get free key" button
  *  that opens the provider's key page. Tapping a model returns it
  *  to the chat (EXTRA_PICKED_MODEL); the chat applies it through the
