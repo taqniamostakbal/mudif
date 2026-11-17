@@ -17,14 +17,19 @@ data class BrainProvider(
 
 data class BrainModel(val id: String, val name: String, val vision: Boolean = false)
 
-/** The 10 free platforms from opencode-providers.json, in display
+/** The free platforms from opencode-providers.json, in display
  *  order: local first, then the no-key free models, then the keyed
  *  platforms. The same asset the chat labels (AgentFragment) and the
  *  guest config (AgentServer) read, so the screen, the picker labels
- *  and the server can never disagree about which models exist. */
+ *  and the server can never disagree about which models exist.
+ *  p95: Groq is NOT in this list anymore. Anas ordered it removed
+ *  ("حيدو", 17 Nov); the card is gone, so no Groq model can be
+ *  tapped. The groq provider block stays in the asset and the
+ *  saved Groq key stays in settings (prefKeyForEnv below is
+ *  untouched): hiding the card only, deleting nothing. */
 object BrainProviders {
     val ORDER = listOf(
-        "ollama", "opencode", "openrouter", "groq", "llm7",
+        "ollama", "opencode", "openrouter", "llm7",
         "huggingface", "google", "cohere", "mistral", "tokenlab"
     )
 

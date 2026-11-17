@@ -182,8 +182,18 @@ class VncActivity : MudifActivity() {
         // never a dead end. The TCP check runs off the UI thread
         // (Socket.connect throws NetworkOnMainThreadException, P5.25).
         binding.btnOpenViewer.setOnClickListener {
+            // p95: the gate must require a LIVE session, not just
+            // a listening X server. The p93 round (20:34) proved
+            // the old TCP-only check attaches to a LIVE-but-
+            // sessionless X (black desktop, orphaned window only)
+            // when lxqt-session is dead. isDesktopSessionAlive
+            // is one guest command (non-zombie lxqt-session AND
+            // openbox); false fails closed into startDesktop(),
+            // which does the full start. The check runs off the
+            // UI thread already, so the one-shot probe cannot
+            // block the UI.
             Thread {
-                if (X11Session.isTcpDisplayOpen()) {
+                if (X11Session.isTcpDisplayOpen() && X11Session.isDesktopSessionAlive(this)) {
                     runOnUiThread { openViewerAndLaunchDesktop() }
                 } else {
                     runOnUiThread {
@@ -855,6 +865,29 @@ class VncActivity : MudifActivity() {
                 LxqtLook.ensureLxqtLook(this)
             } else {
                 false
+            }
+
+            // p95: re-kill the stale desktop processes AFTER
+            // staging. Step 1a runs pre-boot and can miss them:
+            // the p93 round proved a pcmanfm-desktop from the
+            // pre-install session survives into the first
+            // post-install start and renders the desktop with
+            // its cached (negative) icon lookups, so Firefox +
+            // the launcher show as text only. The container is
+            // booted now and the theme is staged, so a second
+            // kill here leaves nothing stale for the startlxqt
+            // below, which then starts a FRESH pcmanfm-desktop
+            // that reads the staged theme. Best-effort: a
+            // failure here must never block the desktop (same
+            // as step 1a). NOT marker-gated: the kill must fire
+            // on every full start, or the defect returns on the
+            // next marker-less build. The fast-reattach path
+            // above returns before this point, so a healthy
+            // live session is never killed.
+            try {
+                X11Session.killDebianDesktopProcesses(this)
+            } catch (e: Exception) {
+                MudifLog.d("VncActivity", "p95 post-staging desktop kill failed: ${e.message}")
             }
 
             // P16 XKB GUARD: if the desktop install did not complete,
