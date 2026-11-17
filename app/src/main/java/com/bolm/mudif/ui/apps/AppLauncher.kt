@@ -158,6 +158,19 @@ object AppLauncher {
      * X11Session.desktopAliveCommand filter: a pid only counts
      * when /proc/<pid>/stat field 3 is not Z. The check itself
      * is unchanged in p82; only the schedule is longer.
+     *
+     * p83: double-confirm. A process seen alive at one poll must
+     * still be alive at the next poll before this returns true:
+     * pavucontrol and LXImage both logged ok=true once and
+     * ok=false once for the same crashing program (rig-proven
+     * p82), because the process existed at the early poll moment
+     * and died a second later, leaving a zombie the filter only
+     * excludes when it is caught dead. A fast app still verifies
+     * in ~9 s (alive at 4 s, confirmed at 9 s); a slow app
+     * (Craft ~21 s) is unaffected; a program that dies between
+     * polls resets the confirmation and keeps polling to the
+     * deadline, so a fast crasher returns false, never a false
+     * ok=true.
      */
     private fun verifyStarted(appCtx: Context, program: StoreProgram): Boolean {
         val process = program.process?.takeIf { it.isNotBlank() }
@@ -168,6 +181,7 @@ object AppLauncher {
             "if [ -n \"${d}state\" ] && [ \"${d}state\" != \"Z\" ]; then exit 0; fi; done; exit 1"
         val deadline = System.currentTimeMillis() + VERIFY_TIMEOUT_MS
         var delayMs = 4000L
+        var seenAlive = false
         while (true) {
             Thread.sleep(delayMs)
             val check = TerminalSession.runCommandDebian(
@@ -176,7 +190,12 @@ object AppLauncher {
                 idleTimeoutSec = 10,
                 maxTimeoutSec = 15
             )
-            if (check.exitCode == 0) return true
+            if (check.exitCode == 0) {
+                if (seenAlive) return true
+                seenAlive = true
+            } else {
+                seenAlive = false
+            }
             if (System.currentTimeMillis() >= deadline) return false
             delayMs = VERIFY_INTERVAL_MS
         }
