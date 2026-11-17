@@ -174,6 +174,12 @@ import java.io.File
  * .desktop entries are created. The palette is NOT touched:
  * still deferred. RTL is kept (correct for Arabic); the mockups
  * are LTR only because they are AI-generated.
+ * p86: the default wallpaper becomes the Deepin-style gradient
+ * with the clay penguin watermark (desktop polish spec section 1,
+ * approved 2026-11-17). Pomegranate + bold + purple stay staged
+ * and selectable in the desktop wallpaper settings. Zorin's
+ * mountain photo is the spec's alternative, but no clean source
+ * exists in the workspace, so it is NOT bundled in p86 (owed).
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -303,11 +309,12 @@ object LxqtLook {
     // (stdin EOF); رقي and نظف carry the same gap in source.
     // An existing rootfs must re-apply to pick it up; without
     // this bump the fix repeats the p43 trap.
-    const val MARKER_VERSION = "p31"
+    const val MARKER_VERSION = "p32"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
     private const val WALLPAPER_BOLD_ASSET = "mudif-wallpaper-bold.png"
+    private const val WALLPAPER_GRADIENT_ASSET = "mudif-wallpaper-gradient.png"
     private const val CAIRO_TTF_ASSET = "fonts-cairo/Cairo[slnt,wght].ttf"
     private const val CAIRO_OFL_ASSET = "fonts-cairo/OFL.txt"
     private const val CLI_ASSET = "mudif-cli/arabic-cli.sh"
@@ -369,6 +376,9 @@ object LxqtLook {
             // P14: the default is now the pomegranate poster (his
             // pick 2026-11-08); PCMANFM_SETTINGS_CONF Wallpaper
             // points at it. Purple and bold stay selectable.
+            // p86: the default is now the Deepin-style gradient
+            // wallpaper (polish spec section 1, approved
+            // 2026-11-17); pomegranate stays selectable.
             context.assets.open(WALLPAPER_POMEGRANATE_ASSET).use { input ->
                 File(backgrounds, "mudif-wallpaper-pomegranate.png").outputStream().use { out ->
                     input.copyTo(out)
@@ -376,6 +386,15 @@ object LxqtLook {
             }
             context.assets.open(WALLPAPER_BOLD_ASSET).use { input ->
                 File(backgrounds, "mudif-wallpaper-bold.png").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            // p86: the gradient wallpaper is staged next to the
+            // others so it is selectable in the desktop wallpaper
+            // settings; PCMANFM_SETTINGS_CONF Wallpaper points
+            // at it as the new default.
+            context.assets.open(WALLPAPER_GRADIENT_ASSET).use { input ->
+                File(backgrounds, "mudif-wallpaper-gradient.png").outputStream().use { out ->
                     input.copyTo(out)
                 }
             }
@@ -769,7 +788,7 @@ XCURSOR_SIZE=48
 Terminal=qterminal
 
 [Desktop]
-Wallpaper=/usr/share/backgrounds/mudif-wallpaper-pomegranate.png
+Wallpaper=/usr/share/backgrounds/mudif-wallpaper-gradient.png
 WallpaperMode=stretch
 DesktopIconSize=93
 """
