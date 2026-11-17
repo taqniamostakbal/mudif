@@ -434,17 +434,12 @@ object LxqtLook {
     // re-apply to pick it up. The image stays p23; only the
     // look version moves. Without this bump the fix repeats the
     // p43 trap.
-    // P37 (2026-11-17, p91): p91 stages two rotating desktop
-    // wallpapers (mudif-wallpaper-premium.png, the dark premium
-    // penguin, and mudif-wallpaper-green.png, the green
-    // storybook penguin; both his picks) plus the rotate script
-    // and its LXQt autostart entry, so an existing rootfs must
-    // re-apply to pick them up. The image stays p23; only the
-    // look version moves. The gradient wallpaper stays staged
-    // and selectable; the rotation alternates only between the
-    // two new ones. Without this bump the change repeats the
-    // p43 trap.
-    const val MARKER_VERSION = "p37"
+    // P38 (2026-11-17, p92): p92 fixes the rotator state divergence
+    // (F2): the rotate script now verifies settings.conf before
+    // writing wallpaper-index, so an existing rootfs must re-apply
+    // to pick it up. The image stays p23; only the look version
+    // moves. Without this bump the change repeats the p43 trap.
+    const val MARKER_VERSION = "p38"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
