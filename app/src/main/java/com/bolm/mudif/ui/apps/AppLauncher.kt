@@ -35,6 +35,13 @@ import com.bolm.mudif.ui.vnc.VncActivity
  * own busy set); it is always invoked on the UI thread.
  */
 object AppLauncher {
+    // p82: verify window. The 4 s + 6 s window (10 s) is too short
+    // for slow apps: Craft's cold start takes ~21 s to a process
+    // and ~65 s to a window on the rig (p81-proven), so a real
+    // launch logged ok=false and the user got a WRONG failure
+    // dialog for a program that was starting.
+    private const val VERIFY_TIMEOUT_MS = 60_000L
+    private const val VERIFY_INTERVAL_MS = 5_000L
 
     fun launch(
         fragment: Fragment,
@@ -135,18 +142,22 @@ object AppLauncher {
 
     /**
      * True if the program's process is running in the guest.
-     * Checks twice (after 4s, then after 6s more) so slow apps
-     * (LibreOffice, Electron) get time to start. pgrep -x matches
-     * the exact process name; [StoreProgram.process] is the name
-     * to check (defaults to the binary). A missing pgrep binary
-     * or a failed check returns false (fail safe: report the
-     * launch as failed rather than lie about it).
+     * Polls every 5 s up to 60 s from launch, so slow apps get
+     * time to start: the first check stays at 4 s (fast apps
+     * still verify fast), then 9 s, 14 s, ... A process appearing
+     * at ~21 s (Craft cold start, p81-proven) is caught, while a
+     * truly missing binary still returns false at the deadline.
+     * pgrep -x matches the exact process name; [StoreProgram.process]
+     * is the name to check (defaults to the binary). A missing
+     * pgrep binary or a failed check returns false (fail safe:
+     * report the launch as failed rather than lie about it).
      *
      * p80: pgrep alone matches a zombie (state Z) as if it were
      * running, so a crashed program logs ok=true with no window
      * (p78 Craft: PID 26164 Z<, ok=true). Mirror the
      * X11Session.desktopAliveCommand filter: a pid only counts
-     * when /proc/<pid>/stat field 3 is not Z.
+     * when /proc/<pid>/stat field 3 is not Z. The check itself
+     * is unchanged in p82; only the schedule is longer.
      */
     private fun verifyStarted(appCtx: Context, program: StoreProgram): Boolean {
         val process = program.process?.takeIf { it.isNotBlank() }
@@ -155,8 +166,10 @@ object AppLauncher {
         val checkCmd = "for pid in ${d}(pgrep -x \"$process\" 2>/dev/null); do " +
             "state=${d}(awk '{print ${d}3}' /proc/${d}pid/stat 2>/dev/null); " +
             "if [ -n \"${d}state\" ] && [ \"${d}state\" != \"Z\" ]; then exit 0; fi; done; exit 1"
-        repeat(2) { attempt ->
-            Thread.sleep(if (attempt == 0) 4000 else 6000)
+        val deadline = System.currentTimeMillis() + VERIFY_TIMEOUT_MS
+        var delayMs = 4000L
+        while (true) {
+            Thread.sleep(delayMs)
             val check = TerminalSession.runCommandDebian(
                 appCtx,
                 checkCmd,
@@ -164,7 +177,8 @@ object AppLauncher {
                 maxTimeoutSec = 15
             )
             if (check.exitCode == 0) return true
+            if (System.currentTimeMillis() >= deadline) return false
+            delayMs = VERIFY_INTERVAL_MS
         }
-        return false
     }
 }
