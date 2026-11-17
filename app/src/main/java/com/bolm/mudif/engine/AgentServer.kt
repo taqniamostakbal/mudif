@@ -326,15 +326,25 @@ object AgentServer {
      * with the real outcome; the caller shows the reason honestly.
      */
     fun ensureStarted(context: Context): EnsureResult {
+        // p82: split the entry probe so the heal knows WHY it is
+        // starting. tcpUp && healthy -> skip. tcpUp && !healthy ->
+        // a broken server owns the port (rig-proven p81: the probe
+        // fires, agent-start.sh then wastes 20 s re-proving the
+        // failure before killing it, and the heal misses the 30 s
+        // budget by ~2-5 s). Nothing listening -> fresh start.
+        // The flag below only fires on the known-broken leg.
         // p81: TCP alone is not health. A stray opencode answers
         // TCP on 4096 while /session returns UnknownError
         // (rig-proven p80), so the short-circuit needs the
         // /session probe too. TCP first: when nothing listens
         // there is no HTTP wait, the start path runs at once.
-        if (isUp() && isSessionHealthy()) {
+        val tcpUp = isUp()
+        val sessionHealthy = tcpUp && isSessionHealthy()
+        if (tcpUp && sessionHealthy) {
             MudifLog.i(TAG, "ensureStarted: opencode already up on 4096, /session healthy, no start needed")
             return EnsureResult(true)
         }
+        val serverKnownBroken = tcpUp && !sessionHealthy
         if (!DebianSystem.isReady(context)) {
             Log.w(TAG, "ensureStarted: engine not ready")
             return EnsureResult(false, REASON_ENGINE_NOT_READY)
@@ -377,7 +387,18 @@ object AgentServer {
             Log.e(TAG, "ensureStarted: guest boot failed: ${GuestSession.lastError}")
             return EnsureResult(false, REASON_BOOT_FAILED)
         }
-        if (!GuestSession.sendCommand("sh /root/.config/mudif/agent-start.sh")) {
+        // p82: when the server is known-broken, tell the script to
+        // kill it at once instead of waiting 20 s on a failure the
+        // probe already proved. The watchdog never passes this
+        // flag: it only calls ensureStarted when TCP is down, so
+        // its 20 s good-but-slow protection is untouched.
+        // ensureOllamaStarted keeps the plain command below.
+        val startCmd = if (serverKnownBroken) {
+            "sh /root/.config/mudif/agent-start.sh restart-opencode"
+        } else {
+            "sh /root/.config/mudif/agent-start.sh"
+        }
+        if (!GuestSession.sendCommand(startCmd)) {
             Log.e(TAG, "ensureStarted: could not send start command")
             return EnsureResult(false, REASON_START_FAILED)
         }
