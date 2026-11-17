@@ -263,6 +263,42 @@ import java.io.File
  * end; the Qt default button carries Fusion's faint lavender
  * tint + purple border (no mechanism for pcmanfm-qt, which
  * loads no stylesheet).
+ * p90: the bottom panel (desktop polish spec section 5). The
+ * headline is the launcher-button icon: after p87 the button
+ * still showed the theme's default start icon (blue circle,
+ * white bird/swirl), not the Mudif penguin (Anas's report,
+ * 2026-11-17, screenshot of the launcher open on his phone).
+ * Mechanism, proven before writing: the staged file IS already
+ * the penguin (usr/share/lxqt/themes/mudif/mainmenu.png in the
+ * theme zip, 294x299, viewed), and the merge writes
+ * icon=<that path> + ownIcon=true into [mainmenu] - but the
+ * panel REWRITES panel.conf on exit and DROPS ownIcon (proven
+ * live: the p87 and p88 rig panel.conf dumps both have icon=
+ * present and ownIcon ABSENT after the panel runs). With
+ * ownIcon gone, LXQtFancyMenu::setButtonIcon()
+ * (lxqt-panel 2.1.x, plugin-fancymenu/lxqtfancymenu.cpp: the
+ * else branch sets an empty widget stylesheet) the button falls
+ * back to the icon theme's start icon. The fix is an assertion
+ * of the two [mainmenu] icon keys on EVERY desktop start,
+ * before the marker early-return, so whatever the panel dropped
+ * on exit is undone by the next start and the exact
+ * fresh-staging state (penguin, proven on the rig) is restored.
+ * The same build adds the rest of section 5: two lined
+ * separators (spacer after quicklaunch, spacer2 before
+ * worldclock; keys size/expandable/spaceType from the upstream
+ * spacer source, values equal to the defaults; the line is
+ * painted by the base #Spacer rule, P9FIX5), and the stacked
+ * clock (worldclock showDate=true + datePosition=below; the
+ * system default carries no date keys, so the clock shows time
+ * only today). The panel bar needs no change: it already
+ * renders the spec gradient rgba(89,59,254,60%) to
+ * rgba(43,24,120,60%) (pixel-sampled #27186E on the rig).
+ * NOT done in this build: the centered app group (spec section
+ * 9 is still OPEN: pinned favorites vs live task buttons, no
+ * decision given, so the P14 plugin order is not redesigned);
+ * true frosted translucency (needs a compositor, picom is
+ * ideas item 3, NOT built); a panel restart WITHOUT a desktop
+ * start still shows the swirl until the next full start.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -398,7 +434,7 @@ object LxqtLook {
     // re-apply to pick it up. The image stays p23; only the
     // look version moves. Without this bump the fix repeats the
     // p43 trap.
-    const val MARKER_VERSION = "p35"
+    const val MARKER_VERSION = "p36"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -425,6 +461,98 @@ object LxqtLook {
         }
     }
 
+    // p90 (polish spec section 5, headline fix): the panel DROPS
+    // ownIcon from [mainmenu] when it rewrites panel.conf on exit.
+    // Proven live: the p87 and p88 rig panel.conf dumps both show
+    // icon=/usr/share/lxqt/themes/mudif/mainmenu.png PRESENT but
+    // ownIcon=true ABSENT after the panel runs. With ownIcon gone,
+    // LXQtFancyMenu::setButtonIcon() (lxqt-panel 2.1.x,
+    // plugin-fancymenu/lxqtfancymenu.cpp) takes its else branch and
+    // clears the button stylesheet, so the button falls back to the
+    // icon theme's start icon (the blue swirl) instead of the Mudif
+    // penguin. The marker-gated merge below writes ownIcon=true
+    // only once per marker, so it never repairs the drop. This
+    // assertion runs on EVERY desktop start, BEFORE the marker
+    // early-return in ensureLxqtLook: the panel reads panel.conf
+    // at startup, so whatever it dropped on exit is undone by the
+    // next start, restoring the exact fresh-staging state that
+    // shows the penguin (proven on the rig: the p89-verify
+    // first-start screenshot shows the penguin; Anas's phone
+    // screenshot after panel restarts shows the swirl). Only these
+    // two keys are asserted; favorites, categoriesAtRight, plugins
+    // stay once-per-marker, so user edits to them are not fought.
+    // No-op when panel.conf does not exist yet (the gated staging
+    // creates it) or when both keys are already correct (the file
+    // is not rewritten, so no churn). Every other byte of the file
+    // is preserved exactly. If a duplicate key exists, the last
+    // copy is the one fixed (QSettings reads the last value).
+    // Best-effort: a failure here must never block the desktop
+    // start.
+    private fun assertPanelMenuIcon(context: Context) {
+        try {
+            val panelConf = File(
+                DebianSystem.debianRootfsDir(context),
+                "root/.config/lxqt/panel.conf"
+            )
+            if (!panelConf.exists()) return
+            val lines = panelConf.readText().lines().toMutableList()
+            var inMainmenu = false
+            var mainmenuSeen = false
+            var iconLine = -1
+            var ownIconLine = -1
+            var mainmenuEnd = -1
+            for ((i, line) in lines.withIndex()) {
+                val trimmed = line.trim()
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    if (inMainmenu) {
+                        mainmenuEnd = i
+                        break
+                    }
+                    inMainmenu = trimmed == "[mainmenu]"
+                    if (inMainmenu) mainmenuSeen = true
+                    continue
+                }
+                if (!inMainmenu) continue
+                val key = trimmed.substringBefore("=").trim()
+                if (key == "icon") iconLine = i
+                if (key == "ownIcon") ownIconLine = i
+            }
+            if (!mainmenuSeen) return
+            if (mainmenuEnd == -1) mainmenuEnd = lines.size
+            // A file ending in a newline yields a trailing empty
+            // element; insert before it so the file keeps its
+            // trailing newline and no blank line lands inside
+            // [mainmenu].
+            if (mainmenuEnd == lines.size && lines.isNotEmpty()
+                && lines.last().isEmpty()) mainmenuEnd -= 1
+            var changed = false
+            if (iconLine == -1) {
+                lines.add(
+                    mainmenuEnd,
+                    "icon=/usr/share/lxqt/themes/mudif/mainmenu.png"
+                )
+                mainmenuEnd += 1
+                changed = true
+            } else if (lines[iconLine].trim() !=
+                "icon=/usr/share/lxqt/themes/mudif/mainmenu.png") {
+                lines[iconLine] =
+                    "icon=/usr/share/lxqt/themes/mudif/mainmenu.png"
+                changed = true
+            }
+            if (ownIconLine == -1) {
+                lines.add(mainmenuEnd, "ownIcon=true")
+                changed = true
+            } else if (lines[ownIconLine].trim() != "ownIcon=true") {
+                lines[ownIconLine] = "ownIcon=true"
+                changed = true
+            }
+            if (!changed) return
+            panelConf.writeText(lines.joinToString("\n"))
+        } catch (e: Exception) {
+            MudifLog.d(TAG, "p90 panel menu icon assertion failed: ${e.message}")
+        }
+    }
+
     /**
      * Apply the whole look. Host-side file writes only, best-effort,
      * idempotent (the marker gates re-runs). Call from a background
@@ -432,6 +560,10 @@ object LxqtLook {
      * AND every file is written.
      */
     fun ensureLxqtLook(context: Context): Boolean {
+        // p90: re-assert the panel menu icon keys before anything
+        // else (see assertPanelMenuIcon): the marker early-return
+        // below would skip the repair on every later start.
+        assertPanelMenuIcon(context)
         if (isApplied(context)) return true
         // p23: adaptive scale, computed once from this device's real
         // screen and threaded through every config writer below.
@@ -683,6 +815,13 @@ object LxqtLook {
             // can clobber it, and the panel reads it at startup
             // and preserves both additions when it rewrites
             // panel.conf on exit.
+            // p90 correction: the "preserves" claim above is
+            // FALSIFIED for ownIcon (the p87/p88 rig panel.conf
+            // dumps have icon= but no ownIcon after the panel
+            // runs), which is why the button showed the theme's
+            // start icon instead of the penguin. The repair is
+            // assertPanelMenuIcon(), called on every desktop start
+            // before the marker early-return (see its comment).
             val panelConf = File(lxqtDir, "panel.conf")
             val existingPanelConf = when {
                 panelConf.exists() -> panelConf.readText()
@@ -1155,7 +1294,52 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // back an invisible spacer. A leftover [spacer] section in
         // an existing panel.conf is harmless (the panel loads
         // plugins ONLY from this list, so it is never loaded).
-        val pluginsList = "mainmenu, quicklaunch, taskbar, tray, statusnotifier, mount, volume, worldclock"
+        // p90 (polish spec section 5): the two lined separators
+        // return, in the plugins list and as sections below: one
+        // after quicklaunch (launcher group | taskbar) and one
+        // before worldclock (tray/volume group | clock). These are
+        // VISIBLE separators (the line is painted by the base
+        // #Spacer rule), not the invisible P15 spacer. The P14
+        // plugin order is otherwise unchanged: the centered app
+        // group needs the still-open section 9 decision (pinned
+        // favorites vs live task buttons), so it is NOT redesigned
+        // here.
+        val pluginsList = "mainmenu, quicklaunch, spacer, taskbar, tray, statusnotifier, mount, volume, spacer2, worldclock"
+        // p90 (polish spec section 5): the clock shows the time
+        // stacked over the date (Deepin reference), not the time
+        // alone. The worldclock plugin's date is off by default
+        // (the system default panel.conf [worldclock] carries
+        // only type=worldclock, and the rig shows time only).
+        // Keys from the lxqt-panel 2.x worldclock config (a real
+        // 2.2 user panel.conf shows showDate + datePosition):
+        // showDate=true turns the date on, datePosition=below
+        // puts it under the time. Format keys stay default
+        // (locale short date). If the guest's 2.1.4 plugin
+        // ignored these keys, the clock would stay time-only
+        // (unknown keys are ignored, nothing breaks); the rig
+        // round is the arbiter.
+        val worldclockKeys = linkedMapOf(
+            "showDate" to "true",
+            "datePosition" to "below"
+        )
+        // p90 (polish spec section 5): the two lined separators.
+        // Keys from the upstream spacer source
+        // (plugin-spacer/spacer.cpp + spacerconfiguration.cpp,
+        // in diagnosis-spacer/): size default 8, expandable
+        // default false, spaceType default msTypes[0] = "lined".
+        // The values below equal the defaults; they are written
+        // explicitly so the separators are visible in panel.conf
+        // and do not depend on a future default change.
+        val spacerKeys = linkedMapOf(
+            "size" to "8",
+            "expandable" to "false",
+            "spaceType" to "lined"
+        )
+        val spacer2Keys = linkedMapOf(
+            "size" to "8",
+            "expandable" to "false",
+            "spaceType" to "lined"
+        )
         val out = StringBuilder()
         val seenMainmenuKeys = mutableSetOf<String>()
         var inMainmenu = false
@@ -1170,6 +1354,16 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         val seenQuicklaunchKeys = mutableSetOf<String>()
         var inQuicklaunch = false
         var quicklaunchSeen = false
+        // p90: [worldclock], [spacer], [spacer2] sections.
+        val seenWorldclockKeys = mutableSetOf<String>()
+        var inWorldclock = false
+        var worldclockSeen = false
+        val seenSpacerKeys = mutableSetOf<String>()
+        var inSpacer = false
+        var spacerSeen = false
+        val seenSpacer2Keys = mutableSetOf<String>()
+        var inSpacer2 = false
+        var spacer2Seen = false
         fun appendMissingMainmenuKeys() {
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             for ((k, v) in mainmenuKeys) if (k !in seenMainmenuKeys) out.append("$k=$v\n")
@@ -1196,6 +1390,18 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
             for ((k, v) in quicklaunchKeys) if (k !in seenQuicklaunchKeys) out.append("$k=$v\n")
         }
+        fun appendMissingWorldclockKeys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in worldclockKeys) if (k !in seenWorldclockKeys) out.append("$k=$v\n")
+        }
+        fun appendMissingSpacerKeys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in spacerKeys) if (k !in seenSpacerKeys) out.append("$k=$v\n")
+        }
+        fun appendMissingSpacer2Keys() {
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            for ((k, v) in spacer2Keys) if (k !in seenSpacer2Keys) out.append("$k=$v\n")
+        }
         // trimEnd on the input drops the trailing empty lines the
         // file's final newline produces, so no blank line lands
         // inside [mainmenu] when it is the last section.
@@ -1209,6 +1415,9 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                     appendMissingPanel1Keys()
                 }
                 if (inQuicklaunch) appendMissingQuicklaunchKeys()
+                if (inWorldclock) appendMissingWorldclockKeys()
+                if (inSpacer) appendMissingSpacerKeys()
+                if (inSpacer2) appendMissingSpacer2Keys()
                 inMainmenu = trimmed == "[mainmenu]"
                 if (inMainmenu) mainmenuSeen = true
                 inGeneral = trimmed == "[General]"
@@ -1217,6 +1426,12 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                 if (inPanel1) panel1Seen = true
                 inQuicklaunch = trimmed == "[quicklaunch]"
                 if (inQuicklaunch) quicklaunchSeen = true
+                inWorldclock = trimmed == "[worldclock]"
+                if (inWorldclock) worldclockSeen = true
+                inSpacer = trimmed == "[spacer]"
+                if (inSpacer) spacerSeen = true
+                inSpacer2 = trimmed == "[spacer2]"
+                if (inSpacer2) spacer2Seen = true
                 out.append(line).append("\n")
                 continue
             }
@@ -1265,10 +1480,11 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                     // P14: replace the whole list with the
                     // reference layout. The old list carries the
                     // removed plugins (showdesktop, desktopswitch,
-                    // kbindicator, quicklaunch2, spacer), so
-                    // keeping it as-is would keep them. The merge
-                    // runs once per marker version, so this does
-                    // not fight later user edits.
+                    // kbindicator, quicklaunch2), so keeping it
+                    // as-is would keep them. The merge runs once
+                    // per marker version, so this does not fight
+                    // later user edits. p90: the list now also
+                    // carries spacer + spacer2 (spec section 5).
                     out.append("plugins=$pluginsList\n")
                     pluginsSeen = true
                     continue
@@ -1277,6 +1493,36 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
                     if (key !in seenPanel1Keys) {
                         out.append("$key=${panel1Keys[key]}\n")
                         seenPanel1Keys.add(key)
+                    }
+                    continue
+                }
+            }
+            if (inWorldclock) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key in worldclockKeys) {
+                    if (key !in seenWorldclockKeys) {
+                        out.append("$key=${worldclockKeys[key]}\n")
+                        seenWorldclockKeys.add(key)
+                    }
+                    continue
+                }
+            }
+            if (inSpacer) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key in spacerKeys) {
+                    if (key !in seenSpacerKeys) {
+                        out.append("$key=${spacerKeys[key]}\n")
+                        seenSpacerKeys.add(key)
+                    }
+                    continue
+                }
+            }
+            if (inSpacer2) {
+                val key = trimmed.substringBefore("=").trim()
+                if (key in spacer2Keys) {
+                    if (key !in seenSpacer2Keys) {
+                        out.append("$key=${spacer2Keys[key]}\n")
+                        seenSpacer2Keys.add(key)
                     }
                     continue
                 }
@@ -1290,6 +1536,9 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             appendMissingPanel1Keys()
         }
         if (inQuicklaunch) appendMissingQuicklaunchKeys()
+        if (inWorldclock) appendMissingWorldclockKeys()
+        if (inSpacer) appendMissingSpacerKeys()
+        if (inSpacer2) appendMissingSpacer2Keys()
         if (!generalSeen) {
             // Defensive only: [General] is in both the system
             // default and the user panel.conf, so this should
@@ -1327,6 +1576,33 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             out.append("alignment=Left\n")
             out.append("type=quicklaunch\n")
             for ((k, v) in quicklaunchKeys) out.append("$k=$v\n")
+        }
+        if (!worldclockSeen) {
+            // Defensive only: [worldclock] is in both the system
+            // default and the user panel.conf, so this should
+            // never trigger. A minimal [worldclock] with just
+            // the date keys is better than a time-only clock.
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[worldclock]\n")
+            out.append("type=worldclock\n")
+            for ((k, v) in worldclockKeys) out.append("$k=$v\n")
+        }
+        if (!spacerSeen) {
+            // Defensive only: no [spacer] is in the system
+            // default, so this triggers on a fresh merge from it.
+            // A minimal [spacer] with the lined keys is better
+            // than a spacer with unknown defaults.
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[spacer]\n")
+            out.append("type=spacer\n")
+            for ((k, v) in spacerKeys) out.append("$k=$v\n")
+        }
+        if (!spacer2Seen) {
+            // Same as [spacer]: the second separator.
+            if (out.isNotEmpty() && !out.endsWith("\n")) out.append("\n")
+            out.append("[spacer2]\n")
+            out.append("type=spacer\n")
+            for ((k, v) in spacer2Keys) out.append("$k=$v\n")
         }
         // Normalize the ending: exactly one trailing newline, so a
         // re-merge of an already-merged file is byte-identical.
