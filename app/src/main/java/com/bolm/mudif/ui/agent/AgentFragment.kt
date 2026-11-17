@@ -2396,8 +2396,11 @@ class AgentFragment : Fragment() {
                 requireContext().assets.open("opencode-providers.json")
                     .bufferedReader().use { it.readText() }
             ).optJSONObject("providers") ?: return options
+            // p93: Groq is out of the brain picker by Anas's order
+            // (17 Nov 2026). The saved key and the provider screen
+            // card are untouched; only the pick list loses it.
             val providerOrder = listOf(
-                "groq", "llm7", "openrouter", "huggingface", "opencode",
+                "llm7", "openrouter", "huggingface", "opencode",
                 "google", "cohere", "mistral", "tokenlab"
             )
             for (providerKey in providerOrder) {
@@ -2588,7 +2591,9 @@ class AgentFragment : Fragment() {
     }
 
     /** Applies a brain picked on the provider screen: writes it to
-     *  opencode.json and restarts the server (only when it is up).
+     *  opencode.json and restarts the server on a background thread
+     *  (p93: the old UI-thread probe never fired, see the p35d note
+     *  below).
      *  A cloud model needs its key in Settings (or on the provider
      *  screen): without the key the pick is refused with a visible
      *  warning and the active brain does not change (p34f fix 3,
@@ -2662,17 +2667,22 @@ class AgentFragment : Fragment() {
         // and the restart start under brainRestartLock, as one
         // atomic step, so a turn setting up at the same moment
         // cannot read the old id or create a session on the old
-        // server between the two. isUp is probed outside the lock:
-        // it is a TCP probe of up to 3 x 1500 ms, and the lock is
-        // held only for the field write, the pref remove, and the
-        // thread start. restartBrainServer takes the same lock to
-        // set its flags; that nested hold is the same thread, so
-        // it cannot deadlock.
-        val serverUp = AgentServer.isUp()
+        // server between the two. p93: the probe used to run here
+        // on the UI thread (AgentServer.isUp, up to 3 x 1500 ms
+        // of socket connect), and Android throws
+        // NetworkOnMainThreadException for socket I/O on the main
+        // thread, which isUp swallows as "down", so the restart
+        // never fired (F4: 3/3 picks). The probe now lives inside
+        // AgentServer.restart on the restart thread, which already
+        // handles a down server (start only, verified). The lock
+        // is held only for the field write, the pref remove, and
+        // the thread start. restartBrainServer takes the same lock
+        // to set its flags; that nested hold is the same thread,
+        // so it cannot deadlock.
         synchronized(brainRestartLock) {
             sessionId = null
             prefs().edit().remove(KEY_SESSION_ID).apply()
-            if (serverUp) restartBrainServer()
+            restartBrainServer()
         }
     }
 
