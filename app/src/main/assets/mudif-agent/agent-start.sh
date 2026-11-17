@@ -22,6 +22,68 @@ set -u
 MUDIF_HOME=/root/.config/mudif
 mkdir -p "$MUDIF_HOME"
 
+# opencode_ok is defined HERE, at the top, not in the opencode
+# section below: the lock contender path (p83, next block) must
+# probe /session before the opencode section is reached.
+# mktemp per call: two concurrent runs probe at the same time
+# (holder + contender), and a shared /tmp/opencode-session.json
+# would let one curl's write tear the other's read.
+opencode_ok() {
+    tmp=$(mktemp /tmp/opencode-session.XXXXXX 2>/dev/null) || return 1
+    code=$(curl -s -o "$tmp" -w "%{http_code}" -m 5 http://127.0.0.1:4096/session 2>/dev/null)
+    if [ "$code" = "200" ] && ! grep -q "UnknownError" "$tmp"; then
+        rm -f "$tmp"
+        return 0
+    fi
+    rm -f "$tmp"
+    return 1
+}
+
+# p83: mutual exclusion. Two concurrent runs race: the second
+# run's kill step can land on the server the first run just
+# healed, at the exact moment the app POSTs to it (rig-proven
+# p82: the watchdog's plain run killed the healed server in the
+# same second the turn's POST fired, "Failed to connect to
+# /127.0.0.1:4096"). flock serialises every run through this
+# file: the holder does the work, a contender waits briefly,
+# and if the lock is still held it re-probes and exits WITHOUT
+# killing anything, so a healthy server is never killed by a
+# contending run. flock releases the lock when the holder exits
+# (even on a crash or kill), so a dead holder can never wedge
+# the script. util-linux (flock) is in the p23 image (proven
+# from the debootstrap build log: util-linux 2.41.5).
+# Wait is 20 s: the holder's common case (healthy ollama +
+# restart-opencode kill-at-once + ~10 s Bun boot) takes ~12-15 s,
+# so a contender usually acquires after the holder finishes,
+# re-probes through the script's own guards, and exits without
+# restarting, all inside the app's 30 s budget. The doubly-broken
+# worst case (both servers stray, ~100 s of waits) still misses
+# the budget, exactly as before this fix; the lock does not make
+# it worse, it only stops the second run from killing the first
+# run's healed server.
+# The lock fd (9) is closed in every backgrounded server start
+# below (9>&-): a flock is held by the open file description,
+# and a server that inherited fd 9 would hold the lock for as
+# long as it runs, wedging every later run. If flock is missing
+# (it is not, in the image), the script runs unlocked rather
+# than never starting the servers at all.
+LOCK_FILE="$MUDIF_HOME/agent-start.lock"
+if command -v flock >/dev/null 2>&1 && touch "$LOCK_FILE" 2>/dev/null; then
+    exec 9>"$LOCK_FILE"
+    if ! flock -w 20 9; then
+        echo "agent-start: another run holds the lock after 20 s, re-probing"
+        if opencode_ok; then
+            echo "agent-start: server healthy, contending run exits without restarting"
+            exit 0
+        fi
+        echo "agent-start: server still broken and another run is working on it, exiting"
+        exit 1
+    fi
+    echo "agent-start: lock acquired"
+else
+    echo "agent-start: WARNING flock unavailable, running without mutual exclusion"
+fi
+
 # Ollama: the local model host. OLLAMA_HOST pins it to loopback.
 # p78: a STRAY ollama can own 11434 from OUTSIDE the guest
 # (rig-proven: the server ran in another mount namespace with
@@ -52,7 +114,7 @@ wait_ollama() {
     return 1
 }
 if ! pgrep -x ollama >/dev/null 2>&1; then
-    (OLLAMA_HOME=/root/.ollama OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$MUDIF_HOME/ollama.log" 2>&1 &)
+    (OLLAMA_HOME=/root/.ollama OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$MUDIF_HOME/ollama.log" 2>&1 9>&- &)
     echo "ollama: started"
 else
     echo "ollama: already running (pid $(pgrep -x ollama | head -1))"
@@ -67,7 +129,7 @@ if ! wait_ollama; then
     pkill -x ollama 2>/dev/null
     i=1
     while [ "$i" -le 10 ] && pgrep -x ollama >/dev/null 2>&1; do sleep 1; i=$((i + 1)); done
-    (OLLAMA_HOME=/root/.ollama OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$MUDIF_HOME/ollama.log" 2>&1 &)
+    (OLLAMA_HOME=/root/.ollama OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$MUDIF_HOME/ollama.log" 2>&1 9>&- &)
     echo "ollama: restarted in-guest"
     if ! wait_ollama; then
         echo "ollama: STILL not answering after restart (see $MUDIF_HOME/ollama.log)"
@@ -111,10 +173,7 @@ export MUDIF_AGENT=1
 # from a one-shot proot dies with the session (rig-proven p79:
 # pid 4356 gone in <30 s), so the restart must never be a
 # one-shot exec.
-opencode_ok() {
-    code=$(curl -s -o /tmp/opencode-session.json -w "%{http_code}" -m 5 http://127.0.0.1:4096/session 2>/dev/null)
-    [ "$code" = "200" ] && ! grep -q "UnknownError" /tmp/opencode-session.json
-}
+# opencode_ok is defined at the top (p83: the lock contender path needs it).
 wait_opencode() {
     i=1
     while [ "$i" -le 20 ]; do
@@ -128,7 +187,7 @@ wait_opencode() {
     return 1
 }
 if ! pgrep -f "opencode serve" >/dev/null 2>&1; then
-    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 &)
+    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 9>&- &)
     echo "opencode: started"
 elif [ "${1:-}" = "restart-opencode" ]; then
     # p82: the app already proved the running server broken (GET
@@ -145,7 +204,7 @@ elif [ "${1:-}" = "restart-opencode" ]; then
     pkill -f "opencode serve" 2>/dev/null
     i=1
     while [ "$i" -le 10 ] && pgrep -f "opencode serve" >/dev/null 2>&1; do sleep 1; i=$((i + 1)); done
-    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 &)
+    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 9>&- &)
     echo "opencode: restarted in-guest"
 else
     echo "opencode: already running (pid $(pgrep -f 'opencode serve' | head -1))"
@@ -155,7 +214,7 @@ if ! wait_opencode; then
     pkill -f "opencode serve" 2>/dev/null
     i=1
     while [ "$i" -le 10 ] && pgrep -f "opencode serve" >/dev/null 2>&1; do sleep 1; i=$((i + 1)); done
-    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 &)
+    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 9>&- &)
     echo "opencode: restarted in-guest"
     if ! wait_opencode; then echo "opencode: STILL not answering after restart (see $MUDIF_HOME/opencode.log)"; fi
 fi
