@@ -1,0 +1,81 @@
+/* p89: Mudif dialog shape (desktop polish spec section 4, Zorin
+   reference dialog in image-414.png). GTK loads this file
+   automatically at startup ($XDG_CONFIG_HOME/gtk-3.0/gtk.css),
+   BEFORE the theme CSS, so every rule below beats Adwaita's by
+   HIGHER SPECIFICITY (two selectors vs Adwaita's one), never by
+   load order. Scoped to dialogs only: every other GTK widget keeps
+   Adwaita untouched.
+   Staged by the p89 look (marker p35) at root/.config/gtk-3.0/gtk.css
+   via the mudif-theme.zip entry of the same guest path. */
+
+/* White dialog card, dark text. The .background class is on every
+   GtkWindow, so dialog.background (0,1,1) beats Adwaita's
+   .background rule (0,1,0); a bare dialog rule would lose. */
+dialog.background,
+messagedialog.background {
+    background-color: #FFFFFF;
+    color: #333333;
+}
+
+/* Message text: dark. The primary line is already bold in Adwaita
+   (the live baseline render proves it); there is no "title" class
+   on the GTK 3.24 primary label (its style classes list is empty),
+   so no title selector is written here. This rule only pins the
+   text dark, so it stays dark even if a dark theme reaches the app. */
+messagedialog label {
+    color: #333333;
+}
+
+/* Warning icon: orange triangle, as in the reference. GTK 3.24's
+   message dialog uses the symbolic dialog-warning icon, which
+   renders in the widget's foreground color; setting color here
+   makes it orange. Scoped to messagedialog only: a generic dialog
+   (e.g. an About dialog's logo image) must NOT be recolored.
+   Orange #F67F53 measured from the reference triangle. */
+messagedialog image {
+    color: #F67F53;
+}
+
+/* Dialog buttons: light gray, never filled with the accent, not
+   even the primary action (the reference shows both buttons light
+   gray). background-image: none clears Adwaita's gradient, or the
+   gradient would paint over the flat color. */
+dialog button,
+messagedialog button {
+    background-color: #F2F2F2;
+    background-image: none;
+    color: #333333;
+    border: 1px solid #CFCFCF;
+    border-radius: 6px;
+    padding: 6px 16px;
+}
+dialog button:hover,
+messagedialog button:hover {
+    background-color: #E8E8E8;
+}
+dialog button:active,
+messagedialog button:active {
+    background-color: #DDDDDD;
+}
+dialog button.suggested-action,
+messagedialog button.suggested-action {
+    background-color: #F2F2F2;
+    background-image: none;
+    color: #333333;
+    border-color: #CFCFCF;
+}
+
+/* Links inside dialogs: Mudif purple, the only accent. Adwaita's
+   link is blue (#3584e4); dialog *:link (0,1,1) beats *:link (0,1,0). */
+dialog *:link,
+messagedialog *:link {
+    color: #593BFE;
+}
+dialog *:link:hover,
+messagedialog *:link:hover {
+    color: #3D2C9E;
+}
+dialog *:visited,
+messagedialog *:visited {
+    color: #6A5AE0;
+}

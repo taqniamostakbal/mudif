@@ -234,6 +234,35 @@ import java.io.File
  * rules that read palette(text) are set to an explicit
  * #D9D5E8: with the light palette the old rule would paint a
  * #333333 background behind disabled text.
+ * p89: dialogs become the Zorin white dialogs (desktop polish
+ * spec section 4, RTL mirror of the reference dialog in
+ * image-414.png). The mechanism, proven before writing: Qt
+ * dialogs (pcmanfm-qt, lxqt) already match by the p88 light
+ * palette + white openbox title bars, proven by an offscreen
+ * PyQt6 QMessageBox render (white card, dark text, yellow
+ * warning triangle on the RIGHT in RTL, bold title, light-gray
+ * buttons); no Qt change is made. GTK dialogs (Mousepad,
+ * Geany, file chooser) follow the GTK theme, and GTK reads
+ * $XDG_CONFIG_HOME/gtk-3.0/gtk.css at init BEFORE the theme
+ * CSS, so a staged gtk.css beats Adwaita by higher
+ * specificity: dialog background #FFFFFF, dialog buttons flat
+ * light gray #F2F2F2 with no gradient and the suggested-action
+ * neutralized to the same gray, links #593BFE, and the
+ * symbolic dialog-warning icon recolored orange #F67F53
+ * (measured from the reference triangle). The staged file
+ * ships as a NEW entry root/.config/gtk-3.0/gtk.css in
+ * mudif-theme.zip (153 -> 154 entries); the zip is extracted
+ * by extractZipAsset during ensureLxqtLook, so no new Kotlin
+ * staging code is needed. GTK apps are GTK3 only (no libgtk-4
+ * in the guest image), so no gtk-4.0/gtk.css is shipped.
+ * Honest gaps (no mechanism exists in this build): true
+ * rounded ~12px outer corners and the soft drop shadow need
+ * a compositor (picom is ideas item 3, NOT built); GTK dialog
+ * buttons expand full-width in the action area (GTK's own
+ * layout, not themeable via CSS), not a compact group on one
+ * end; the Qt default button carries Fusion's faint lavender
+ * tint + purple border (no mechanism for pcmanfm-qt, which
+ * loads no stylesheet).
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -363,13 +392,13 @@ object LxqtLook {
     // (stdin EOF); رقي and نظف carry the same gap in source.
     // An existing rootfs must re-apply to pick it up; without
     // this bump the fix repeats the p43 trap.
-    // P34 (2026-11-17, p88): p88 flips the palette to LIGHT
-    // (Zorin white windows, spec section 3) and the openbox
-    // themerc to white title bars, so an existing rootfs must
-    // re-apply to pick them up. The image stays p23; only the
+    // P35 (2026-11-17, p89): p89 adds the staged GTK dialog
+    // stylesheet (root/.config/gtk-3.0/gtk.css, Zorin white
+    // dialogs, spec section 4), so an existing rootfs must
+    // re-apply to pick it up. The image stays p23; only the
     // look version moves. Without this bump the fix repeats the
     // p43 trap.
-    const val MARKER_VERSION = "p34"
+    const val MARKER_VERSION = "p35"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
