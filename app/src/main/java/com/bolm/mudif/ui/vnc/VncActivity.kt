@@ -88,6 +88,16 @@ class VncActivity : MudifActivity() {
     private var pendingLaunchApp: String? = null
 
     /**
+     * p92 N-b: the process name for the pending launch, carried in
+     * the intent next to EXTRA_LAUNCH_APP so the retry can prove
+     * the app actually started (same check as
+     * AppLauncher.verifyStarted). Null only for intents built
+     * before p92, which cannot occur from the current producer.
+     */
+    @Volatile
+    private var pendingLaunchProcess: String? = null
+
+    /**
      * P19: the last diagnostics report (built in startDesktop step 5).
      * The viewer now opens directly, so the report is shown on demand
      * from the status screen's "التشخيص" button instead of blocking
@@ -127,6 +137,7 @@ class VncActivity : MudifActivity() {
         setContentView(binding.root)
 
         pendingLaunchApp = intent.getStringExtra(EXTRA_LAUNCH_APP)
+        pendingLaunchProcess = intent.getStringExtra(EXTRA_LAUNCH_PROCESS)
 
         supportActionBar?.title = getString(R.string.mudif_system)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -467,6 +478,7 @@ class VncActivity : MudifActivity() {
         }
         // A fresh launch request replaces any pending one.
         pendingLaunchApp = intent.getStringExtra(EXTRA_LAUNCH_APP)
+        pendingLaunchProcess = intent.getStringExtra(EXTRA_LAUNCH_PROCESS)
         startDesktop()
     }
 
@@ -589,26 +601,58 @@ class VncActivity : MudifActivity() {
             // desktop-only entry now pays no server startup at all.
             val log = X11Session.getDesktopLog(this, DESKTOP_LXQT, DebianSystem.debianRootfsDir(this))
             MudifLog.d("VncActivity", "P8 post-viewer launch: sent=$sent running=$running\n$log")
-            // P18.5: fire a pending app launch (from the Apps tab)
+            // P18.5 (p92 N-b): fire a pending app launch (from the Apps tab)
             // only now that the desktop is confirmed running. The
             // command goes through the PTY session, like the desktop
             // launch itself, a one-shot proot could not keep the
-            // app alive. Cleared whether it fires or not, so a
-            // failed desktop never launches an app into a dead X.
+            // app alive. The entry is held, not cleared, until the
+            // launch is verified or the attempt budget is spent: the
+            // single post-launch check could run before openbox was
+            // up (p89), and clearing it either way dropped the app.
             val appToLaunch = pendingLaunchApp
-            pendingLaunchApp = null
-            val appLaunched = if (appToLaunch != null && sent && running) {
-                val ok = GuestSession.sendCommand(appToLaunch)
-                MudifLog.d("VncActivity", "pending app launch: sent=$ok cmd=$appToLaunch")
-                ok
-            } else {
-                false
+            val processToLaunch = pendingLaunchProcess
+            var appLaunched = false
+            var desktopUp = sent && running
+            var abandoned = false
+            if (appToLaunch != null) {
+                var attempt = 0
+                while (attempt < 3 && !appLaunched) {
+                    attempt++
+                    if (attempt > 1) {
+                        if (destroyed) { abandoned = true; break }
+                        Thread.sleep(10_000)
+                        if (destroyed) { abandoned = true; break }
+                        desktopUp = X11Session.isDesktopSessionAlive(this)
+                    }
+                    if (!desktopUp) {
+                        MudifLog.d("VncActivity", "pending app launch: attempt $attempt skipped, desktop not up")
+                        continue
+                    }
+                    val ok = GuestSession.sendCommand(appToLaunch)
+                    MudifLog.d("VncActivity", "pending app launch: attempt $attempt sent=$ok cmd=$appToLaunch")
+                    if (!ok) continue
+                    appLaunched = if (processToLaunch != null) {
+                        verifyGuestProcess(processToLaunch)
+                    } else {
+                        MudifLog.d("VncActivity", "pending app launch: no process name, send-only")
+                        true
+                    }
+                }
+                if (abandoned) {
+                    MudifLog.d("VncActivity", "pending app launch: abandoned, activity destroyed")
+                } else if (appLaunched) {
+                    MudifLog.d("VncActivity", "pending app launch: verified after $attempt attempt(s)")
+                } else {
+                    MudifLog.d("VncActivity", "pending app launch: FAILED after $attempt attempt(s), dropping entry")
+                }
+                pendingLaunchApp = null
+                pendingLaunchProcess = null
             }
             if (!destroyed) {
                 runOnUiThread {
                     Toast.makeText(
                         this,
-                        if (sent && running) {
+                        if (desktopUp) {
                             if (appLaunched) getString(R.string.ui_vnc_app_launched)
                             else getString(R.string.ui_vnc_desktop_running)
                         } else getString(R.string.ui_vnc_desktop_failed),
@@ -645,6 +689,30 @@ class VncActivity : MudifActivity() {
             Thread.sleep(200)
         }
         MudifLog.d("VncActivity", "viewer attach not seen in ${timeoutMs}ms, launching desktop anyway")
+    }
+
+    /**
+     * p92 N-b: process-level proof for a pending launch, same
+     * schedule as AppLauncher.verifyStarted (first poll at 4 s,
+     * then every 5 s, 60 s budget, two consecutive alive polls).
+     * A single alive poll is not proof: a crashing program can
+     * exist at one poll and be dead at the next (p83).
+     */
+    private fun verifyGuestProcess(process: String): Boolean {
+        val deadline = System.currentTimeMillis() + 60_000L
+        var seenAlive = false
+        var delayMs = 4000L
+        while (true) {
+            Thread.sleep(delayMs)
+            delayMs = 5000L
+            if (X11Session.isGuestProcessAlive(this, process)) {
+                if (seenAlive) return true
+                seenAlive = true
+            } else {
+                seenAlive = false
+            }
+            if (System.currentTimeMillis() >= deadline) return false
+        }
     }
 
     /**
@@ -1090,6 +1158,7 @@ class VncActivity : MudifActivity() {
         /** P18.5: full shell command for one app to launch after the
          *  desktop is confirmed running (handed in by the Apps tab). */
         const val EXTRA_LAUNCH_APP = "launch_app"
+        const val EXTRA_LAUNCH_PROCESS = "launch_process"
         /**
          * p36 defect 3: set by the viewer overlay when its TV button
          * is tapped with no presentation display. VncActivity is

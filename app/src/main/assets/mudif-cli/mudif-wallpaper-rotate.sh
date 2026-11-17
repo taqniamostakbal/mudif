@@ -16,7 +16,10 @@
 # Fail-closed: a missing wallpaper file does nothing (the desktop
 # is never blanked); a missing pcmanfm-qt process exits silently;
 # a failed --set-wallpaper leaves the state untouched so the next
-# run retries the same target. Nothing is ever killed. No log is
+# run retries the same target. p92 F2: a set that exits 0 without
+# changing settings.conf is also a failure (the desktop manager
+# was absent), so the state is written only after settings.conf
+# shows the new Wallpaper value. Nothing is ever killed. No log is
 # written (the guest disk is tight).
 #
 # No systemd in the proot guest: this script is started by the
@@ -27,6 +30,7 @@ PREMIUM=/usr/share/backgrounds/mudif-wallpaper-premium.png
 GREEN=/usr/share/backgrounds/mudif-wallpaper-green.png
 STATE_DIR=/root/.config/mudif
 STATE=$STATE_DIR/wallpaper-index
+SETTINGS=/root/.config/pcmanfm-qt/lxqt/settings.conf
 
 # The session must be up: no DISPLAY, no desktop to change.
 [ -n "$DISPLAY" ] || exit 0
@@ -52,6 +56,14 @@ flock -n 9 || exit 0
 apply() {
     # $1 = index to apply (0 premium, 1 green). Returns 0 only
     # when the wallpaper was set AND the state was written.
+    # p92 F2: pcmanfm-qt --set-wallpaper exits 0 as a no-op
+    # when the desktop manager is absent, so the exit code
+    # alone cannot prove the change. The state is written
+    # only after settings.conf shows the new Wallpaper value
+    # (polled up to 5 s for a slow config write). A mismatch
+    # leaves the state untouched, so the next run retries
+    # the same target. The -x whole-line match keeps
+    # WallpaperMode=stretch from ever matching.
     target=
     if [ "$1" = "0" ]; then
         target=$PREMIUM
@@ -60,6 +72,12 @@ apply() {
     fi
     [ -f "$target" ] || return 1
     pcmanfm-qt --set-wallpaper "$target" || return 1
+    confirm=0
+    while ! grep -Fqx "Wallpaper=$target" "$SETTINGS" 2>/dev/null; do
+        confirm=$((confirm + 1))
+        [ "$confirm" -ge 5 ] && return 1
+        sleep 1
+    done
     printf '%s\n' "$1" > "$STATE" || return 1
     return 0
 }

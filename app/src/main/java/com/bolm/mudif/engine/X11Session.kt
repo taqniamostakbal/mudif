@@ -877,6 +877,29 @@ object X11Session {
     }
 
     /**
+     * p92 N-b: single poll, is this guest process alive right now?
+     * Same check AppLauncher.verifyStarted used (pgrep -x plus the
+     * /proc/<pid>/stat field 3 zombie filter, p80): a pid only counts
+     * when its state is present and not Z. One-shot, no loop: the
+     * caller owns the poll schedule and the double-confirm (p83).
+     * Returns false, never throws, on any failure.
+     */
+    fun isGuestProcessAlive(context: Context, process: String): Boolean {
+        val d = "$"
+        val checkCmd = "for pid in ${d}(pgrep -x \"$process\" 2>/dev/null); do " +
+            "state=${d}(awk '{print ${d}3}' /proc/${d}pid/stat 2>/dev/null); " +
+            "if [ -n \"${d}state\" ] && [ \"${d}state\" != \"Z\" ]; then exit 0; fi; done; exit 1"
+        return try {
+            val result = TerminalSession.runCommandDebian(
+                context, checkCmd, idleTimeoutSec = 10, maxTimeoutSec = 15
+            )
+            result.exitCode == 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * P6.1, is the desktop REALLY running? pgrep for the session
      * process in the target guest (same PID namespace, so a one-shot
      * sees the PTY session's processes, proven by P5.24's pkill).

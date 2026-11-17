@@ -126,6 +126,7 @@ object AppLauncher {
                 val intent = Intent(fragment.requireContext(), VncActivity::class.java).apply {
                     putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_MUDIF)
                     putExtra(VncActivity.EXTRA_LAUNCH_APP, launchCmd)
+                    putExtra(VncActivity.EXTRA_LAUNCH_PROCESS, program.process?.takeIf { it.isNotBlank() } ?: binary)
                     addFlags(
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                     )
@@ -175,22 +176,15 @@ object AppLauncher {
     private fun verifyStarted(appCtx: Context, program: StoreProgram): Boolean {
         val process = program.process?.takeIf { it.isNotBlank() }
             ?: program.binary ?: return false
-        val d = "$"
-        val checkCmd = "for pid in ${d}(pgrep -x \"$process\" 2>/dev/null); do " +
-            "state=${d}(awk '{print ${d}3}' /proc/${d}pid/stat 2>/dev/null); " +
-            "if [ -n \"${d}state\" ] && [ \"${d}state\" != \"Z\" ]; then exit 0; fi; done; exit 1"
+        // p92 N-b: the single poll now lives in X11Session
+        // (isGuestProcessAlive): same pgrep plus zombie filter,
+        // so the live path and the pending path share one check.
         val deadline = System.currentTimeMillis() + VERIFY_TIMEOUT_MS
         var delayMs = 4000L
         var seenAlive = false
         while (true) {
             Thread.sleep(delayMs)
-            val check = TerminalSession.runCommandDebian(
-                appCtx,
-                checkCmd,
-                idleTimeoutSec = 10,
-                maxTimeoutSec = 15
-            )
-            if (check.exitCode == 0) {
+            if (X11Session.isGuestProcessAlive(appCtx, process)) {
                 if (seenAlive) return true
                 seenAlive = true
             } else {
