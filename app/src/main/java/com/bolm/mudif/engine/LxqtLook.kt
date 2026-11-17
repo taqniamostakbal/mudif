@@ -197,6 +197,43 @@ import java.io.File
  * current behavior (gear -> lxqt-config, power -> lxqt-leave):
  * no Mudif settings program exists in the guest, so the spec's
  * "gear opens Mudif settings" is a new feature, not a restyle.
+ * p88: windows + file manager become the Zorin white windows
+ * (desktop polish spec section 3). pcmanfm-qt 2.1.0 loads NO
+ * stylesheet (proven from its source: application.cpp,
+ * settings.cpp and mainwindow.cpp contain no setStyleSheet
+ * except the hardcoded red root warning label; the lxqt
+ * platform theme plugin loads no stylesheet either), so the
+ * ONLY mechanism that styles its window, sidebar, header bar
+ * and status bar is the [Palette] group in lxqt.conf, which
+ * the platform theme builds into the QApplication palette
+ * (lxqt-qtplugin lxqtplatformtheme.cpp). The palette flips to
+ * LIGHT: Window #FFFFFF, Base #FFFFFF, Text/WindowText
+ * #333333, Highlight #593BFE unchanged, HighlightedText
+ * #FFFFFF, Link #593BFE, LinkVisited #6A5AE0, ToolTip
+ * #FFFFFF/#333333. The openbox themerc flips with it: white
+ * flat title bars (active #FFFFFF, inactive #F5F5F5), dark
+ * title text #333333, dark button glyphs #555555, light
+ * borders #D9D5E8/#E5E5E5. The panel KEEPS its dark-purple
+ * look: its 60%-alpha gradient blends against BLACK, not the
+ * palette (proven by the P9 measurement: the 55% gradient
+ * rendered #180d42, which is exactly 55% of (43,24,120) over
+ * black; blending against the old palette #232323 would have
+ * given #271D52). The render harness re-proves it for p88.
+ * Honest gaps (no mechanism exists in this build): the sidebar
+ * is white, not the spec's #f5f5f5 (its background is the Base
+ * role, shared with the content view; the PlacesView uses no
+ * alternating rows, proven from libfm-qt placesview.cpp); the
+ * selected row is the purple Highlight #593BFE, not the spec's
+ * dark-gray pill (the pill shape needs a stylesheet, which
+ * pcmanfm-qt cannot load); true rounded window corners ~16px
+ * and the drop shadow need a compositor (picom is ideas item
+ * 3, NOT built). In RTL the sidebar sits on the right by Qt
+ * splitter mirroring (main-win.ui: the horizontal QSplitter's
+ * first child is the SidePane; QSplitter lays out in layout
+ * direction order). The two QMenu::item:selected:disabled
+ * rules that read palette(text) are set to an explicit
+ * #D9D5E8: with the light palette the old rule would paint a
+ * #333333 background behind disabled text.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -326,7 +363,13 @@ object LxqtLook {
     // (stdin EOF); رقي and نظف carry the same gap in source.
     // An existing rootfs must re-apply to pick it up; without
     // this bump the fix repeats the p43 trap.
-    const val MARKER_VERSION = "p33"
+    // P34 (2026-11-17, p88): p88 flips the palette to LIGHT
+    // (Zorin white windows, spec section 3) and the openbox
+    // themerc to white title bars, so an existing rootfs must
+    // re-apply to pick them up. The image stays p23; only the
+    // look version moves. Without this bump the fix repeats the
+    // p43 trap.
+    const val MARKER_VERSION = "p34"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -698,6 +741,18 @@ object LxqtLook {
     // Highlight #593BFE on all ten roles). The `palette=Mudif` key and
     // the file /usr/share/lxqt/palettes/Mudif are DEAD (nothing reads
     // them); kept as harmless presets for lxqt-config-appearance.
+    // p88: the palette flips to LIGHT (desktop polish spec
+    // section 3/7: Zorin white windows, window chrome white,
+    // body text #333, secondary #888). pcmanfm-qt 2.1.0 loads no
+    // stylesheet (proven from its source), so this group is the
+    // only mechanism that styles its window, sidebar, header
+    // bar and status bar. The panel is NOT affected: its
+    // 60%-alpha gradient blends against BLACK (no compositor),
+    // not the palette - the P9 measurement proved it (the 55%
+    // gradient rendered #180d42, exactly 55% of (43,24,120)
+    // over black; over the old palette #232323 it would have
+    // been #271D52). The p88 render harness re-proves the
+    // panel colour with the new palette.
     // P21: icon_theme=WhiteSur-light (baked into the p21 image;
     // the `mudif` icon theme stays installed as the last fallback
     // in WhiteSur-light's Inherits chain, for the penguin/purple
@@ -721,16 +776,16 @@ cursor_size=48
 font=Cairo,17
 
 [Palette]
-window_color=#232323
-base_color=#282828
+window_color=#FFFFFF
+base_color=#FFFFFF
 highlight_color=#593BFE
-window_text_color=#e1e6e6
-text_color=#b8b8b8
-highlighted_text_color=#ebfdff
-link_color=#8B7CF5
-link_visited_color=#C9B8FF
-tooltip_base_color=#232323
-tooltip_text_color=#b8b8b8
+window_text_color=#333333
+text_color=#333333
+highlighted_text_color=#FFFFFF
+link_color=#593BFE
+link_visited_color=#6A5AE0
+tooltip_base_color=#FFFFFF
+tooltip_text_color=#333333
 """
 
     // p23: runtime adaptive path. LXQT_CONF above is the IMAGE base
