@@ -4,7 +4,9 @@
      Gradient is the purple gradient. values-night/colors.xml is
      DELETED: its neutral grey was NOT the sample's purple Glass
      Dark, and the DayNight parent goes with it. Each theme is a
-     full Material3.NoActionBar style and defines every
+     full Material3 style (GlassDark and RoyalGradient parent
+     Theme.Material3.Dark.NoActionBar, CleanLight parents
+     Theme.Material3.Light.NoActionBar) and defines every
      semantic mudif* attr, so ?attr/mudif* references resolve in
      all three themes. Theme.Mudif (the manifest theme) is a
      parent alias of GlassDark; MudifActivity.setTheme swaps in
@@ -12,11 +14,11 @@
 <resources>
 
     <!-- Glass Dark (default): deep purple dark windows. -->
-    <style name="Theme.Mudif.GlassDark" parent="Theme.Material3.NoActionBar">
+    <style name="Theme.Mudif.GlassDark" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">#593BFE</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorSecondary">@color/mudif_teal</item>
-        <item name="colorBackground">#1A142E</item>
+        <item name="android:colorBackground">#1A142E</item>
         <item name="colorSurface">#28233B</item>
         <item name="colorOnSurface">#F2EFFF</item>
         <item name="colorOnSurfaceVariant">#A99FD0</item>
@@ -47,11 +49,11 @@
     </style>
 
     <!-- Clean Light: light windows, the p88 light palette. -->
-    <style name="Theme.Mudif.CleanLight" parent="Theme.Material3.NoActionBar">
+    <style name="Theme.Mudif.CleanLight" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">#593BFE</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorSecondary">@color/mudif_teal</item>
-        <item name="colorBackground">#F7F5FF</item>
+        <item name="android:colorBackground">#F7F5FF</item>
         <item name="colorSurface">#FFFFFF</item>
         <item name="colorOnSurface">#17112B</item>
         <item name="colorOnSurfaceVariant">#6B6486</item>
@@ -82,11 +84,11 @@
     </style>
 
     <!-- Royal Gradient: the brand purple as a full gradient. -->
-    <style name="Theme.Mudif.RoyalGradient" parent="Theme.Material3.NoActionBar">
+    <style name="Theme.Mudif.RoyalGradient" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">#FFFFFF</item>
         <item name="colorOnPrimary">#593BFE</item>
         <item name="colorSecondary">@color/mudif_teal</item>
-        <item name="colorBackground">#593BFE</item>
+        <item name="android:colorBackground">#593BFE</item>
         <item name="colorSurface">#674CFE</item>
         <item name="colorOnSurface">#FFFFFF</item>
         <item name="colorOnSurfaceVariant">#CBC0F5</item>
