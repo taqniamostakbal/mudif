@@ -141,15 +141,25 @@ object AppLauncher {
      * to check (defaults to the binary). A missing pgrep binary
      * or a failed check returns false (fail safe: report the
      * launch as failed rather than lie about it).
+     *
+     * p80: pgrep alone matches a zombie (state Z) as if it were
+     * running, so a crashed program logs ok=true with no window
+     * (p78 Craft: PID 26164 Z<, ok=true). Mirror the
+     * X11Session.desktopAliveCommand filter: a pid only counts
+     * when /proc/<pid>/stat field 3 is not Z.
      */
     private fun verifyStarted(appCtx: Context, program: StoreProgram): Boolean {
         val process = program.process?.takeIf { it.isNotBlank() }
             ?: program.binary ?: return false
+        val d = "$"
+        val checkCmd = "for pid in ${d}(pgrep -x \"$process\" 2>/dev/null); do " +
+            "state=${d}(awk '{print ${d}3}' /proc/${d}pid/stat 2>/dev/null); " +
+            "if [ -n \"${d}state\" ] && [ \"${d}state\" != \"Z\" ]; then exit 0; fi; done; exit 1"
         repeat(2) { attempt ->
             Thread.sleep(if (attempt == 0) 4000 else 6000)
             val check = TerminalSession.runCommandDebian(
                 appCtx,
-                "pgrep -x \"$process\" >/dev/null 2>&1",
+                checkCmd,
                 idleTimeoutSec = 10,
                 maxTimeoutSec = 15
             )

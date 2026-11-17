@@ -92,11 +92,55 @@ export MUDIF_AGENT=1
 
 # OpenCode: the agent server. Flags proven on the rig
 # (opencode serve listening on http://127.0.0.1:4096).
+# p80: a STRAY opencode can own 4096 from OUTSIDE the guest
+# (rig-proven p78: the server ran as uid 10087 with HOME=/root
+# = the Android system root, "EACCES: permission denied, mkdir
+# '/root'"; its instance store never booted, so every /session
+# route returned UnknownError while the UI route still answered).
+# pgrep alone cannot tell the stray from the good server, and
+# the stray answers TCP and GET /, so a blind "already running"
+# leaves the assistant permanently broken. Probe first: a valid
+# server answers GET /session with HTTP 200 and no UnknownError
+# within 20 s. Only a server that never answers validly is
+# killed and replaced by the real in-guest server (cd /root pins
+# the home to the guest /root, so the server can never land on
+# the Android /root again). A good-but-slow server is never
+# killed: it answers inside the 20 s wait and the kill path is
+# never reached. The restart runs INSIDE this script, which the
+# app runs through its persistent PTY session: a server started
+# from a one-shot proot dies with the session (rig-proven p79:
+# pid 4356 gone in <30 s), so the restart must never be a
+# one-shot exec.
+opencode_ok() {
+    code=$(curl -s -o /tmp/opencode-session.json -w "%{http_code}" -m 5 http://127.0.0.1:4096/session 2>/dev/null)
+    [ "$code" = "200" ] && ! grep -q "UnknownError" /tmp/opencode-session.json
+}
+wait_opencode() {
+    i=1
+    while [ "$i" -le 20 ]; do
+        if opencode_ok; then
+            echo "opencode: answering on 4096"
+            return 0
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    return 1
+}
 if ! pgrep -f "opencode serve" >/dev/null 2>&1; then
     (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 &)
     echo "opencode: started"
 else
     echo "opencode: already running (pid $(pgrep -f 'opencode serve' | head -1))"
+fi
+if ! wait_opencode; then
+    echo "opencode: NOT answering /session after 20 s, killing stray"
+    pkill -f "opencode serve" 2>/dev/null
+    i=1
+    while [ "$i" -le 10 ] && pgrep -f "opencode serve" >/dev/null 2>&1; do sleep 1; i=$((i + 1)); done
+    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 &)
+    echo "opencode: restarted in-guest"
+    if ! wait_opencode; then echo "opencode: STILL not answering after restart (see $MUDIF_HOME/opencode.log)"; fi
 fi
 
 echo "agent-start done"

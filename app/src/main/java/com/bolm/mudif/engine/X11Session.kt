@@ -24,11 +24,19 @@ import kotlin.math.roundToInt
  *
  * Mudif adaptations (proven, kept):
  * - Display :6 (TC), args `[":6", "+extension", "MIT-SHM",
- *   "-listen", "tcp"]`, the `-listen tcp` is Mudif's P5.10
- *   workaround: the Unix-socket connect from inside proot is broken
- *   on this x86_64 device, so the guest uses TCP 127.0.0.1:6006
- *   (DISPLAY is set to 127.0.0.1:6 in the boot env, so every guest
- *   command inherits it, no per-command DISPLAY prefix anywhere).
+ *   "-listen", "tcp", "-disable-dri3"]`, the `-listen tcp` is
+ *   Mudif's P5.10 workaround: the Unix-socket connect from inside
+ *   proot is broken on this x86_64 device, so the guest uses TCP
+ *   127.0.0.1:6006 (DISPLAY is set to 127.0.0.1:6 in the boot env,
+ *   so every guest command inherits it, no per-command DISPLAY
+ *   prefix anywhere). The `-disable-dri3` is p80, UNPROVEN until
+ *   the rig A/B passes: opcode 147 IS DRI3 on this server (p79
+ *   rig round, xdpyinfo on Lorie X.Org 21.1.99) and all three
+ *   env-matrix combos panic identically, so the flag targets the
+ *   right extension, but the flag itself was never tested; if
+ *   the A/B fails (Craft still panics, or Firefox/LXImage/Ollama
+ *   stop launching) it reverts in p81. Lorie documents the flag
+ *   as "disabling DRI3 support (to let lavapipe work)".
  * - waitForTcpDisplay is kept after the socket wait: the socket file
  *   can exist before the server accepts connections.
  *
@@ -110,13 +118,13 @@ object X11Session {
 
         val intent = Intent(app, CmdEntryPointService::class.java).apply {
             action = CmdEntryPointService.ACTION_START
-            putExtra(CmdEntryPointService.EXTRA_ARGS, arrayOf(DISPLAY, "+extension", "MIT-SHM", "-listen", "tcp"))
+            putExtra(CmdEntryPointService.EXTRA_ARGS, arrayOf(DISPLAY, "+extension", "MIT-SHM", "-listen", "tcp", "-disable-dri3"))
             putExtra(CmdEntryPointService.EXTRA_ENV_KEYS, envKeys)
             putExtra(CmdEntryPointService.EXTRA_ENV_VALUES, envVals)
         }
         app.startService(intent)
         xserverRunning = true
-        MudifLog.d(TAG, "X server start requested for $DISPLAY (+TCP)")
+        MudifLog.d(TAG, "X server start requested for $DISPLAY (+TCP, -disable-dri3)")
         return true
     }
 
