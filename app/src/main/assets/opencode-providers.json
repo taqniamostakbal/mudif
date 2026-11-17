@@ -297,7 +297,7 @@
     },
     "google": {
       "name": "Google AI Studio (Gemini)",
-      "package": "@opencode/ai/providers/openai-compatible",
+      "package": "@ai-sdk/openai-compatible",
       "settings": {
         "baseURL": "https://generativelanguage.googleapis.com/v1beta/openai/"
       },
@@ -339,7 +339,7 @@
     },
     "cohere": {
       "name": "Cohere",
-      "package": "@opencode/ai/providers/openai-compatible",
+      "package": "@ai-sdk/openai-compatible",
       "settings": {
         "baseURL": "https://api.cohere.com/compatibility/v1"
       },
@@ -382,7 +382,7 @@
     },
     "mistral": {
       "name": "Mistral AI",
-      "package": "@opencode/ai/providers/openai-compatible",
+      "package": "@ai-sdk/openai-compatible",
       "settings": {
         "baseURL": "https://api.mistral.ai/v1"
       },
