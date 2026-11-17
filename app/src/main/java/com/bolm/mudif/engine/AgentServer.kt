@@ -979,7 +979,8 @@ object AgentServer {
         // for llm7, google, cohere and mistral; that path is not
         // a V1 npm package, so a verbatim rename left the provider
         // uninitializable. The asset now carries the V1 package
-        // (@ai-sdk/openai-compatible) for llm7, and
+        // (@ai-sdk/openai-compatible) for llm7 (p93) and for
+        // google, cohere and mistral (p94), and
         // backfillProviderPackage repairs existing blocks (and
         // corrects the wrong V2 value) instead of copying it.
         // The default model stays Local
