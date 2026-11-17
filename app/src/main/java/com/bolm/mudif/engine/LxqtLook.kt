@@ -180,6 +180,23 @@ import java.io.File
  * and selectable in the desktop wallpaper settings. Zorin's
  * mountain photo is the spec's alternative, but no clean source
  * exists in the workspace, so it is NOT bundled in p86 (owed).
+ * p87: the launcher becomes the frosted light panel (desktop
+ * polish spec section 2). The QSS restyle (lxqt-panel.qss in
+ * mudif-theme.zip) is solid #F7F5FF + dark text #333333, NOT
+ * translucent: no compositor runs in the guest and the FancyMenu
+ * window sets no WA_TranslucentBackground, so an rgba white would
+ * blend against the dark palette window color and render gray.
+ * The category rail moves to the RIGHT in RTL via
+ * categoriesAtRight=false in [mainmenu] (the code default is
+ * true, and QHBoxLayout mirrors it to the visual left in RTL -
+ * lxqt-panel 2.1.4 plugin-fancymenu/lxqtfancymenuwindow.cpp
+ * setCategoryPosition). The menu width stays the 450px code
+ * minimum (minimumSizeHint); the spec's ~25% width is not
+ * achievable via QSS and forcing it narrower would clip the long
+ * Arabic category labels. The gear/power buttons keep their
+ * current behavior (gear -> lxqt-config, power -> lxqt-leave):
+ * no Mudif settings program exists in the guest, so the spec's
+ * "gear opens Mudif settings" is a new feature, not a restyle.
  * Lifta is NOT bundled (EULA forbids App Product embedding); it is
  * pixels in the wallpaper only.
  */
@@ -309,7 +326,7 @@ object LxqtLook {
     // (stdin EOF); رقي and نظف carry the same gap in source.
     // An existing rootfs must re-apply to pick it up; without
     // this bump the fix repeats the p43 trap.
-    const val MARKER_VERSION = "p32"
+    const val MARKER_VERSION = "p33"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -994,6 +1011,15 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         val mainmenuKeys = linkedMapOf(
             "icon" to "/usr/share/lxqt/themes/mudif/mainmenu.png",
             "ownIcon" to "true",
+            // p87: rail on the RIGHT in RTL (desktop polish spec
+            // section 2). The code default is categoriesAtRight=true
+            // and QHBoxLayout mirrors it to the visual left in RTL;
+            // false re-inserts the category view at layout index 0,
+            // which mirrors to the visual right. The merge runs once
+            // per marker bump, so an existing rootfs picks it up
+            // on the p33 re-apply and the panel re-reads it at
+            // startup. buttonsAtTop stays default false (Bottom).
+            "categoriesAtRight" to "false",
             "favorites\\1\\desktopFile" to "/usr/share/applications/pcmanfm-qt.desktop",
             "favorites\\2\\desktopFile" to "/usr/share/applications/qterminal.desktop",
             "favorites\\3\\desktopFile" to "/usr/share/applications/firefox-esr.desktop",
