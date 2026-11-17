@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p98: semantic theme attributes. Every theme (GlassDark,
+     CleanLight, RoyalGradient) defines every one of these, so a
+     layout or drawable that references ?attr/mudif* resolves in
+     all three themes with no fallback. mudifWindowBg is a
+     reference (a gradient drawable per theme); the rest are
+     literal colors. The old @color/screen_bg and @color/text_muted
+     references are migrated to mudifWindowBg / mudifTextMuted;
+     the color names stay in colors.xml but no layout references
+     them any more. -->
+<resources>
+    <attr name="mudifCardBg" format="color" />
+    <attr name="mudifCardStroke" format="color" />
+    <attr name="mudifTextPrimary" format="color" />
+    <attr name="mudifTextMuted" format="color" />
+    <attr name="mudifNavBg" format="color" />
+    <attr name="mudifNavActive" format="color" />
+    <attr name="mudifNavInactive" format="color" />
+    <attr name="mudifNavActivePill" format="color" />
+    <attr name="mudifBubbleAgentBg" format="color" />
+    <attr name="mudifBubbleUserBg" format="color" />
+    <attr name="mudifBubbleUserText" format="color" />
+    <attr name="mudifBubbleUserMuted" format="color" />
+    <attr name="mudifAccent" format="color" />
+    <attr name="mudifOnAccent" format="color" />
+    <attr name="mudifStatusOk" format="color" />
+    <attr name="mudifWindowBg" format="reference" />
+    <attr name="mudifSidebarUnselected" format="color" />
+</resources>

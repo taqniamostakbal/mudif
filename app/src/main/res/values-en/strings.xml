@@ -199,6 +199,14 @@
     <string name="language_desc">App interface language</string>
     <string name="language_first_run_title">Choose the app language</string>
     <string name="language_first_run_body">You can change the language anytime from Profile → Language.</string>
+    <!-- p98: theme picker strings (English). -->
+    <string name="theme_title">System theme</string>
+    <string name="theme_dark">Glass Dark</string>
+    <string name="theme_light">Clean Light</string>
+    <string name="theme_gradient">Royal Gradient</string>
+    <string name="theme_desc">Choose the app and desktop theme</string>
+    <string name="theme_desktop_note">Applies to the app now, and to the desktop on the next entry</string>
+    <string name="theme_applied">Theme applied</string>
     <string name="drawer_language">Language</string>
     <string name="sidebar_collapse">Collapse sidebar</string>
     <string name="sidebar_expand">Expand sidebar</string>

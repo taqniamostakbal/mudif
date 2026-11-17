@@ -1,6 +1,7 @@
 package com.bolm.mudif.engine
 
 import android.content.Context
+import com.bolm.mudif.ui.settings.AppTheme
 import java.io.File
 
 /**
@@ -463,7 +464,15 @@ object LxqtLook {
     // rootfs must re-apply to pick them up. The image stays p23;
     // only the look version moves. Without this bump the change
     // repeats the p43 trap.
-    const val MARKER_VERSION = "p40"
+    // P41 (2026-11-17, p98): the theme system. The look stages the
+    // active theme's palette, panel QSS, gtk.css and themerc, pins
+    // the theme's wallpaper and pauses the rotator. An existing
+    // rootfs must re-apply to pick them up. The image stays p23;
+    // only the look version moves. Without this bump the change
+    // repeats the p43 trap. The marker is now "p41:<theme>": a
+    // theme switch makes isApplied() false, so the next desktop
+    // start re-stages the new theme instead of keeping the old one.
+    const val MARKER_VERSION = "p41"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -487,11 +496,54 @@ object LxqtLook {
         val marker = File(DebianSystem.debianRootfsDir(context), "root/$MARKER")
         if (!marker.exists()) return false
         return try {
-            marker.readText().trim() == MARKER_VERSION
+            // p98: the marker carries the theme ("p41:<theme>"), so
+            // a theme switch invalidates it and the next desktop
+            // start re-stages the new theme.
+            marker.readText().trim() == "$MARKER_VERSION:${AppTheme.currentTag(context)}"
         } catch (e: Exception) {
             false
         }
     }
+
+    /** Stage the guest side of a theme switch, called from
+     *  AppTheme.apply before the app relaunches. Writes the theme
+     *  file, the wallpaper index and the rotator pin into
+     *  root/.config/mudif (best effort: a missing rootfs never
+     *  crashes the switch), then flips the live wallpaper when the
+     *  guest is up. The full re-skin (palette, QSS, gtk.css,
+     *  themerc) happens on the next full desktop start, when
+     *  isApplied() is false and ensureLxqtLook re-stages. */
+    fun stageThemeSwitch(context: Context, tag: String) {
+        try {
+            val mudifConfDir = File(DebianSystem.debianRootfsDir(context), "root/.config/mudif")
+            mudifConfDir.mkdirs()
+            File(mudifConfDir, "theme").writeText("$tag\n")
+            File(mudifConfDir, "wallpaper-index").writeText("${wallpaperIndexFor(tag)}\n")
+            File(mudifConfDir, "wallpaper-pinned").writeText("$tag\n")
+        } catch (e: Exception) {
+            MudifLog.d(TAG, "theme switch guest write failed: ${e.message}")
+        }
+        try {
+            if (GuestSession.alive && GuestSession.booted) {
+                GuestSession.sendCommand("pcmanfm-qt --set-wallpaper ${wallpaperPathFor(tag)}")
+            }
+        } catch (e: Exception) {
+            MudifLog.d(TAG, "theme switch live wallpaper failed: ${e.message}")
+        }
+    }
+
+    /** Rotator state index for a theme: 0 = premium Badeen
+     *  wallpaper (dark and gradient themes), 1 = green storybook
+     *  (light theme). The pin file holds the theme id; while it
+     *  exists the rotator no-ops (see the pin check in
+     *  mudif-wallpaper-rotate.sh). */
+    private fun wallpaperIndexFor(tag: String): Int =
+        if (tag == AppTheme.TAG_LIGHT) 1 else 0
+
+    /** Desktop wallpaper path for a theme. */
+    private fun wallpaperPathFor(tag: String): String =
+        if (tag == AppTheme.TAG_LIGHT) "/usr/share/backgrounds/mudif-wallpaper-green.png"
+        else "/usr/share/backgrounds/mudif-wallpaper-premium.png"
 
     // p90 (polish spec section 5, headline fix): the panel DROPS
     // ownIcon from [mainmenu] when it rewrites panel.conf on exit.
@@ -601,6 +653,9 @@ object LxqtLook {
         // screen and threaded through every config writer below.
         val scale = DesktopScaleCalculator.compute(context)
         val rootfs = DebianSystem.debianRootfsDir(context)
+        // p98: the active theme, threaded through the config writers
+        // below (palette, settings.conf wallpaper, per-theme files).
+        val theme = AppTheme.currentTag(context)
 
         // Prereq: the apt set must have landed (startlxqt + the
         // bloom-dark icons). If ensureDebianDesktop failed, the look
@@ -669,11 +724,11 @@ object LxqtLook {
             }
             val lxqtDir = File(rootfs, "root/.config/lxqt")
             lxqtDir.mkdirs()
-            File(lxqtDir, "lxqt.conf").writeText(lxqtConf(scale))
+            File(lxqtDir, "lxqt.conf").writeText(lxqtConf(scale, theme))
             File(lxqtDir, "session.conf").writeText(SESSION_CONF)
             val pcmanfmDir = File(rootfs, "root/.config/pcmanfm-qt/lxqt")
             pcmanfmDir.mkdirs()
-            File(pcmanfmDir, "settings.conf").writeText(pcmanfmSettingsConf(scale))
+            File(pcmanfmDir, "settings.conf").writeText(pcmanfmSettingsConf(scale, theme))
             // P8 - Arabic: Cairo font + fontconfig + Arabic CLI.
             // Cairo cannot come from apt (no fonts-cairo in trixie,
             // P8-READINESS §1.1): bundle the variable TTF as an app
@@ -818,6 +873,14 @@ object LxqtLook {
             // themes all use relative urls. The P9FIX5 base #Spacer
             // rule is kept.
             extractZipAsset(context, THEME_ZIP_ASSET, rootfs)
+            // p98: the zip ships the LIGHT base for the panel QSS,
+            // gtk.css and themerc, so the active theme's variant
+            // overwrites them here, after extraction and BEFORE
+            // rewriteOpenboxScale (the themerc rewrite edits the
+            // live file, so it must see the theme's variant).
+            copyThemeAsset(context, rootfs, "mudif-theme/lxqt-panel-$theme.qss", "usr/share/lxqt/themes/mudif/lxqt-panel.qss")
+            copyThemeAsset(context, rootfs, "mudif-theme/gtk-$theme.css", "root/.config/gtk-3.0/gtk.css")
+            copyThemeAsset(context, rootfs, "mudif-theme/openbox-$theme/themerc", "usr/share/themes/mudif/openbox-3/themerc")
             // p23: adaptive scale for the window manager. The zip
             // ships the p21 base (title/menu fonts 11, OSD 9,
             // padding 4); the runtime rewrite replaces them with
@@ -966,7 +1029,17 @@ object LxqtLook {
             // the wallpaper. No systemd in the proot guest, so
             // autostart (not a timer unit) is the mechanism.
             File(autostartDir, "mudif-wallpaper-rotate.desktop").writeText(WALLPAPER_ROTATE_AUTOSTART)
-            File(rootfs, "root/$MARKER").writeText("$MARKER_VERSION\n")
+            // p98: the theme file, the rotator state index and the
+            // rotator pin, next to the CLI files in mudifConfDir
+            // (created above). The pin pauses the rotator while a
+            // theme is active; the index keeps the rotator's state
+            // consistent with the pinned wallpaper if the pin is
+            // ever lifted. The marker carries the theme, so a
+            // switch stages on the next desktop start.
+            File(mudifConfDir, "theme").writeText("$theme\n")
+            File(mudifConfDir, "wallpaper-index").writeText("${wallpaperIndexFor(theme)}\n")
+            File(mudifConfDir, "wallpaper-pinned").writeText("$theme\n")
+            File(rootfs, "root/$MARKER").writeText("$MARKER_VERSION:$theme\n")
         } catch (e: Exception) {
             MudifLog.d(TAG, "look config write failed: ${e.message}")
             return false
@@ -1025,7 +1098,7 @@ object LxqtLook {
     // the LXQt platform theme reads it). 17 is the Nova 9 adaptive
     // output (3.0 mm on the glass); a small phone gets 19, a tablet
     // 11. The image base below carries the Nova 9 value; a real
-    // device writes its own via lxqtConf(scale). If the rig shows
+    // device writes its own via lxqtConf(scale, theme). If the rig shows
     // the shell font did not change, this key is wrong and the fix
     // is to find the key the platform theme actually reads, not to
     // guess another one. RIG MUST CONFIRM.
@@ -1059,10 +1132,70 @@ tooltip_text_color=#333333
     // fails the look loudly (caught by ensureLxqtLook, returns
     // false) if the base ever changes without this line, instead of
     // silently shipping the wrong size.
-    private fun lxqtConf(scale: DesktopScale): String {
+    // p98: the [Palette] block is the active theme's (the rest of
+    // LXQT_CONF is theme-independent). [Palette] is the last block
+    // in the base, so replaceAfter keeps everything before it and
+    // drops nothing: the staged file is byte-identical to the light
+    // base except the ten palette lines.
+    private fun lxqtConf(scale: DesktopScale, theme: String): String {
         val out = LXQT_CONF.replace("font=Cairo,17", "font=Cairo,${scale.fontPt}")
         require(out != LXQT_CONF) { "LXQT_CONF base font changed, update lxqtConf" }
-        return out
+        return out.replaceAfter("[Palette]\n", paletteBlock(theme))
+    }
+
+    /** The [Palette] block of lxqt.conf for [theme]. Key names are
+     *  the exact ones LXQt reads (window_color, base_color,
+     *  highlight_color, window_text_color, text_color,
+     *  highlighted_text_color, link_color, link_visited_color,
+     *  tooltip_base_color, tooltip_text_color). The light block is
+     *  the LXQT_CONF base itself, so a light stage is a no-op
+     *  except for the font size. */
+    private fun paletteBlock(theme: String): String = when (theme) {
+        AppTheme.TAG_DARK -> """window_color=#1E1830
+base_color=#241D3D
+highlight_color=#593BFE
+window_text_color=#F2EFFF
+text_color=#F2EFFF
+highlighted_text_color=#FFFFFF
+link_color=#8B7CF5
+link_visited_color=#6A5AE0
+tooltip_base_color=#241D3D
+tooltip_text_color=#F2EFFF
+"""
+        AppTheme.TAG_GRADIENT -> """window_color=#2A1B5E
+base_color=#352276
+highlight_color=#593BFE
+window_text_color=#FFFFFF
+text_color=#FFFFFF
+highlighted_text_color=#FFFFFF
+link_color=#9B89FE
+link_visited_color=#6A5AE0
+tooltip_base_color=#352276
+tooltip_text_color=#FFFFFF
+"""
+        else -> """window_color=#FFFFFF
+base_color=#FFFFFF
+highlight_color=#593BFE
+window_text_color=#333333
+text_color=#333333
+highlighted_text_color=#FFFFFF
+link_color=#593BFE
+link_visited_color=#6A5AE0
+tooltip_base_color=#FFFFFF
+tooltip_text_color=#333333
+"""
+    }
+
+    /** Copy one per-theme file from the app assets over the live
+     *  guest path. A missing asset throws, caught by
+     *  ensureLxqtLook, so the look reports false honestly instead
+     *  of staging a half theme. */
+    private fun copyThemeAsset(context: Context, rootfs: File, assetPath: String, guestPath: String) {
+        val dest = File(rootfs, guestPath)
+        dest.parentFile?.mkdirs()
+        context.assets.open(assetPath).use { input ->
+            dest.outputStream().use { out -> input.copyTo(out) }
+        }
     }
 
     // Openbox is LXQt's window manager. The Environment section is
@@ -1109,7 +1242,7 @@ XCURSOR_SIZE=48
     // icons for the big-desktop look.
     // P23: DesktopIconSize=93 (Nova 9 adaptive output, 12.0 mm on
     // the glass); the image base carries it, a real device writes
-    // its own via pcmanfmSettingsConf(scale).
+    // its own via pcmanfmSettingsConf(scale, theme).
     // p63: [System] Terminal=qterminal. pcmanfm-qt 2.1.0 falls back
     // to a hardcoded Terminal="xterm" when the key is missing
     // (settings.cpp:215), and the user settings.conf staged here
@@ -1129,14 +1262,25 @@ DesktopIconSize=93
 """
 
     // p23: runtime adaptive path (same pattern as lxqtConf above).
-    private fun pcmanfmSettingsConf(scale: DesktopScale): String {
+    // p98: the Wallpaper is the active theme's (premium Badeen for
+    // dark and gradient, green storybook for light). The rotator
+    // pin (wallpaper-pinned) keeps the rotator from flipping it
+    // away while the theme is active.
+    private fun pcmanfmSettingsConf(scale: DesktopScale, theme: String): String {
         val out = PCMANFM_SETTINGS_CONF.replace(
             "DesktopIconSize=93", "DesktopIconSize=${scale.iconPx}"
         )
         require(out != PCMANFM_SETTINGS_CONF) {
             "PCMANFM_SETTINGS_CONF base icon size changed, update pcmanfmSettingsConf"
         }
-        return out
+        val wallpaperOut = out.replace(
+            "Wallpaper=/usr/share/backgrounds/mudif-wallpaper-gradient.png",
+            "Wallpaper=${wallpaperPathFor(theme)}"
+        )
+        require(wallpaperOut != out) {
+            "PCMANFM_SETTINGS_CONF base wallpaper changed, update pcmanfmSettingsConf"
+        }
+        return wallpaperOut
     }
 
     // P8 - fontconfig: Cairo is the preferred sans-serif and serif

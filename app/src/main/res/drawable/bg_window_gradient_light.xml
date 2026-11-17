@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p98: window background gradient, Clean Light theme.
+     Top #F7F5FF to bottom #EEEAFA (the sample's pale lavender).
+     Referenced as ?attr/mudifWindowBg by the agent and
+     brain-providers screens, and as android:windowBackground
+     by Theme.Mudif.CleanLight. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#F7F5FF"
+        android:endColor="#EEEAFA"
+        android:angle="270"
+        android:type="linear" />
+</shape>

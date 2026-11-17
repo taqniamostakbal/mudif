@@ -34,6 +34,11 @@
 # the whole session. A persistent failure keeps the same target
 # for the next 30-minute cycle (the state is untouched, so next
 # is not flipped).
+# p98: a theme pins its wallpaper (wallpaper-pinned holds the
+# theme id, written by LxqtLook on every stage and switch). While
+# pinned, the loop no-ops (see the pin check inside the loop):
+# the theme's wallpaper stays. The script, the autostart entry
+# and the state file stay in place; only the flip pauses.
 #
 # No systemd in the proot guest: this script is started by the
 # LXQt autostart entry mudif-wallpaper-rotate.desktop, which runs
@@ -103,6 +108,15 @@ case "$current" in
 esac
 
 while true; do
+    # p98: a theme pins its wallpaper (wallpaper-pinned holds the
+    # theme id). While pinned, the loop no-ops: no flip on the
+    # timer and no flip on desktop start. A rotator started
+    # unpinned stops flipping the moment a theme switch writes
+    # the pin mid-session.
+    if [ -f "$STATE_DIR/wallpaper-pinned" ]; then
+        sleep 1800 9>&-
+        continue
+    fi
     # p95: retry a failed apply (up to 3 attempts, 10 s apart)
     # instead of exiting: one transient failure must not kill
     # the autostart rotator for the whole session. A persistent
