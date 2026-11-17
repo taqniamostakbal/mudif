@@ -194,18 +194,33 @@ elif [ "${1:-}" = "restart-opencode" ]; then
     # /session answers UnknownError). Skip the 20 s wait below:
     # it only re-proves a known failure, and the heal then misses
     # the app's 30 s budget (rig-proven p81, missed by ~2-5 s).
-    # Kill at once; the wait after the restart still proves the
-    # NEW server answers, so a good-but-slow server is never
-    # killed on this path. Only ensureStarted passes this flag,
-    # and only when its probe proved the server broken. The
-    # watchdog never passes it (it only starts the script when
-    # nothing listens), so its 20 s protection is untouched.
-    echo "opencode: known-broken, killing at once (pid $(pgrep -f 'opencode serve' | head -1))"
-    pkill -f "opencode serve" 2>/dev/null
-    i=1
-    while [ "$i" -le 10 ] && pgrep -f "opencode serve" >/dev/null 2>&1; do sleep 1; i=$((i + 1)); done
-    (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 9>&- &)
-    echo "opencode: restarted in-guest"
+    # p84: the flag is only a hint computed at invoke time. By
+    # the time this run holds the lock, another run may already
+    # have healed the server (rig-proven p83: the bridge run
+    # acquired the lock after run 1's heal and killed the healthy
+    # server ~0.5 s later, and the turn's POST failed with
+    # "Failed to connect to /127.0.0.1:4096"). So re-probe
+    # INSIDE the lock before any kill: if the server now answers
+    # healthy, the flag is stale and this run must NOT kill
+    # anything; the wait_opencode check below still proves the
+    # server answers. Only a still-broken server is killed and
+    # restarted. This closes the race under every delivery path
+    # (send, watchdog, bridge startup) because the decision is
+    # made on fresh evidence inside the lock, not on a stale flag.
+    # Only ensureStarted passes this flag, and only when its
+    # probe proved the server broken. The watchdog never passes
+    # it (it only starts the script when nothing listens), so its
+    # 20 s protection is untouched.
+    if opencode_ok; then
+        echo "opencode: re-probe inside lock says healthy, flag stale, NOT killing (pid $(pgrep -f 'opencode serve' | head -1))"
+    else
+        echo "opencode: known-broken, killing at once (pid $(pgrep -f 'opencode serve' | head -1))"
+        pkill -f "opencode serve" 2>/dev/null
+        i=1
+        while [ "$i" -le 10 ] && pgrep -f "opencode serve" >/dev/null 2>&1; do sleep 1; i=$((i + 1)); done
+        (cd /root && opencode serve --port 4096 --hostname 127.0.0.1 >"$MUDIF_HOME/opencode.log" 2>&1 9>&- &)
+        echo "opencode: restarted in-guest"
+    fi
 else
     echo "opencode: already running (pid $(pgrep -f 'opencode serve' | head -1))"
 fi
