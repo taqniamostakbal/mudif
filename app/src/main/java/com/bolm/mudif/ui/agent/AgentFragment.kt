@@ -2921,8 +2921,9 @@ class AgentFragment : Fragment() {
         // app reaches the guest on 127.0.0.1, the same loopback path
         // the X server (6006) and audio (4713) use. Nothing here ever
         // loads a remote URL. The server is started on demand by
-        // AgentServer.ensureStarted; the probe lives in
-        // AgentServer.isUp().
+        // AgentServer.ensureStarted; the health probe lives in
+        // AgentServer.isSessionHealthy() (GET /session, p81).
+        // AgentServer.isUp() is only the TCP check.
         private const val PREFS_NAME = "mudif_agent_chat"
         private const val KEY_MESSAGES = "messages"
         private const val KEY_REPLY_LANGUAGE = "reply_language"

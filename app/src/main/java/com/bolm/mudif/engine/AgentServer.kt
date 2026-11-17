@@ -6,6 +6,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.URL
 import org.json.JSONObject
 
 /**
@@ -40,6 +41,7 @@ object AgentServer {
 
     private const val PROBE_TIMEOUT_MS = 1500
     private const val PROBE_ATTEMPTS = 3
+    private const val SESSION_PROBE_ATTEMPTS = 2
     private const val START_POLL_TIMEOUT_MS = 30_000L
     private const val START_POLL_INTERVAL_MS = 500L
     private const val STOP_WAIT_TIMEOUT_MS = 10_000L
@@ -81,6 +83,38 @@ object AgentServer {
                 }
             } catch (e: Exception) {
                 // Down on this attempt; try again.
+            }
+            try {
+                Thread.sleep(300)
+            } catch (_: InterruptedException) {
+            }
+        }
+        return false
+    }
+
+    /** Is the agent server answering /session VALIDLY?
+     *  Mirrors agent-start.sh opencode_ok exactly: GET /session
+     *  must answer HTTP 200 and the body must not contain
+     *  "UnknownError". A stray opencode answers TCP and GET /
+     *  but every /session route with UnknownError (rig-proven
+     *  p78/p80), so a TCP probe alone cannot tell it from the
+     *  good server, and ensureStarted must never short-circuit
+     *  on TCP alone. Up to [SESSION_PROBE_ATTEMPTS] attempts: a
+     *  healthy server answers the first one. Never throws.
+     *  Never on the UI thread (network). */
+    fun isSessionHealthy(): Boolean {
+        repeat(SESSION_PROBE_ATTEMPTS) {
+            try {
+                val conn = URL("$AGENT_SERVER_URL/session").openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.connectTimeout = PROBE_TIMEOUT_MS
+                conn.readTimeout = PROBE_TIMEOUT_MS
+                if (conn.responseCode == 200) {
+                    val body = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    if (!body.contains("UnknownError")) return true
+                }
+            } catch (e: Exception) {
+                // Not healthy on this attempt; try again.
             }
             try {
                 Thread.sleep(300)
@@ -292,8 +326,13 @@ object AgentServer {
      * with the real outcome; the caller shows the reason honestly.
      */
     fun ensureStarted(context: Context): EnsureResult {
-        if (isUp()) {
-            MudifLog.i(TAG, "ensureStarted: opencode already up on 4096, no start needed")
+        // p81: TCP alone is not health. A stray opencode answers
+        // TCP on 4096 while /session returns UnknownError
+        // (rig-proven p80), so the short-circuit needs the
+        // /session probe too. TCP first: when nothing listens
+        // there is no HTTP wait, the start path runs at once.
+        if (isUp() && isSessionHealthy()) {
+            MudifLog.i(TAG, "ensureStarted: opencode already up on 4096, /session healthy, no start needed")
             return EnsureResult(true)
         }
         if (!DebianSystem.isReady(context)) {
@@ -344,8 +383,12 @@ object AgentServer {
         }
         val deadline = System.currentTimeMillis() + START_POLL_TIMEOUT_MS
         while (System.currentTimeMillis() < deadline) {
-            if (isUp()) {
-                MudifLog.i(TAG, "ensureStarted: server up on 4096 after real start")
+            // p81: poll /session health, not TCP. A stray can own
+            // the port while /session stays broken; returning up
+            // on TCP alone would send the turn straight into the
+            // same HTTP 501 failure the entry probe just caught.
+            if (isSessionHealthy()) {
+                MudifLog.i(TAG, "ensureStarted: server up on 4096 after real start, /session healthy")
                 return EnsureResult(true)
             }
             try {
@@ -353,7 +396,7 @@ object AgentServer {
             } catch (_: InterruptedException) {
             }
         }
-        Log.e(TAG, "ensureStarted: server did not answer within 30 s")
+        Log.e(TAG, "ensureStarted: server did not answer /session within 30 s")
         return EnsureResult(false, REASON_START_FAILED)
     }
 
