@@ -132,3 +132,22 @@ window.inactive.button.max.disabled.image.color: #27C93F
 window.inactive.button.max.unpressed.toggled.image.color: #27C93F
 window.inactive.button.max.pressed.toggled.image.color: #27C93F
 window.inactive.button.max.hover.toggled.image.color: #27C93F
+!! p102: global toggled button colors. The per-button max toggled keys
+!! above are correct per openbox 3.6.1 obrender/theme.c (read_button_styles
+!! reads window.active.button.max.unpressed.toggled.image.color), but the
+!! live maximized dot rendered the wildcard #F2EFFF, i.e. the per-button
+!! read did not take effect in the live process for a reason the file,
+!! Xrm and source layers cannot show (see EVIDENCE.md section 2). The
+!! fallback chain (theme.c lines 365-387) reads these global keys next;
+!! with them present the toggled dot is #27C93F even if the per-button
+!! read misses again. Harmless if the per-button read works: the
+!! per-button key is tighter (8 components) and wins. Only the max
+!! button has a toggled state in titleLayout CIML, so only it is affected.
+window.active.button.toggled.unpressed.image.color: #27C93F
+window.active.button.toggled.image.color: #27C93F
+window.inactive.button.toggled.unpressed.image.color: #27C93F
+window.inactive.button.toggled.image.color: #27C93F
+window.active.button.toggled.hover.image.color: #27C93F
+window.inactive.button.toggled.hover.image.color: #27C93F
+window.active.button.toggled.pressed.image.color: #27C93F
+window.inactive.button.toggled.pressed.image.color: #27C93F
