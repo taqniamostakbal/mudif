@@ -1,0 +1,16 @@
+/* pcmanfm-qt menu bar only: own color, palette window_text_color untouched */
+QMenuBar {
+    color: #120C27;
+}
+QMenuBar::item {
+    color: #120C27;
+    background: transparent;
+}
+QMenuBar::item:selected,
+QMenuBar::item:pressed {
+    color: #F3F0FF;
+    background: #593BFE;
+}
+QMenuBar::item:disabled {
+    color: rgba(18, 12, 39, 130);
+}

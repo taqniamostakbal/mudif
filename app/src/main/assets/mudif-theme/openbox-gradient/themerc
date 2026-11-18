@@ -151,3 +151,19 @@ window.active.button.toggled.hover.image.color: #27C93F
 window.inactive.button.toggled.hover.image.color: #27C93F
 window.active.button.toggled.pressed.image.color: #27C93F
 window.inactive.button.toggled.pressed.image.color: #27C93F
+!! p103: per-button toggled keys in the INSTALLED query order.
+!! The LD_PRELOAD shim (p102-verify/shim.log) proved the installed
+!! openbox queries window.active.button.max.toggled.<state>.image.color
+!! (button.toggled.state), while the p100 keys above are written
+!! max.<state>.toggled and never match, so the query fell back to the
+!! bare wildcard #FFFFFF. These 6 keys are the exact order the live
+!! binary asks for; the p100 keys stay as harmless dead keys (they
+!! would match an upstream-order build) and the p102 global keys stay
+!! as the fallback safety net. Only the max button has a toggled
+!! state in titleLayout CIML.
+window.active.button.max.toggled.unpressed.image.color: #27C93F
+window.active.button.max.toggled.pressed.image.color: #27C93F
+window.active.button.max.toggled.hover.image.color: #27C93F
+window.inactive.button.max.toggled.unpressed.image.color: #27C93F
+window.inactive.button.max.toggled.pressed.image.color: #27C93F
+window.inactive.button.max.toggled.hover.image.color: #27C93F

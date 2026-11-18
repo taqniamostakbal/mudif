@@ -477,7 +477,11 @@ object LxqtLook {
     // ARGB, so the purple outline rendered red. The rebuilt files
     // are correct now. An existing rootfs must re-apply to pick
     // them up. The image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p45"
+    // p103 (2026-11-18): green-dot themerc keys in the installed
+    // order, pcmanfm-qt menu-bar QSS + wrapper, macOS traffic-light
+    // glyphs, Apple-style folders (blue dark, art Pictures). The
+    // image stays p23; only the look version moves.
+    const val MARKER_VERSION = "p46"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -491,6 +495,7 @@ object LxqtLook {
     private const val DL_ASSET = "mudif-cli/mudif-dl.sh"
     private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
     private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
+    private const val PCMANFM_WRAPPER_ASSET = "mudif-cli/pcmanfm-qt"
     private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
     private const val ROTATE_SH_ASSET = "mudif-cli/mudif-wallpaper-rotate.sh"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
@@ -804,6 +809,21 @@ object LxqtLook {
                 }
             }
             File(binDir, "lxqt-about").setExecutable(true, false)
+            // p103: pcmanfm-qt loads NO LXQt theme stylesheet
+            // (palette-only plugin, no pcmanfm-qt.qss in the theme
+            // spec), so its menu bar text is the pale palette
+            // WindowText. The wrapper injects Qt's -stylesheet
+            // option on every bare-name launch (desktop icon, panel,
+            // launcher, terminal); the per-theme QSS is staged in
+            // stageThemeSwitch. Theme-independent: only the QSS
+            // content changes on a theme switch. setExecutable: the
+            // desktop icon and panel exec it by bare name.
+            context.assets.open(PCMANFM_WRAPPER_ASSET).use { input ->
+                File(binDir, "pcmanfm-qt").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            File(binDir, "pcmanfm-qt").setExecutable(true, false)
             context.assets.open(ABOUT_PY_ASSET).use { input ->
                 File(binDir, "mudif-about").outputStream().use { out ->
                     input.copyTo(out)
@@ -884,6 +904,12 @@ object LxqtLook {
             // rewriteOpenboxScale (the themerc rewrite edits the
             // live file, so it must see the theme's variant).
             copyThemeAsset(context, rootfs, "mudif-theme/lxqt-panel-$theme.qss", "usr/share/lxqt/themes/mudif/lxqt-panel.qss")
+            // p103: the per-theme pcmanfm-qt menu-bar QSS. The name
+            // is a label only: nothing auto-loads it; only the
+            // /usr/local/bin/pcmanfm-qt wrapper's -stylesheet arg
+            // loads it. The zip ships the light base, so the active
+            // theme's variant overwrites it here, like lxqt-panel.
+            copyThemeAsset(context, rootfs, "mudif-theme/pcmanfm-qt-$theme.qss", "usr/share/lxqt/themes/mudif/pcmanfm-qt.qss")
             copyThemeAsset(context, rootfs, "mudif-theme/gtk-$theme.css", "root/.config/gtk-3.0/gtk.css")
             copyThemeAsset(context, rootfs, "mudif-theme/openbox-$theme/themerc", "usr/share/themes/mudif/openbox-3/themerc")
             // p100: the gradient theme's folders are lighter yellow
@@ -893,13 +919,31 @@ object LxqtLook {
             // every folder icon name so the home subfolders
             // (Documents/Pictures/Videos/Downloads/Music) show the
             // sample's plain yellow folders instead of their XDG
-            // icons. Dark/light need no copy: the zip's folder
-            // icons are already #FFC400, and a theme switch
-            // re-extracts the zip, restoring them.
+            // icons. Light needs no copy: the zip's folder icons
+            // are already #FFC400, and a theme switch re-extracts
+            // the zip, restoring them.
+            // p103: the dark theme's folders are plain macOS blue
+            // (#5E9BD6, the sample's blue); the zip ships
+            // folder-dark.svg as the variant source, copied over
+            // the plain folder icon names. folder-pictures.svg is
+            // NOT in either list: Pictures keeps the green-penguin
+            // art folder (a 48x48 PNG in the zip), and copying over
+            // it would re-create the scalable yellow SVG.
+            if (theme == AppTheme.TAG_DARK) {
+                for (name in listOf("folder.svg", "folder-open.svg",
+                    "inode-directory.svg", "inode-directory-open.svg",
+                    "folder-documents.svg",
+                    "folder-videos.svg", "folder-downloads.svg",
+                    "folder-music.svg")) {
+                    copyThemeAsset(context, rootfs,
+                        "mudif-icons/places/scalable/folder-dark.svg",
+                        "usr/share/icons/mudif/places/scalable/$name")
+                }
+            }
             if (theme == AppTheme.TAG_GRADIENT) {
                 for (name in listOf("folder.svg", "folder-open.svg",
                     "inode-directory.svg", "inode-directory-open.svg",
-                    "folder-documents.svg", "folder-pictures.svg",
+                    "folder-documents.svg",
                     "folder-videos.svg", "folder-downloads.svg",
                     "folder-music.svg")) {
                     copyThemeAsset(context, rootfs,

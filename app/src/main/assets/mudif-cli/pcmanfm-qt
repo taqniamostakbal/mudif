@@ -1,0 +1,13 @@
+#!/bin/sh
+# Mudif p103: pcmanfm-qt loads NO LXQt theme stylesheet (the lxqt
+# platform theme plugin is palette-only, and the LXQt theme spec has
+# no pcmanfm-qt.qss), so its menu bar text is the pale palette
+# WindowText. Qt programs accept -stylesheet=<file> on the command
+# line (consumed by the QApplication constructor before the app's own
+# argument parsing), so this wrapper injects the per-theme QSS the
+# look engine stages at /usr/share/lxqt/themes/mudif/pcmanfm-qt.qss.
+# It catches every bare-name launch (desktop icon, panel, launcher,
+# terminal, xdg-open). The QSS has only QMenuBar selectors, so it is
+# inert for pcmanfm-qt --desktop (no menu bar there). If the QSS is
+# ever missing, Qt logs a warning and the app runs unstyled.
+exec /usr/bin/pcmanfm-qt "-stylesheet=/usr/share/lxqt/themes/mudif/pcmanfm-qt.qss" "$@"
