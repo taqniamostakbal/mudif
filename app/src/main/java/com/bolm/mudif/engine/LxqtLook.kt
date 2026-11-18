@@ -481,7 +481,12 @@ object LxqtLook {
     // order, pcmanfm-qt menu-bar QSS + wrapper, macOS traffic-light
     // glyphs, Apple-style folders (blue dark, art Pictures). The
     // image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p46"
+    // p104 (2026-11-18): the p103 wrapper's -stylesheet arg killed
+    // pcmanfm-qt --desktop at every desktop start (ship-blocking
+    // regression); --desktop now passes through without the
+    // stylesheet, windowed FM keeps the menu-bar QSS. The image
+    // stays p23; only the look version moves.
+    const val MARKER_VERSION = "p47"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -818,6 +823,9 @@ object LxqtLook {
             // stageThemeSwitch. Theme-independent: only the QSS
             // content changes on a theme switch. setExecutable: the
             // desktop icon and panel exec it by bare name.
+            // p104: the wrapper exempts --desktop from the
+            // -stylesheet injection (the arg killed --desktop mode
+            // on p103); windowed launches keep the QSS.
             context.assets.open(PCMANFM_WRAPPER_ASSET).use { input ->
                 File(binDir, "pcmanfm-qt").outputStream().use { out ->
                     input.copyTo(out)
