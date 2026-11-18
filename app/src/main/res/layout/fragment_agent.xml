@@ -47,8 +47,8 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:background="@color/mudif_purple"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
         android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
@@ -78,7 +78,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:paddingStart="10dp">
+            android:paddingStart="8dp">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -90,7 +90,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/agent_name"
-                    android:textSize="18sp"
+                    android:textSize="17sp"
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:textColor="@android:color/white"
@@ -124,6 +124,8 @@
                     android:layout_marginStart="6dp"
                     android:text="@string/agent_subtitle"
                     android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     android:textColor="#DCD6FF"
                     android:fontFamily="@font/cairo" />
             </LinearLayout>
@@ -139,6 +141,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
             android:text="@string/agent_clear_history_short"
             android:contentDescription="@string/agent_clear_history"
             android:fontFamily="@font/cairo"
@@ -154,7 +164,7 @@
             android:id="@+id/btn_brain"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="120dp"
+            android:maxWidth="84dp"
             android:maxLines="1"
             android:ellipsize="end"
             android:contentDescription="@string/brain_providers_tap_to_change"
@@ -594,7 +604,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/search_box_bg"
+            android:background="@drawable/agent_input_bg"
             android:paddingTop="2dp"
             android:paddingBottom="2dp">
 

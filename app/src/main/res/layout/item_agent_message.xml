@@ -37,10 +37,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:background="@drawable/agent_bubble_agent"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="8dp">
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp">
 
         <TextView
             android:id="@+id/message_text"

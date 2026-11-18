@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- p107: modern input field background. Pill-shaped (22dp, the field
+     is ~48dp tall), theme surface fill, 1dp lavender hairline. The
+     old search_box_bg (12dp) read as a search box, not a chat input. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/colorSurface" />
+    <corners android:radius="22dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#DCD6FF" />
+</shape>

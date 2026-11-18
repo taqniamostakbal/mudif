@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- p30 KissaKoti redesign: paper-plane send icon (Material send path),
-     white fill so it sits on the purple circle_bg send button. -->
+     white fill so it sits on the purple circle_bg send button.
+     p107: the path is mirrored to point LEFT: this is an RTL chat, the
+     plane must fly toward the conversation, not away from it. Mirror
+     of M2.01,21L23,12 2.01,3 2,10l15,2 -15,2z about x=12. The fly
+     animator (avd_send_fly) only rises and scales, so it needs no
+     change; ic_send_anim carries the same mirrored path. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -8,5 +13,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M2.01,21L23,12 2.01,3 2,10l15,2 -15,2z" />
+        android:pathData="M21.99,21L1,12 21.99,3 22,10l-15,2 15,2z" />
 </vector>

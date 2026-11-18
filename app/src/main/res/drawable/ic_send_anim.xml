@@ -8,7 +8,7 @@
         <group android:name="plane">
             <path
                 android:fillColor="#FFFFFF"
-                android:pathData="M2.01,21L23,12 2.01,3 2,10l15,2 -15,2z" />
+                android:pathData="M21.99,21L1,12 21.99,3 22,10l-15,2 15,2z" />
         </group>
     </group>
 </vector>

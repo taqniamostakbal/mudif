@@ -85,9 +85,20 @@ class AgentAdapter : RecyclerView.Adapter<AgentAdapter.Holder>() {
             // code markers for display only (the stored text keeps
             // the original) so the result reads plainly. User
             // messages show exactly what was typed.
+            // p107: a user row must never render blank. The 16:14
+            // empty bubble was a user row with blank text at bind
+            // time; the append guard now blocks such rows, but a
+            // row stored before the fix (or from any other path)
+            // still falls back to the most recent non-blank user
+            // text instead of rendering an empty bubble.
+            val displayText = if (message.role == AgentMessage.ROLE_USER && message.text.isBlank()) {
+                items.take(position).lastOrNull {
+                    it.role == AgentMessage.ROLE_USER && it.text.isNotBlank()
+                }?.text ?: message.text
+            } else message.text
             messageText.text = stripDashes(
-                if (message.role == AgentMessage.ROLE_AGENT) stripMarkdown(message.text)
-                else message.text
+                if (message.role == AgentMessage.ROLE_AGENT) stripMarkdown(displayText)
+                else displayText
             )
             messageTime.text = formatTime(message.time)
             if (message.role == AgentMessage.ROLE_USER) {
