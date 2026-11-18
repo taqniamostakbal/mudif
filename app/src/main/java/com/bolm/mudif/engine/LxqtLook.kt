@@ -469,10 +469,14 @@ object LxqtLook {
     // the theme's wallpaper and pauses the rotator. An existing
     // rootfs must re-apply to pick them up. The image stays p23;
     // only the look version moves. Without this bump the change
-    // repeats the p43 trap. The marker is now "p42:<theme>": a
+    // repeats the p43 trap. The marker is now "p43:<theme>": a
     // theme switch makes isApplied() false, so the next desktop
     // start re-stages the new theme instead of keeping the old one.
-    const val MARKER_VERSION = "p42"
+    // P43 (2026-11-18, p100): the system-style samples, applied
+    // exactly (titlebar, sidebar, folders, panel, icons). An
+    // existing rootfs must re-apply to pick them up. The image
+    // stays p23; only the look version moves.
+    const val MARKER_VERSION = "p43"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -881,6 +885,27 @@ object LxqtLook {
             copyThemeAsset(context, rootfs, "mudif-theme/lxqt-panel-$theme.qss", "usr/share/lxqt/themes/mudif/lxqt-panel.qss")
             copyThemeAsset(context, rootfs, "mudif-theme/gtk-$theme.css", "root/.config/gtk-3.0/gtk.css")
             copyThemeAsset(context, rootfs, "mudif-theme/openbox-$theme/themerc", "usr/share/themes/mudif/openbox-3/themerc")
+            // p100: the gradient theme's folders are lighter yellow
+            // (#FFD640; dark/light use the zip's #FFC400 folder
+            // icons). The zip ships folder-gradient.svg as the
+            // variant source; the active variant is copied over
+            // every folder icon name so the home subfolders
+            // (Documents/Pictures/Videos/Downloads/Music) show the
+            // sample's plain yellow folders instead of their XDG
+            // icons. Dark/light need no copy: the zip's folder
+            // icons are already #FFC400, and a theme switch
+            // re-extracts the zip, restoring them.
+            if (theme == AppTheme.TAG_GRADIENT) {
+                for (name in listOf("folder.svg", "folder-open.svg",
+                    "inode-directory.svg", "inode-directory-open.svg",
+                    "folder-documents.svg", "folder-pictures.svg",
+                    "folder-videos.svg", "folder-downloads.svg",
+                    "folder-music.svg")) {
+                    copyThemeAsset(context, rootfs,
+                        "mudif-icons/places/scalable/folder-gradient.svg",
+                        "usr/share/icons/mudif/places/scalable/$name")
+                }
+            }
             // p23: adaptive scale for the window manager. The zip
             // ships the p21 base (title/menu fonts 11, OSD 9,
             // padding 4); the runtime rewrite replaces them with
@@ -921,6 +946,18 @@ object LxqtLook {
                 MudifLog.d(TAG, "icon cache build failed - look not applied")
                 return false
             }
+            // p100: trust the two new desktop files
+            // (metadata::trust). Best-effort: a failure here must
+            // never block staging; the files still show, they just
+            // ask once on launch. The xattr is the same one
+            // build-image.sh sets at image time.
+            val trustResult = TerminalSession.runCommandDebian(
+                context,
+                "python3 -c \"import os; [os.setxattr(p, 'user.metadata::trust', b'true') for p in ['/root/Desktop/firefox-esr.desktop', '/root/Desktop/pcmanfm-qt.desktop']]\" && echo DESKTOP_TRUST_OK",
+                idleTimeoutSec = 30,
+                maxTimeoutSec = 120
+            )
+            MudifLog.d(TAG, "desktop trust exit=${trustResult.exitCode} out=${trustResult.output.takeLast(200)}")
             // P9FIX2 - the panel's start-button logo + a spacer
             // plugin, via panel.conf (merged, never overwritten -
             // the panel rewrites panel.conf on exit, so overwriting
@@ -981,6 +1018,21 @@ object LxqtLook {
             val desktopLauncher = File(rootfs, "root/Desktop/mudif-launcher.desktop")
             desktopLauncher.parentFile?.mkdirs()
             desktopLauncher.writeText(MUDIF_LAUNCHER_DESKTOP)
+            // p100: the sample desktop shows three icons (Firefox
+            // ESR, launcher, Files). Only the launcher was staged;
+            // the other two are written here from consts with the
+            // new square icons, same pattern as the launcher.
+            // writeText truncates in place, so an existing file
+            // keeps its inode, +x mode and trust; a new file gets
+            // +x below plus the trust xattr from the guest python
+            // one-liner after the icon cache build (same xattr
+            // build-image.sh sets at image time).
+            val desktopFirefox = File(rootfs, "root/Desktop/firefox-esr.desktop")
+            desktopFirefox.writeText(FIREFOX_DESKTOP)
+            desktopFirefox.setExecutable(true, false)
+            val desktopFiles = File(rootfs, "root/Desktop/pcmanfm-qt.desktop")
+            desktopFiles.writeText(FILES_DESKTOP)
+            desktopFiles.setExecutable(true, false)
             val qterminalIni = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
@@ -1114,16 +1166,16 @@ cursor_size=48
 font=Cairo,17
 
 [Palette]
-window_color=#FFFFFF
+window_color=#F2F0FA
 base_color=#FFFFFF
 highlight_color=#593BFE
-window_text_color=#333333
-text_color=#333333
-highlighted_text_color=#FFFFFF
+window_text_color=#706A8A
+text_color=#28223A
+highlighted_text_color=#F3F0FF
 link_color=#593BFE
 link_visited_color=#6A5AE0
-tooltip_base_color=#FFFFFF
-tooltip_text_color=#333333
+tooltip_base_color=#F2F0FA
+tooltip_text_color=#726C8C
 """
 
     // p23: runtime adaptive path. LXQT_CONF above is the IMAGE base
@@ -1170,40 +1222,57 @@ tooltip_text_color=#333333
      *  highlighted_text_color, link_color, link_visited_color,
      *  tooltip_base_color, tooltip_text_color). The light block is
      *  the LXQT_CONF base itself, so a light stage is a no-op
-     *  except for the font size. */
+     *  except for the font size.
+     *  p100 (SAMPLE-SPEC.md, roles proven from the upstream
+     *  sources, not guessed): the places sidebar is TRANSPARENT
+     *  (libfm-qt sidepane.cpp sets QPalette::Base transparent and
+     *  the viewport autoFillBackground false), so the sidebar
+     *  background IS window_color; the folder view is a QListView
+     *  whose viewport background IS base_color; the selected row
+     *  background IS highlight_color and its text IS
+     *  highlighted_text_color; the sidebar item text IS
+     *  window_text_color (sidepane forces Text to WindowText)
+     *  while the folder labels use text_color. The lxqt platform
+     *  theme (lxqt-qtplugin) applies ONLY this palette, it has no
+     *  stylesheet hook, so the pill SHAPE (rounded rect, inset)
+     *  cannot be set here: only its colors. The gradient pill is
+     *  white, so the gradient Highlight is #FFFFFF and its
+     *  highlighted text #6549FE: every selection in the gradient
+     *  theme becomes white-bg/purple-text, a deliberate theme
+     *  choice the rig probe must look at. */
     private fun paletteBlock(theme: String): String = when (theme) {
-        AppTheme.TAG_DARK -> """window_color=#1E1830
-base_color=#241D3D
+        AppTheme.TAG_DARK -> """window_color=#1A1428
+base_color=#1E1830
 highlight_color=#593BFE
-window_text_color=#F2EFFF
-text_color=#F2EFFF
-highlighted_text_color=#FFFFFF
+window_text_color=#A197C7
+text_color=#DDDBEB
+highlighted_text_color=#F3F0FF
 link_color=#8B7CF5
 link_visited_color=#6A5AE0
-tooltip_base_color=#241D3D
-tooltip_text_color=#F2EFFF
+tooltip_base_color=#1A1428
+tooltip_text_color=#A197C7
 """
-        AppTheme.TAG_GRADIENT -> """window_color=#2A1B5E
-base_color=#352276
-highlight_color=#593BFE
-window_text_color=#FFFFFF
-text_color=#FFFFFF
-highlighted_text_color=#FFFFFF
+        AppTheme.TAG_GRADIENT -> """window_color=#241647
+base_color=#2A1B5E
+highlight_color=#FFFFFF
+window_text_color=#C2B7EC
+text_color=#EAE8EF
+highlighted_text_color=#6549FE
 link_color=#9B89FE
 link_visited_color=#6A5AE0
-tooltip_base_color=#352276
-tooltip_text_color=#FFFFFF
+tooltip_base_color=#241647
+tooltip_text_color=#C2B7EC
 """
-        else -> """window_color=#FFFFFF
+        else -> """window_color=#F2F0FA
 base_color=#FFFFFF
 highlight_color=#593BFE
-window_text_color=#333333
-text_color=#333333
-highlighted_text_color=#FFFFFF
+window_text_color=#706A8A
+text_color=#28223A
+highlighted_text_color=#F3F0FF
 link_color=#593BFE
 link_visited_color=#6A5AE0
-tooltip_base_color=#FFFFFF
-tooltip_text_color=#333333
+tooltip_base_color=#F2F0FA
+tooltip_text_color=#726C8C
 """
     }
 
@@ -1286,6 +1355,19 @@ Terminal=qterminal
 Wallpaper=/usr/share/backgrounds/mudif-wallpaper-gradient.png
 WallpaperMode=stretch
 DesktopIconSize=93
+FgColor=#B7B7C1
+ShadowColor=#000000
+
+[FolderView]
+BigIconSize=48
+SmallIconSize=24
+SidePaneIconSize=24
+
+[Window]
+LastWindowWidth=680
+LastWindowHeight=404
+SplitterPos=190
+RememberWindowSize=true
 """
 
     // p23: runtime adaptive path (same pattern as lxqtConf above).
@@ -1998,9 +2080,33 @@ Name=Mudif Launcher
 Name[ar]=مشغّل مضيف
 Comment=Touch-friendly fullscreen app launcher (P19 Phase 4)
 Exec=/usr/local/bin/mudif-launcher --open
-Icon=mudif-launcher
+Icon=mudif-launcher-desktop
 Terminal=false
 X-LXQt-Need-Tray=false
+"""
+
+    // p100: the other two sample desktop icons. Firefox ESR opens
+    // the browser; Files opens the file manager at home. Their
+    // icons are the new square assets (firefox-esr-desktop,
+    // files-desktop); the launcher const above now points at its
+    // square too (mudif-launcher-desktop), so all three desktop
+    // icons are the sample's rounded squares.
+    private const val FIREFOX_DESKTOP = """[Desktop Entry]
+Type=Application
+Name=Firefox ESR
+Comment=Firefox ESR web browser
+Exec=firefox-esr
+Icon=firefox-esr-desktop
+Terminal=false
+"""
+
+    private const val FILES_DESKTOP = """[Desktop Entry]
+Type=Application
+Name=الملفات
+Comment=File manager
+Exec=pcmanfm-qt
+Icon=files-desktop
+Terminal=false
 """
 
     // p22 - screensaver: the image ships lxqt-xscreensaver-autostart

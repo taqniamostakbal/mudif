@@ -124,7 +124,7 @@ dependencies {
     // p77: fork commit 7a96cffa1 removes both mouse bars (only the X
     // arrow cursor stays) and replaces the "Not connected" stub
     // with Mudif's own screen (penguin, Arabic, start-desktop retry).
-    implementation("com.github.taqniamostakbal:termux-x11:b5cdd379dded671ee437028ecdbc16efc4ae432b") {
+    implementation("com.github.taqniamostakbal:termux-x11:edf1fa788ceb7b50bd76f045ecf5f48345497e71") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }

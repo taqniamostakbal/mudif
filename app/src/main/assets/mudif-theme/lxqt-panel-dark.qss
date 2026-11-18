@@ -13,7 +13,7 @@
  */
 
 LXQtPanel #BackgroundWidget {
-    background: rgba(20, 16, 31, 235);
+    background: #141021;
 }
 
 QToolTip {
@@ -220,11 +220,14 @@ VolumePopup > QSlider::sub-page:vertical {
 #TaskBar QToolButton {
     margin: 2px;
     padding: 2px;
+    background: #2C1F6E;
+    border-radius: 11px;
+    color: #FEFCFF;
 }
 
 #TaskBar QToolButton:on {
-    border: 1px solid rgba(89, 59, 254, 90);
-    background: rgba(89, 59, 254, 90);
+    border: none;
+    background: #2C1F6E;
 }
 
 #TaskBar QToolButton:hover {
@@ -314,13 +317,17 @@ QCalendarWidget #qt_calendar_prevmonth {
 }
 
 #Clock #TimeLabel {
-    color: #DEDEDE;
+    color: #FDFBFF;
+    font-family: "DejaVu Sans";
+    font-size: 20px;
     margin-right: 2px;
     margin-left: 2px;
 }
 
 #Clock #DateLabel {
-    color: #DEDEDE;
+    color: #EEEDF3;
+    font-family: "Cairo";
+    font-size: 13px;
     margin-right: 2px;
     margin-left: 2px;
 }
