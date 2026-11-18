@@ -1,7 +1,7 @@
 [Icon Theme]
 Name=mudif
-Comment=Mudif icon theme (purple harmony, inherits bloom-dark)
-Inherits=bloom-dark
+Comment=Mudif icon theme (purple harmony, inherits WhiteSur-light, bloom-dark)
+Inherits=WhiteSur-light,bloom-dark
 Directories=apps/scalable,places/scalable,apps/64x64,apps/80x80
 
 [apps/scalable]

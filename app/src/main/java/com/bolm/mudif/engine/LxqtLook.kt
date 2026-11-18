@@ -477,7 +477,7 @@ object LxqtLook {
     // ARGB, so the purple outline rendered red. The rebuilt files
     // are correct now. An existing rootfs must re-apply to pick
     // them up. The image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p44"
+    const val MARKER_VERSION = "p45"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -1148,6 +1148,18 @@ object LxqtLook {
     // the `mudif` icon theme stays installed as the last fallback
     // in WhiteSur-light's Inherits chain, for the penguin/purple
     // names only it provides). theme stays mudif.
+    // p102: icon_theme=mudif. WhiteSur-light defines folder.svg
+    // itself (#46a2d7), so the mudif fallback never fires and
+    // pcmanfm-qt showed blue folders live (p100 rig round 4/6).
+    // mudif is now the active theme; its Inherits keeps
+    // WhiteSur-light for every icon mudif does not provide, so
+    // nothing else changes look. The panel keeps its own
+    // iconTheme=WhiteSur-light (mergePanelConf): it reads
+    // panel.conf, not lxqt.conf, and its icons were not part
+    // of the defect. Staging writes this file at every full
+    // desktop start (line 732, lxqtConf), so the switch takes
+    // effect on the next full start; the in-guest
+    // gtk-update-icon-cache step already builds the mudif cache.
     // P23: font=Cairo,17 (LXQt convention: lxqt-config-appearance
     // writes the shell font to lxqt.conf [General] as font=Family,pt;
     // the LXQt platform theme reads it). 17 is the Nova 9 adaptive
@@ -1159,7 +1171,7 @@ object LxqtLook {
     // guess another one. RIG MUST CONFIRM.
     private const val LXQT_CONF = """[General]
 __userfile__=true
-icon_theme=WhiteSur-light
+icon_theme=mudif
 theme=mudif
 palette=Mudif
 cursor_theme=Mudif-Glass
