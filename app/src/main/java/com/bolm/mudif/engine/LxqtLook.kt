@@ -472,11 +472,12 @@ object LxqtLook {
     // repeats the p43 trap. The marker is now "p43:<theme>": a
     // theme switch makes isApplied() false, so the next desktop
     // start re-stages the new theme instead of keeping the old one.
-    // P43 (2026-11-18, p100): the system-style samples, applied
-    // exactly (titlebar, sidebar, folders, panel, icons). An
-    // existing rootfs must re-apply to pick them up. The image
-    // stays p23; only the look version moves.
-    const val MARKER_VERSION = "p43"
+    // P44 (2026-11-18, p101): the cursor BGRA fix. p99 wrote the
+    // cursor pixels in RGBA order; Xcursor reads little-endian
+    // ARGB, so the purple outline rendered red. The rebuilt files
+    // are correct now. An existing rootfs must re-apply to pick
+    // them up. The image stays p23; only the look version moves.
+    const val MARKER_VERSION = "p44"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
