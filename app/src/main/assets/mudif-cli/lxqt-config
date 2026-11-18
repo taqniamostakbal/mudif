@@ -1,0 +1,9 @@
+#!/bin/sh
+# lxqt-config shim (staging-owned, NOT part of the mudif-settings .deb).
+# Opens the Mudif settings program; falls back to the stock LXQt
+# Configuration Center if the binary is missing or not executable.
+if [ -x /usr/local/bin/mudif-settings ]; then
+    exec /usr/local/bin/mudif-settings "$@"
+else
+    exec /usr/bin/lxqt-config "$@"
+fi
