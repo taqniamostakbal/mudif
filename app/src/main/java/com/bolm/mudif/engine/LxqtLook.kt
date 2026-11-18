@@ -469,10 +469,10 @@ object LxqtLook {
     // the theme's wallpaper and pauses the rotator. An existing
     // rootfs must re-apply to pick them up. The image stays p23;
     // only the look version moves. Without this bump the change
-    // repeats the p43 trap. The marker is now "p41:<theme>": a
+    // repeats the p43 trap. The marker is now "p42:<theme>": a
     // theme switch makes isApplied() false, so the next desktop
     // start re-stages the new theme instead of keeping the old one.
-    const val MARKER_VERSION = "p41"
+    const val MARKER_VERSION = "p42"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -496,7 +496,7 @@ object LxqtLook {
         val marker = File(DebianSystem.debianRootfsDir(context), "root/$MARKER")
         if (!marker.exists()) return false
         return try {
-            // p98: the marker carries the theme ("p41:<theme>"), so
+            // p98: the marker carries the theme ("p42:<theme>"), so
             // a theme switch invalidates it and the next desktop
             // start re-stages the new theme.
             marker.readText().trim() == "$MARKER_VERSION:${AppTheme.currentTag(context)}"
@@ -725,7 +725,7 @@ object LxqtLook {
             val lxqtDir = File(rootfs, "root/.config/lxqt")
             lxqtDir.mkdirs()
             File(lxqtDir, "lxqt.conf").writeText(lxqtConf(scale, theme))
-            File(lxqtDir, "session.conf").writeText(SESSION_CONF)
+            File(lxqtDir, "session.conf").writeText(sessionConf(theme))
             val pcmanfmDir = File(rootfs, "root/.config/pcmanfm-qt/lxqt")
             pcmanfmDir.mkdirs()
             File(pcmanfmDir, "settings.conf").writeText(pcmanfmSettingsConf(scale, theme))
@@ -1000,20 +1000,22 @@ object LxqtLook {
             val autostartDir = File(rootfs, "root/.config/autostart")
             autostartDir.mkdirs()
             File(autostartDir, "lxqt-powermanagement.desktop").writeText(POWERMANAGEMENT_HIDDEN)
-            // p22 - big macOS cursor: Xresources + the xrdb loader +
+            // p22 - big cursor: Xresources + the xrdb loader +
             // GTK settings (the env vars live in SESSION_CONF).
             // The desktop reads the X cursor, not the Qt/GTK one:
             // the Appearance size 38 showed only inside some apps
             // because the Xresources were never loaded for the
             // desktop. XCURSOR_SIZE=48 in the session env + the
             // xrdb autostart entry make it 48 everywhere.
-            File(rootfs, "root/.Xresources").writeText(CURSOR_XRESOURCES)
+            // p99: the Xresources theme is the active theme's set
+            // (cursorXresources), not a fixed name.
+            File(rootfs, "root/.Xresources").writeText(cursorXresources(theme))
             File(autostartDir, "xrdb-xresources.desktop").writeText(XRDB_AUTOSTART)
             val gtkDir = File(rootfs, "root/.config/gtk-3.0")
             gtkDir.mkdirs()
             val gtkSettings = File(gtkDir, "settings.ini")
             val existingGtk = if (gtkSettings.exists()) gtkSettings.readText() else null
-            gtkSettings.writeText(mergeGtkCursorSettings(existingGtk, scale))
+            gtkSettings.writeText(mergeGtkCursorSettings(existingGtk, scale, theme))
             // p22 - screensaver: the image ships
             // lxqt-xscreensaver-autostart (it tries to start a
             // screensaver that is NOT installed), and any lock
@@ -1107,7 +1109,7 @@ __userfile__=true
 icon_theme=WhiteSur-light
 theme=mudif
 palette=Mudif
-cursor_theme=WhiteSur-cursors
+cursor_theme=Mudif-Glass
 cursor_size=48
 font=Cairo,17
 
@@ -1137,10 +1139,29 @@ tooltip_text_color=#333333
     // in the base, so replaceAfter keeps everything before it and
     // drops nothing: the staged file is byte-identical to the light
     // base except the ten palette lines.
+    // p99: the cursor_theme line is theme-dependent too (see
+    // cursorThemeFor): lxqtConf replaces it with the active
+    // theme's set, the same replace pattern as the font size.
     private fun lxqtConf(scale: DesktopScale, theme: String): String {
         val out = LXQT_CONF.replace("font=Cairo,17", "font=Cairo,${scale.fontPt}")
-        require(out != LXQT_CONF) { "LXQT_CONF base font changed, update lxqtConf" }
+            .replace("cursor_theme=Mudif-Glass", "cursor_theme=${cursorThemeFor(theme)}")
+        require(out != LXQT_CONF) { "LXQT_CONF base font/cursor changed, update lxqtConf" }
         return out.replaceAfter("[Palette]\n", paletteBlock(theme))
+    }
+
+    /** The per-theme cursor set (p99: real sets rendered in code,
+     *  Chrome Glass geometry, 111 names each, 4 sizes). dark ->
+     *  Mudif-Glass (silver glass, defined dark outline), light ->
+     *  Mudif-Purple (white fill, #593BFE outline, shadow),
+     *  gradient -> Mudif-Neon (dark fill, #593BFE outline, purple
+     *  glow). The three sets ride in mudif-theme.zip under
+     *  usr/share/icons/Mudif-Glass|Mudif-Purple|Mudif-Neon/.
+     *  The previous stock set is gone: the last build carrying
+     *  it was p98. */
+    private fun cursorThemeFor(theme: String): String = when (theme) {
+        AppTheme.TAG_DARK -> "Mudif-Glass"
+        AppTheme.TAG_GRADIENT -> "Mudif-Neon"
+        else -> "Mudif-Purple"
     }
 
     /** The [Palette] block of lxqt.conf for [theme]. Key names are
@@ -1222,9 +1243,15 @@ QT_QPA_PLATFORMTHEME=lxqt
 LANG=ar_MA.UTF-8
 LANGUAGE=ar
 SHELL=/bin/bash
-XCURSOR_THEME=WhiteSur-cursors
+XCURSOR_THEME=Mudif-Glass
 XCURSOR_SIZE=48
 """
+
+    // p99: the session env cursor theme follows the active theme
+    // (cursorThemeFor), same replace pattern as lxqtConf. The
+    // base above stays the p23-era text so the diff stays one line.
+    private fun sessionConf(theme: String): String =
+        SESSION_CONF.replace("XCURSOR_THEME=Mudif-Glass", "XCURSOR_THEME=${cursorThemeFor(theme)}")
 
     // pcmanfm-qt draws the desktop wallpaper. It reads Wallpaper /
     // WallpaperMode / BgColor from the [Desktop] group ONLY
@@ -1921,15 +1948,22 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         return out.toString().trimEnd() + "\n"
     }
 
-    // p22 - big macOS cursor (his order: the desktop cursor is too
+    // p22 - big cursor (his order: the desktop cursor is too
     // small; the Appearance size 38 shows only inside some apps
     // because the desktop reads the X cursor, not the Qt/GTK one).
-    // The theme files ride in mudif-theme.zip
-    // (usr/share/icons/WhiteSur-cursors/, 111 cursors + index.theme,
-    // macOS black arrow, vinceliuice/WhiteSur-cursors, MIT).
-    private const val CURSOR_XRESOURCES = """Xcursor.theme: WhiteSur-cursors
+    // p99 - the cursor theme follows the active app theme
+    // (cursorThemeFor): the three per-theme sets ride in
+    // mudif-theme.zip (usr/share/icons/Mudif-Glass|Mudif-Purple|
+    // Mudif-Neon/, 111 cursors + index.theme each). The previous
+    // stock set is gone: the last build carrying it was p98.
+    private const val CURSOR_XRESOURCES = """Xcursor.theme: Mudif-Glass
 Xcursor.size: 48
 """
+
+    // p99: the Xresources cursor theme follows the active theme,
+    // same replace pattern as lxqtConf/sessionConf.
+    private fun cursorXresources(theme: String): String =
+        CURSOR_XRESOURCES.replace("Xcursor.theme: Mudif-Glass", "Xcursor.theme: ${cursorThemeFor(theme)}")
 
     private const val XRDB_AUTOSTART = """[Desktop Entry]
 Type=Application
@@ -2015,8 +2049,11 @@ Hidden=true
      *  P23: gtk-font-name=Cairo <fontPt> (GTK reads it directly, so
      *  GTK apps get the adaptive font even if the LXQt shell font
      *  key turns out wrong). The cursor keys are NOT the pointer
-     *  size: they are the GTK cursor theme, left at 48. */
-    private fun mergeGtkCursorSettings(existing: String?, scale: DesktopScale): String {
+     *  size: they are the GTK cursor theme, left at 48. p99: the
+     *  cursor theme name is the active theme's set
+     *  (cursorThemeFor), so a theme switch re-stages the right
+     *  set on the next desktop start. */
+    private fun mergeGtkCursorSettings(existing: String?, scale: DesktopScale, theme: String): String {
         val out = StringBuilder()
         var inSettings = false
         var settingsSeen = false
@@ -2024,7 +2061,7 @@ Hidden=true
         var sizeSeen = false
         var fontSeen = false
         fun flushMissing() {
-            if (!nameSeen) out.append("gtk-cursor-theme-name=WhiteSur-cursors\n")
+            if (!nameSeen) out.append("gtk-cursor-theme-name=${cursorThemeFor(theme)}\n")
             if (!sizeSeen) out.append("gtk-cursor-theme-size=48\n")
             if (!fontSeen) out.append("gtk-font-name=Cairo ${scale.fontPt}\n")
             nameSeen = true
@@ -2041,7 +2078,7 @@ Hidden=true
                 continue
             }
             if (inSettings && trimmed.startsWith("gtk-cursor-theme-name=")) {
-                out.append("gtk-cursor-theme-name=WhiteSur-cursors\n")
+                out.append("gtk-cursor-theme-name=${cursorThemeFor(theme)}\n")
                 nameSeen = true
                 continue
             }
