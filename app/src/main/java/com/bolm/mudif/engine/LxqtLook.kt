@@ -497,7 +497,14 @@ object LxqtLook {
     // cursor: the pointer is the opposite luminance of the
     // wallpaper under it. The image stays p23; only the look
     // version moves.
-    const val MARKER_VERSION = "p50"
+    // p108 (2026-11-18): [panel1] iconSize 48 -> 36 (the
+    // two-window group centers at -0.5 px; at 48 the clamp bound
+    // at spanLeft and the group sat at -39.5 px, f3-two-window-fix
+    // EVIDENCE), the mudif-settings program (.deb + lxqt-config
+    // shim, staged and installed by ensureLxqtLook), and the
+    // overrides-file adoption (user-settings.conf survives marker
+    // bumps). The image stays p23; only the look version moves.
+    const val MARKER_VERSION = "p51"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -513,6 +520,8 @@ object LxqtLook {
     private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
     private const val PCMANFM_WRAPPER_ASSET = "mudif-cli/pcmanfm-qt"
     private const val PCMANFM_DEB_ASSET = "mudif-debs/pcmanfm-qt_2.1.0-2mudif1_amd64.deb"
+    private const val SETTINGS_DEB_ASSET = "mudif-debs/mudif-settings_1.0-1mudif1_amd64.deb"
+    private const val SETTINGS_SHIM_ASSET = "mudif-cli/lxqt-config"
     private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
     private const val ROTATE_SH_ASSET = "mudif-cli/mudif-wallpaper-rotate.sh"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
@@ -675,7 +684,17 @@ object LxqtLook {
         // else (see assertPanelMenuIcon): the marker early-return
         // below would skip the repair on every later start.
         assertPanelMenuIcon(context)
-        if (isApplied(context)) return true
+        if (isApplied(context)) {
+            // p108: the user may have changed a setting in
+            // mudif-settings since the last staging; re-apply the
+            // overrides file so the change takes effect on this
+            // full desktop start instead of waiting for the next
+            // marker bump (the marker-gated adoption below only
+            // runs when staging runs). Best-effort, never blocks
+            // the start.
+            applyUserSettingsOverrides(context)
+            return true
+        }
         // p23: adaptive scale, computed once from this device's real
         // screen and threaded through every config writer below.
         val scale = DesktopScaleCalculator.compute(context)
@@ -826,6 +845,20 @@ object LxqtLook {
                 }
             }
             File(binDir, "lxqt-about").setExecutable(true, false)
+            // p108 - the FancyMenu gear hardcodes the `lxqt-config`
+            // command (lxqtfancymenuwindow.cpp runSystemConfigDialog);
+            // the shim redirects it to Mudif's own settings program
+            // (same pattern as the lxqt-about shim above). The shim
+            // falls back to /usr/bin/lxqt-config when the binary is
+            // missing or not executable, so a failed staging leaves
+            // the gear working (stock center) instead of dead.
+            // setExecutable: the panel execs it by bare name.
+            context.assets.open(SETTINGS_SHIM_ASSET).use { input ->
+                File(binDir, "lxqt-config").outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            File(binDir, "lxqt-config").setExecutable(true, false)
             // p105: the wrapper is a plain passthrough now. The
             // rebuilt pcmanfm-qt binary reads the staged per-theme
             // QSS itself (per-widget menu-bar stylesheet), so the
@@ -1002,6 +1035,34 @@ object LxqtLook {
                 MudifLog.d(TAG, "pcmanfm-qt deb install failed - look not applied")
                 return false
             }
+            // p108: the Mudif settings program (mudif-settings
+            // 1.0-1mudif1, C++ Qt6, 4 tabs). Same staging pattern
+            // as the pcmanfm-qt .deb above: stage the .deb into
+            // Mudif's own dir (persists), then install it in the
+            // guest. dpkg -i is idempotent; the marker gates
+            // re-staging. If the install fails, the look is NOT
+            // marked applied (return false) so the next launch
+            // retries; a failed install never marks the look
+            // applied. The .deb installs the binary to
+            // /usr/local/bin/mudif-settings and the .desktop file
+            // to /usr/share/applications/mudif-settings.desktop.
+            // The shim staged above redirects the gear to it.
+            context.assets.open(SETTINGS_DEB_ASSET).use { input ->
+                File(mudifConfDir, SETTINGS_DEB_ASSET.substringAfterLast("/")).outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            val settingsDebResult = TerminalSession.runCommandDebian(
+                context,
+                "dpkg -i /root/.config/mudif/${SETTINGS_DEB_ASSET.substringAfterLast("/")} && echo SETTINGS_DEB_OK",
+                idleTimeoutSec = 30,
+                maxTimeoutSec = 120
+            )
+            MudifLog.d(TAG, "mudif-settings deb install exit=${settingsDebResult.exitCode} out=${settingsDebResult.output.takeLast(200)}")
+            if (!settingsDebResult.output.contains("SETTINGS_DEB_OK")) {
+                MudifLog.d(TAG, "mudif-settings deb install failed - look not applied")
+                return false
+            }
             // P9FIX - build the icon-theme cache for `mudif`.
             // The P9 test proved all 10 mudif icon overrides fall
             // back to bloom-dark defaults, and the one verified
@@ -1126,6 +1187,12 @@ object LxqtLook {
             qterminalIni.parentFile?.mkdirs()
             val existingIni = if (qterminalIni.exists()) qterminalIni.readText() else null
             qterminalIni.writeText(mergeQterminalIni(existingIni, scale))
+            // p108: apply the user's overrides on top of the
+            // freshly written defaults (settings-program/DESIGN.md
+            // section 5.3). The marker is still written LAST
+            // (below), so a failed adoption leaves the marker
+            // false and the next start retries.
+            applyUserSettingsOverrides(context)
             val bashrc = File(rootfs, "root/.bashrc")
             val bashrcText = if (bashrc.exists()) bashrc.readText() else ""
             if (!bashrcText.contains("# mudif-arabic-cli")) {
@@ -1607,6 +1674,200 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         return out.toString().trimEnd() + "\n"
     }
 
+    // p108 - the overrides file (settings-program/DESIGN.md
+    // section 5): /root/.config/mudif/user-settings.conf, written
+    // by mudif-settings, read by ensureLxqtLook after the config
+    // writes. Every file a settings program would naturally write
+    // is fully rewritten by staging on every marker bump, so
+    // without this adoption a program-set value silently reverts
+    // on the next app update (the stock Appearance bug). The
+    // adoption is a pure function of the file: no app state, no
+    // prefs, no network. Keys outside the allowlist are ignored
+    // (logged by key name only; the file holds no secrets).
+    // The allowlist is DESIGN.md section 5.2 (7 keys) plus
+    // HideItems (G3 read: the key exists in pcmanfm-qt 2.1.0
+    // settings.cpp:264, and the built program writes it into the
+    // overrides file; ignoring it would silently drop the
+    // show/hide toggle after a marker bump).
+    private val SETTINGS_WALLPAPERS = setOf(
+        "/usr/share/backgrounds/mudif-wallpaper.png",
+        "/usr/share/backgrounds/mudif-wallpaper-pomegranate.png",
+        "/usr/share/backgrounds/mudif-wallpaper-bold.png",
+        "/usr/share/backgrounds/mudif-wallpaper-gradient.png",
+        "/usr/share/backgrounds/mudif-wallpaper-premium.png",
+        "/usr/share/backgrounds/mudif-wallpaper-green.png"
+    )
+
+    // Minimal INI reader for the overrides file: [section]
+    // headers and key=value lines. Duplicate keys: the last wins.
+    // Comments (# / ;) and blank lines are skipped. Values are
+    // trimmed.
+    private fun parseUserSettings(text: String): Map<String, Map<String, String>> {
+        val out = linkedMapOf<String, MutableMap<String, String>>()
+        var section: MutableMap<String, String>? = null
+        for (raw in text.lines()) {
+            val line = raw.trim()
+            if (line.isEmpty() || line.startsWith("#") || line.startsWith(";")) continue
+            if (line.startsWith("[") && line.endsWith("]")) {
+                val name = line.substring(1, line.length - 1).trim()
+                section = out.getOrPut(name) { linkedMapOf() }
+                continue
+            }
+            val eq = line.indexOf("=")
+            if (eq <= 0 || section == null) continue
+            section[line.substring(0, eq).trim()] = line.substring(eq + 1).trim()
+        }
+        return out
+    }
+
+    // Section-aware INI set-or-insert: replaces the first `key=`
+    // line inside [section], inserts it at the end of the section
+    // if the section exists without the key, or appends a new
+    // [section] at the end of the file. Keys outside the section
+    // are untouched. The result ends with exactly one trailing
+    // newline, so re-applying the same value is byte-identical.
+    private fun setIniKey(text: String, section: String, key: String, value: String): String {
+        val lines = if (text.isBlank()) mutableListOf()
+            else text.trimEnd().lines().toMutableList()
+        var inSection = false
+        var sectionSeen = false
+        var sectionEnd = -1
+        for ((i, line) in lines.withIndex()) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                if (inSection) {
+                    sectionEnd = i
+                    break
+                }
+                inSection = trimmed == "[$section]"
+                if (inSection) sectionSeen = true
+                continue
+            }
+            if (!inSection) continue
+            if (trimmed.substringBefore("=").trim() == key) {
+                lines[i] = "$key=$value"
+                return lines.joinToString("\n") + "\n"
+            }
+        }
+        if (sectionSeen) {
+            val at = if (sectionEnd == -1) lines.size else sectionEnd
+            lines.add(at, "$key=$value")
+            return lines.joinToString("\n") + "\n"
+        }
+        if (lines.isNotEmpty()) lines.add("")
+        lines.add("[$section]")
+        lines.add("$key=$value")
+        return lines.joinToString("\n") + "\n"
+    }
+
+    // Apply the overrides file to the staged configs. Called in
+    // two places: after the config writes on a marker-bump start,
+    // and before the early-return on an already-applied start (so
+    // a program change takes effect on the next full desktop
+    // start instead of waiting for the next bump). Best-effort:
+    // a missing file, a missing section, or any failure is
+    // skipped, never blocks the desktop start, and is logged.
+    private fun applyUserSettingsOverrides(context: Context) {
+        try {
+            val rootfs = DebianSystem.debianRootfsDir(context)
+            val overrides = File(rootfs, "root/.config/mudif/user-settings.conf")
+            if (!overrides.exists()) return
+            val settings = parseUserSettings(overrides.readText())
+            // pcmanfm [Desktop]: Wallpaper (allowlist: the six
+            // staged paths), DesktopIconSize (48..128), HideItems.
+            val desktop = settings["pcmanfm-Desktop"] ?: emptyMap()
+            val pcmanfmFile = File(rootfs, "root/.config/pcmanfm-qt/lxqt/settings.conf")
+            if (pcmanfmFile.exists()) {
+                var text = pcmanfmFile.readText()
+                var changed = false
+                desktop["Wallpaper"]?.let { v ->
+                    if (v in SETTINGS_WALLPAPERS) {
+                        text = setIniKey(text, "Desktop", "Wallpaper", v)
+                        changed = true
+                    } else {
+                        MudifLog.d(TAG, "user-settings: Wallpaper outside allowlist ignored")
+                    }
+                }
+                desktop["DesktopIconSize"]?.toIntOrNull()?.let { n ->
+                    if (n in 48..128) {
+                        text = setIniKey(text, "Desktop", "DesktopIconSize", n.toString())
+                        changed = true
+                    } else {
+                        MudifLog.d(TAG, "user-settings: DesktopIconSize out of range ignored")
+                    }
+                }
+                desktop["HideItems"]?.let { v ->
+                    if (v == "true" || v == "false") {
+                        text = setIniKey(text, "Desktop", "HideItems", v)
+                        changed = true
+                    }
+                }
+                if (changed) pcmanfmFile.writeText(text)
+            }
+            // qterminal [General]: fontSize (8..32).
+            val qterm = settings["qterminal-General"] ?: emptyMap()
+            val qterminalFile = File(rootfs, "root/.config/qterminal.org/qterminal.ini")
+            if (qterminalFile.exists()) {
+                var text = qterminalFile.readText()
+                var changed = false
+                qterm["fontSize"]?.toIntOrNull()?.let { n ->
+                    if (n in 8..32) {
+                        text = setIniKey(text, "General", "fontSize", n.toString())
+                        changed = true
+                    } else {
+                        MudifLog.d(TAG, "user-settings: fontSize out of range ignored")
+                    }
+                }
+                if (changed) qterminalFile.writeText(text)
+            }
+            // session.conf: [Keyboard] delay (100..1100),
+            // interval (10..210), beep; [Mouse] leftHanded. The
+            // staged file has neither section (G2: [General] +
+            // [Environment] only), so setIniKey appends them.
+            // lxqt-session re-applies [Keyboard] at login (G2:
+            // proven 500/33 -> 400/40 across a restart), so no
+            // autostart re-apply script is needed.
+            val sessionFile = File(rootfs, "root/.config/lxqt/session.conf")
+            if (sessionFile.exists()) {
+                var text = sessionFile.readText()
+                var changed = false
+                val kbd = settings["session-Keyboard"] ?: emptyMap()
+                kbd["delay"]?.toIntOrNull()?.let { n ->
+                    if (n in 100..1100) {
+                        text = setIniKey(text, "Keyboard", "delay", n.toString())
+                        changed = true
+                    } else {
+                        MudifLog.d(TAG, "user-settings: delay out of range ignored")
+                    }
+                }
+                kbd["interval"]?.toIntOrNull()?.let { n ->
+                    if (n in 10..210) {
+                        text = setIniKey(text, "Keyboard", "interval", n.toString())
+                        changed = true
+                    } else {
+                        MudifLog.d(TAG, "user-settings: interval out of range ignored")
+                    }
+                }
+                kbd["beep"]?.let { v ->
+                    if (v == "true" || v == "false") {
+                        text = setIniKey(text, "Keyboard", "beep", v)
+                        changed = true
+                    }
+                }
+                val mouse = settings["session-Mouse"] ?: emptyMap()
+                mouse["leftHanded"]?.let { v ->
+                    if (v == "true" || v == "false") {
+                        text = setIniKey(text, "Mouse", "leftHanded", v)
+                        changed = true
+                    }
+                }
+                if (changed) sessionFile.writeText(text)
+            }
+        } catch (e: Exception) {
+            MudifLog.d(TAG, "user-settings adoption failed: ${e.message}")
+        }
+    }
+
     // P9FIX2 - merge the panel's start-button icon + a spacer
     // plugin into panel.conf, preserving every plugin section
     // already present (the panel rewrites panel.conf on exit, so
@@ -1763,9 +2024,18 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // 48px and every other panel icon with it (quicklaunch,
         // tray, taskbar); the panel height (62px on the Nova 9)
         // still fits a 48px icon.
+        // p108: iconSize=36 in [panel1]. The F3 patch centers the
+        // group span, but at 48 the clamp bound at spanLeft (the
+        // left group is 366 logical px wide) and the two-window
+        // group sat at -39.5 px; at 36 it measures -0.5 px and the
+        // one-window group 0.0 px (f3-two-window-fix EVIDENCE).
+        // The penguin and every panel icon shrink to 36px and the
+        // panel thins from 59 to 53 X px; Anas approved the visible
+        // change. The stale [General] iconSize=48 line stays (a
+        // dead key, never read, no deletion mechanism).
         val panel1Keys = linkedMapOf(
             "panelSize" to scale.panelPx.toString(),
-            "iconSize" to "48"
+            "iconSize" to "36"
         )
         // P14: the reference panel layout (mockups, mirrored for
         // RTL). Removed from the P13 list: showdesktop,
@@ -1786,7 +2056,7 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // spacers ~306px vs ~10px; the upstream layout code gives
         // an expandable spacer a 1px sizeHint, so it cannot split
         // the leftover). The spacers below are fixed separators
-        // again; the button position now follows the iconSize 48
+        // again; the button position now follows the iconSize 36
         // widths (see the spacer note).
         // p90 (polish spec section 5): the two lined separators
         // return, in the plugins list and as sections below: one
@@ -1851,9 +2121,10 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
         // button position: buttonCenter = mainmenuW +
         // quicklaunchW + spacerW + buttonW / 2 (logical coords;
         // the panel mirrors it in RTL). At iconSize 48 the left
-        // group grows (mainmenu ~67, quicklaunch ~5 x ~57) and
-        // the button moves right toward center; the rig round
-        // arbitrates whether it lands within 30px. The spacers
+        // group grew (mainmenu ~67, quicklaunch ~5 x ~57) and
+        // the button moved right toward center; the rig rounds
+        // arbitrated (-39.5 px at 48, -0.5 px at 36,
+        // f3-two-window-fix EVIDENCE), so p108 sets 36. The spacers
         // go back to the p90 design: fixed 8px lined separators.
         // spaceType stays "lined": the line is painted by the
         // theme QSS base #Spacer rule, NOT by the config value
