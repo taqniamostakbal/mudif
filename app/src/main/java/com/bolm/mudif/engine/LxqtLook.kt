@@ -492,7 +492,12 @@ object LxqtLook {
     // and installed by ensureLxqtLook; the wrapper is a plain
     // passthrough now. The image stays p23; only the look
     // version moves.
-    const val MARKER_VERSION = "p48"
+    // p106 (2026-11-18): new Mudif-Dark cursor set (black fill
+    // #14101F, white outline) and the luminance rule for the
+    // cursor: the pointer is the opposite luminance of the
+    // wallpaper under it. The image stays p23; only the look
+    // version moves.
+    const val MARKER_VERSION = "p49"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -1298,18 +1303,25 @@ tooltip_text_color=#726C8C
     }
 
     /** The per-theme cursor set (p99: real sets rendered in code,
-     *  Chrome Glass geometry, 111 names each, 4 sizes). dark ->
-     *  Mudif-Glass (silver glass, defined dark outline), light ->
-     *  Mudif-Purple (white fill, #593BFE outline, shadow),
-     *  gradient -> Mudif-Neon (dark fill, #593BFE outline, purple
-     *  glow). The three sets ride in mudif-theme.zip under
-     *  usr/share/icons/Mudif-Glass|Mudif-Purple|Mudif-Neon/.
+     *  Chrome Glass geometry, 111 names each, 4 sizes).
+     *  p106 luminance rule: the pointer is the OPPOSITE luminance
+     *  of the wallpaper under it, so it always reads. dark and
+     *  gradient wallpapers are dark, so they get Mudif-Purple
+     *  (white fill, #593BFE outline, shadow); the light wallpaper
+     *  is light, so it gets Mudif-Dark (black fill #14101F, WHITE
+     *  outline, shadow). The old mapping chose by theme name
+     *  (light -> white cursor), which put a white pointer on a
+     *  white wallpaper. Mudif-Glass (silver glass, dark outline)
+     *  is retired from the mapping but stays in the zip; Mudif-Neon
+     *  (dark fill, #593BFE outline, purple glow) likewise.
+     *  The four sets ride in mudif-theme.zip under
+     *  usr/share/icons/Mudif-Glass|Mudif-Purple|Mudif-Neon|Mudif-Dark/.
      *  The previous stock set is gone: the last build carrying
      *  it was p98. */
     private fun cursorThemeFor(theme: String): String = when (theme) {
-        AppTheme.TAG_DARK -> "Mudif-Glass"
-        AppTheme.TAG_GRADIENT -> "Mudif-Neon"
-        else -> "Mudif-Purple"
+        AppTheme.TAG_DARK -> "Mudif-Purple"
+        AppTheme.TAG_GRADIENT -> "Mudif-Purple"
+        else -> "Mudif-Dark"
     }
 
     /** The [Palette] block of lxqt.conf for [theme]. Key names are
@@ -2130,9 +2142,9 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
     // small; the Appearance size 38 shows only inside some apps
     // because the desktop reads the X cursor, not the Qt/GTK one).
     // p99 - the cursor theme follows the active app theme
-    // (cursorThemeFor): the three per-theme sets ride in
+    // (cursorThemeFor): the four per-theme sets ride in
     // mudif-theme.zip (usr/share/icons/Mudif-Glass|Mudif-Purple|
-    // Mudif-Neon/, 111 cursors + index.theme each). The previous
+    // Mudif-Neon|Mudif-Dark/, 111 cursors + index.theme each). The previous
     // stock set is gone: the last build carrying it was p98.
     private const val CURSOR_XRESOURCES = """Xcursor.theme: Mudif-Glass
 Xcursor.size: 48
