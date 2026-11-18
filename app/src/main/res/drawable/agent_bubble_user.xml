@@ -4,9 +4,10 @@
      #593BFE dark/light, #FFFFFF gradient). The adapter sets the
      text and timestamp colors per role (white text on purple,
      purple text on white in the gradient theme), so the user
-     bubble inverts with the theme instead of vanishing on it. -->
+     bubble inverts with the theme instead of vanishing on it.
+     p107: 20dp radii, modern roomy bubble. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="?attr/mudifBubbleUserBg" />
-    <corners android:radius="18dp" />
+    <corners android:radius="20dp" />
 </shape>

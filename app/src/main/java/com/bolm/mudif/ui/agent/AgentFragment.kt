@@ -1087,6 +1087,12 @@ class AgentFragment : Fragment() {
     private fun retryLastMessage() {
         val last = lastUserMessage ?: return
         if (turnRunning) return
+        // p107: never re-send a blank question. A blank last text
+        // would append an empty user bubble; log it and stop.
+        if (last.text.isBlank()) {
+            Log.w("MudifAgent", "retryLastMessage dropped blank last text")
+            return
+        }
         hideAgentAction()
         // p57: read the reply language live, like sendMessage.
         replyLanguage = liveReplyLanguage()
@@ -1382,8 +1388,7 @@ class AgentFragment : Fragment() {
                             // never add a second verdict or revive the
                             // failure mark.
                             if (endedTurnSeq >= thisTurnSeq) return@runOnUiThread
-                            messages.clear()
-                            messages.addAll(loadMessages())
+                            mergeReloadedMessages()
                             if (finalText.isNotEmpty()) {
                                 persistMessage(
                                     AgentMessage(
@@ -1437,8 +1442,7 @@ class AgentFragment : Fragment() {
                             // never add a second verdict or revive the
                             // failure mark.
                             if (endedTurnSeq >= thisTurnSeq) return@runOnUiThread
-                            messages.clear()
-                            messages.addAll(loadMessages())
+                            mergeReloadedMessages()
                             persistMessage(
                                 AgentMessage(
                                     AgentMessage.ROLE_AGENT,
@@ -2198,11 +2202,46 @@ class AgentFragment : Fragment() {
 
     /** List-only part of appendMessage: no view access, safe from
      *  any thread. Terminal callbacks use it when the view is gone
-     *  so a reply or an error verdict survives a tab switch. */
+     *  so a reply or an error verdict survives a tab switch.
+     *  p107: a user message with blank text is never stored. The
+     *  16:14 empty bubble was a user row whose text was blank at
+     *  bind time while the stored JSON held the full question, so
+     *  the row reached the list with empty text through an
+     *  in-memory path; dropping it here (with a log) keeps the
+     *  blank bubble out of the list and out of the prefs. */
     private fun persistMessage(message: AgentMessage) {
+        if (message.role == AgentMessage.ROLE_USER && message.text.isBlank()) {
+            Log.w("MudifAgent", "persistMessage dropped blank user message")
+            return
+        }
         messages.add(message)
         while (messages.size > MAX_HISTORY) messages.removeAt(0)
         saveMessages()
+    }
+
+    /** p107: merge a reloaded snapshot with the in-memory list
+     *  instead of clearing it. The stale-terminal branches used to
+     *  do messages.clear() then addAll(loadMessages()): a reload
+     *  that races a retry's in-memory append drops the row the
+     *  user already sees (the retry's user message is appended
+     *  in memory and saved with async apply()). Rows are keyed by
+     *  (time, role, text); in-memory rows absent from the
+     *  snapshot are re-appended in order, so a stale event can
+     *  never delete a newer row. The merged list is saved by the
+     *  persistMessage that follows, so a later reload sees it. */
+    private fun mergeReloadedMessages() {
+        val persisted = loadMessages()
+        val seen = persisted.map { Triple(it.time, it.role, it.text) }.toHashSet()
+        val merged = persisted.toMutableList()
+        for (m in messages) {
+            val key = Triple(m.time, m.role, m.text)
+            if (key !in seen) {
+                merged.add(m)
+                seen.add(key)
+            }
+        }
+        messages.clear()
+        messages.addAll(merged)
     }
 
     /** Runs a turn-setup body on a background thread and tracks

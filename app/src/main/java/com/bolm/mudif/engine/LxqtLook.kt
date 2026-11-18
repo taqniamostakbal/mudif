@@ -497,7 +497,7 @@ object LxqtLook {
     // cursor: the pointer is the opposite luminance of the
     // wallpaper under it. The image stays p23; only the look
     // version moves.
-    const val MARKER_VERSION = "p49"
+    const val MARKER_VERSION = "p50"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
