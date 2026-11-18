@@ -2,7 +2,7 @@
 Name=mudif
 Comment=Mudif icon theme (purple harmony, inherits WhiteSur-light, bloom-dark)
 Inherits=WhiteSur-light,bloom-dark
-Directories=apps/scalable,places/scalable,apps/64x64,apps/80x80
+Directories=apps/scalable,places/scalable,apps/64x64,apps/80x80,places/48x48
 
 [apps/scalable]
 Size=48
@@ -26,4 +26,9 @@ Type=Fixed
 [apps/80x80]
 Size=80
 Context=Applications
+Type=Fixed
+
+[places/48x48]
+Size=48
+Context=Places
 Type=Fixed
