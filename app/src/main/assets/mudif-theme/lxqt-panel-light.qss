@@ -220,11 +220,14 @@ VolumePopup > QSlider::sub-page:vertical {
 #TaskBar QToolButton {
     margin: 2px;
     padding: 2px;
+    background: #EDE9FF;
+    border-radius: 11px;
+    color: #0A041E;
 }
 
 #TaskBar QToolButton:on {
-    border: 1px solid rgba(89, 59, 254, 28);
-    background: rgba(89, 59, 254, 28);
+    border: none;
+    background: #EDE9FF;
 }
 
 #TaskBar QToolButton:hover {
@@ -314,13 +317,17 @@ QCalendarWidget #qt_calendar_prevmonth {
 }
 
 #Clock #TimeLabel {
-    color: #333333;
+    color: #0A041F;
+    font-family: "DejaVu Sans";
+    font-size: 20px;
     margin-right: 2px;
     margin-left: 2px;
 }
 
 #Clock #DateLabel {
-    color: #333333;
+    color: #140E28;
+    font-family: "Cairo";
+    font-size: 13px;
     margin-right: 2px;
     margin-left: 2px;
 }

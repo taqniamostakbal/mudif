@@ -45,7 +45,7 @@ window.inactive.title.bg.color: #1E1830
 !! Titlebar text
 window.label.text.justify: center
 window.active.label.bg: parentrelative
-window.active.label.text.color: #F2EFFF
+window.active.label.text.color: #F6F3FE
 window.inactive.label.bg: parentrelative
 window.inactive.label.text.color: #A99FD0
 
@@ -93,3 +93,41 @@ menu.items.font:shadow=n
 osd.bg: gradient vertical flat
 osd.bg.color: #303030
 osd.bg.colorTo: #080808
+
+!! p100: traffic-light dots (SAMPLE-SPEC.md section 3). The three
+!! titlebar buttons are solid 14 px discs (close.xbm, iconify.xbm,
+!! max.xbm in this theme dir) tinted per button. Specific per-button
+!! keys override the generic window.*.button.*.image.color above.
+!! Active and inactive use the same colors (the sample measures one
+!! active window only); pressed/hover/disabled/toggled match so the
+!! dots never revert to white glyphs.
+window.active.button.close.unpressed.image.color: #FF5F56
+window.active.button.close.pressed.image.color: #FF5F56
+window.active.button.close.hover.image.color: #FF5F56
+window.active.button.close.disabled.image.color: #FF5F56
+window.inactive.button.close.unpressed.image.color: #FF5F56
+window.inactive.button.close.pressed.image.color: #FF5F56
+window.inactive.button.close.hover.image.color: #FF5F56
+window.inactive.button.close.disabled.image.color: #FF5F56
+window.active.button.iconify.unpressed.image.color: #FFBD2E
+window.active.button.iconify.pressed.image.color: #FFBD2E
+window.active.button.iconify.hover.image.color: #FFBD2E
+window.active.button.iconify.disabled.image.color: #FFBD2E
+window.inactive.button.iconify.unpressed.image.color: #FFBD2E
+window.inactive.button.iconify.pressed.image.color: #FFBD2E
+window.inactive.button.iconify.hover.image.color: #FFBD2E
+window.inactive.button.iconify.disabled.image.color: #FFBD2E
+window.active.button.max.unpressed.image.color: #27C93F
+window.active.button.max.pressed.image.color: #27C93F
+window.active.button.max.hover.image.color: #27C93F
+window.active.button.max.disabled.image.color: #27C93F
+window.active.button.max.unpressed.toggled.image.color: #27C93F
+window.active.button.max.pressed.toggled.image.color: #27C93F
+window.active.button.max.hover.toggled.image.color: #27C93F
+window.inactive.button.max.unpressed.image.color: #27C93F
+window.inactive.button.max.pressed.image.color: #27C93F
+window.inactive.button.max.hover.image.color: #27C93F
+window.inactive.button.max.disabled.image.color: #27C93F
+window.inactive.button.max.unpressed.toggled.image.color: #27C93F
+window.inactive.button.max.pressed.toggled.image.color: #27C93F
+window.inactive.button.max.hover.toggled.image.color: #27C93F
