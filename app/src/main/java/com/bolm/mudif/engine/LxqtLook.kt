@@ -486,7 +486,13 @@ object LxqtLook {
     // regression); --desktop now passes through without the
     // stylesheet, windowed FM keeps the menu-bar QSS. The image
     // stays p23; only the look version moves.
-    const val MARKER_VERSION = "p47"
+    // p105 (2026-11-18): rebuilt pcmanfm-qt 2.1.0-2mudif1 with a
+    // per-widget menu-bar stylesheet (the wrapper-argv mechanism
+    // is dead: p104 left the menu bar pale). The .deb is staged
+    // and installed by ensureLxqtLook; the wrapper is a plain
+    // passthrough now. The image stays p23; only the look
+    // version moves.
+    const val MARKER_VERSION = "p48"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -501,6 +507,7 @@ object LxqtLook {
     private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
     private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
     private const val PCMANFM_WRAPPER_ASSET = "mudif-cli/pcmanfm-qt"
+    private const val PCMANFM_DEB_ASSET = "mudif-debs/pcmanfm-qt_2.1.0-2mudif1_amd64.deb"
     private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
     private const val ROTATE_SH_ASSET = "mudif-cli/mudif-wallpaper-rotate.sh"
     private const val COLORSCHEME_ASSET = "mudif-cli/Mudif.colorscheme"
@@ -814,18 +821,15 @@ object LxqtLook {
                 }
             }
             File(binDir, "lxqt-about").setExecutable(true, false)
-            // p103: pcmanfm-qt loads NO LXQt theme stylesheet
-            // (palette-only plugin, no pcmanfm-qt.qss in the theme
-            // spec), so its menu bar text is the pale palette
-            // WindowText. The wrapper injects Qt's -stylesheet
-            // option on every bare-name launch (desktop icon, panel,
-            // launcher, terminal); the per-theme QSS is staged in
-            // stageThemeSwitch. Theme-independent: only the QSS
-            // content changes on a theme switch. setExecutable: the
+            // p105: the wrapper is a plain passthrough now. The
+            // rebuilt pcmanfm-qt binary reads the staged per-theme
+            // QSS itself (per-widget menu-bar stylesheet), so the
+            // wrapper injects nothing: the p103 injection killed
+            // --desktop, and the p104 exemption left the menu bar
+            // pale (single-instance forwarding serves windowed FM
+            // from the --desktop process). The per-theme QSS is
+            // staged in stageThemeSwitch. setExecutable: the
             // desktop icon and panel exec it by bare name.
-            // p104: the wrapper exempts --desktop from the
-            // -stylesheet injection (the arg killed --desktop mode
-            // on p103); windowed launches keep the QSS.
             context.assets.open(PCMANFM_WRAPPER_ASSET).use { input ->
                 File(binDir, "pcmanfm-qt").outputStream().use { out ->
                     input.copyTo(out)
@@ -913,10 +917,11 @@ object LxqtLook {
             // live file, so it must see the theme's variant).
             copyThemeAsset(context, rootfs, "mudif-theme/lxqt-panel-$theme.qss", "usr/share/lxqt/themes/mudif/lxqt-panel.qss")
             // p103: the per-theme pcmanfm-qt menu-bar QSS. The name
-            // is a label only: nothing auto-loads it; only the
-            // /usr/local/bin/pcmanfm-qt wrapper's -stylesheet arg
-            // loads it. The zip ships the light base, so the active
-            // theme's variant overwrites it here, like lxqt-panel.
+            // is a label only: nothing auto-loads it; the rebuilt
+            // pcmanfm-qt binary loads it (per-widget menu-bar
+            // stylesheet, p105). The zip ships the light base, so
+            // the active theme's variant overwrites it here, like
+            // lxqt-panel.
             copyThemeAsset(context, rootfs, "mudif-theme/pcmanfm-qt-$theme.qss", "usr/share/lxqt/themes/mudif/pcmanfm-qt.qss")
             copyThemeAsset(context, rootfs, "mudif-theme/gtk-$theme.css", "root/.config/gtk-3.0/gtk.css")
             copyThemeAsset(context, rootfs, "mudif-theme/openbox-$theme/themerc", "usr/share/themes/mudif/openbox-3/themerc")
@@ -966,6 +971,32 @@ object LxqtLook {
             // read big on this device. Only the two font sizes the
             // zip ships and the one padding key are touched.
             rewriteOpenboxScale(rootfs, scale)
+            // p105: the rebuilt pcmanfm-qt 2.1.0-2mudif1 (per-widget
+            // menu-bar stylesheet, rank 1). Stage the .deb into
+            // Mudif's own dir (persists), then install it in the
+            // guest. dpkg -i is idempotent (same version reinstalls
+            // cleanly); the marker gates re-staging to marker
+            // changes + theme switches. If the install fails, the
+            // look is NOT marked applied (return false) so the next
+            // launch retries; a failed install never marks the look
+            // applied. The desktop restarts after staging, so the
+            // new binary runs.
+            context.assets.open(PCMANFM_DEB_ASSET).use { input ->
+                File(mudifConfDir, PCMANFM_DEB_ASSET.substringAfterLast("/")).outputStream().use { out ->
+                    input.copyTo(out)
+                }
+            }
+            val debResult = TerminalSession.runCommandDebian(
+                context,
+                "dpkg -i /root/.config/mudif/${PCMANFM_DEB_ASSET.substringAfterLast("/")} && echo PCMANFM_DEB_OK",
+                idleTimeoutSec = 30,
+                maxTimeoutSec = 120
+            )
+            MudifLog.d(TAG, "pcmanfm-qt deb install exit=${debResult.exitCode} out=${debResult.output.takeLast(200)}")
+            if (!debResult.output.contains("PCMANFM_DEB_OK")) {
+                MudifLog.d(TAG, "pcmanfm-qt deb install failed - look not applied")
+                return false
+            }
             // P9FIX - build the icon-theme cache for `mudif`.
             // The P9 test proved all 10 mudif icon overrides fall
             // back to bloom-dark defaults, and the one verified

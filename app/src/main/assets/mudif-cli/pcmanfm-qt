@@ -1,24 +1,5 @@
 #!/bin/sh
-# Mudif p104: pcmanfm-qt loads NO LXQt theme stylesheet (the lxqt
-# platform theme plugin is palette-only, and the LXQt theme spec has
-# no pcmanfm-qt.qss), so its menu bar text is the pale palette
-# WindowText. Qt programs accept -stylesheet=<file> on the command
-# line (consumed by the QApplication constructor before the app's own
-# argument parsing), so this wrapper injects the per-theme QSS the
-# look engine stages at /usr/share/lxqt/themes/mudif/pcmanfm-qt.qss.
-# It catches every bare-name launch (desktop icon, panel, launcher,
-# terminal, xdg-open). If the QSS is ever missing, Qt logs a warning
-# and the app runs unstyled.
-# p104: the -stylesheet arg KILLS --desktop mode. Rig-proven on p103:
-# wrapper + --desktop segfaults (bare env) / dies cleanly (session
-# env), the direct binary runs fine, the wrapper + windowed runs
-# fine. The p103 comment that the QSS is "inert for --desktop" was
-# wrong: the desktop has no menu bar, but the -stylesheet ARG itself
-# breaks the --desktop path. So --desktop passes through without
-# the stylesheet; every other launch keeps it.
-for arg in "$@"; do
-    if [ "$arg" = "--desktop" ]; then
-        exec /usr/bin/pcmanfm-qt "$@"
-    fi
-done
-exec /usr/bin/pcmanfm-qt "-stylesheet=/usr/share/lxqt/themes/mudif/pcmanfm-qt.qss" "$@"
+# Mudif p105: plain passthrough. The rebuilt pcmanfm-qt binary loads
+# the staged per-theme QSS itself, so this wrapper injects nothing.
+# Kept so the stale p103/p104 wrapper is not left on disk.
+exec /usr/bin/pcmanfm-qt "$@"
