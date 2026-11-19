@@ -124,6 +124,25 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/mudif_accessibility_service_config" />
         </service>
+        <!-- p118: the Mudif keyboard (system input method). The
+             user enables it once in Settings; inside the viewer it
+             then appears instead of Gboard. Exported because the
+             system (a different process) binds to it; the
+             BIND_INPUT_METHOD permission is what restricts that
+             binding to the system alone. Android never lets an app
+             force an IME silently. -->
+        <service
+            android:name=".ui.keyboard.MudifKeyboardService"
+            android:exported="true"
+            android:label="@string/keyboard_label"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/mudif_keyboard_method" />
+        </service>
         <!-- Phase 2, Google Cast sender: the framework reads the
              OptionsProvider (Default Media Receiver, no custom app ID)
              from this meta-data. No Remote Display API is used. -->

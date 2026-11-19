@@ -29,6 +29,7 @@ import androidx.core.content.res.ResourcesCompat
 import com.bolm.mudif.R
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
+import com.bolm.mudif.ui.keyboard.KeyboardSetup
 import com.termux.x11.utils.KeyInterceptor
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
@@ -51,6 +52,13 @@ class SettingsActivity : MudifActivity() {
                 Toast.LENGTH_SHORT
             ).show()
         }
+
+    /** p118: the keyboard card's live state (refreshed in
+     *  onResume: the user enables the keyboard in the system
+     *  Settings and comes back here, so the card must show the
+     *  new state instead of the one from onCreate). */
+    private var keyboardStatusText: TextView? = null
+    private var keyboardActionButton: MaterialButton? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,11 +91,20 @@ class SettingsActivity : MudifActivity() {
         return tv.data
     }
 
+    override fun onResume() {
+        super.onResume()
+        // p118: the user may have enabled the keyboard in the
+        // system Settings and come back here; refresh the card
+        // so it shows the new state, not the onCreate one.
+        refreshKeyboardCard()
+    }
+
     private fun buildSections() {
         val container = findViewById<LinearLayout>(R.id.settings_container)
         container.removeAllViews()
         buildLanguageCard(container)
         buildThemeCard(container)
+        buildKeyboardCard(container)
         for (section in ViewerPrefs.SECTIONS) {
             val title = TextView(this).apply {
                 text = getString(section.titleRes)
@@ -308,6 +325,109 @@ class SettingsActivity : MudifActivity() {
         cardBody.addView(note)
         card.addView(cardBody)
         container.addView(card)
+    }
+
+    /** p118: the Mudif keyboard card, below the theme card. Same
+     *  pattern as buildThemeCard (purple gradient card, branded
+     *  button). The state is honest, never a promise:
+     *  - not enabled: the button opens the system input-method
+     *    settings (the enable toggle lives there; the app cannot
+     *    enable an IME itself).
+     *  - enabled but not current: the button opens the system
+     *    input-method picker, so the user can choose it now.
+     *  - current: the button is disabled and says so.
+     *  The status line and the button are refreshed in onResume
+     *  (refreshKeyboardCard), because the user may enable the
+     *  keyboard in the system Settings and come back here. */
+    private fun buildKeyboardCard(container: LinearLayout) {
+        val title = TextView(this).apply {
+            text = getString(R.string.keyboard_title)
+            textSize = 15f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
+            setPadding(dp(4), dp(18), dp(4), dp(8))
+        }
+        container.addView(title)
+        val keyboardRipple = TypedValue().let { out ->
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, out, true)
+            ContextCompat.getDrawable(this, out.resourceId)
+        }
+        val card = MaterialCardView(this).apply {
+            radius = dp(14).toFloat()
+            cardElevation = dp(2).toFloat()
+            setCardBackgroundColor(Color.TRANSPARENT)
+            isClickable = true
+            isFocusable = true
+            foreground = keyboardRipple
+            stateListAnimator = android.animation.AnimatorInflater.loadStateListAnimator(
+                this@SettingsActivity, R.animator.card_press
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        val cardBody = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = ContextCompat.getDrawable(
+                this@SettingsActivity, R.drawable.card_gradient_compact
+            )
+            setPadding(dp(18), dp(12), dp(18), dp(12))
+        }
+        val desc = TextView(this).apply {
+            text = getString(R.string.keyboard_desc)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@SettingsActivity, R.color.card_text_secondary))
+        }
+        cardBody.addView(desc)
+        val status = TextView(this).apply {
+            textSize = 13f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
+            setPadding(dp(0), dp(8), dp(0), dp(0))
+        }
+        cardBody.addView(status)
+        keyboardStatusText = status
+        val button = LayoutInflater.from(this).inflate(
+            R.layout.item_select_option, cardBody, false
+        ) as MaterialButton
+        button.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(8) }
+        cardBody.addView(button)
+        keyboardActionButton = button
+        card.addView(cardBody)
+        container.addView(card)
+        refreshKeyboardCard()
+    }
+
+    /** p118: set the keyboard card's status line + button to the
+     *  real system state (see buildKeyboardCard). Called from
+     *  buildKeyboardCard and from onResume. */
+    private fun refreshKeyboardCard() {
+        val status = keyboardStatusText ?: return
+        val button = keyboardActionButton ?: return
+        when {
+            KeyboardSetup.isCurrent(this) -> {
+                status.text = getString(R.string.keyboard_current)
+                button.text = getString(R.string.keyboard_current)
+                button.isEnabled = false
+                button.setOnClickListener(null)
+            }
+            KeyboardSetup.isEnabled(this) -> {
+                status.text = getString(R.string.keyboard_enabled)
+                button.text = getString(R.string.keyboard_choose)
+                button.isEnabled = true
+                button.setOnClickListener { KeyboardSetup.showInputMethodPicker(this) }
+            }
+            else -> {
+                status.text = getString(R.string.keyboard_enable_desc)
+                button.text = getString(R.string.keyboard_enable)
+                button.isEnabled = true
+                button.setOnClickListener { KeyboardSetup.openInputMethodSettings(this) }
+            }
+        }
     }
 
     private fun rowTexts(setting: ViewerPrefs.Setting): Pair<TextView, TextView> {

@@ -207,6 +207,21 @@
     <string name="theme_desc">اختر مظهر التطبيق وسطح المكتب</string>
     <string name="theme_desktop_note">يطبق على التطبيق فورا، وعلى سطح المكتب عند الدخول التالي</string>
     <string name="theme_applied">تم تطبيق المظهر</string>
+    <!-- p118: the Mudif keyboard (Fusha, both files, same text). -->
+    <string name="keyboard_label">لوحة مفاتيح مضيف</string>
+    <string name="keyboard_subtype_arabic">العربية</string>
+    <string name="keyboard_subtype_latin">English</string>
+    <string name="keyboard_title">لوحة مفاتيح مضيف</string>
+    <string name="keyboard_desc">لوحة مفاتيح النظام بألوان التطبيق، عربية ولاتينية، تظهر داخل العارض بدل لوحة مفاتيح الهاتف</string>
+    <string name="keyboard_enable">تفعيل لوحة المفاتيح</string>
+    <string name="keyboard_enable_desc">فعّلها مرة واحدة من إعدادات النظام، ثم اخترها من أيقونة لوحة المفاتيح أثناء الكتابة</string>
+    <string name="keyboard_enabled">مفعّلة</string>
+    <string name="keyboard_current">هي لوحة المفاتيح الحالية</string>
+    <string name="keyboard_choose">اختيار لوحة المفاتيح</string>
+    <string name="keyboard_prompt_title">لوحة مفاتيح مضيف</string>
+    <string name="keyboard_prompt_body">لوحة مفاتيح النظام جاهزة. فعّلها مرة واحدة من إعدادات النظام، وستظهر داخل العارض بدل لوحة مفاتيح الهاتف.</string>
+    <string name="keyboard_prompt_enable">تفعيل</string>
+    <string name="keyboard_prompt_later">لاحقًا</string>
     <string name="drawer_language">اللغة</string>
     <string name="sidebar_collapse">طي الشريط الجانبي</string>
     <string name="sidebar_expand">توسيع الشريط الجانبي</string>

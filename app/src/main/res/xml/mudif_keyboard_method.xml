@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  p118: the Mudif keyboard as a system input method. The user
+  enables it once in Settings > Language & input; inside the
+  viewer it then appears instead of Gboard. The two subtypes
+  (Arabic + Latin) are what the system shows in the IME list;
+  the keyboard itself switches between them with its own LANG
+  key, so the system language switcher is never needed.
+-->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.bolm.mudif.ui.settings.SettingsActivity"
+    android:isDefault="false">
+    <subtype
+        android:imeSubtypeLocale="ar"
+        android:imeSubtypeMode="keyboard"
+        android:label="@string/keyboard_subtype_arabic" />
+    <subtype
+        android:imeSubtypeLocale="en_US"
+        android:imeSubtypeMode="keyboard"
+        android:label="@string/keyboard_subtype_latin" />
+</input-method>
