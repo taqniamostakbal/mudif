@@ -95,6 +95,30 @@ object KeyboardLayout {
         Key("M"), Key(","), Key("."), Key("/"),
         Key("⇧", Action.SHIFT, kind = Kind.ACCENT, weight = 1.5f)
     )
+    // p119: Latin Shift changes rows 1-3 too, not just the digit row.
+    // Before p119 only row 0 had a shifted variant, so Shift+"." committed
+    // "." (rig: `cat .` instead of `cat >`) and the shifted row 3 still
+    // DISPLAYED ", . /". These are the shiftedLatin() mapping applied
+    // literally to each row: [ ] -> { }, ; ' -> : ", , . / -> < > ?.
+    // Letters keep their uppercase labels; commitTextFor types them
+    // uppercase while Shift is on, lowercase when it is off.
+    private val latinRow1Shift = listOf(
+        Key("Tab", Action.TAB, keyCode = KeyEvent.KEYCODE_TAB, kind = Kind.ACCENT, weight = 1.5f),
+        Key("Q"), Key("W"), Key("E"), Key("R"), Key("T"), Key("Y"),
+        Key("U"), Key("I"), Key("O"), Key("P"), Key("{"), Key("}")
+    )
+    private val latinRow2Shift = listOf(
+        Key("Caps", Action.CAPS, kind = Kind.ACCENT, weight = 1.5f),
+        Key("A"), Key("S"), Key("D"), Key("F"), Key("G"), Key("H"),
+        Key("J"), Key("K"), Key("L"), Key(":"), Key("\""),
+        Key("⏎", Action.ENTER, keyCode = KeyEvent.KEYCODE_ENTER, kind = Kind.ACCENT, weight = 1.5f)
+    )
+    private val latinRow3Shift = listOf(
+        Key("⇧", Action.SHIFT, kind = Kind.ACCENT, weight = 1.5f),
+        Key("Z"), Key("X"), Key("C"), Key("V"), Key("B"), Key("N"),
+        Key("M"), Key("<"), Key(">"), Key("?"),
+        Key("⇧", Action.SHIFT, kind = Kind.ACCENT, weight = 1.5f)
+    )
     private val latinRow3Fn = listOf(
         Key("F11", Action.FUNCTION, keyCode = KeyEvent.KEYCODE_F11, kind = Kind.ACCENT, weight = 1.5f),
         Key("Z"), Key("X"), Key("C"), Key("V"), Key("B"), Key("N"),
@@ -245,12 +269,21 @@ object KeyboardLayout {
                 bottomRow(language, symbolsOpen = true)
             )
         }
-        val row1 = if (language == Language.LATIN) latinRow1 else arabicRow1
-        val row2 = if (language == Language.LATIN) latinRow2 else arabicRow2
+        val row1 = when {
+            shifted && language == Language.LATIN -> latinRow1Shift
+            language == Language.LATIN -> latinRow1
+            else -> arabicRow1
+        }
+        val row2 = when {
+            shifted && language == Language.LATIN -> latinRow2Shift
+            language == Language.LATIN -> latinRow2
+            else -> arabicRow2
+        }
         val row3 = when {
             fn && language == Language.LATIN -> latinRow3Fn
             fn -> arabicRow3Fn // Fn in Arabic: F11/F12 replace Shift
             shifted && language == Language.ARABIC -> arabicRow3Shift
+            shifted && language == Language.LATIN -> latinRow3Shift
             else -> if (language == Language.LATIN) latinRow3 else arabicRow3
         }
         return listOf(row0Final, row1, row2, row3, bottomRow(language, symbolsOpen = false))

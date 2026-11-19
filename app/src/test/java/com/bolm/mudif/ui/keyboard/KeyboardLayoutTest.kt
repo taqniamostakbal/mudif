@@ -111,6 +111,46 @@ class KeyboardLayoutTest {
     }
 
     @Test
+    fun `latin shift shifts rows 1 to 3, not just the digit row`() {
+        // p119: before this, only row 0 had a shifted variant, so
+        // Shift+"." committed "." (rig: `cat .` instead of `cat >`)
+        // and the shifted row 3 still displayed ", . /".
+        val shifted = rows(Language.LATIN, ShiftState.ONCE)
+        // Row 1: [ ] become { }.
+        assertEquals(
+            listOf("Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}"),
+            shifted[1].map { it.label }
+        )
+        // Row 2: ; ' become : ".
+        assertEquals(
+            listOf("Caps", "A", "S", "D", "F", "G", "H", "J", "K", "L", ":", "\"", "⏎"),
+            shifted[2].map { it.label }
+        )
+        // Row 3: , . / become < > ?.
+        assertEquals(
+            listOf("⇧", "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", "⇧"),
+            shifted[3].map { it.label }
+        )
+        // The shifted keys commit the shifted character: the ">"
+        // key (row 3) commits ">", the "?" key commits "?".
+        val greater = shifted[3].first { it.label == ">" }
+        assertEquals(">", KeyboardLayout.commitTextFor(greater, ShiftState.ONCE))
+        val question = shifted[3].first { it.label == "?" }
+        assertEquals("?", KeyboardLayout.commitTextFor(question, ShiftState.ONCE))
+        // Unshifted rows are unchanged (the contrast case).
+        val plain = rows(Language.LATIN)
+        assertEquals(
+            listOf("⇧", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "⇧"),
+            plain[3].map { it.label }
+        )
+        // Arabic Shift is untouched by this change (diacritics).
+        assertEquals(
+            listOf("⇧", "،", "ـ", "ْ", "ٍ", "ٌ", "ً", "ّ", "ِ", "ُ", "َ", "⇧"),
+            rows(Language.ARABIC, ShiftState.ONCE)[3].map { it.label }
+        )
+    }
+
+    @Test
     fun `fn gives F1 to F12 in both languages`() {
         for (language in Language.values()) {
             val fnRows = rows(language, fn = true)

@@ -522,7 +522,11 @@ object LxqtLook {
     // shim, staged and installed by ensureLxqtLook), and the
     // overrides-file adoption (user-settings.conf survives marker
     // bumps). The image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p61"
+    // p119 (2026-11-19): Latin Shift now shifts rows 1-3 too
+    // (KeyboardLayout latinRow1Shift/2Shift/3Shift); Arabic diacritics
+    // and F1 needed no code change (rig-proven: the marks arrive, the
+    // terminal does not render them; F1 ^[OP matches terminfo kf1).
+    const val MARKER_VERSION = "p62"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
