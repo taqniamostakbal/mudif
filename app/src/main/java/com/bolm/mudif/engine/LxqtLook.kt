@@ -504,7 +504,7 @@ object LxqtLook {
     // shim, staged and installed by ensureLxqtLook), and the
     // overrides-file adoption (user-settings.conf survives marker
     // bumps). The image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p52"
+    const val MARKER_VERSION = "p53"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -963,45 +963,15 @@ object LxqtLook {
             copyThemeAsset(context, rootfs, "mudif-theme/pcmanfm-qt-$theme.qss", "usr/share/lxqt/themes/mudif/pcmanfm-qt.qss")
             copyThemeAsset(context, rootfs, "mudif-theme/gtk-$theme.css", "root/.config/gtk-3.0/gtk.css")
             copyThemeAsset(context, rootfs, "mudif-theme/openbox-$theme/themerc", "usr/share/themes/mudif/openbox-3/themerc")
-            // p100: the gradient theme's folders are lighter yellow
-            // (#FFD640; dark/light use the zip's #FFC400 folder
-            // icons). The zip ships folder-gradient.svg as the
-            // variant source; the active variant is copied over
-            // every folder icon name so the home subfolders
-            // (Documents/Pictures/Videos/Downloads/Music) show the
-            // sample's plain yellow folders instead of their XDG
-            // icons. Light needs no copy: the zip's folder icons
-            // are already #FFC400, and a theme switch re-extracts
-            // the zip, restoring them.
-            // p103: the dark theme's folders are plain macOS blue
-            // (#5E9BD6, the sample's blue); the zip ships
-            // folder-dark.svg as the variant source, copied over
-            // the plain folder icon names. folder-pictures.svg is
-            // NOT in either list: Pictures keeps the green-penguin
-            // art folder (a 48x48 PNG in the zip), and copying over
-            // it would re-create the scalable yellow SVG.
-            if (theme == AppTheme.TAG_DARK) {
-                for (name in listOf("folder.svg", "folder-open.svg",
-                    "inode-directory.svg", "inode-directory-open.svg",
-                    "folder-documents.svg",
-                    "folder-videos.svg", "folder-downloads.svg",
-                    "folder-music.svg")) {
-                    copyThemeAsset(context, rootfs,
-                        "mudif-icons/places/scalable/folder-dark.svg",
-                        "usr/share/icons/mudif/places/scalable/$name")
-                }
-            }
-            if (theme == AppTheme.TAG_GRADIENT) {
-                for (name in listOf("folder.svg", "folder-open.svg",
-                    "inode-directory.svg", "inode-directory-open.svg",
-                    "folder-documents.svg",
-                    "folder-videos.svg", "folder-downloads.svg",
-                    "folder-music.svg")) {
-                    copyThemeAsset(context, rootfs,
-                        "mudif-icons/places/scalable/folder-gradient.svg",
-                        "usr/share/icons/mudif/places/scalable/$name")
-                }
-            }
+            // p110: per-folder folder colors live in the zip and
+            // apply in ALL themes (Anas picked "per-folder" from
+            // the samples sheet: Documents blue, Music purple,
+            // Videos orange, Downloads teal, Templates Apple blue,
+            // Pictures keeps the green-penguin PNG). The p100/p103
+            // per-theme copies (one color over all 8 names) are
+            // deleted: they would overwrite the per-folder colors
+            // at every staging. folder-dark.svg and
+            // folder-gradient.svg in mudif-icons/ are deleted too.
             // p23: adaptive scale for the window manager. The zip
             // ships the p21 base (title/menu fonts 11, OSD 9,
             // padding 4); the runtime rewrite replaces them with
