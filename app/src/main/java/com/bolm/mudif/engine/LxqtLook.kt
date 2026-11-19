@@ -504,7 +504,7 @@ object LxqtLook {
     // shim, staged and installed by ensureLxqtLook), and the
     // overrides-file adoption (user-settings.conf survives marker
     // bumps). The image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p58"
+    const val MARKER_VERSION = "p59"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -519,7 +519,7 @@ object LxqtLook {
     private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
     private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
     private const val PCMANFM_WRAPPER_ASSET = "mudif-cli/pcmanfm-qt"
-    private const val PCMANFM_DEB_ASSET = "mudif-debs/pcmanfm-qt_2.1.0-4mudif1_amd64.deb"
+    private const val PCMANFM_DEB_ASSET = "mudif-debs/pcmanfm-qt_2.1.0-5mudif1_amd64.deb"
     private const val SETTINGS_DEB_ASSET = "mudif-debs/mudif-settings_1.0-1mudif1_amd64.deb"
     private const val SETTINGS_SHIM_ASSET = "mudif-cli/lxqt-config"
     private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
