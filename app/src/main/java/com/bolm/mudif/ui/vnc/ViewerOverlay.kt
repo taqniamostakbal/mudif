@@ -20,6 +20,7 @@ import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.ScreenRecorder
 import com.bolm.mudif.engine.X11Session
+import com.bolm.mudif.ui.control.ControlCenterActivity
 import com.bolm.mudif.ui.settings.ViewerPrefs
 
 /**
@@ -27,8 +28,8 @@ import com.bolm.mudif.ui.settings.ViewerPrefs
  * status screen auto-opens the viewer in 2-4 s, so its text buttons
  * (record / TV / audio) are effectively unreachable. This overlay is
  * the reachable replacement: a draggable purple FAB that floats over
- * the Termux:X11 viewer, expanding to three professional icon
- * buttons (record, TV, audio). No foreground service: the overlay is
+ * the Termux:X11 viewer, expanding to four professional icon
+ * buttons (record, TV, audio, control center). No foreground service: the overlay is
  * added through the application WindowManager and removed when the
  * VncActivity is destroyed, so it lives exactly as long as the
  * desktop session. Requires SYSTEM_ALERT_WINDOW; when it is not
@@ -173,12 +174,12 @@ class ViewerOverlay(private val context: Context) {
 
     /** Panel position next to the FAB: right of it when there is room,
      *  left of it near the right edge (so it never runs off-screen).
-     *  The panel is ~192dp wide (3 x 48dp buttons + margins/padding). */
+     *  The panel is ~240dp wide (4 x 48dp buttons + margins/padding). */
     private fun panelPosition(): Pair<Int, Int> {
         val fx = fabParams?.x ?: dp(16)
         val fy = fabParams?.y ?: dp(120)
         val screenW = context.resources.displayMetrics.widthPixels
-        val panelW = dp(192)
+        val panelW = dp(240)
         val x = if (fx + dp(64) + panelW > screenW) fx - panelW else fx + dp(64)
         return Pair(x, fy)
     }
@@ -207,6 +208,7 @@ class ViewerOverlay(private val context: Context) {
         panel.addView(iconButton(R.drawable.ic_record, context.getString(R.string.ui_overlay_record)) { onRecord(panel) })
         panel.addView(iconButton(R.drawable.ic_tv, context.getString(R.string.ui_overlay_tv)) { onTv() })
         panel.addView(iconButton(R.drawable.ic_audio, context.getString(R.string.ui_overlay_audio)) { onAudio(panel) })
+        panel.addView(iconButton(R.drawable.ic_controls, context.getString(R.string.control_center)) { onControlCenter() })
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -381,6 +383,20 @@ class ViewerOverlay(private val context: Context) {
                 )
             }
         }.start()
+    }
+
+    /** p111: open the Control Center over the viewer. The context
+     *  is the VncActivity, so no NEW_TASK flag is needed (same as
+     *  the onTv activity start). Opening pauses the viewer, so the
+     *  open panel collapses but the FAB stays. */
+    private fun onControlCenter() {
+        try {
+            context.startActivity(Intent(context, ControlCenterActivity::class.java))
+        } catch (_: Exception) {
+            // Explicit in-app intent: unreachable in practice.
+            // Stay silent rather than promise a panel that did
+            // not open.
+        }
     }
 
     private fun dp(v: Int): Int =
