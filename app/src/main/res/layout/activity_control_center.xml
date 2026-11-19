@@ -86,6 +86,96 @@
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/cairo" />
 
+                    <!-- p111: theme dots row (three dots, current
+                         filled with a thicker ring; a tap applies
+                         the theme quietly and recreates the panel).
+                         p113: moved to the TOP of this card and
+                         enlarged to 48dp. The p111 rig round proved
+                         the dots dead in landscape at the bottom of
+                         this scrolling card, below the fold: their
+                         on-screen position was entirely
+                         scroll-dependent (working taps at y=620,
+                         failing at y=520), so taps landed on inert
+                         card space and no listener ever fired, while
+                         the larger Wi-Fi button (reachable without
+                         scrolling) and the drag sliders worked. At
+                         the top they are visible without scrolling
+                         in both orientations, at a stable position.
+                         Same ids, same listeners; only placement
+                         and size changed. -->
+                    <TextView style="@style/TextAppearance.Mudif.Body"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/ui_cc_theme"
+                        android:textSize="16sp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:fontFamily="@font/cairo" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+                            android:id="@+id/dot_dark"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:insetLeft="0dp"
+                            android:insetRight="0dp"
+                            android:padding="0dp"
+                            android:text=""
+                            android:contentDescription="@string/theme_dark"
+                            app:cornerRadius="24dp" />
+
+                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+                            android:id="@+id/dot_light"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:insetLeft="0dp"
+                            android:insetRight="0dp"
+                            android:padding="0dp"
+                            android:layout_marginStart="12dp"
+                            android:text=""
+                            android:contentDescription="@string/theme_light"
+                            app:cornerRadius="24dp" />
+
+                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+                            android:id="@+id/dot_gradient"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:insetLeft="0dp"
+                            android:insetRight="0dp"
+                            android:padding="0dp"
+                            android:layout_marginStart="12dp"
+                            android:text=""
+                            android:contentDescription="@string/theme_gradient"
+                            app:cornerRadius="24dp" />
+                    </LinearLayout>
+
+                    <TextView style="@style/TextAppearance.Mudif.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/theme_desktop_note"
+                        android:textSize="13sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:fontFamily="@font/cairo" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -215,82 +305,6 @@
                         android:fontFamily="@font/cairo"
                         android:visibility="gone"
                         app:cornerRadius="24dp" />
-
-                    <!-- p111: theme dots row (three dots, current
-                         filled with a thicker ring; a tap applies
-                         the theme quietly and recreates the panel). -->
-                    <TextView style="@style/TextAppearance.Mudif.Body"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/ui_cc_theme"
-                        android:textSize="16sp"
-                        android:textColor="?attr/colorOnSurface"
-                        android:fontFamily="@font/cairo" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
-                            android:id="@+id/dot_dark"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
-                            android:minWidth="0dp"
-                            android:minHeight="0dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:insetLeft="0dp"
-                            android:insetRight="0dp"
-                            android:padding="0dp"
-                            android:text=""
-                            android:contentDescription="@string/theme_dark"
-                            app:cornerRadius="18dp" />
-
-                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
-                            android:id="@+id/dot_light"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
-                            android:minWidth="0dp"
-                            android:minHeight="0dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:insetLeft="0dp"
-                            android:insetRight="0dp"
-                            android:padding="0dp"
-                            android:layout_marginStart="12dp"
-                            android:text=""
-                            android:contentDescription="@string/theme_light"
-                            app:cornerRadius="18dp" />
-
-                        <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
-                            android:id="@+id/dot_gradient"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
-                            android:minWidth="0dp"
-                            android:minHeight="0dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:insetLeft="0dp"
-                            android:insetRight="0dp"
-                            android:padding="0dp"
-                            android:layout_marginStart="12dp"
-                            android:text=""
-                            android:contentDescription="@string/theme_gradient"
-                            app:cornerRadius="18dp" />
-                    </LinearLayout>
-
-                    <TextView style="@style/TextAppearance.Mudif.Caption"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/theme_desktop_note"
-                        android:textSize="13sp"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:fontFamily="@font/cairo" />
 
                     <LinearLayout
                         android:layout_width="match_parent"

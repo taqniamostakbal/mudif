@@ -504,7 +504,7 @@ object LxqtLook {
     // shim, staged and installed by ensureLxqtLook), and the
     // overrides-file adoption (user-settings.conf survives marker
     // bumps). The image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p55"
+    const val MARKER_VERSION = "p56"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -1750,8 +1750,25 @@ PS1='\[\e[35m\]نظام مضيف\[\e[0m\] \[\e[36m\]\w\[\e[0m\] ❯ '
             if (pcmanfmFile.exists()) {
                 var text = pcmanfmFile.readText()
                 var changed = false
+                // p113: the theme owns the wallpaper while it is
+                // pinned (wallpaper-pinned holds the theme id; the
+                // rotator already no-ops on the same pin). A stale
+                // Wallpaper override in user-settings.conf (premium,
+                // left by the p108 settings round while the theme
+                // was dark) must not clobber the theme's wallpaper
+                // that staging just wrote: the p111 rig round
+                // proved it does exactly that (settings.conf
+                // rewritten to premium 4 ms before the p54:light
+                // marker, on a light full start, so the desktop
+                // came up white panel + dark wallpaper). Skip only
+                // Wallpaper; icon size and HideItems are
+                // theme-independent and still apply. When no pin
+                // exists the override applies as before.
+                val themePinned = File(rootfs, "root/.config/mudif/wallpaper-pinned").exists()
                 desktop["Wallpaper"]?.let { v ->
-                    if (v in SETTINGS_WALLPAPERS) {
+                    if (themePinned) {
+                        MudifLog.d(TAG, "user-settings: Wallpaper override skipped, theme pinned")
+                    } else if (v in SETTINGS_WALLPAPERS) {
                         text = setIniKey(text, "Desktop", "Wallpaper", v)
                         changed = true
                     } else {
