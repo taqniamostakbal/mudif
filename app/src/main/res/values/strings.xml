@@ -568,6 +568,13 @@
     <string name="ui_cc_brightness">السطوع</string>
     <string name="ui_cc_brightness_perm">منح إذن تغيير السطوع</string>
     <string name="ui_cc_battery">البطارية</string>
+    <!-- p111: Control Center theme dots + Bluetooth row (Fusha). -->
+    <string name="ui_cc_theme">المظهر</string>
+    <string name="ui_cc_bluetooth">البلوتوث</string>
+    <string name="ui_cc_bt_on">متصل</string>
+    <string name="ui_cc_bt_off">غير متصل</string>
+    <string name="ui_cc_bt_enable">تشغيل</string>
+    <string name="ui_cc_bt_perm">منح إذن البلوتوث</string>
     <string name="ui_cc_status">حالة النظام</string>
     <string name="ui_cc_cpu">المعالج</string>
     <string name="ui_cc_memory">الذاكرة</string>

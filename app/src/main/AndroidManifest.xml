@@ -15,6 +15,15 @@
     <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
     <!-- Phase 1d: floating icon controls over the viewer. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- p111: Bluetooth state row in the Control Center (state read
+         + the system enable dialog only; the app never flips the
+         radio itself: enable()/disable() always fail for apps
+         targeting API 33+, and Mudif targets 34). BLUETOOTH_CONNECT
+         is the runtime permission on API 31+; BLUETOOTH +
+         BLUETOOTH_ADMIN are install-time on API 30 and below. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
         android:name=".MudifApplication"

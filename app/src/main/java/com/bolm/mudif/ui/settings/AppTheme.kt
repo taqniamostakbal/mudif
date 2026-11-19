@@ -75,6 +75,18 @@ object AppTheme {
         context.startActivity(intent)
     }
 
+    /** p111 (D4): save [tag] and stage the guest side of the
+     *  switch, WITHOUT relaunching the task. The caller (the
+     *  Control Center theme dots) recreates itself, so the viewer
+     *  underneath stays open. No Intent here by design: the dots
+     *  must never close the viewer. */
+    fun applyQuiet(context: Context, tag: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY, tag).apply()
+        LxqtLook.stageThemeSwitch(context, tag)
+        Toast.makeText(context, context.getString(R.string.theme_applied), Toast.LENGTH_SHORT).show()
+    }
+
     /** Theme picker dialog (Settings theme card). Branded Mudif
      *  dialog (dialog_theme_picker): the 3 themes are real buttons,
      *  each in its own Fusha name, so they read correctly in any
