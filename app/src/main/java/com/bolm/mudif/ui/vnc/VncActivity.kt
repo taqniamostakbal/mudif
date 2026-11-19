@@ -29,6 +29,7 @@ import com.bolm.mudif.engine.SystemDisplay
 import com.bolm.mudif.engine.TvStreamer
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
+import com.bolm.mudif.ui.keyboard.KeyboardSetup
 import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.settings.ViewerPrefs
 import java.util.concurrent.CountDownLatch
@@ -560,6 +561,29 @@ class VncActivity : MudifActivity() {
     }
 
     /**
+     * p118: one-time Mudif keyboard prompt, right after the viewer
+     * opens (same spot as the overlay prompt above). The keyboard
+     * is ready; the user enables it once in the system settings
+     * and it then appears in the viewer instead of Gboard. If it
+     * is already enabled there is nothing to prompt about (the
+     * flag is still marked, so this never shows again). "Later"
+     * dismisses it; the Settings card stays the permanent route.
+     */
+    private fun promptKeyboardOnce() {
+        if (KeyboardSetup.isPromptShown(this)) return
+        KeyboardSetup.markPromptShown(this)
+        if (KeyboardSetup.isEnabled(this)) return
+        MudifDialog.info(
+            this,
+            getString(R.string.keyboard_prompt_title),
+            getString(R.string.keyboard_prompt_body),
+            getString(R.string.keyboard_prompt_enable),
+            onPositive = { KeyboardSetup.openInputMethodSettings(this) },
+            negative = getString(R.string.keyboard_prompt_later)
+        )
+    }
+
+    /**
      * P16.2: open the viewer, then launch the desktop after the viewer
      * attaches and resizes the server (P6.5). Shared by the diagnostics
      * dialog's positive button and the status screen's viewer button.
@@ -568,6 +592,10 @@ class VncActivity : MudifActivity() {
         X11Session.openViewer(this)
         // Phase 1d: floating icon controls over the viewer.
         showViewerOverlay()
+        // p118: one-time keyboard prompt (the Mudif keyboard is
+        // ready; the user enables it once in the system settings
+        // and it then appears in the viewer instead of Gboard).
+        promptKeyboardOnce()
         // P6.5: launch the desktop AFTER the viewer attaches and
         // resizes the server (RandR). A plain Thread (not
         // lifecycleScope): this activity is only paused by the viewer,

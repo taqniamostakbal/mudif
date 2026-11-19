@@ -148,4 +148,6 @@ dependencies {
     // library). The 5 tab animations are LottieFiles JSON in res/raw/,
     // one LottieAnimationView per tab in ui.nav.BottomNavView.
     implementation(libs.lottie)
+    // p118: JUnit 4 for the one KeyboardLayout unit test.
+    testImplementation(libs.junit)
 }

@@ -421,6 +421,15 @@ object LxqtLook {
     // main .deb carries no .qm) and in the pcmanfm-qt source
     // (pcmanfm-qt_ar.ts, deb 2.1.0-6mudif1). An existing rootfs
     // must re-apply to pick it up.
+    // P31 (2026-11-19, p61): p61 adds Mudif's own mechanical
+    // keyboard (ui/keyboard): a real InputMethodService in the
+    // app colours (#593BFE + near-black/white, dark follows the
+    // app theme) that types into the guest exactly like Gboard
+    // (commitText for text, real KeyEvents for Enter/Tab/Esc/
+    // arrows/F-keys; modifiers are pressed as their own key
+    // events because the viewer carries no metaState). Forced in
+    // the viewer, pick-once as the system IME. No guest change;
+    // the deb does not move.
     // P28 (2026-11-16, p63): p63 adds [System] Terminal=qterminal
     // to the staged pcmanfm settings.conf (the xterm error dialog
     // in image-408: every Open Terminal tap failed because the
@@ -513,7 +522,7 @@ object LxqtLook {
     // shim, staged and installed by ensureLxqtLook), and the
     // overrides-file adoption (user-settings.conf survives marker
     // bumps). The image stays p23; only the look version moves.
-    const val MARKER_VERSION = "p60"
+    const val MARKER_VERSION = "p61"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
