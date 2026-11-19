@@ -550,16 +550,39 @@ object X11Session {
     }
 
     /**
+     * P109, scope the desktop kill by DISPLAY (probe 2 root cause):
+     * the old name-only pkill also killed the nested :7 desktop,
+     * because openbox/panel/pcmanfm/qterminal on :7 share the names
+     * and both desktops live in the same guest PID namespace; the :7
+     * desktop died within 12 s of reopening the desktop. Every :6
+     * desktop process carries DISPLAY=127.0.0.1:6 in its environ
+     * (set in the boot env, RootfsManager), every :7 process carries
+     * DISPLAY=:7. This loop kills a pattern match only when its
+     * DISPLAY is absent (old behaviour for display-less processes)
+     * or the app's :6 display, and spares any process whose DISPLAY
+     * names another display. The [x] bracket trick in the pattern
+     * keeps pgrep from matching its own shell, and the literal
+     * desktop names appear nowhere else in the rendered command
+     * (same rule as desktopAliveCommand).
+     */
+    private fun scopedDesktopKillCommand(pattern: String): String {
+        val d = "$"
+        return "for pid in ${d}(pgrep -f '$pattern' 2>/dev/null); do " +
+            "disp=${d}(tr '\\000' '\\n' < /proc/${d}pid/environ 2>/dev/null | sed -n 's/^DISPLAY=//p'); " +
+            "case \"${d}disp\" in \"\"|127.0.0.1:6*|:6*) kill -9 \"${d}pid\" 2>/dev/null ;; esac; " +
+            "done; echo DESKTOP_CLEANED"
+    }
+
+    /**
      * P5.24, kill the previous desktop's processes before a fresh
      * boot. Tapping a desktop row finishes the old PTY session, but
      * the desktop's processes (openbox, panel, pcmanfm, qterminal...)
      * survive as orphans (PPid 1) and keep owning the display, so the
      * new desktop's window manager refuses to start (xfwm4: "Another
-     * Window Manager is already running", P5.23 test). This one-shot
-     * pkill runs inside the guest (same PID namespace) before the
-     * fresh boot. The [x] bracket trick keeps pkill from matching its
-     * own shell, whose cmdline contains the pattern text. pkill exits
-     * 1 when nothing matched, that is fine, not a failure.
+     * Window Manager is already running", P5.23 test). P109: the kill
+     * is scoped by DISPLAY (scopedDesktopKillCommand), so it destroys
+     * only the :6 desktop and never touches a nested :7 desktop.
+     * pkill exits 1 when nothing matched, that is fine, not a failure.
      */
     fun killDesktopProcesses(context: Context): Boolean {
         val pattern = "[o]penbox|[l]xqt-session|[l]xqt-panel|[l]xqt-runner|" +
@@ -568,7 +591,7 @@ object X11Session {
             "[f]irefox|[s]tartlxqt|[s]tartxfce4|[d]bus-daemon"
         val result = TerminalSession.runCommand(
             context,
-            "pkill -f '$pattern'; echo DESKTOP_CLEANED",
+            scopedDesktopKillCommand(pattern),
             idleTimeoutSec = 15,
             maxTimeoutSec = 30
         )
@@ -583,6 +606,8 @@ object X11Session {
      * XFCE names, the box may still hold a childless XFCE session
      * from the fresh-rootfs tap, and pkill matches nothing when a
      * name is absent, so keeping both costs nothing.
+     * P109: scoped by DISPLAY like killDesktopProcesses, the nested
+     * :7 desktop is never touched.
      * Best-effort; a failure here is not fatal, the fresh boot
      * proceeds anyway.
      */
@@ -594,7 +619,7 @@ object X11Session {
             "[a]pt-get|[d]pkg"
         val result = TerminalSession.runCommandDebian(
             context,
-            "pkill -f '$pattern'; echo DESKTOP_CLEANED",
+            scopedDesktopKillCommand(pattern),
             idleTimeoutSec = 15,
             maxTimeoutSec = 30
         )
