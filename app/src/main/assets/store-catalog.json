@@ -994,6 +994,16 @@
       "descEn": "font single distance open source، مخصص للمحررات terminal."
     },
     {
+      "id": "notepad",
+      "name": "المفكرة",
+      "nameEn": "Notepad",
+      "desc": "محرر نصوص بسيط وسريع، لكتابة الملاحظات وتحرير الملفات النصية، يعمل داخل نظام مضيف عبر طبقة ويندوز.",
+      "category": "office",
+      "method": "win32",
+      "win32": "notepad",
+      "icon": "notepad.png"
+    },
+    {
       "id": "sherlock",
       "name": "شيرلوك",
       "nameEn": "Sherlock",

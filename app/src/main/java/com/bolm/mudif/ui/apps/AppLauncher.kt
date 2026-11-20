@@ -8,10 +8,12 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.bolm.mudif.R
 import com.bolm.mudif.engine.GuestSession
+import com.bolm.mudif.engine.NestedDesktop
 import com.bolm.mudif.engine.TerminalSession
 import com.bolm.mudif.engine.UsageLog
 import com.bolm.mudif.engine.X11Session
 import com.bolm.mudif.ui.MudifDialog
+import com.bolm.mudif.ui.store.ProgramStore
 import com.bolm.mudif.ui.store.StoreProgram
 import com.bolm.mudif.ui.vnc.VncActivity
 
@@ -48,7 +50,12 @@ object AppLauncher {
         program: StoreProgram,
         onBusy: ((Boolean) -> Unit)? = null
     ) {
-        val binary = program.binary ?: return
+        // Win32 programs have no Linux binary: they launch as the
+        // AOT binary itself (translated once on the build machine,
+        // no translator at runtime). Any other program without a
+        // binary cannot launch at all.
+        val isWin32 = program.method == "win32" && program.win32 != null
+        val binary = program.binary ?: if (!isWin32) return else ""
         val appCtx = fragment.requireContext().applicationContext
         val uiHandler = Handler(Looper.getMainLooper())
         uiHandler.post { onBusy?.invoke(true) }
@@ -59,17 +66,23 @@ object AppLauncher {
             // launching it raw opens no window at all (Batch 3).
             // The while loop drops Terminal=true files from the
             // match list, so htop falls through to qterminal.
-            val guiCheck = TerminalSession.runCommandDebian(
-                appCtx,
-                "grep -rl '^Exec=[^ ]*\\b$binary\\b' " +
-                    "/usr/share/applications/*.desktop 2>/dev/null | " +
-                    "while read f; do grep -q '^Terminal=true' \"\$f\" || echo \"\$f\"; done | head -1",
-                idleTimeoutSec = 15,
-                maxTimeoutSec = 30
-            )
-            val isGui = guiCheck.exitCode == 0 &&
-                guiCheck.output.isNotBlank() &&
-                guiCheck.output.trim() != appCtx.getString(R.string.ui_no_output)
+            // A Windows program opens its own window through the
+            // Win32 layer; there is no .desktop file to check.
+            val isGui = if (isWin32) {
+                true
+            } else {
+                val guiCheck = TerminalSession.runCommandDebian(
+                    appCtx,
+                    "grep -rl '^Exec=[^ ]*\\b$binary\\b' " +
+                        "/usr/share/applications/*.desktop 2>/dev/null | " +
+                        "while read f; do grep -q '^Terminal=true' \"\$f\" || echo \"\$f\"; done | head -1",
+                    idleTimeoutSec = 15,
+                    maxTimeoutSec = 30
+                )
+                guiCheck.exitCode == 0 &&
+                    guiCheck.output.isNotBlank() &&
+                    guiCheck.output.trim() != appCtx.getString(R.string.ui_no_output)
+            }
             // Extra launch flags (e.g. Electron apps). VSCodium
             // crashes on launch (code 5) without --no-sandbox
             // --disable-gpu --disable-dev-shm-usage in proot.
@@ -81,20 +94,36 @@ object AppLauncher {
             // VLC's GUI.
             val runPrefix = program.runAs?.takeIf { it.isNotBlank() }
                 ?.let { "runuser -u $it -- " } ?: ""
-            val launchCmd = if (isGui) {
+            val launchCmd = if (isWin32) {
+                ProgramStore.win32LaunchCommand(program)
+            } else if (isGui) {
                 "$runPrefix$binary$flags >/dev/null 2>&1 &"
             } else {
                 "qterminal -e sh -c '$binary$flags; exec sh' >/dev/null 2>&1 &"
             }
+            // The process name to verify: the AOT binary for win32
+            // (it sets its own comm to "notepad-aot" with prctl,
+            // so pgrep -x finds it), the program's process (or
+            // binary) otherwise.
+            val processName = if (isWin32) "notepad-aot"
+                else program.process?.takeIf { it.isNotBlank() } ?: binary
+            // p121 (Option B): the desktop lives on :7, so a GUI
+            // app launched without a prefix would open invisibly
+            // on :6 (the PTY shell's DISPLAY is 127.0.0.1:6).
+            // The prefix is decided at FIRE time
+            // (NestedDesktop.withDesktopDisplay): the same
+            // launchCmd is handed to VncActivity when the session
+            // is not live, and VncActivity wraps it when it fires
+            // it after the desktop boots.
             val live = GuestSession.alive && GuestSession.booted &&
                 X11Session.isTcpDisplayOpen()
-            if (live && GuestSession.sendCommand(launchCmd)) {
+            if (live && GuestSession.sendCommand(NestedDesktop.withDesktopDisplay(appCtx, launchCmd))) {
                 // Verify the process actually started before claiming
                 // success. The old code Toasted "launched" on `sent`
                 // alone, which only proves bytes reached the PTY, not
                 // that the program opened, failures were invisible
                 // (output goes to /dev/null). Now a real check decides.
-                val started = verifyStarted(appCtx, program)
+                val started = verifyStarted(appCtx, processName)
                 // Slice 1 (agent-as-OS): the launch is logged only
                 // once it is verified running; ok is the real
                 // verifyStarted result, never assumed.
@@ -126,7 +155,7 @@ object AppLauncher {
                 val intent = Intent(fragment.requireContext(), VncActivity::class.java).apply {
                     putExtra(VncActivity.EXTRA_DESKTOP, VncActivity.DESKTOP_MUDIF)
                     putExtra(VncActivity.EXTRA_LAUNCH_APP, launchCmd)
-                    putExtra(VncActivity.EXTRA_LAUNCH_PROCESS, program.process?.takeIf { it.isNotBlank() } ?: binary)
+                    putExtra(VncActivity.EXTRA_LAUNCH_PROCESS, processName)
                     addFlags(
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                     )
@@ -148,8 +177,9 @@ object AppLauncher {
      * still verify fast), then 9 s, 14 s, ... A process appearing
      * at ~21 s (Craft cold start, p81-proven) is caught, while a
      * truly missing binary still returns false at the deadline.
-     * pgrep -x matches the exact process name; [StoreProgram.process]
-     * is the name to check (defaults to the binary). A missing
+     * pgrep -x matches the exact process name; [process] is the
+     * name to check (the binary, the program's process field, or
+     * "notepad-aot" for a win32 program). A missing
      * pgrep binary or a failed check returns false (fail safe:
      * report the launch as failed rather than lie about it).
      *
@@ -173,9 +203,8 @@ object AppLauncher {
      * deadline, so a fast crasher returns false, never a false
      * ok=true.
      */
-    private fun verifyStarted(appCtx: Context, program: StoreProgram): Boolean {
-        val process = program.process?.takeIf { it.isNotBlank() }
-            ?: program.binary ?: return false
+    private fun verifyStarted(appCtx: Context, process: String): Boolean {
+        if (process.isBlank()) return false
         // p92 N-b: the single poll now lives in X11Session
         // (isGuestProcessAlive): same pgrep plus zombie filter,
         // so the live path and the pending path share one check.

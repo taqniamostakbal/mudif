@@ -101,12 +101,20 @@ class StoreCategoryFragment : Fragment() {
         loadCatalog()
     }
 
-    /** Loads the catalog, keeps only this category, then batch-checks status. */
+    /** Loads the catalog, keeps only this category, then batch-checks status.
+     *  The Windows page keeps win32 programs only; every Linux page
+     *  keeps Linux programs only, so a Windows program never leaks
+     *  into a Linux list. */
     private fun loadCatalog() {
         val appCtx = requireContext().applicationContext
         Thread {
             val loaded = try {
-                StoreCatalog.load(appCtx).filter { it.category == categoryKey }
+                val all = StoreCatalog.load(appCtx)
+                if (categoryKey == StoreCategory.WINDOWS.key) {
+                    all.filter { it.method == "win32" }
+                } else {
+                    all.filter { it.category == categoryKey && it.method != "win32" }
+                }
             } catch (e: Exception) {
                 emptyList()
             }
@@ -216,8 +224,46 @@ class StoreCategoryFragment : Fragment() {
         }.start()
     }
 
+    /** Win32 tap: runs the real guest preflight, then reports the
+     *  findings honestly in a dialog. The AOT binary ships with
+     *  the store now, so Install proceeds to the normal install
+     *  when the user confirms; Cancel leaves the card
+     *  NOT_INSTALLED. Launch runs only on arm64 and is unproven
+     *  on a real device, and the dialog says so. */
+    private fun runWin32Info(program: StoreProgram, onConfirm: () -> Unit) {
+        if (!systemReady()) return
+        setState(program.id, ProgramState.CHECKING)
+        val appCtx = requireContext().applicationContext
+        Thread {
+            val preflight = ProgramStore.win32Preflight(appCtx, program)
+            val message = ProgramStore.win32InfoMessage(appCtx, preflight)
+            uiHandler.post {
+                if (!isAdded) return@post
+                MudifDialog.info(
+                    requireContext(),
+                    program.name,
+                    message,
+                    getString(R.string.install),
+                    onPositive = { onConfirm() },
+                    negative = getString(R.string.cancel),
+                    onNegative = {
+                        setState(program.id, ProgramState.NOT_INSTALLED)
+                    }
+                )
+            }
+        }.start()
+    }
+
     private fun runInstall(program: StoreProgram) {
         if (!systemReady()) return
+        if (program.method == "win32") {
+            runWin32Info(program) { runInstallConfirmed(program) }
+            return
+        }
+        runInstallConfirmed(program)
+    }
+
+    private fun runInstallConfirmed(program: StoreProgram) {
         if (program.method == "deb") {
             if (guestArch.isEmpty()) {
                 Snackbar.make(

@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import com.bolm.mudif.engine.MudifLog
+import com.bolm.mudif.engine.NestedDesktop
 
 /**
  * P5.22 RADICAL REBUILD, X11 desktop via Termux:X11, Tiny
@@ -628,7 +629,12 @@ class VncActivity : MudifActivity() {
             // Real-computer #1: audio starts with the desktop when
             // enabled. Own thread: the pump connects (up to ~6 s)
             // and must not delay the Toast below.
-            if (sent && running && PulseAudio.isEnabled(this)) {
+            // p123 P8: no auto-start in a minimal session (API 31+):
+            // the :7 session prevents pulseaudio, and this auto-start
+            // would re-create it on :6 plus its autolaunch D-Bus pair
+            // (3 phantoms). The manual audio toggle still works, and
+            // API 30 (no phantom killer) auto-starts as before.
+            if (sent && running && PulseAudio.isEnabled(this) && !NestedDesktop.isMinimalSession()) {
                 Thread { PulseAudio.start(this) }.start()
             }
             // p79 R1: the brain servers do NOT start with the
@@ -666,7 +672,7 @@ class VncActivity : MudifActivity() {
                         MudifLog.d("VncActivity", "pending app launch: attempt $attempt skipped, desktop not up")
                         continue
                     }
-                    val ok = GuestSession.sendCommand(appToLaunch)
+                    val ok = GuestSession.sendCommand(NestedDesktop.withDesktopDisplay(this, appToLaunch))
                     MudifLog.d("VncActivity", "pending app launch: attempt $attempt sent=$ok cmd=$appToLaunch")
                     if (!ok) continue
                     appLaunched = if (processToLaunch != null) {
@@ -884,6 +890,10 @@ class VncActivity : MudifActivity() {
 
             setStatus(getString(R.string.ui_vnc_status_verify_system))
             val desktopOk = X11Session.ensureDebianDesktop(this)
+            // p121 (Option B): the look may re-stage below (theme
+            // switch or marker bump). Record whether it was applied
+            // BEFORE, so the nested step knows a re-stage happened.
+            val lookWasApplied = if (desktopOk) LxqtLook.isApplied(this) else true
             // P6.4, the Deepin-style look for LXQt (navy wallpaper,
             // bloom-dark icons, dark panel, dark Qt/GTK): written
             // into the rootfs BEFORE the first launch, once per
@@ -917,6 +927,47 @@ class VncActivity : MudifActivity() {
             } catch (e: Exception) {
                 MudifLog.d("VncActivity", "p95 post-staging desktop kill failed: ${e.message}")
             }
+
+            // p121 (Option B): start the nested :7 desktop now.
+            // The VNC .debs are installed by ensureNestedDesktop
+            // itself on first entry (marker-gated, independent of
+            // the look). The gate is desktopOk ONLY, never lookOk:
+            // the look's pcmanfm-qt / mudif-settings .debs are
+            // amd64-only (dpkg refuses them on arm64 with
+            // "package architecture (amd64) does not match system
+            // (arm64)", proven by the symmetric test below), so
+            // on Anas's phone ensureLxqtLook returns false on
+            // every marker-bump launch. Gating the nested step on
+            // lookOk would mean :7 never starts on his phone at
+            // all. Theme-restart rule: restart :7 only when the
+            // look actually SUCCEEDED in re-staging (lookOk and
+            // !lookWasApplied) and :7 was alive, or the new theme
+            // never takes effect. A FAILED re-stage must NOT
+            // restart :7: on the phone the look fails on every
+            // entry, so restarting on failure would kill the
+            // surviving tree on every desktop entry and destroy
+            // the session Option B exists to preserve. The live
+            // wallpaper flip (stageThemeSwitch, :7-targeted)
+            // still applies without a restart; only the full
+            // re-skin waits for the next fresh :7 start. The
+            // viewer is killed first so it never shows a
+            // reconnect dialog while :7 goes down. When the
+            // nested tree cannot start, the viewer still opens
+            // and launchDesktop falls back to the legacy :6
+            // desktop, so a missing Xvfb never leaves the user
+            // with no desktop at all.
+            val nestedOk = if (desktopOk) {
+                val wasAlive = NestedDesktop.isNestedDesktopAlive(this)
+                if (lookOk && !lookWasApplied && wasAlive) {
+                    NestedDesktop.killViewer(this)
+                    NestedDesktop.restartNestedDesktop(this)
+                } else {
+                    NestedDesktop.ensureNestedDesktop(this)
+                }
+            } else {
+                false
+            }
+            MudifLog.d("VncActivity", "nested desktop :7 ok=$nestedOk (lookOk=$lookOk lookWasApplied=$lookWasApplied)")
 
             // P16 XKB GUARD: if the desktop install did not complete,
             // the xkb data is not there either, do NOT start the X
@@ -1155,14 +1206,28 @@ class VncActivity : MudifActivity() {
     private fun tryFastReattach(): Boolean {
         if (!GuestSession.alive || !GuestSession.booted) return false
         if (!X11Session.isTcpDisplayOpen()) return false
-        if (!X11Session.isDesktopSessionAlive(this)) return false
+        // p121 (Option B): the desktop lives on :7, so a healthy
+        // session is :6 TCP up + the :7 tree alive + the vncviewer
+        // showing it. A live :7 tree with a dead viewer is NOT a
+        // reattach (the viewer died with the app): fall through to
+        // the full start, which restarts :6 and the viewer against
+        // the surviving :7. When :7 was never started (legacy :6
+        // desktop, Xvfb missing), the old form still applies, so
+        // the fallback path keeps its fast reattach.
+        if (NestedDesktop.isNestedDesktopAlive(this)) {
+            if (!NestedDesktop.isVncViewerAlive(this)) return false
+        } else {
+            if (!X11Session.isDesktopSessionAlive(this)) return false
+        }
         MudifLog.d("VncActivity", "fast reattach: session healthy, opening viewer directly")
         // p79 R1: the brain servers are NOT started here anymore.
         // They start on the first assistant turn only
         // (AgentServer.ensureStarted, called on send).
         val appToLaunch = pendingLaunchApp
         pendingLaunchApp = null
-        if (appToLaunch != null) GuestSession.sendCommand(appToLaunch)
+        if (appToLaunch != null) {
+            GuestSession.sendCommand(NestedDesktop.withDesktopDisplay(this, appToLaunch))
+        }
         runOnUiThread {
             setStatus(getString(R.string.ui_vnc_status_ready))
             X11Session.openViewer(this)

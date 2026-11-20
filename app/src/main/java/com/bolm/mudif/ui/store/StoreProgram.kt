@@ -33,6 +33,14 @@ data class StoreProgram(
     val debPackage: String?,
     val script: String?,
     val font: String?,
+    /**
+     * Win32 program key (method "win32" only), e.g. "notepad".
+     * The AOT binary lives in the guest at
+     * /usr/local/win32/<win32>.exe and runs directly (translated
+     * once on the build machine, no translator at runtime).
+     * Null for every Linux method.
+     */
+    val win32: String?,
     val icon: String,
     /**
      * Extra launch flags appended to the binary when the program
@@ -95,7 +103,11 @@ data class StoreProgram(
 
 /** The 7 catalog categories plus the "all" filter, with Fusha labels.
  *  P19 Phase 1: each category also carries its gradient card background
- *  and its white icon (from the user's style refs). */
+ *  and its white icon (from the user's style refs).
+ *  WINDOWS is not a category: it is the Windows programs list
+ *  (method "win32"), shown beside the Linux lists. A program in it
+ *  keeps its Linux category (Notepad is "office") and is listed
+ *  under Windows only, never under a Linux list. */
 enum class StoreCategory(
     val key: String,
     val labelRes: Int,
@@ -110,7 +122,8 @@ enum class StoreCategory(
     GAMES("games", R.string.ui_cat_games, R.drawable.cat_games, R.drawable.ic_cat_games),
     AI("ai", R.string.ui_cat_ai, R.drawable.cat_ai, R.drawable.ic_cat_ai),
     SYSTEM("system", R.string.ui_cat_system, R.drawable.cat_system, R.drawable.ic_cat_system),
-    FONTS("fonts", R.string.ui_cat_fonts, R.drawable.cat_fonts, R.drawable.ic_cat_fonts);
+    FONTS("fonts", R.string.ui_cat_fonts, R.drawable.cat_fonts, R.drawable.ic_cat_fonts),
+    WINDOWS("windows", R.string.ui_cat_windows, R.drawable.cat_windows, R.drawable.ic_cat_windows);
 
     companion object {
         /** Localized label; the key itself is the fallback for unknown keys. */
@@ -169,6 +182,7 @@ object StoreCatalog {
                     debPackage = o.optString("debPackage", null)?.takeIf { it != "null" },
                     script = o.optString("script", null)?.takeIf { it != "null" },
                     font = o.optString("font", null)?.takeIf { it != "null" },
+                    win32 = o.optString("win32", null)?.takeIf { it != "null" },
                     icon = o.getString("icon"),
                     flags = o.optString("flags", null)?.takeIf { it != "null" },
                     runAs = o.optString("runAs", null)?.takeIf { it != "null" },

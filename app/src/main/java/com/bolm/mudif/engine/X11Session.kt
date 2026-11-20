@@ -500,9 +500,28 @@ object X11Session {
         // echo of this command). A timestamped file ends the
         // ambiguity: the startup stderr is provably this run's.
         val stamp = System.currentTimeMillis() / 1000
-        val ok = GuestSession.sendCommand("$cmd > /root/$desktop-session-$stamp.log 2>&1 &")
-        if (ok) MudifLog.d(TAG, "$desktop command sent through PTY session")
-        else Log.e(TAG, "PTY session not available for $desktop")
+        // p121 (Option B): the desktop lives on :7. When the nested
+        // tree is alive, do NOT start another session via the PTY;
+        // just make sure the :6 viewer shows it. When :7 is not up
+        // (Xvfb missing, start failed), fall through to the legacy
+        // PTY startlxqt so the user still gets a desktop, without
+        // survival. The icon-trust loop below still runs in both
+        // branches: it finds the lxqt-session by name, which is the
+        // :7 one in the nested branch.
+        val nestedAlive = desktop == "lxqt" && NestedDesktop.isNestedDesktopAlive(context)
+        val ok = if (nestedAlive) {
+            NestedDesktop.ensureViewer(context)
+        } else {
+            GuestSession.sendCommand("$cmd > /root/$desktop-session-$stamp.log 2>&1 &")
+        }
+        if (nestedAlive) {
+            if (ok) MudifLog.d(TAG, "launchDesktop: nested :7 alive, viewer started")
+            else Log.e(TAG, "launchDesktop: nested :7 alive but viewer failed to start")
+        } else if (ok) {
+            MudifLog.d(TAG, "$desktop command sent through PTY session")
+        } else {
+            Log.e(TAG, "PTY session not available for $desktop")
+        }
         // p30 icon fix (LXQt only): backgrounded loop in the PTY
         // shell. Polls every 0.5 s (up to 30 s) for lxqt-session,
         // reads its live bus from /proc, and sets metadata::trust

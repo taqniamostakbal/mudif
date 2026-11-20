@@ -39,6 +39,15 @@ object RootfsManager {
         return if (a.contains("x86_64")) "x86_64" else "aarch64"
     }
 
+    /**
+     * p121 (Option B): the guest architecture ("x86_64" or
+     * "aarch64"), the same value abi() uses to pick the Alpine
+     * minirootfs and the Debian image. The VNC .deb set is chosen
+     * by this value, so the rig (x86_64) and the phone (aarch64)
+     * each install their own arch's packages.
+     */
+    fun guestArch(): String = abi()
+
     fun alpineUrl(): String {
         val a = abi()
         return "$BASE/$a/alpine-minirootfs-$ALPINE_VERSION-$a.tar.gz"

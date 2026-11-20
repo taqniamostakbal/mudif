@@ -526,7 +526,7 @@ object LxqtLook {
     // (KeyboardLayout latinRow1Shift/2Shift/3Shift); Arabic diacritics
     // and F1 needed no code change (rig-proven: the marks arrive, the
     // terminal does not render them; F1 ^[OP matches terminfo kf1).
-    const val MARKER_VERSION = "p62"
+    const val MARKER_VERSION = "p66"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
@@ -541,8 +541,18 @@ object LxqtLook {
     private const val PROGRAMS_TSV_ASSET = "mudif-cli/programs.tsv"
     private const val ABOUT_SHIM_ASSET = "mudif-cli/lxqt-about"
     private const val PCMANFM_WRAPPER_ASSET = "mudif-cli/pcmanfm-qt"
-    private const val PCMANFM_DEB_ASSET = "mudif-debs/pcmanfm-qt_2.1.0-6mudif1_amd64.deb"
-    private const val SETTINGS_DEB_ASSET = "mudif-debs/mudif-settings_1.0-1mudif1_amd64.deb"
+    // p123: the look .debs ship for BOTH arches and the install picks
+    // this device's arch (same guestArch() pattern as the VNC .deb
+    // sets). Before p123 only the amd64 files existed, so dpkg -i
+    // failed on the arm64 phone, ensureLxqtLook returned false on
+    // every marker bump, the marker was never written, and the phone
+    // ran stock pcmanfm-qt with no 19pt font mechanism at all.
+    private fun pcmanfmDebAsset(): String =
+        if (RootfsManager.guestArch() == "x86_64") "mudif-debs/pcmanfm-qt_2.1.0-6mudif1_amd64.deb"
+        else "mudif-debs/pcmanfm-qt_2.1.0-6mudif1_arm64.deb"
+    private fun settingsDebAsset(): String =
+        if (RootfsManager.guestArch() == "x86_64") "mudif-debs/mudif-settings_1.0-1mudif1_amd64.deb"
+        else "mudif-debs/mudif-settings_1.0-1mudif1_arm64.deb"
     private const val SETTINGS_SHIM_ASSET = "mudif-cli/lxqt-config"
     private const val ABOUT_PY_ASSET = "mudif-cli/mudif-about.py"
     private const val ROTATE_SH_ASSET = "mudif-cli/mudif-wallpaper-rotate.sh"
@@ -583,7 +593,29 @@ object LxqtLook {
         }
         try {
             if (GuestSession.alive && GuestSession.booted) {
-                GuestSession.sendCommand("pcmanfm-qt --set-wallpaper ${wallpaperPathFor(tag)}")
+                // p121 (Option B): the desktop lives on :7, so the
+                // live wallpaper flip must target :7 and the :7
+                // session bus. The PTY shell's DISPLAY is
+                // 127.0.0.1:6; a plain pcmanfm-qt --set-wallpaper
+                // would talk to no desktop at all on :6 (nothing
+                // runs there anymore) and the flip would silently
+                // do nothing. The bus comes from the :7
+                // lxqt-session's /proc environ (host-side read).
+                // No :7 bus readable (desktop not up, or the
+                // legacy :6 desktop): fall back to the plain
+                // command, which reaches the :6 session when one
+                // is running and is a harmless no-op otherwise.
+                // Either way the wallpaper also applies on the
+                // next full start via settings.conf, and the
+                // theme restart rule restarts the :7 tree after
+                // the re-stage.
+                val bus = NestedDesktop.sessionBusAddress(context)
+                val cmd = if (bus != null) {
+                    "DISPLAY=:7 DBUS_SESSION_BUS_ADDRESS=\"$bus\" pcmanfm-qt --set-wallpaper ${wallpaperPathFor(tag)}"
+                } else {
+                    "pcmanfm-qt --set-wallpaper ${wallpaperPathFor(tag)}"
+                }
+                GuestSession.sendCommand(cmd)
             }
         } catch (e: Exception) {
             MudifLog.d(TAG, "theme switch live wallpaper failed: ${e.message}")
@@ -1011,14 +1043,15 @@ object LxqtLook {
             // launch retries; a failed install never marks the look
             // applied. The desktop restarts after staging, so the
             // new binary runs.
-            context.assets.open(PCMANFM_DEB_ASSET).use { input ->
-                File(mudifConfDir, PCMANFM_DEB_ASSET.substringAfterLast("/")).outputStream().use { out ->
+            val pcmanfmDebAsset = pcmanfmDebAsset()
+            context.assets.open(pcmanfmDebAsset).use { input ->
+                File(mudifConfDir, pcmanfmDebAsset.substringAfterLast("/")).outputStream().use { out ->
                     input.copyTo(out)
                 }
             }
             val debResult = TerminalSession.runCommandDebian(
                 context,
-                "dpkg -i /root/.config/mudif/${PCMANFM_DEB_ASSET.substringAfterLast("/")} && echo PCMANFM_DEB_OK",
+                "dpkg -i /root/.config/mudif/${pcmanfmDebAsset.substringAfterLast("/")} && echo PCMANFM_DEB_OK",
                 idleTimeoutSec = 30,
                 maxTimeoutSec = 120
             )
@@ -1039,14 +1072,15 @@ object LxqtLook {
             // /usr/local/bin/mudif-settings and the .desktop file
             // to /usr/share/applications/mudif-settings.desktop.
             // The shim staged above redirects the gear to it.
-            context.assets.open(SETTINGS_DEB_ASSET).use { input ->
-                File(mudifConfDir, SETTINGS_DEB_ASSET.substringAfterLast("/")).outputStream().use { out ->
+            val settingsDebAsset = settingsDebAsset()
+            context.assets.open(settingsDebAsset).use { input ->
+                File(mudifConfDir, settingsDebAsset.substringAfterLast("/")).outputStream().use { out ->
                     input.copyTo(out)
                 }
             }
             val settingsDebResult = TerminalSession.runCommandDebian(
                 context,
-                "dpkg -i /root/.config/mudif/${SETTINGS_DEB_ASSET.substringAfterLast("/")} && echo SETTINGS_DEB_OK",
+                "dpkg -i /root/.config/mudif/${settingsDebAsset.substringAfterLast("/")} && echo SETTINGS_DEB_OK",
                 idleTimeoutSec = 30,
                 maxTimeoutSec = 120
             )

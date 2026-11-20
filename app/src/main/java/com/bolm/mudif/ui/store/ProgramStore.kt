@@ -28,6 +28,57 @@ object ProgramStore {
     /** Guest path of the p68 download library (staged by LxqtLook). */
     private const val MUDIF_DL = "/root/.config/mudif/mudif-dl.sh"
 
+    /** Guest dir for translated Windows programs (method "win32"). */
+    private const val WIN32_DIR = "/usr/local/win32"
+
+    /** Guest path of a translated Windows program, e.g.
+     *  /usr/local/win32/notepad.exe. Blank when the program has no
+     *  win32 key (a malformed entry); callers treat blank as absent. */
+    fun win32ProgramPath(program: StoreProgram): String {
+        val key = program.win32 ?: return ""
+        return "$WIN32_DIR/$key.exe"
+    }
+
+    /** Guest shell command that launches a translated Windows
+     *  program directly: the AOT binary IS the program (translated
+     *  once on the build machine), so there is no translator at
+     *  runtime. The program opens its own window on the desktop.
+     *  PROVEN on the VM (qemu-aarch64 on Xvfb:99: window, typing,
+     *  File menu, Save, clean Exit 0). NOT PROVEN on a phone or on
+     *  the rig: launch runs only on arm64, the rig guest is x86_64. */
+    fun win32LaunchCommand(program: StoreProgram): String =
+        "${win32ProgramPath(program)} >/dev/null 2>&1 &"
+
+    /**
+     * Real preflight for a Windows program: guest arch and AOT
+     * binary presence. The AOT binary is the translated program
+     * itself (no translator runs at launch); the tap on a win32
+     * entry runs this one guest call and reports the findings
+     * honestly before installing.
+     */
+    fun win32Preflight(context: Context, program: StoreProgram): Pair<String, Boolean> {
+        val r = TerminalSession.runCommandDebian(
+            context,
+            "uname -m; [ -f ${win32ProgramPath(program)} ] && echo PROGRAM_YES || echo PROGRAM_NO",
+            30, 60
+        )
+        val noOutput = context.getString(R.string.ui_no_output)
+        val lines = r.output.lines().map { it.trim() }
+        val arch = lines.firstOrNull()?.takeIf {
+            it.isNotBlank() && it != noOutput && !it.startsWith("PROGRAM_")
+        } ?: ""
+        return Pair(arch, lines.contains("PROGRAM_YES"))
+    }
+
+    /** The honest message for a win32 tap: the fixed explanation
+     *  plus the two preflight findings, one per line. */
+    fun win32InfoMessage(context: Context, preflight: Pair<String, Boolean>): String {
+        val (arch, program) = preflight
+        return context.getString(R.string.win32_not_ready) + "\n\n" +
+            context.getString(R.string.win32_check_arch, arch.ifBlank { "؟" }) + "\n" +
+            context.getString(if (program) R.string.win32_check_program_yes else R.string.win32_check_program_no)
+    }
+
     /**
      * p68: pause handle for a running store download. The dialog's
      * Pause button calls [pause]; it kills the guest command, the
@@ -119,6 +170,16 @@ object ProgramStore {
             script.append("[ -f ").append(q).append(" ] && echo 'FONT:")
                 .append(p.id).append("'\n")
         }
+        // Win32 programs: installed means the translated program
+        // file is present in the guest (same one-test-per-program
+        // shape as the font check above).
+        val win32Programs = programs.filter { it.method == "win32" && it.win32 != null }
+        for (p in win32Programs) {
+            val path = win32ProgramPath(p)
+            val q = "'" + path.replace("'", "'\\''") + "'"
+            script.append("[ -f ").append(q).append(" ] && echo 'WIN32:")
+                .append(p.id).append("'\n")
+        }
         // The last line decides the shell exit code, and a missing
         // binary or font is a normal "not installed", not a failure:
         // without this, a missing lifta font made the whole script
@@ -131,6 +192,7 @@ object ProgramStore {
         val installedPkgs = HashSet<String>()
         val foundBins = HashSet<String>()
         val foundFonts = HashSet<String>()
+        val foundWin32 = HashSet<String>()
         for (line in r.output.lines()) {
             val trimmed = line.trim()
             when {
@@ -141,6 +203,8 @@ object ProgramStore {
                     foundBins.add(trimmed.removePrefix("BIN:").trim())
                 trimmed.startsWith("FONT:") ->
                     foundFonts.add(trimmed.removePrefix("FONT:").trim())
+                trimmed.startsWith("WIN32:") ->
+                    foundWin32.add(trimmed.removePrefix("WIN32:").trim())
             }
         }
         val out = HashMap<String, Boolean>()
@@ -151,6 +215,7 @@ object ProgramStore {
                 "script" -> p.binary != null && foundBins.contains(p.binary)
                 "font" -> if (p.font != null) foundFonts.contains(p.id)
                     else p.apt != null && installedPkgs.contains(p.apt)
+                "win32" -> p.win32 != null && foundWin32.contains(p.id)
                 else -> false
             }
         }
@@ -191,6 +256,21 @@ object ProgramStore {
                         30, 60
                     )
                     val installed = r.output.contains("install ok installed")
+                    installed to if (installed) r.output.trim() else lastLine(context, r.output)
+                }
+            }
+            "win32" -> {
+                // Installed means the AOT binary is present in the
+                // guest; the store ships it as an asset, so this
+                // reads NOT_INSTALLED until it is installed.
+                val path = win32ProgramPath(program)
+                if (path.isBlank()) {
+                    false to ""
+                } else {
+                    val r = TerminalSession.runCommandDebian(
+                        context, "[ -f $path ] && echo ${program.win32} || echo missing", 30, 60
+                    )
+                    val installed = r.output.lines().any { it.trim() == program.win32 }
                     installed to if (installed) r.output.trim() else lastLine(context, r.output)
                 }
             }
@@ -387,6 +467,25 @@ object ProgramStore {
                     runWithProgress(context, "($cmd) 2>&1", 180, 1800, onProgress)
                 }
             }
+            "win32" -> {
+                // The AOT binary ships as an app asset
+                // (win32/<key>-aot). Stage it, then place it in the
+                // guest at /usr/local/win32/<key>.exe with the exec
+                // bit. No translator runs at install or at launch.
+                val key = program.win32
+                val path = win32ProgramPath(program)
+                if (key.isNullOrBlank() || path.isBlank()) {
+                    TerminalResult(context.getString(R.string.ui_store_unknown_method), -1, false)
+                } else if (!stageAssetToGuest(context, "win32/$key-aot", "$STORE_TMP/$key-aot")) {
+                    TerminalResult(context.getString(R.string.win32_install_stage_failed), -1, false)
+                } else {
+                    TerminalSession.runCommandDebian(
+                        context,
+                        "(mkdir -p $WIN32_DIR && cp $STORE_TMP/$key-aot $path && chmod +x $path) 2>&1",
+                        60, 300
+                    )
+                }
+            }
             else -> TerminalResult(context.getString(R.string.ui_store_unknown_method), -1, false)
         }
         // Slice 1 (agent-as-OS): one log line per finished store
@@ -447,6 +546,19 @@ object ProgramStore {
                         context,
                         "(dpkg --configure -a; DEBIAN_FRONTEND=noninteractive apt-get remove -y ${program.apt}) 2>&1",
                         120, 900
+                    )
+                }
+            }
+            "win32" -> {
+                // Removes the translated program file when one is
+                // present; with nothing installed this is a no-op
+                // that still exits 0, and the post-verify agrees.
+                val path = win32ProgramPath(program)
+                if (path.isBlank()) {
+                    TerminalResult(context.getString(R.string.ui_store_unknown_uninstall), -1, false)
+                } else {
+                    TerminalSession.runCommandDebian(
+                        context, "(rm -f $path) 2>&1", 60, 300
                     )
                 }
             }

@@ -1,11 +1,13 @@
 package com.bolm.mudif.ui.keyboard
 
 import android.inputmethodservice.InputMethodService
+import android.os.Handler
+import android.os.SystemClock
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
-import android.os.SystemClock
 import com.bolm.mudif.ui.keyboard.KeyboardLayout.Action
 import com.bolm.mudif.ui.keyboard.KeyboardLayout.Language
 import com.bolm.mudif.ui.keyboard.KeyboardLayout.ShiftState
@@ -51,7 +53,25 @@ import com.bolm.mudif.ui.settings.AppTheme
  */
 class MudifKeyboardService : InputMethodService(), MudifKeyboardView.Listener {
 
+    companion object {
+        private const val TAG = "MudifKb"
+    }
+
     private var keyboardView: MudifKeyboardView? = null
+    /** Package of the last input session (set in onStartInput). The re-show
+     *  below must only fire for outside-app input, like the deferred show. */
+    private var lastInputPackage: String? = null
+    /** Re-show budget: the system hides this client's keyboard ~500 ms
+     *  after each show (explicit hideSoftInput, H5). If the hide is a
+     *  one-shot per tap/event, one delayed re-show sticks; if the system
+     *  hides after every show, the budget stops an infinite flicker loop
+     *  (the log then shows the loop and the fix is reverted). */
+    private var reshowBudget = 0
+    /** Uptime (ms) of the last onWindowShown. The re-show only fires when
+     *  the hide came soon after a show (the H5 signature, ~500 ms) — NOT
+     *  when the user had the keyboard up a while and pressed BACK to hide
+     *  it deliberately. */
+    private var lastShownAtMs = 0L
 
     private var language: Language = Language.ARABIC
     private var shift: ShiftState = ShiftState.OFF
@@ -70,8 +90,59 @@ class MudifKeyboardService : InputMethodService(), MudifKeyboardView.Listener {
         return view
     }
 
+    /** Some clients never ask the system to show the keyboard: the
+     *  Settings search field in landscape starts input (the
+     *  connection is live, the field is served) but no show is ever
+     *  requested, and the framework only starts the input view when
+     *  the window is already visible AND a show was requested
+     *  (InputMethodService.doStartInput) — so the keyboard never
+     *  appears. Attempt 1 (requestShowSelf from here) did not work:
+     *  the system round-trip never sets mShowInputRequested for
+     *  this client. Attempt 2 (showWindow(true) synchronously from
+     *  here) DID raise the keyboard — but only for one frame
+     *  (~0.1 s): showing the window inside onStartInput, i.e.
+     *  inside the system's startInput binder transaction while the
+     *  tap's focus is still settling, disrupts that transaction and
+     *  the field ends up unfocused, so the system finishes input
+     *  and hides the window again. So defer the show to the next
+     *  main-loop turn, after the transaction and the focus have
+     *  settled; the guard re-checks the input is still live so a
+     *  stale post can never raise the keyboard for a finished
+     *  input. Attempt 3 PROVED the !restarting gate is wrong for
+     *  this field: the SearchActivity starts input on open
+     *  (mInputStarted=true BEFORE any tap), so every tap is a
+     *  restart and the gate skipped the fix entirely — the
+     *  keyboard still flashed (onStartInputView 34.909,
+     *  onWindowShown 34.938) via the client's own show, and hid
+     *  129 ms later (onFinishInputView finishingInput=false,
+     *  onWindowHidden 35.067) with no onFinishInput: the session
+     *  stayed live, the window was hidden from outside the
+     *  service (the service calls hideWindow nowhere). So the
+     *  gate is dropped: every input start, fresh or restart,
+     *  posts the deferred show. Outside our own app only; inside
+     *  the app the app itself decides when the keyboard opens
+     *  (viewer terminal, assistant), so in-app behaviour is
+     *  unchanged. */
+    override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(info, restarting)
+        Log.d(TAG, "onStartInput pkg=${info?.packageName} restarting=$restarting")
+        lastInputPackage = info?.packageName
+        reshowBudget = 3
+        if (info?.packageName != packageName) {
+            Handler(mainLooper).post {
+                if (currentInputConnection != null) {
+                    Log.d(TAG, "deferred showWindow")
+                    showWindow(true)
+                } else {
+                    Log.d(TAG, "deferred show skipped: input finished")
+                }
+            }
+        }
+    }
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        Log.d(TAG, "onStartInputView restarting=$restarting")
         // A fresh input starts with a clean one-shot shift, but the
         // language and the Caps lock stay as the user left them.
         shift = ShiftState.OFF
@@ -80,6 +151,8 @@ class MudifKeyboardService : InputMethodService(), MudifKeyboardView.Listener {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        Log.d(TAG, "onFinishInputView finishingInput=$finishingInput\n" +
+            Log.getStackTraceString(Throwable()))
         // A held modifier must never survive the keyboard closing:
         // release both, so the next open starts clean.
         ctrlHeld = false
@@ -92,6 +165,62 @@ class MudifKeyboardService : InputMethodService(), MudifKeyboardView.Listener {
     /** Never fullscreen: the keyboard is a strip above the viewer,
      *  never a full-screen input box. */
     override fun onEvaluateFullscreenMode(): Boolean = false
+
+    override fun onWindowShown() {
+        super.onWindowShown()
+        Log.d(TAG, "onWindowShown")
+        lastShownAtMs = SystemClock.uptimeMillis()
+    }
+
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        Log.d(TAG, "onWindowHidden\n" + Log.getStackTraceString(Throwable()))
+        // H6: the system hides this client's keyboard ~500 ms after each
+        // show (explicit hideSoftInput; the show itself works). If that
+        // hide is a one-shot per tap/event, a delayed re-show — after the
+        // hide trigger has passed — sticks. If the system hides after
+        // every show, the budget below stops the flicker loop (the log
+        // then shows it and this is reverted). Only when the hide came
+        // soon after a show (H5 signature), never for a deliberate
+        // user hide after the keyboard was up a while. Outside our own
+        // app only.
+        val sinceShown = SystemClock.uptimeMillis() - lastShownAtMs
+        Log.d(TAG, "onWindowHidden check: lastInputPackage=$lastInputPackage pkg=$packageName budget=$reshowBudget sinceShown=$sinceShown")
+        if (lastInputPackage != packageName && reshowBudget > 0 && sinceShown < 2000) {
+            reshowBudget--
+            Log.d(TAG, "reshow in 500ms, budget left=$reshowBudget")
+            Handler(mainLooper).postDelayed({
+                if (currentInputConnection != null) {
+                    Log.d(TAG, "reshow showWindow")
+                    showWindow(true)
+                } else {
+                    Log.d(TAG, "reshow skipped: input finished")
+                }
+            }, 500)
+        }
+    }
+
+    /** PROBE (attempt 5): log every hideWindow call with its stack so the
+     *  hide caller is named — the keyboard is raised by the deferred show
+     *  and hidden ~0.2 s later through onFinishInputView(finishingInput=
+     *  false) with the input session still live, and the system logs
+     *  nothing about it. Diagnostic only; the behaviour is attempt 4's. */
+    override fun hideWindow() {
+        Log.d(TAG, "hideWindow\n" + Log.getStackTraceString(Throwable()))
+        super.hideWindow()
+    }
+
+    /** PROBE: does the client's show request reach this service at all? */
+    override fun onShowInputRequested(flags: Int, configChange: Boolean): Boolean {
+        val r = super.onShowInputRequested(flags, configChange)
+        Log.d(TAG, "onShowInputRequested flags=$flags configChange=$configChange -> $r")
+        return r
+    }
+
+    override fun onFinishInput() {
+        super.onFinishInput()
+        Log.d(TAG, "onFinishInput")
+    }
 
     private fun palette(): MudifKeyboardView.Palette =
         when (AppTheme.currentTag(this)) {
