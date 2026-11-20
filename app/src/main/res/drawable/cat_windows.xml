@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Windows list gradient. The Windows programs list is not a
+     Linux category, but its card, letter tile and page header use
+     the same standard gradient as the rest of the app (#593BFE to
+     #3D2BB5, diagonal 135), like cat_all. No per-category colors. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#593BFE"
+        android:endColor="#3D2BB5"
+        android:angle="135"
+        android:type="linear" />
+    <corners android:radius="16dp" />
+</shape>

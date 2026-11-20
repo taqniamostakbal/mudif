@@ -95,75 +95,15 @@ osd.bg: gradient vertical flat
 osd.bg.color: #303030
 osd.bg.colorTo: #080808
 
-!! p100: traffic-light dots (SAMPLE-SPEC.md section 3). The three
-!! titlebar buttons are solid 14 px discs (close.xbm, iconify.xbm,
-!! max.xbm in this theme dir) tinted per button. Specific per-button
-!! keys override the generic window.*.button.*.image.color above.
-!! Active and inactive use the same colors (the sample measures one
-!! active window only); pressed/hover/disabled/toggled match so the
-!! dots never revert to white glyphs.
-window.active.button.close.unpressed.image.color: #FF5F56
-window.active.button.close.pressed.image.color: #FF5F56
-window.active.button.close.hover.image.color: #FF5F56
-window.active.button.close.disabled.image.color: #FF5F56
-window.inactive.button.close.unpressed.image.color: #FF5F56
-window.inactive.button.close.pressed.image.color: #FF5F56
-window.inactive.button.close.hover.image.color: #FF5F56
-window.inactive.button.close.disabled.image.color: #FF5F56
-window.active.button.iconify.unpressed.image.color: #FFBD2E
-window.active.button.iconify.pressed.image.color: #FFBD2E
-window.active.button.iconify.hover.image.color: #FFBD2E
-window.active.button.iconify.disabled.image.color: #FFBD2E
-window.inactive.button.iconify.unpressed.image.color: #FFBD2E
-window.inactive.button.iconify.pressed.image.color: #FFBD2E
-window.inactive.button.iconify.hover.image.color: #FFBD2E
-window.inactive.button.iconify.disabled.image.color: #FFBD2E
-window.active.button.max.unpressed.image.color: #27C93F
-window.active.button.max.pressed.image.color: #27C93F
-window.active.button.max.hover.image.color: #27C93F
-window.active.button.max.disabled.image.color: #27C93F
-window.active.button.max.unpressed.toggled.image.color: #27C93F
-window.active.button.max.pressed.toggled.image.color: #27C93F
-window.active.button.max.hover.toggled.image.color: #27C93F
-window.inactive.button.max.unpressed.image.color: #27C93F
-window.inactive.button.max.pressed.image.color: #27C93F
-window.inactive.button.max.hover.image.color: #27C93F
-window.inactive.button.max.disabled.image.color: #27C93F
-window.inactive.button.max.unpressed.toggled.image.color: #27C93F
-window.inactive.button.max.pressed.toggled.image.color: #27C93F
-window.inactive.button.max.hover.toggled.image.color: #27C93F
-!! p102: global toggled button colors. The per-button max toggled keys
-!! above are correct per openbox 3.6.1 obrender/theme.c (read_button_styles
-!! reads window.active.button.max.unpressed.toggled.image.color), but the
-!! live maximized dot rendered the wildcard #F2EFFF, i.e. the per-button
-!! read did not take effect in the live process for a reason the file,
-!! Xrm and source layers cannot show (see EVIDENCE.md section 2). The
-!! fallback chain (theme.c lines 365-387) reads these global keys next;
-!! with them present the toggled dot is #27C93F even if the per-button
-!! read misses again. Harmless if the per-button read works: the
-!! per-button key is tighter (8 components) and wins. Only the max
-!! button has a toggled state in titleLayout CIML, so only it is affected.
-window.active.button.toggled.unpressed.image.color: #27C93F
-window.active.button.toggled.image.color: #27C93F
-window.inactive.button.toggled.unpressed.image.color: #27C93F
-window.inactive.button.toggled.image.color: #27C93F
-window.active.button.toggled.hover.image.color: #27C93F
-window.inactive.button.toggled.hover.image.color: #27C93F
-window.active.button.toggled.pressed.image.color: #27C93F
-window.inactive.button.toggled.pressed.image.color: #27C93F
-!! p103: per-button toggled keys in the INSTALLED query order.
-!! The LD_PRELOAD shim (p102-verify/shim.log) proved the installed
-!! openbox queries window.active.button.max.toggled.<state>.image.color
-!! (button.toggled.state), while the p100 keys above are written
-!! max.<state>.toggled and never match, so the query fell back to the
-!! bare wildcard #FFFFFF. These 6 keys are the exact order the live
-!! binary asks for; the p100 keys stay as harmless dead keys (they
-!! would match an upstream-order build) and the p102 global keys stay
-!! as the fallback safety net. Only the max button has a toggled
-!! state in titleLayout CIML.
-window.active.button.max.toggled.unpressed.image.color: #27C93F
-window.active.button.max.toggled.pressed.image.color: #27C93F
-window.active.button.max.toggled.hover.image.color: #27C93F
-window.inactive.button.max.toggled.unpressed.image.color: #27C93F
-window.inactive.button.max.toggled.pressed.image.color: #27C93F
-window.inactive.button.max.toggled.hover.image.color: #27C93F
+!! p124: professional minimal buttons. One neutral glyph colour per
+!! theme (the generic window.*.button.*.image.color above rules all
+!! three buttons in every state); the p100/p102/p103 per-button
+!! traffic-light tints are deleted. Close turns red ONLY on hover:
+!! red button bg, white glyph. Iconify/max keep the generic purple
+!! hover bg with the neutral glyph.
+window.active.button.close.hover.bg: flat solid
+window.active.button.close.hover.bg.color: #E5484D
+window.active.button.close.hover.image.color: #FFFFFF
+window.active.button.close.pressed.bg: flat solid
+window.active.button.close.pressed.bg.color: #C62F2F
+window.active.button.close.pressed.image.color: #FFFFFF

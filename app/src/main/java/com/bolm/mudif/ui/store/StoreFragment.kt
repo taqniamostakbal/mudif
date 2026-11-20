@@ -229,9 +229,16 @@ class StoreFragment : Fragment() {
                 programs = loaded
                 guestArch = arch
                 // P19 Phase 1: category counts for the gradient cards.
-                categoryAdapter.setCounts(
-                    loaded.groupBy { it.category }.mapValues { it.value.size }
-                )
+                // Windows programs are counted on the Windows card
+                // only: the Linux category counts (and "الكل") count
+                // Linux programs only, so adding a Windows program
+                // moves no Linux count.
+                val counts = HashMap<String, Int>()
+                for ((cat, list) in loaded.filter { it.method != "win32" }.groupBy { it.category }) {
+                    counts[cat] = list.size
+                }
+                counts[StoreCategory.WINDOWS.key] = loaded.count { it.method == "win32" }
+                categoryAdapter.setCounts(counts)
                 if (loaded.isEmpty()) {
                     Snackbar.make(
                         binding.root,
@@ -302,19 +309,33 @@ class StoreFragment : Fragment() {
         // place in the scrolling list).
         setSectionsVisible(q.isEmpty())
         val filtered = programs.filter { p ->
-            (selectedCategory == StoreCategory.ALL.key || p.category == selectedCategory) &&
-                (q.isEmpty() || p.name.contains(q, ignoreCase = true) ||
-                    p.nameEn.contains(q, ignoreCase = true) ||
-                    p.desc.contains(q, ignoreCase = true))
+            val inList = if (selectedCategory == StoreCategory.WINDOWS.key) {
+                p.method == "win32"
+            } else {
+                // Every Linux list shows Linux programs only; Windows
+                // programs live in the Windows list alone.
+                p.method != "win32" &&
+                    (selectedCategory == StoreCategory.ALL.key || p.category == selectedCategory)
+            }
+            inList && (q.isEmpty() || p.name.contains(q, ignoreCase = true) ||
+                p.nameEn.contains(q, ignoreCase = true) ||
+                p.desc.contains(q, ignoreCase = true))
         }
         val items = ArrayList<StoreListItem>()
         if (q.isEmpty()) {
-            val groups = filtered.groupBy { it.category }
-            for (category in StoreCategory.entries) {
-                if (category == StoreCategory.ALL) continue
-                val list = groups[category.key] ?: continue
-                items.add(StoreListItem.Header(category.key, list.size))
-                for (p in list) items.add(StoreListItem.Program(p))
+            if (selectedCategory == StoreCategory.WINDOWS.key) {
+                if (filtered.isNotEmpty()) {
+                    items.add(StoreListItem.Header(StoreCategory.WINDOWS.key, filtered.size))
+                    for (p in filtered) items.add(StoreListItem.Program(p))
+                }
+            } else {
+                val groups = filtered.groupBy { it.category }
+                for (category in StoreCategory.entries) {
+                    if (category == StoreCategory.ALL || category == StoreCategory.WINDOWS) continue
+                    val list = groups[category.key] ?: continue
+                    items.add(StoreListItem.Header(category.key, list.size))
+                    for (p in list) items.add(StoreListItem.Program(p))
+                }
             }
         } else {
             for (p in filtered) items.add(StoreListItem.Program(p))
@@ -365,8 +386,46 @@ class StoreFragment : Fragment() {
         }.start()
     }
 
+    /** Win32 tap: runs the real guest preflight, then reports the
+     *  findings honestly in a dialog. The AOT binary ships with
+     *  the store now, so Install proceeds to the normal install
+     *  when the user confirms; Cancel leaves the card
+     *  NOT_INSTALLED. Launch runs only on arm64 and is unproven
+     *  on a real device, and the dialog says so. */
+    private fun runWin32Info(program: StoreProgram, onConfirm: () -> Unit) {
+        if (!systemReady()) return
+        setState(program.id, ProgramState.CHECKING)
+        val appCtx = requireContext().applicationContext
+        Thread {
+            val preflight = ProgramStore.win32Preflight(appCtx, program)
+            val message = ProgramStore.win32InfoMessage(appCtx, preflight)
+            uiHandler.post {
+                if (!isAdded) return@post
+                MudifDialog.info(
+                    requireContext(),
+                    program.name,
+                    message,
+                    getString(R.string.install),
+                    onPositive = { onConfirm() },
+                    negative = getString(R.string.cancel),
+                    onNegative = {
+                        setState(program.id, ProgramState.NOT_INSTALLED)
+                    }
+                )
+            }
+        }.start()
+    }
+
     private fun runInstall(program: StoreProgram) {
         if (!systemReady()) return
+        if (program.method == "win32") {
+            runWin32Info(program) { runInstallConfirmed(program) }
+            return
+        }
+        runInstallConfirmed(program)
+    }
+
+    private fun runInstallConfirmed(program: StoreProgram) {
         if (program.method == "deb") {
             if (guestArch.isEmpty()) {
                 Snackbar.make(

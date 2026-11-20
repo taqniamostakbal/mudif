@@ -56,12 +56,16 @@ class CategoryCardAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val category = categories[position]
         val selected = category.key == selectedKey
-        // Honest counts: "الكل" counts only real programs (entries
-        // with a launchable binary). Fonts are not programs, they
-        // are counted on their own card as خطوط, never as برامج.
+        // Honest counts: "الكل" counts only real Linux programs
+        // (entries with a launchable binary). Fonts are not programs,
+        // they are counted on their own card as خطوط, never as برامج.
+        // Windows programs are not Linux programs either: they are
+        // counted on the Windows card only, never in "الكل", so the
+        // "الكل 1139 برامج" count does not move when a Windows
+        // program is added.
         val count = if (category == StoreCategory.ALL) {
             counts.entries
-                .filter { it.key != StoreCategory.FONTS.key }
+                .filter { it.key != StoreCategory.FONTS.key && it.key != StoreCategory.WINDOWS.key }
                 .sumOf { it.value }
         } else counts[category.key] ?: 0
         val unit = if (category == StoreCategory.FONTS) holder.binding.root.context.getString(com.bolm.mudif.R.string.ui_store_unit_fonts) else holder.binding.root.context.getString(com.bolm.mudif.R.string.ui_store_unit_programs)
