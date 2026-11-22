@@ -41,6 +41,15 @@ data class StoreProgram(
      * Null for every Linux method.
      */
     val win32: String?,
+    /**
+     * F6: the Windows components (runtimes) this program needs,
+     * from the catalog JSON "components" array, e.g.
+     * ["msvcrt", "vcruntime140"]. Null = the program declares
+     * none, so the install gate does not apply to it. The
+     * components are compiled into the AOT binary, never staged
+     * as files.
+     */
+    val components: List<String>? = null,
     val icon: String,
     /**
      * Extra launch flags appended to the binary when the program
@@ -183,6 +192,9 @@ object StoreCatalog {
                     script = o.optString("script", null)?.takeIf { it != "null" },
                     font = o.optString("font", null)?.takeIf { it != "null" },
                     win32 = o.optString("win32", null)?.takeIf { it != "null" },
+                    components = o.optJSONArray("components")?.let { arr ->
+                        List(arr.length()) { i -> arr.getString(i) }
+                    },
                     icon = o.getString("icon"),
                     flags = o.optString("flags", null)?.takeIf { it != "null" },
                     runAs = o.optString("runAs", null)?.takeIf { it != "null" },

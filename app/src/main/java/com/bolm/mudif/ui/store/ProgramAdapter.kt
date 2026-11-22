@@ -191,6 +191,19 @@ class ProgramAdapter(
                 if (program.nameEn == binding.programName.text.toString()) View.GONE else View.VISIBLE
             binding.programDesc.text = program.displayDesc(ctx)
 
+            // F6: the Windows components this program needs. The
+            // line never changes at runtime (it comes from the
+            // catalog), so it lives in the full bind, not the
+            // status-only path. No components = hidden.
+            val compText = Win32Components.labelsFor(program.components)
+            if (compText.isNotBlank()) {
+                binding.programComponents.text =
+                    ctx.getString(R.string.store_components_label, compText)
+                binding.programComponents.visibility = View.VISIBLE
+            } else {
+                binding.programComponents.visibility = View.GONE
+            }
+
             // Letter tile first (P19 Phase 1: the letter sits on the
             // program's category gradient, not a plain purple circle).
             // It stays until the real icon arrives, and it is the final

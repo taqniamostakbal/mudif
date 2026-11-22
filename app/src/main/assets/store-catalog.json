@@ -1004,6 +1004,17 @@
       "icon": "notepad.png"
     },
     {
+      "id": "vctest",
+      "name": "اختبار المكونات",
+      "nameEn": "Components test",
+      "desc": "برنامج اختبار صغير يتحقق من مكونات ويندوز (مكتبة سي ووقت تشغيل سي++)، يطبع نتيجة الاختبارات ويكتب ملفا نصيا.",
+      "category": "dev",
+      "method": "win32",
+      "win32": "vctest",
+      "components": ["msvcrt", "vcruntime140"],
+      "icon": "vctest.png"
+    },
+    {
       "id": "sherlock",
       "name": "شيرلوك",
       "nameEn": "Sherlock",

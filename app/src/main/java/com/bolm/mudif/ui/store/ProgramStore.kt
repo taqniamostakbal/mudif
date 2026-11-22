@@ -501,7 +501,22 @@ object ProgramStore {
                 // No translator runs at install or at launch.
                 val key = program.win32
                 val path = win32ProgramPath(program)
-                if (key.isNullOrBlank() || path.isBlank()) {
+                // F6: a program whose components are unavailable
+                // refuses before anything is staged. The components
+                // are compiled into the AOT binary, so there is
+                // nothing extra to stage: a program that declares
+                // only available components installs exactly like
+                // before, and a program that declares none (Notepad)
+                // is unaffected.
+                val missing = Win32Components.missingFor(program.components)
+                if (missing.isNotEmpty()) {
+                    TerminalResult(
+                        context.getString(
+                            R.string.win32_component_missing,
+                            missing.joinToString("، ") { it.label }
+                        ), -1, false
+                    )
+                } else if (key.isNullOrBlank() || path.isBlank()) {
                     TerminalResult(context.getString(R.string.ui_store_unknown_method), -1, false)
                 } else if (!stageAssetToGuest(context, "win32/$key-aot", "$STORE_TMP/$key-aot")) {
                     TerminalResult(context.getString(R.string.win32_install_stage_failed), -1, false)

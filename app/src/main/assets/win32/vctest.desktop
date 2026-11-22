@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=اختبار المكونات
+Name[en]=Components test
+Comment=برنامج اختبار صغير يتحقق من مكونات ويندوز (مكتبة سي ووقت تشغيل سي++)، يطبع نتيجة الاختبارات ويكتب ملفا نصيا.
+Exec=/usr/local/win32/vctest.exe
+Icon=/usr/share/pixmaps/vctest.png
+Terminal=false
+Categories=Development;
+StartupNotify=false
