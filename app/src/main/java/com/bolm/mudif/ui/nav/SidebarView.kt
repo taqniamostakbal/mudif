@@ -312,7 +312,10 @@ class SidebarView @JvmOverloads constructor(
                     setTextColor(onSurface)
                 })
                 col.addView(TextView(context).apply {
-                    text = context.getString(R.string.about_value)
+                    text = context.getString(
+                        R.string.about_version_chip,
+                        com.bolm.mudif.engine.MudifUpdater.currentVersion(context).first
+                    )
                     textSize = 12f
                     typeface = cairo
                     setTextColor(ColorUtils.setAlphaComponent(onSurface, 153))

@@ -11,6 +11,7 @@ import com.bolm.mudif.R
 import com.bolm.mudif.databinding.FragmentHomeBinding
 import com.bolm.mudif.engine.DebianSystem
 import com.bolm.mudif.engine.InstallFlow
+import com.bolm.mudif.engine.MudifUpdater
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.store.StoreCatalog
 import com.bolm.mudif.ui.vnc.VncActivity
@@ -36,6 +37,12 @@ class HomeFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        // Take 4: the version card shows the real installed version,
+        // not the hardcoded string the layout used to carry.
+        binding.textAppVersion.text = getString(
+            R.string.about_version_chip,
+            MudifUpdater.currentVersion(requireContext()).first
+        )
         binding.btnStore.setOnClickListener {
             parentFragmentManager.beginTransaction()
                 .replace(R.id.nav_host, com.bolm.mudif.ui.store.StoreFragment())
