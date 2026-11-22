@@ -9,12 +9,15 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ItemProgramBinding
 import com.bolm.mudif.databinding.ItemSectionHeaderBinding
+import com.bolm.mudif.databinding.ItemUnifiedResultBinding
 import com.bolm.mudif.ui.CardEntrance
 
-/** One row in the program list: a category header or a program card. */
+/** One row in the program list: a category header, a program card,
+ *  or one unified-search result (take 3). */
 sealed class StoreListItem {
     data class Header(val category: String, val count: Int) : StoreListItem()
     data class Program(val program: StoreProgram) : StoreListItem()
+    data class Unified(val result: UnifiedSearch.UnifiedResult) : StoreListItem()
 }
 
 /**
@@ -27,7 +30,10 @@ sealed class StoreListItem {
 class ProgramAdapter(
     private val onVerify: (StoreProgram) -> Unit,
     private val onInstall: (StoreProgram) -> Unit,
-    private val onUninstall: (StoreProgram) -> Unit
+    private val onUninstall: (StoreProgram) -> Unit,
+    /** Take 3: tap on a unified-search row. Default no-op keeps the
+     *  category fragment compiling unchanged (it has no search). */
+    private val onUnified: (UnifiedSearch.UnifiedResult) -> Unit = {}
 ) : ListAdapter<StoreListItem, RecyclerView.ViewHolder>(DIFF) {
 
     private var states: Map<String, ProgramState> = emptyMap()
@@ -86,14 +92,15 @@ class ProgramAdapter(
     override fun getItemViewType(position: Int): Int = when (getItem(position)) {
         is StoreListItem.Header -> TYPE_HEADER
         is StoreListItem.Program -> TYPE_PROGRAM
+        is StoreListItem.Unified -> TYPE_UNIFIED
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType == TYPE_HEADER) {
-            HeaderHolder(ItemSectionHeaderBinding.inflate(inflater, parent, false))
-        } else {
-            ProgramHolder(ItemProgramBinding.inflate(inflater, parent, false))
+        return when (viewType) {
+            TYPE_HEADER -> HeaderHolder(ItemSectionHeaderBinding.inflate(inflater, parent, false))
+            TYPE_UNIFIED -> UnifiedHolder(ItemUnifiedResultBinding.inflate(inflater, parent, false))
+            else -> ProgramHolder(ItemProgramBinding.inflate(inflater, parent, false))
         }
     }
 
@@ -111,6 +118,7 @@ class ProgramAdapter(
     ) {
         when (val item = getItem(position)) {
             is StoreListItem.Header -> (holder as HeaderHolder).bind(item)
+            is StoreListItem.Unified -> (holder as UnifiedHolder).bind(item.result)
             is StoreListItem.Program -> {
                 val programHolder = holder as ProgramHolder
                 if (payloads.contains(PAYLOAD_STATE)) programHolder.bindState(item.program)
@@ -131,11 +139,35 @@ class ProgramAdapter(
     inner class HeaderHolder(private val binding: ItemSectionHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(item: StoreListItem.Header) {
+            // Take 3: the unified-search section header is not a
+            // catalog category, so it carries its own label.
+            if (item.category == "unified") {
+                binding.headerTitle.text = binding.root.context.getString(
+                    R.string.store_section_count,
+                    binding.root.context.getString(R.string.unified_search_title),
+                    item.count
+                )
+                return
+            }
             binding.headerTitle.text = binding.root.context.getString(
                 R.string.store_section_count,
                 StoreCategory.labelFor(binding.root.context, item.category),
                 item.count
             )
+        }
+    }
+
+    /** Take 3: one unified-search row. A tap opens it (Android app,
+     *  Linux program, or settings shortcut). */
+    inner class UnifiedHolder(private val binding: ItemUnifiedResultBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(result: UnifiedSearch.UnifiedResult) {
+            binding.unifiedLabel.text = result.label
+            binding.unifiedSubtitle.text = result.subtitle.ifBlank { result.source }
+            binding.unifiedSubtitle.visibility =
+                if (result.subtitle.isBlank()) View.GONE else View.VISIBLE
+            binding.unifiedSource.text = result.source
+            binding.root.setOnClickListener { onUnified(result) }
         }
     }
 
@@ -250,6 +282,7 @@ class ProgramAdapter(
     companion object {
         private const val TYPE_HEADER = 0
         private const val TYPE_PROGRAM = 1
+        private const val TYPE_UNIFIED = 2
         private const val ICON_TILE_DP = 56
         /** p73: payload marking a status-only rebind (see
          *  [ProgramHolder.bindState]). */
@@ -262,6 +295,8 @@ class ProgramAdapter(
                         old.category == new.category
                     old is StoreListItem.Program && new is StoreListItem.Program ->
                         old.program.id == new.program.id
+                    old is StoreListItem.Unified && new is StoreListItem.Unified ->
+                        old.result.kind == new.result.kind && old.result.id == new.result.id
                     else -> false
                 }
             }

@@ -40,6 +40,10 @@ class StoreFragment : Fragment() {
     private var statusesLoaded: Boolean = false
     private val states = HashMap<String, ProgramState>()
     private val evidence = HashMap<String, String>()
+    // Take 3: unified-search rows for the current query, and a
+    // token so a slow search never overwrites a newer query.
+    private var unifiedResults: List<UnifiedSearch.UnifiedResult> = emptyList()
+    private var unifiedToken = 0
     private lateinit var programAdapter: ProgramAdapter
     private lateinit var categoryAdapter: CategoryCardAdapter
     private lateinit var distroAdapter: DistroAdapter
@@ -111,7 +115,8 @@ class StoreFragment : Fragment() {
         programAdapter = ProgramAdapter(
             onVerify = { p -> runVerify(p) },
             onInstall = { p -> runInstall(p) },
-            onUninstall = { p -> runUninstall(p) }
+            onUninstall = { p -> runUninstall(p) },
+            onUnified = { r -> runUnified(r) }
         )
         concatAdapter = ConcatAdapter(distroAdapter, categoryAdapter, programAdapter)
         binding.programsRecycler.layoutManager = GridLayoutManager(requireContext(), 2).apply {
@@ -296,20 +301,83 @@ class StoreFragment : Fragment() {
         }
     }
 
-    /** Search (Arabic name, English name, description) plus category filter. */
+    /** Search (Arabic name, English name, description) plus category filter.
+     *  Take 3: a non-empty query also runs the unified search
+     *  (Android apps + Linux .desktop files + settings shortcuts)
+     *  on a background thread. The program results show at once;
+     *  the unified section joins at the top when it is ready, and
+     *  a stale search (older token) never overwrites a newer query. */
     private fun applyFilter() {
         val q = query.trim()
-        // p21: while a query is typed, the distro card + category
-        // cards leave the list so the filtered programs are what the
-        // user sees. Before, the cards stayed visible with stale
-        // counts and the screen looked unfiltered even though the
-        // list below had already filtered. p30: the sections are
-        // adapters in the concat list, so they are added/removed
-        // instead of hidden (a hidden adapter would still hold its
-        // place in the scrolling list).
         setSectionsVisible(q.isEmpty())
+        if (q.isEmpty()) {
+            unifiedToken++
+            unifiedResults = emptyList()
+            submitItems(buildProgramItems(q))
+            return
+        }
+        submitItems(withUnified(buildProgramItems(q)))
+        val token = ++unifiedToken
+        val appCtx = requireContext().applicationContext
+        val needle = q
+        Thread {
+            val found = try {
+                UnifiedSearch.search(appCtx, needle)
+            } catch (_: Exception) {
+                emptyList()
+            }
+            uiHandler.post {
+                if (!isAdded || token != unifiedToken) return@post
+                unifiedResults = found
+                submitItems(withUnified(buildProgramItems(query.trim())))
+            }
+        }.start()
+    }
+
+    /** The unified section (header + rows) on top of the program
+     *  items, or the program items alone when there is nothing. */
+    private fun withUnified(programItems: List<StoreListItem>): List<StoreListItem> {
+        if (unifiedResults.isEmpty()) return programItems
+        val items = ArrayList<StoreListItem>()
+        items.add(StoreListItem.Header("unified", unifiedResults.size))
+        for (r in unifiedResults) items.add(StoreListItem.Unified(r))
+        items.addAll(programItems)
+        return items
+    }
+
+    private fun submitItems(items: List<StoreListItem>) {
+        val empty = items.isEmpty()
+        binding.emptyState.visibility = if (empty) View.VISIBLE else View.GONE
+        binding.programsRecycler.visibility = if (empty) View.GONE else View.VISIBLE
+        programAdapter.submitListAnimated(items)
+    }
+
+    /** Opens one unified-search result. A failure (no launch
+     *  intent and no usable Exec line) is reported, never silent. */
+    private fun runUnified(result: UnifiedSearch.UnifiedResult) {
+        val ok = try {
+            UnifiedSearch.launch(this, result, programs)
+        } catch (_: Exception) {
+            false
+        }
+        if (!ok) {
+            Snackbar.make(
+                binding.root,
+                getString(R.string.unified_launch_failed, result.label),
+                Snackbar.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private fun buildProgramItems(q: String): List<StoreListItem> {
         val filtered = programs.filter { p ->
-            val inList = if (selectedCategory == StoreCategory.WINDOWS.key) {
+            // A search spans the whole catalog: a win32 program must
+            // be findable by name from the main store page, not only
+            // from the Windows category page. The method/category
+            // exclusion below applies to browsing (empty query) only.
+            val inList = if (q.isNotEmpty()) {
+                true
+            } else if (selectedCategory == StoreCategory.WINDOWS.key) {
                 p.method == "win32"
             } else {
                 // Every Linux list shows Linux programs only; Windows
@@ -340,10 +408,7 @@ class StoreFragment : Fragment() {
         } else {
             for (p in filtered) items.add(StoreListItem.Program(p))
         }
-        val empty = items.isEmpty()
-        binding.emptyState.visibility = if (empty) View.VISIBLE else View.GONE
-        binding.programsRecycler.visibility = if (empty) View.GONE else View.VISIBLE
-        programAdapter.submitListAnimated(items)
+        return items
     }
 
     private fun setState(id: String, state: ProgramState) {
