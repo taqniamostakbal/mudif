@@ -475,6 +475,9 @@
     <string name="ui_overlay_record">تسجيل</string>
     <string name="ui_overlay_tv">تلفاز</string>
     <string name="ui_overlay_audio">صوت</string>
+    <string name="ui_overlay_hud">الأداء</string>
+    <string name="ui_hud_battery">البطارية</string>
+    <string name="ui_hud_temp">الحرارة</string>
     <string name="ui_settings_notif_granted">تم منح إذن الإشعارات</string>
     <string name="ui_settings_notif_denied">لم يتم منح إذن الإشعارات</string>
     <string name="ui_settings_saved">تم الحفظ</string>
@@ -509,6 +512,8 @@
     <string name="win32_check_program_yes">النسخة المترجمة موجودة في الضيف</string>
     <string name="win32_check_program_no">النسخة المترجمة غير موجودة في الضيف</string>
     <string name="win32_install_stage_failed">تعذر تجهيز النسخة المترجمة للتثبيت.</string>
+    <string name="store_components_label">المكونات: %1$s</string>
+    <string name="win32_component_missing">تعذر التثبيت: المكون %1$s غير متوفر في هذه النسخة.</string>
     <string name="ui_store_unknown_uninstall">طريقة إلغاء تثبيت غير معروفة</string>
     <string name="ui_store_script_failed">تعذر تجهيز سكربت التثبيت</string>
     <string name="ui_store_font_failed">تعذر تجهيز ملف الخط</string>
