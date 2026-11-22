@@ -11,8 +11,8 @@ android {
         applicationId = "com.bolm.mudif"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 4
+        versionName = "0.2.2"
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
@@ -124,7 +124,7 @@ dependencies {
     // p77: fork commit 7a96cffa1 removes both mouse bars (only the X
     // arrow cursor stays) and replaces the "Not connected" stub
     // with Mudif's own screen (penguin, Arabic, start-desktop retry).
-    implementation("com.github.taqniamostakbal:termux-x11:edf1fa788ceb7b50bd76f045ecf5f48345497e71") {
+    implementation("com.github.taqniamostakbal:termux-x11:1e98c2b3e18acd113e6d5d17acf1c653d059c836") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
     }

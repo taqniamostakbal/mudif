@@ -313,6 +313,55 @@ object X11Session {
     }
 
     /**
+     * Slice 16 (killer build): wait until the :6 server reports
+     * the target size (viewerResolution, e.g. "848x480"). The
+     * server starts at its initial size; the viewer resizes it
+     * on attach. launchDirect must not start qemu before the
+     * resize, or the slice-15 clamp reads the initial size and
+     * the window overflows (slice 15 section 6.3). Polls xdpyinfo
+     * via a guest one-shot (the VisionCapture.queryDisplaySize
+     * shape). Fail-open: false on timeout, and the caller starts
+     * qemu anyway. Call from a background thread only.
+     */
+    fun waitForDisplaySize(context: Context, target: String, timeoutMs: Long = 10000): Boolean {
+        val parts = target.split("x")
+        val wantW = parts.getOrNull(0)?.toIntOrNull() ?: return false
+        val wantH = parts.getOrNull(1)?.toIntOrNull() ?: return false
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            val size = queryDisplaySize(context)
+            if (size != null && size.first == wantW && size.second == wantH) {
+                MudifLog.d(TAG, "display size settled ${size.first}x${size.second}")
+                return true
+            }
+            Thread.sleep(500)
+        }
+        Log.e(TAG, "display size did not settle to $target after ${timeoutMs}ms")
+        return false
+    }
+
+    /** :6 size from xdpyinfo ("dimensions: 848x480 pixels"), or
+     *  null when it cannot be read. Same shape as
+     *  VisionCapture.queryDisplaySize; xdpyinfo is in the image's
+     *  x11-utils. */
+    private fun queryDisplaySize(context: Context): Pair<Int, Int>? {
+        val result = try {
+            TerminalSession.runCommandDebian(
+                context, "xdpyinfo -display 127.0.0.1:6", 10, 30
+            )
+        } catch (e: Exception) {
+            return null
+        }
+        if (result.exitCode != 0) return null
+        val match = Regex("""dimensions:\s*(\d+)x(\d+)\s*pixels""")
+            .find(result.output) ?: return null
+        val width = match.groupValues[1].toIntOrNull() ?: return null
+        val height = match.groupValues[2].toIntOrNull() ?: return null
+        if (width <= 0 || height <= 0) return null
+        return width to height
+    }
+
+    /**
      * P6.3.6, mirror of waitForTcpDisplay for the restart path:
      * poll until NOTHING accepts on 127.0.0.1:6006, i.e. the old
      * server process is really dead. A listening socket closes the
@@ -500,23 +549,30 @@ object X11Session {
         // echo of this command). A timestamped file ends the
         // ambiguity: the startup stderr is provably this run's.
         val stamp = System.currentTimeMillis() / 1000
-        // p121 (Option B): the desktop lives on :7. When the nested
-        // tree is alive, do NOT start another session via the PTY;
-        // just make sure the :6 viewer shows it. When :7 is not up
-        // (Xvfb missing, start failed), fall through to the legacy
-        // PTY startlxqt so the user still gets a desktop, without
-        // survival. The icon-trust loop below still runs in both
-        // branches: it finds the lxqt-session by name, which is the
-        // :7 one in the nested branch.
-        val nestedAlive = desktop == "lxqt" && NestedDesktop.isNestedDesktopAlive(context)
-        val ok = if (nestedAlive) {
-            NestedDesktop.ensureViewer(context)
+        // Take 1 (droiddesk-takes): the desktop lives directly on
+        // :6. When the direct session is alive, do NOT start
+        // another session; the viewer already shows :6. When it
+        // is not alive, start it now (the viewer has attached and
+        // resized the server by the time this runs, so the size
+        // has settled) and fail CLOSED when it cannot start: a
+        // silent legacy PTY desktop would fight the direct
+        // session. There is no :7 fallback anymore. The
+        // icon-trust loop below still runs in both branches: it
+        // finds the lxqt-session by name, which is the :6 one.
+        val directAlive = desktop == "lxqt" && DirectDesktop.isDirectDesktopAlive(context)
+        val ok = if (desktop == "lxqt") {
+            if (directAlive) {
+                MudifLog.d(TAG, "launchDesktop: direct :6 alive, viewer already shows it")
+                true
+            } else {
+                DirectDesktop.ensureDirectDesktop(context, allowUnsettledStart = true)
+            }
         } else {
             GuestSession.sendCommand("$cmd > /root/$desktop-session-$stamp.log 2>&1 &")
         }
-        if (nestedAlive) {
-            if (ok) MudifLog.d(TAG, "launchDesktop: nested :7 alive, viewer started")
-            else Log.e(TAG, "launchDesktop: nested :7 alive but viewer failed to start")
+        if (desktop == "lxqt") {
+            if (ok) MudifLog.d(TAG, "launchDesktop: direct :6 desktop up")
+            else Log.e(TAG, "launchDesktop: direct :6 desktop failed to start, failing closed (no PTY fallback)")
         } else if (ok) {
             MudifLog.d(TAG, "$desktop command sent through PTY session")
         } else {
@@ -573,16 +629,18 @@ object X11Session {
      * the old name-only pkill also killed the nested :7 desktop,
      * because openbox/panel/pcmanfm/qterminal on :7 share the names
      * and both desktops live in the same guest PID namespace; the :7
-     * desktop died within 12 s of reopening the desktop. Every :6
-     * desktop process carries DISPLAY=127.0.0.1:6 in its environ
-     * (set in the boot env, RootfsManager), every :7 process carries
-     * DISPLAY=:7. This loop kills a pattern match only when its
-     * DISPLAY is absent (old behaviour for display-less processes)
-     * or the app's :6 display, and spares any process whose DISPLAY
-     * names another display. The [x] bracket trick in the pattern
-     * keeps pgrep from matching its own shell, and the literal
-     * desktop names appear nowhere else in the rendered command
-     * (same rule as desktopAliveCommand).
+     * desktop died within 12 s of reopening the desktop. Take 1:
+     * :7 is gone, so there is nothing left to spare: the :6 rule
+     * below now matches the desktop itself, which is correct.
+     * Every :6 desktop process carries DISPLAY=127.0.0.1:6 in its
+     * environ (set in the boot env, RootfsManager). This loop kills
+     * a pattern match only when its DISPLAY is absent (old
+     * behaviour for display-less processes) or the app's :6
+     * display, and spares any process whose DISPLAY names another
+     * display. The [x] bracket trick in the pattern keeps pgrep
+     * from matching its own shell, and the literal desktop names
+     * appear nowhere else in the rendered command (same rule as
+     * desktopAliveCommand).
      */
     private fun scopedDesktopKillCommand(pattern: String): String {
         val d = "$"
@@ -600,7 +658,8 @@ object X11Session {
      * new desktop's window manager refuses to start (xfwm4: "Another
      * Window Manager is already running", P5.23 test). P109: the kill
      * is scoped by DISPLAY (scopedDesktopKillCommand), so it destroys
-     * only the :6 desktop and never touches a nested :7 desktop.
+     * only the :6 desktop. Take 1: the nested :7 desktop it used to
+     * spare is gone, so this now targets the direct :6 session.
      * pkill exits 1 when nothing matched, that is fine, not a failure.
      */
     fun killDesktopProcesses(context: Context): Boolean {
@@ -625,8 +684,9 @@ object X11Session {
      * XFCE names, the box may still hold a childless XFCE session
      * from the fresh-rootfs tap, and pkill matches nothing when a
      * name is absent, so keeping both costs nothing.
-     * P109: scoped by DISPLAY like killDesktopProcesses, the nested
-     * :7 desktop is never touched.
+     * P109: scoped by DISPLAY like killDesktopProcesses. Take 1:
+     * the nested :7 desktop is gone, so this targets the direct
+     * :6 session (the same scope as killDesktopProcesses).
      * Best-effort; a failure here is not fatal, the fresh boot
      * proceeds anyway.
      */

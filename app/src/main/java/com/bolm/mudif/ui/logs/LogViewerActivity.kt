@@ -9,7 +9,7 @@ import com.bolm.mudif.ui.MudifActivity
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityLogViewerBinding
 import com.bolm.mudif.engine.DesktopDiagnostics
-import com.bolm.mudif.engine.NestedDesktop
+import com.bolm.mudif.engine.DirectDesktop
 
 /**
  * P5.8, detailed log viewer (the "very detailed log" button the user
@@ -46,12 +46,12 @@ class LogViewerActivity : MudifActivity() {
             // P5.22: no launch-gate checks anymore (the pipe-session
             // isOpenboxRunning round trip is deleted). The snapshot
             // reports the session state directly.
-            // p121 (Option B): the desktop lives on :7, so the
-            // snapshot's desktop check is the nested-tree check
-            // (host-side pid files + TCP 5900, fast enough for this
+            // Take 1: the desktop lives on :6, so the snapshot's
+            // desktop check is the direct-session check (host-side
+            // pid file plus the guest probe, fast enough for this
             // background thread). It used to pass null (not checked).
             val snapshot = DesktopDiagnostics.fullSnapshot(
-                this, NestedDesktop.isNestedDesktopAlive(this)
+                this, DirectDesktop.isDirectDesktopAlive(this)
             )
             if (destroyed) return@Thread
             runOnUiThread { binding.logText.text = snapshot }

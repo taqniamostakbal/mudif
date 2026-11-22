@@ -400,6 +400,85 @@ object RootfsManager {
     fun bootArgv(context: Context): List<String>? =
         bootArgvFor(context, rootfsDir(context), isReady(context))
 
+    /**
+     * Take 2 (DroidDesk-takes GPU setup): the guest graphics
+     * environment, as "NAME=value" entries for an env -i list.
+     * Fresh Mudif code; the idea (detect the GPU, set the Mesa
+     * vars, bind the Vulkan ICD) follows DroidDesk's live app
+     * behavior, no DroidDesk code is copied.
+     *
+     * Adreno path: the phone has /dev/kgsl-3d0 AND the guest
+     * rootfs holds the Turnip ICD plus its Vulkan library
+     * (Debian trixie arm64: mesa-vulkan-drivers ships
+     * usr/share/vulkan/icd.d/freedreno_icd.json pointing at
+     * libvulkan_freedreno.so; libgl1-mesa-dri ships
+     * zink_dri.so). Then GL runs through Zink over Turnip:
+     * GALLIUM_DRIVER=zink, MESA_LOADER_DRIVER_OVERRIDE=zink,
+     * VK_ICD_FILENAMES pinned to the Turnip ICD, version
+     * overrides 4.6 / 3.2, TU_DEBUG=noconform,
+     * ZINK_DESCRIPTORS=lazy.
+     *
+     * Any other hardware: fail-soft, explicit software
+     * rendering, which is what the guest already does today
+     * (glxinfo reports llvmpipe with no vars at all):
+     * LIBGL_ALWAYS_SOFTWARE=true, GALLIUM_DRIVER=llvmpipe,
+     * MESA_LOADER_DRIVER_OVERRIDE=swrast, version override
+     * 4.5. Zink is never forced here: on the x86_64 rig
+     * (no Adreno, no /dev/dri) Zink over lavapipe fails to
+     * choose a physical device ("failed to choose pdev",
+     * probed 2026-11-21) and GL clients then find no visual
+     * at all, so forcing it would break the session instead
+     * of accelerating it.
+     *
+     * MESA_NO_ERROR=1 is set on both paths. The ICD check
+     * reads the guest rootfs on disk, so a missing or partial
+     * image can never flip the session onto a driver that is
+     * not there. Turnip on a real Adreno phone is NOT proven
+     * by this take (the rig has no Adreno GPU); it is a
+     * phone-gate item.
+     */
+    fun gpuEnvFor(rootfs: File): List<String> {
+        val vars = mutableListOf("MESA_NO_ERROR=1")
+        val turnipIcd = turnipIcdPath(rootfs)
+        if (isAdrenoGpu() && turnipIcd != null) {
+            vars += "MESA_GL_VERSION_OVERRIDE=4.6"
+            vars += "MESA_GLES_VERSION_OVERRIDE=3.2"
+            vars += "GALLIUM_DRIVER=zink"
+            vars += "MESA_LOADER_DRIVER_OVERRIDE=zink"
+            vars += "VK_ICD_FILENAMES=$turnipIcd"
+            vars += "TU_DEBUG=noconform"
+            vars += "ZINK_DESCRIPTORS=lazy"
+        } else {
+            vars += "MESA_GL_VERSION_OVERRIDE=4.5"
+            vars += "LIBGL_ALWAYS_SOFTWARE=true"
+            vars += "GALLIUM_DRIVER=llvmpipe"
+            vars += "MESA_LOADER_DRIVER_OVERRIDE=swrast"
+        }
+        return vars
+    }
+
+    /** Adreno detection: the KGSL 3D device node exists. */
+    fun isAdrenoGpu(): Boolean =
+        try {
+            File("/dev/kgsl-3d0").exists()
+        } catch (_: Exception) {
+            false
+        }
+
+    /**
+     * Guest path of the Turnip ICD, only when BOTH the ICD json
+     * and the Vulkan library it points at exist in the guest
+     * rootfs. Either one missing means no Turnip on this system
+     * and the caller must fall back to software rendering.
+     */
+    fun turnipIcdPath(rootfs: File): String? {
+        val libDir =
+            if (guestArch() == "x86_64") "x86_64-linux-gnu" else "aarch64-linux-gnu"
+        val icd = File(rootfs, "usr/share/vulkan/icd.d/freedreno_icd.json")
+        val lib = File(rootfs, "usr/lib/$libDir/libvulkan_freedreno.so")
+        return if (icd.isFile && lib.isFile) "/usr/share/vulkan/icd.d/freedreno_icd.json" else null
+    }
+
     fun bootArgvFor(context: Context, rootfs: File, ready: Boolean): List<String>? {
         val base = prootArgvBase(context, rootfs, ready) ?: return null
         return base + listOf(
@@ -426,7 +505,8 @@ object RootfsManager {
             "COLORTERM=truecolor",
             // Audio (real-computer #1): guest apps find the
             // pulseaudio daemon through this runtime dir.
-            "XDG_RUNTIME_DIR=/run/user/0",
+            "XDG_RUNTIME_DIR=/run/user/0"
+        ) + gpuEnvFor(rootfs) + listOf(
             "/bin/sh", "-l"
         )
     }

@@ -25,19 +25,24 @@ menu.items.active.bg.colorTo: #3D2C9E
 menu.items.active.text.color: #f8f8f8
 
 !! Titlebar
-window.active.title.bg: raised splitvertical gradient
-window.active.title.bg.color: #593BFE
-window.active.title.bg.colorTo: #3D2C9E
-window.inactive.title.bg: gradient splitvertical gradient flat
-window.inactive.title.bg.color: #453F5C
-window.inactive.title.bg.colorTo: #332E45
+!! p88 (desktop polish spec section 3, Zorin white windows):
+!! flat white title bars (active #FFFFFF, inactive #F5F5F5),
+!! dark title text #333333, dark button glyphs #555555, light
+!! borders. Openbox draws square frames: true rounded corners
+!! ~16px and the drop shadow need a compositor (picom, ideas
+!! item 3, NOT built) - this build styles what openbox can draw.
+!! The menu colours above are the p85 fix, untouched.
+window.active.title.bg: flat solid
+window.active.title.bg.color: #FFFFFF
+window.inactive.title.bg: flat solid
+window.inactive.title.bg.color: #F5F5F5
 
 !! Titlebar text
 window.label.text.justify: center
 window.active.label.bg: parentrelative
-window.active.label.text.color: #f8f8f8
+window.active.label.text.color: #333333
 window.inactive.label.bg: parentrelative
-window.inactive.label.text.color: #747474
+window.inactive.label.text.color: #888888
 
 !! Window buttons
 window.*.button.*.bg: parentrelative
@@ -58,20 +63,20 @@ window.inactive.button.*.pressed.bg.colorTo: #6A5AE0
 window.inactive.button.*.pressed.image.color: #b7fdef
 window.inactive.button.*.pressed.bg.border.color: #6A5AE0
 
-window.active.button.*.image.color: #e0e0e0
+window.active.button.*.image.color: #555555
 window.active.button.disabled.image.color: #707070
-window.inactive.button.*.image.color: #747474
+window.inactive.button.*.image.color: #888888
 window.inactive.button.disabled.image.color: #c0c0c0
 
 !! Borders
-window.active.border.color: #181818
-window.inactive.border.color: #404040
+window.active.border.color: #D9D5E8
+window.inactive.border.color: #E5E5E5
 window.inactive.title.separator.color: #eeeee6
 border.width: 1
 padding.width: 4
 window.handle.width: 0
-window.active.client.color:  #181818
-window.inactive.client.color:  #CACAB6
+window.active.client.color:  #FFFFFF
+window.inactive.client.color:  #F5F5F5
 window.client.padding.width: 1
 window.client.padding.height: 1
 menu.overlap: 0
