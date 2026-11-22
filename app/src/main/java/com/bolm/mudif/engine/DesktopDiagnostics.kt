@@ -283,11 +283,11 @@ object DesktopDiagnostics {
                 }
             )
             append(X11Session.getDesktopLog(context, "lxqt"))
-            // p121 (Option B): the desktop lives on :7 now, so its
-            // session log is the nested one. Appended after the :6
-            // log, which stays for the legacy fallback path.
-            append("\n\n--- nested desktop :7 ---\n")
-            append(NestedDesktop.getNestedDesktopLog(context))
+            // Take 1: the desktop lives on :6 now, so its session
+            // log is the direct one. Appended after the :6 PTY log
+            // above (same display now, kept for the launch record).
+            append("\n\n--- direct desktop :6 ---\n")
+            append(DirectDesktop.getDirectDesktopLog(context))
             append("\n\n" + context.getString(R.string.ui_diag_apt_state) + "\n")
             append(installState(context))
             append("\n" + context.getString(R.string.ui_diag_apt_ps) + "\n")

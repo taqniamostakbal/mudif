@@ -593,25 +593,21 @@ object LxqtLook {
         }
         try {
             if (GuestSession.alive && GuestSession.booted) {
-                // p121 (Option B): the desktop lives on :7, so the
-                // live wallpaper flip must target :7 and the :7
-                // session bus. The PTY shell's DISPLAY is
-                // 127.0.0.1:6; a plain pcmanfm-qt --set-wallpaper
-                // would talk to no desktop at all on :6 (nothing
-                // runs there anymore) and the flip would silently
-                // do nothing. The bus comes from the :7
+                // Take 1: the desktop lives on :6, so the live
+                // wallpaper flip targets :6 and the :6 session
+                // bus. The PTY shell's DISPLAY is already
+                // 127.0.0.1:6. The bus comes from the :6
                 // lxqt-session's /proc environ (host-side read).
-                // No :7 bus readable (desktop not up, or the
-                // legacy :6 desktop): fall back to the plain
-                // command, which reaches the :6 session when one
-                // is running and is a harmless no-op otherwise.
-                // Either way the wallpaper also applies on the
-                // next full start via settings.conf, and the
-                // theme restart rule restarts the :7 tree after
-                // the re-stage.
-                val bus = NestedDesktop.sessionBusAddress(context)
+                // No :6 bus readable (desktop not up): fall back
+                // to the plain command, which reaches the :6
+                // session when one is running and is a harmless
+                // no-op otherwise. Either way the wallpaper also
+                // applies on the next full start via settings.conf,
+                // and the theme restart rule restarts the :6
+                // session after the re-stage.
+                val bus = DirectDesktop.sessionBusAddress(context)
                 val cmd = if (bus != null) {
-                    "DISPLAY=:7 DBUS_SESSION_BUS_ADDRESS=\"$bus\" pcmanfm-qt --set-wallpaper ${wallpaperPathFor(tag)}"
+                    "DISPLAY=127.0.0.1:6 DBUS_SESSION_BUS_ADDRESS=\"$bus\" pcmanfm-qt --set-wallpaper ${wallpaperPathFor(tag)}"
                 } else {
                     "pcmanfm-qt --set-wallpaper ${wallpaperPathFor(tag)}"
                 }

@@ -119,6 +119,28 @@ object ProgramStore {
 
     fun isArm64(arch: String): Boolean = arch == "aarch64" || arch == "arm64"
 
+    /** Slice 4 (killer build): true when the guest has the
+     *  user-mode AArch64 translator the rig needs to run a
+     *  translated Windows binary on an x86_64 guest. On arm64
+     *  the binary runs directly and this is never called.
+     *  Same caching shape as guestArch: one one-shot, cached
+     *  for the life of the process; a failed result (non-zero
+     *  exit) is never cached. */
+    @Volatile
+    private var cachedQemu: Boolean? = null
+
+    fun hasQemuAarch64(context: Context): Boolean {
+        cachedQemu?.let { return it }
+        val r = TerminalSession.runCommandDebian(
+            context,
+            "test -x /usr/bin/qemu-aarch64-static && echo QEMU_YES || echo QEMU_NO",
+            30, 60
+        )
+        val result = r.exitCode == 0 && r.output.trim() == "QEMU_YES"
+        if (r.exitCode == 0) cachedQemu = result
+        return result
+    }
+
     /**
      * The .deb URL for this guest. On arm64 the arm64 build is used;
      * null means this program ships no arm64 build (Jan) and the
@@ -471,17 +493,26 @@ object ProgramStore {
                 // The AOT binary ships as an app asset
                 // (win32/<key>-aot). Stage it, then place it in the
                 // guest at /usr/local/win32/<key>.exe with the exec
-                // bit. No translator runs at install or at launch.
+                // bit. Slice 1 (killer build): the install also
+                // registers the program as a real application, so
+                // the desktop menu lists it: the real icon staged
+                // to /usr/share/pixmaps/<key>.png and a .desktop
+                // file staged to /usr/share/applications/<key>.desktop.
+                // No translator runs at install or at launch.
                 val key = program.win32
                 val path = win32ProgramPath(program)
                 if (key.isNullOrBlank() || path.isBlank()) {
                     TerminalResult(context.getString(R.string.ui_store_unknown_method), -1, false)
                 } else if (!stageAssetToGuest(context, "win32/$key-aot", "$STORE_TMP/$key-aot")) {
                     TerminalResult(context.getString(R.string.win32_install_stage_failed), -1, false)
+                } else if (!stageAssetToGuest(context, "win32/$key.desktop", "$STORE_TMP/$key.desktop")) {
+                    TerminalResult(context.getString(R.string.win32_install_stage_failed), -1, false)
+                } else if (!stageAssetToGuest(context, "store-icons/${program.icon}", "$STORE_TMP/${program.icon}")) {
+                    TerminalResult(context.getString(R.string.win32_install_stage_failed), -1, false)
                 } else {
                     TerminalSession.runCommandDebian(
                         context,
-                        "(mkdir -p $WIN32_DIR && cp $STORE_TMP/$key-aot $path && chmod +x $path) 2>&1",
+                        "(mkdir -p $WIN32_DIR /usr/share/applications /usr/share/pixmaps && cp $STORE_TMP/$key-aot $path && chmod +x $path && cp $STORE_TMP/${program.icon} /usr/share/pixmaps/$key.png && cp $STORE_TMP/$key.desktop /usr/share/applications/$key.desktop && test -f $path && test -f /usr/share/applications/$key.desktop) 2>&1",
                         60, 300
                     )
                 }
@@ -550,15 +581,19 @@ object ProgramStore {
                 }
             }
             "win32" -> {
-                // Removes the translated program file when one is
-                // present; with nothing installed this is a no-op
-                // that still exits 0, and the post-verify agrees.
+                // Removes the translated program file, its menu
+                // entry, and its icon when present; with nothing
+                // installed this is a no-op that still exits 0,
+                // and the post-verify agrees. A stale .desktop
+                // file would leave a dead menu entry, so it is
+                // removed here, not left behind.
                 val path = win32ProgramPath(program)
-                if (path.isBlank()) {
+                val key = program.win32
+                if (path.isBlank() || key.isNullOrBlank()) {
                     TerminalResult(context.getString(R.string.ui_store_unknown_uninstall), -1, false)
                 } else {
                     TerminalSession.runCommandDebian(
-                        context, "(rm -f $path) 2>&1", 60, 300
+                        context, "(rm -f $path /usr/share/applications/$key.desktop /usr/share/pixmaps/$key.png) 2>&1", 60, 300
                     )
                 }
             }
