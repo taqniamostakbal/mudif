@@ -2,9 +2,14 @@ package com.bolm.mudif.ui.vnc
 
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
+import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -13,13 +18,17 @@ import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.bolm.mudif.R
 import com.bolm.mudif.engine.GuestSession
+import com.bolm.mudif.engine.HudStats
 import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.ScreenRecorder
 import com.bolm.mudif.engine.X11Session
+import java.io.File
 import com.bolm.mudif.ui.control.ControlCenterActivity
 import com.bolm.mudif.ui.settings.ViewerPrefs
 
@@ -44,6 +53,16 @@ class ViewerOverlay(private val context: Context) {
     private var panelParams: WindowManager.LayoutParams? = null
     private var shown = false
     private var expanded = false
+
+    // F4: performance HUD state.
+    private var hudView: TextView? = null
+    private var hudParams: WindowManager.LayoutParams? = null
+    private var hudShown = false
+    private val hudHandler = Handler(Looper.getMainLooper())
+    private var hudTickCount = 0
+    private var lastFps: Float? = null
+    private var lastFpsSeen = false
+    private var logcatFailedLogged = false
 
     fun isShown(): Boolean = shown
 
@@ -155,6 +174,7 @@ class ViewerOverlay(private val context: Context) {
 
     /** Hide the FAB and the panel. */
     fun hide() {
+        hideHud()
         try { panelView?.let { wm.removeView(it) } } catch (_: Exception) { }
         try { fabView?.let { wm.removeView(it) } } catch (_: Exception) { }
         panelView = null
@@ -174,12 +194,12 @@ class ViewerOverlay(private val context: Context) {
 
     /** Panel position next to the FAB: right of it when there is room,
      *  left of it near the right edge (so it never runs off-screen).
-     *  The panel is ~240dp wide (4 x 48dp buttons + margins/padding). */
+     *  The panel is ~296dp wide (5 x 48dp buttons + margins/padding). */
     private fun panelPosition(): Pair<Int, Int> {
         val fx = fabParams?.x ?: dp(16)
         val fy = fabParams?.y ?: dp(120)
         val screenW = context.resources.displayMetrics.widthPixels
-        val panelW = dp(240)
+        val panelW = dp(296)
         val x = if (fx + dp(64) + panelW > screenW) fx - panelW else fx + dp(64)
         return Pair(x, fy)
     }
@@ -209,6 +229,7 @@ class ViewerOverlay(private val context: Context) {
         panel.addView(iconButton(R.drawable.ic_tv, context.getString(R.string.ui_overlay_tv)) { onTv() })
         panel.addView(iconButton(R.drawable.ic_audio, context.getString(R.string.ui_overlay_audio)) { onAudio(panel) })
         panel.addView(iconButton(R.drawable.ic_controls, context.getString(R.string.control_center)) { onControlCenter() })
+        panel.addView(iconButton(R.drawable.ic_hud, context.getString(R.string.ui_overlay_hud)) { onHud(panel) })
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -396,6 +417,213 @@ class ViewerOverlay(private val context: Context) {
             // Explicit in-app intent: unreachable in practice.
             // Stay silent rather than promise a panel that did
             // not open.
+        }
+    }
+
+    // F4: performance HUD ----------------------------------------------
+
+    /** Guest sampler: writes /tmp/mudif-hud/status.txt every second
+     *  (guest /tmp is the Android filesDir/tmp bind mount, so the app
+     *  reads it as a plain file). Started on HUD toggle-on, killed
+     *  on toggle-off / overlay hide. */
+    private val samplerScript: String
+        get() = """
+            #!/bin/sh
+            mkdir -p /tmp/mudif-hud
+            while true; do
+              set -- $(awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{print t, a}' /proc/meminfo)
+              echo "memTotalKb=$1 memAvailKb=$2 ts=$(date +%s)" > /tmp/mudif-hud/status.txt
+              sleep 1
+            done
+            """.trimIndent()
+
+    private fun startGuestSampler() {
+        if (!GuestSession.booted) return
+        try {
+            val dir = File(context.filesDir, "tmp/mudif-hud")
+            dir.mkdirs()
+            File(dir, "sampler.sh").writeText(samplerScript)
+            // Kill a stale sampler first (an earlier session may have
+            // died without killing its loop), then start a fresh one.
+            GuestSession.sendCommand(
+                "kill \$(cat /tmp/mudif-hud/sampler.pid 2>/dev/null) 2>/dev/null; " +
+                    "nohup sh /tmp/mudif-hud/sampler.sh >/tmp/mudif-hud/sampler.log 2>&1 & " +
+                    "echo \$! > /tmp/mudif-hud/sampler.pid"
+            )
+        } catch (_: Exception) {
+            // Sampler is best-effort: RAM shows "…" without it.
+        }
+    }
+
+    private fun stopGuestSampler() {
+        try {
+            GuestSession.sendCommand(
+                "kill \$(cat /tmp/mudif-hud/sampler.pid 2>/dev/null) 2>/dev/null; " +
+                    "rm -f /tmp/mudif-hud/sampler.pid"
+            )
+        } catch (_: Exception) {
+            // Best-effort; a stale loop only rewrites a tiny file.
+        }
+    }
+
+    /** F4: toggle the HUD chip. 5th panel button; tint mirrors the
+     *  audio button (white = on, dim = off). */
+    private fun onHud(panel: LinearLayout) {
+        if (hudShown) hideHud() else showHud()
+        (context as? android.app.Activity)?.runOnUiThread {
+            val btn = panel.getChildAt(4) as? ImageButton
+            btn?.imageTintList = android.content.res.ColorStateList.valueOf(
+                if (hudShown) 0xFFFFFFFF.toInt() else 0xFF9E9E9E.toInt()
+            )
+        }
+    }
+
+    private fun showHud() {
+        if (hudView != null) return
+        val tv = TextView(context).apply {
+            setBackgroundResource(R.drawable.overlay_panel_bg)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            textSize = 14f
+            setTextColor(0xFFFFFFFF.toInt())
+            typeface = ResourcesCompat.getFont(context, R.font.cairo)
+            text = hudText()
+        }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = dp(16)
+            y = dp(16)
+        }
+        try {
+            wm.addView(tv, params)
+            hudView = tv
+            hudParams = params
+            hudShown = true
+            hudTickCount = 0
+            startGuestSampler()
+            hudHandler.post(hudTick)
+        } catch (_: Exception) {
+            hudShown = false
+        }
+    }
+
+    private fun hideHud() {
+        hudHandler.removeCallbacks(hudTick)
+        stopGuestSampler()
+        try { hudView?.let { wm.removeView(it) } } catch (_: Exception) { }
+        hudView = null
+        hudParams = null
+        hudShown = false
+    }
+
+    /** 1 s ticker: battery + temperature + guest RAM every tick,
+     *  FPS (logcat, 5 s granularity) every 5th tick. */
+    private val hudTick = object : Runnable {
+        override fun run() {
+            if (!hudShown) return
+            hudTickCount++
+            updateHudText()
+            if (hudTickCount % 5 == 0) refreshFpsAsync()
+            hudHandler.postDelayed(this, 1000L)
+        }
+    }
+
+    private fun updateHudText() {
+        hudView?.text = hudText()
+    }
+
+    private fun hudText(): String {
+        val fpsPart = when {
+            lastFps == null && !lastFpsSeen -> "FPS …"
+            lastFps == null -> "FPS 0"
+            else -> "FPS " + HudStats.formatFps(lastFps!!)
+        }
+        val ramPart = readGuestRam()
+        val (pct, tempTenths) = readBattery()
+        val batteryPart = if (pct >= 0) {
+            context.getString(R.string.ui_hud_battery) + " " + pct + "%"
+        } else {
+            context.getString(R.string.ui_hud_battery) + " …"
+        }
+        val tempPart = if (tempTenths != Int.MIN_VALUE) {
+            // NOTE (F4): the degree sign renders detached at the line end
+            // (bidi); LRI and RLI isolates were both tried and made the
+            // layout worse, so the plain string stays. Cosmetic only.
+            context.getString(R.string.ui_hud_temp) + " " + HudStats.formatTemp(tempTenths)
+        } else {
+            context.getString(R.string.ui_hud_temp) + " …"
+        }
+        return fpsPart + " | " + ramPart + " | " + batteryPart + " | " + tempPart
+    }
+
+    /** Guest RAM from the sampler status file; "RAM …" when the
+     *  sampler has not written yet or its data is older than 3 s. */
+    private fun readGuestRam(): String {
+        return try {
+            val text = File(context.filesDir, "tmp/mudif-hud/status.txt").readText()
+            val status = HudStats.parseGuestStatus(text) ?: return "RAM …"
+            val ageSec = System.currentTimeMillis() / 1000 - status.tsSec
+            if (ageSec < 0 || ageSec > 3) return "RAM …"
+            "RAM " + HudStats.formatRam(status.memTotalKb, status.memAvailKb)
+        } catch (_: Exception) {
+            "RAM …"
+        }
+    }
+
+    /** Battery level % + temperature tenths °C, same sticky-intent
+     *  call as ControlCenterActivity. Returns (-1, MIN_VALUE) when
+     *  unreadable. */
+    private fun readBattery(): Pair<Int, Int> {
+        return try {
+            val battery = context.registerReceiver(
+                null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            ) ?: return Pair(-1, Int.MIN_VALUE)
+            val level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+            val pct = if (level >= 0 && scale > 0) level * 100 / scale else -1
+            val temp = battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+            Pair(pct, temp)
+        } catch (_: Exception) {
+            Pair(-1, Int.MIN_VALUE)
+        }
+    }
+
+    /** FPS from the fork's LorieNative logcat line (own UID logs,
+     *  no permission). Runs off the main thread; a failed read
+     *  (no logd on this rig) leaves the last value alone. */
+    private fun refreshFpsAsync() {
+        Thread {
+            val out = readLorieLogcat()
+            if (out.isEmpty()) return@Thread
+            val res = HudStats.parseFpsFromLogcat(out, System.currentTimeMillis())
+            (context as? android.app.Activity)?.runOnUiThread {
+                lastFps = res.fps
+                lastFpsSeen = res.everSeen
+                if (hudShown) updateHudText()
+            }
+        }.start()
+    }
+
+    private fun readLorieLogcat(): String {
+        return try {
+            val proc = Runtime.getRuntime().exec(
+                arrayOf("/system/bin/logcat", "-d", "-t", "200", "-v", "time")
+            )
+            if (!proc.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
+                proc.destroy()
+            }
+            proc.inputStream.bufferedReader().readText()
+        } catch (e: Exception) {
+            if (!logcatFailedLogged) {
+                logcatFailedLogged = true
+                Log.w("ViewerOverlay", "HUD logcat read failed: " + e.message)
+            }
+            ""
         }
     }
 
