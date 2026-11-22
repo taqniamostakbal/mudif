@@ -1,5 +1,6 @@
 package com.bolm.mudif.ui.apps
 
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -32,6 +33,7 @@ class AppsFragment : Fragment() {
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private lateinit var adapter: AppsAdapter
+    private lateinit var gridManager: GridLayoutManager
     private var installed: List<StoreProgram> = emptyList()
     private val busyIds = HashSet<String>()
     private var loaded = false
@@ -49,7 +51,9 @@ class AppsFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        binding.recycler.layoutManager = GridLayoutManager(requireContext(), 2)
+        gridManager = GridLayoutManager(requireContext(), spanForOrientation())
+        binding.recycler.layoutManager = gridManager
+        applyOrientation()
         adapter = AppsAdapter(
             onLaunch = { runLaunch(it) },
             onUninstall = { runUninstall(it) }
@@ -66,6 +70,38 @@ class AppsFragment : Fragment() {
         }
         showLoading()
         loadInstalled()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // MainActivity declares configChanges, so a rotation does not
+        // recreate this fragment: re-apply the orientation layout here.
+        if (::gridManager.isInitialized) applyOrientation(newConfig.orientation)
+    }
+
+    /** Landscape grid: 4 columns, so 4 cards share one row and
+     *  المفكرة (installed index 6) sits in row 2 instead of row 4.
+     *  Portrait keeps the 2-column grid. */
+    private fun spanForOrientation(
+        orientation: Int = resources.configuration.orientation
+    ): Int = if (orientation == Configuration.ORIENTATION_LANDSCAPE) 4 else 2
+
+    /** Landscape header: the 287 px portrait header plus the ~204 px
+     *  bottom nav left the list a 229 px strip in a 720 px frame, less
+     *  than one 445 px card row, so the list looked unscrollable. In
+     *  landscape the header compacts (8dp padding, 20sp title, no
+     *  subtitle), which frees about 170 px for the list. Portrait
+     *  restores the original header exactly. */
+    private fun applyOrientation(
+        orientation: Int = resources.configuration.orientation
+    ) {
+        val landscape = orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (::gridManager.isInitialized) gridManager.spanCount = spanForOrientation(orientation)
+        val density = resources.displayMetrics.density
+        val pad = ((if (landscape) 8 else 24) * density).toInt()
+        binding.headerBar.setPadding(pad, pad, pad, pad)
+        binding.headerTitle.textSize = if (landscape) 20f else 28f
+        binding.headerSubtitle.visibility = if (landscape) View.GONE else View.VISIBLE
     }
 
     override fun onResume() {
@@ -100,7 +136,11 @@ class AppsFragment : Fragment() {
             // The user wants fonts listed in the Apps list (2026-11-10:
             // he objected to the P18.6 category exclusion of نوتو).
             // Reverted to the binary test only, as in P18.5-tip.
-            val launchable = all.filter { it.binary != null }
+            // Slice 4 (killer build): a Windows program has no Linux
+            // binary, but it IS launchable (its AOT binary runs
+            // through AppLauncher.launchDirect), so it belongs in
+            // this list too. Fonts stay excluded exactly as before.
+            val launchable = all.filter { it.binary != null || it.method == "win32" }
             val map = ProgramStore.batchStatus(appCtx, launchable)
             if (map == null) {
                 // p70: the check itself failed. Never show this as

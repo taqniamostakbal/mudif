@@ -7,6 +7,7 @@
     android:background="@android:color/transparent">
 
     <LinearLayout
+        android:id="@+id/header_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -31,6 +32,7 @@
             android:paddingStart="8dp">
 
             <TextView style="@style/Widget.Mudif.HeaderTitle"
+                android:id="@+id/header_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/tab_apps"
@@ -39,6 +41,7 @@
                 android:fontFamily="@font/lifta" />
 
             <TextView style="@style/Widget.Mudif.HeaderSubtitle"
+                android:id="@+id/header_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
