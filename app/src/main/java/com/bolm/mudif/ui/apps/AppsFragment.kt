@@ -80,7 +80,7 @@ class AppsFragment : Fragment() {
     }
 
     /** Landscape grid: 4 columns, so 4 cards share one row and
-     *  المفكرة (installed index 6) sits in row 2 instead of row 4.
+     *  المفكرة (installed index 8) sits in row 3 instead of row 5.
      *  Portrait keeps the 2-column grid. */
     private fun spanForOrientation(
         orientation: Int = resources.configuration.orientation
