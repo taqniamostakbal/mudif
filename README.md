@@ -1,6 +1,6 @@
 <div align="center">
 
-**العربية** | [English](README_en.md) | [الدارجة](README_darija.md)
+<img src="docs/images/icons/globe.svg" width="16" height="16" alt="language"> **العربية** | [English](README_en.md)
 
 </div>
 
@@ -15,6 +15,8 @@
   <img src="docs/images/badges/kotlin.svg" alt="kotlin 2.0.20">
   <img src="docs/images/badges/store.svg" alt="store 1228 programs">
 </p>
+
+<p align="center"><em>«المستخدم لا يسمع كلمة لينكس أبدا.»</em></p>
 
 <p align="center">
   <strong>مضيف يحوّل هاتفك إلى حاسوب كامل: نظام دبيان مع واجهة LXQt، بالعربية الفصحى، وتشغيل برامج ويندوز من المتجر.</strong>
@@ -149,10 +151,10 @@ mudif/
 <a id="contributing"></a>
 ## المساهمة
 
-مضيف مشروع شخصي لصاحبه أنس بوعلام. إن وجدت خطأ، افتح Issue مع لقطة شاشة وخطوات الإعادة، أو أرسل Pull Request صغيرا في نطاق ضيق. لا ترسل تغييرات خارج نطاق المشكلة.
+مضيف مشروع شخصي من تقنية المستقبل | Exploring Tech. إن وجدت خطأ، افتح Issue مع لقطة شاشة وخطوات الإعادة، أو أرسل Pull Request صغيرا في نطاق ضيق. لا ترسل تغييرات خارج نطاق المشكلة.
 
 ---
 
 تقنية المستقبل | Exploring Tech
 
-© 2026 Anas boualam: جميع الحقوق محفوظة
+© 2026 تقنية المستقبل | Exploring Tech: جميع الحقوق محفوظة

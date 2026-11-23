@@ -1,6 +1,6 @@
 <div align="center">
 
-[العربية](README.md) | **English** | [الدارجة](README_darija.md)
+<img src="docs/images/icons/globe.svg" width="16" height="16" alt="language"> [العربية](README.md) | **English**
 
 </div>
 
@@ -15,6 +15,8 @@
   <img src="docs/images/badges/kotlin.svg" alt="kotlin 2.0.20">
   <img src="docs/images/badges/store.svg" alt="store 1228 programs">
 </p>
+
+<p align="center"><em>"The user never hears the word Linux."</em></p>
 
 <p align="center">
   <strong>Mudif turns your phone into a full computer: a Debian system with the LXQt desktop, in Fusha Arabic, running Windows programs from the store.</strong>
@@ -149,10 +151,10 @@ mudif/
 <a id="contributing"></a>
 ## Contributing
 
-Mudif is a personal project by its owner, Anas boualam. If you find a bug, open an Issue with a screenshot and steps to reproduce, or send a small Pull Request in a narrow scope. Do not send changes outside the scope of the problem.
+Mudif is a personal project by تقنية المستقبل | Exploring Tech. If you find a bug, open an Issue with a screenshot and steps to reproduce, or send a small Pull Request in a narrow scope. Do not send changes outside the scope of the problem.
 
 ---
 
 تقنية المستقبل | Exploring Tech
 
-Copyright © 2026 Anas boualam. All rights reserved.
+Copyright © 2026 تقنية المستقبل | Exploring Tech. All rights reserved.
