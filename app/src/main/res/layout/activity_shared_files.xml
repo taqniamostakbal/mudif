@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/mudif_purple"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/shared_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="‹"
+            android:textSize="30sp"
+            android:textColor="@android:color/white" />
+
+        <TextView style="@style/Widget.Mudif.HeaderTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/shared_files_title"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/lifta"
+            android:paddingStart="8dp" />
+
+        <Button style="@style/Widget.Mudif.Button.OnPurple"
+            android:id="@+id/shared_send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/shared_files_send" />
+    </LinearLayout>
+
+    <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_gradient_compact"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/shared_files_android_label"
+                android:textSize="13sp"
+                android:textColor="@color/card_text_secondary"
+                android:fontFamily="@font/cairo" />
+
+            <TextView
+                android:id="@+id/shared_android_path"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="@font/cairo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/shared_files_guest_label"
+                android:textSize="13sp"
+                android:textColor="@color/card_text_secondary"
+                android:fontFamily="@font/cairo" />
+
+            <TextView
+                android:id="@+id/shared_guest_path"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="@font/cairo" />
+
+            <Button style="@style/Widget.Mudif.Button.OnPurple"
+                android:id="@+id/shared_copy_path"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/shared_files_copy_path" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView style="@style/TextAppearance.Mudif.Caption"
+        android:id="@+id/shared_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:gravity="center"
+        android:text="@string/shared_files_empty"
+        android:textSize="15sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:fontFamily="@font/cairo"
+        android:visibility="gone" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/shared_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

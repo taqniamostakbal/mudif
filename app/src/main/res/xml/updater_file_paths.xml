@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Take 4: FileProvider paths for the in-app updater. Only the
      app-cache updates directory is shared, and only with the system
-     installer, for one install at a time. -->
+     installer, for one install at a time.
+     F3 fix (23 Nov 2026): the shared folder is served by this same
+     single provider. A second FileProvider declaration (.shared)
+     did not work: the system routed both authorities to the one
+     provider instance created first (.updates), so a shared-file
+     URI was served with the updater paths and the file was not
+     found. One provider, both paths. -->
 <paths>
     <cache-path name="updates" path="updates/" />
+    <external-files-path name="shared" path="mudif-shared/" />
 </paths>

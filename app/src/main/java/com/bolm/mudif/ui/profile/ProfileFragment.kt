@@ -1,7 +1,5 @@
 package com.bolm.mudif.ui.profile
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -33,6 +31,7 @@ import com.bolm.mudif.engine.MudifUpdater
 import com.bolm.mudif.engine.SystemUpdate
 import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.control.DeviceReportActivity
+import com.bolm.mudif.ui.control.SharedFilesActivity
 import com.bolm.mudif.ui.control.TaskManagerActivity
 import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.settings.AppLanguage
@@ -169,17 +168,14 @@ class ProfileFragment : Fragment() {
         }
 
         // Real-computer #3, shared files folder. The row shows the
-        // Android path; tap copies it to the clipboard. Inside the
-        // guest the same folder is /mnt/mudif-shared (bound at boot).
+        // Android path; tap opens the shared-files screen (F3):
+        // send a file into the folder, browse it, open or share.
+        // Inside the guest the same folder is /mnt/mudif-shared
+        // (bound at boot). Copying the path lives in that screen.
         binding.textSharedFolderPath.text =
             RootfsManager.sharedDir(requireContext()).absolutePath
         binding.rowSharedFolder.setOnClickListener {
-            val path = RootfsManager.sharedDir(requireContext()).absolutePath
-            val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("mudif-shared", path))
-            android.widget.Toast.makeText(
-                requireContext(), getString(R.string.shared_folder_copied), android.widget.Toast.LENGTH_SHORT
-            ).show()
+            startActivity(android.content.Intent(requireContext(), SharedFilesActivity::class.java))
         }
 
         // Real-computer #4, in-app system update (apt update +
