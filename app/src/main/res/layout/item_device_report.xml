@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Compact" xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="8dp"
+    android:clickable="false"
+    android:focusable="false"
+    android:stateListAnimator="@animator/card_press">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/card_gradient_compact"
+        android:padding="14dp">
+
+        <TextView
+            android:id="@+id/report_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/cairo" />
+
+        <TextView style="@style/TextAppearance.Mudif.Caption"
+            android:id="@+id/report_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="13sp"
+            android:textColor="@color/card_text_secondary"
+            android:fontFamily="@font/cairo" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

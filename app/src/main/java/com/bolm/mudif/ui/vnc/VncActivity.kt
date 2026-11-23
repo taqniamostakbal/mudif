@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import com.bolm.mudif.engine.DirectDesktop
+import com.bolm.mudif.engine.ExternalDisplay
 import com.bolm.mudif.engine.MudifLog
 
 /**
@@ -389,26 +390,70 @@ class VncActivity : MudifActivity() {
                         }
                         return@Thread
                     }
-                    if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
-                        runOnUiThread {
-                            Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
-                        }
-                        return@Thread
-                    }
-                    ViewerPrefs.prefs(this).edit()
-                        .putBoolean("storeSecondaryDisplayPreferencesSeparately", true).apply()
-                    val ok = X11Session.openViewerOnDisplay(this, displays[0])
-                    runOnUiThread {
-                        Toast.makeText(
-                            this,
-                            if (ok) getString(R.string.tv_opened) else getString(R.string.tv_no_display),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+                    // F8 half A: one or more external displays —
+                    // the shared picker (one opens directly, more
+                    // ask which one). Re-queries fresh inside.
+                    showDisplayPicker()
                 }.start()
             },
             negative = getString(R.string.cancel)
         )
+    }
+
+    /**
+     * F8 half A: the display picker (no Cast step). Queries the
+     * presentation displays fresh, then: none → the full TV
+     * chooser; one → open it directly; more → the branded picker
+     * on the UI thread. Shown by this RESUMED activity, so the
+     * dialog gains input focus. Called from onNewIntent (overlay
+     * route) and from the TV chooser's system-display branch.
+     */
+    private fun showDisplayPicker() {
+        Thread {
+            val dm = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+            val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
+            if (displays.isEmpty()) {
+                runOnUiThread { showTvChooser() }
+                return@Thread
+            }
+            if (displays.size == 1) {
+                openTvOnDisplay(displays[0])
+                return@Thread
+            }
+            val labels = displays.map { ExternalDisplay.label(this, it) }
+            runOnUiThread {
+                MudifDialog.select(
+                    this,
+                    getString(R.string.ui_display_pick_title),
+                    labels, -1
+                ) { index ->
+                    Thread { openTvOnDisplay(displays[index]) }.start()
+                }
+            }
+        }.start()
+    }
+
+    /**
+     * F8 half A: open the viewer on one presentation display (the
+     * picker target, or the single display). Same guards as the
+     * overlay TV button; the toast reports the result. Called
+     * from a background thread.
+     */
+    private fun openTvOnDisplay(display: android.view.Display) {
+        if (!GuestSession.booted || !X11Session.isTcpDisplayOpen()) {
+            runOnUiThread {
+                Toast.makeText(this, getString(R.string.ui_vnc_desktop_not_ready), Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        val ok = ExternalDisplay.openViewerOn(this, display)
+        runOnUiThread {
+            Toast.makeText(
+                this,
+                if (ok) getString(R.string.tv_opened) else getString(R.string.tv_no_display),
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     /**
@@ -486,6 +531,14 @@ class VncActivity : MudifActivity() {
         // re-entry would reopen the viewer over the chooser.
         if (intent.getBooleanExtra(EXTRA_SHOW_TV_CHOOSER, false)) {
             showTvChooser()
+            return
+        }
+        // F8 half A: the viewer overlay routes its TV button here
+        // with more than one presentation display. Show the picker
+        // directly (no Cast step); this resumed activity owns the
+        // dialog, so it gains input focus.
+        if (intent.getBooleanExtra(EXTRA_SHOW_DISPLAY_PICKER, false)) {
+            showDisplayPicker()
             return
         }
         // A fresh launch request replaces any pending one.
@@ -1308,6 +1361,16 @@ class VncActivity : MudifActivity() {
          * (showTvChooser) instead of restarting the desktop.
          */
         const val EXTRA_SHOW_TV_CHOOSER = "show_tv_chooser"
+        /**
+         * F8 half A: set by the viewer overlay when its TV button
+         * is tapped with more than one presentation display.
+         * VncActivity is brought forward and onNewIntent opens the
+         * display picker directly (no Cast step). The picker must
+         * be shown by this RESUMED activity: a dialog shown by the
+         * overlay's stopped activity never gains input focus
+         * (rig-proven 22 Nov).
+         */
+        const val EXTRA_SHOW_DISPLAY_PICKER = "show_display_picker"
         /**
          * p77: set by the viewer stub's "تشغيل سطح المكتب" button
          * (the fork's MainActivity). VncActivity is brought forward

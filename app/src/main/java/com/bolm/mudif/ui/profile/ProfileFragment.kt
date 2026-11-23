@@ -32,6 +32,7 @@ import androidx.core.content.ContextCompat
 import com.bolm.mudif.engine.MudifUpdater
 import com.bolm.mudif.engine.SystemUpdate
 import com.bolm.mudif.ui.MudifDialog
+import com.bolm.mudif.ui.control.DeviceReportActivity
 import com.bolm.mudif.ui.control.TaskManagerActivity
 import com.bolm.mudif.ui.logs.LogViewerActivity
 import com.bolm.mudif.ui.settings.AppLanguage
@@ -246,6 +247,11 @@ class ProfileFragment : Fragment() {
             startActivity(android.content.Intent(requireContext(), TaskManagerActivity::class.java))
         }
 
+        // F7, device report: the phone's real hardware facts.
+        binding.rowDeviceReport.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), DeviceReportActivity::class.java))
+        }
+
         // p56: card entrance on first view (fade + slide, staggered).
         if (savedInstanceState == null) {
             listOf(
@@ -253,7 +259,8 @@ class ProfileFragment : Fragment() {
                 binding.rowLanguage, binding.rowViewerSettings, binding.rowEngine,
                 binding.rowTerminal, binding.rowVncMudif, binding.rowLogs,
                 binding.rowSharedFolder, binding.rowSystemUpdate, binding.rowBackup,
-                binding.rowSnapshot, binding.rowAppUpdate, binding.rowTaskManager, binding.rowAbout
+                binding.rowSnapshot, binding.rowAppUpdate, binding.rowTaskManager,
+                binding.rowDeviceReport, binding.rowAbout
             ).forEachIndexed { index, card ->
                 com.bolm.mudif.ui.CardEntrance.play(card, com.bolm.mudif.ui.CardEntrance.staggerDelay(index))
             }

@@ -456,6 +456,17 @@ object X11Session {
      * Returns false when the launch fails (e.g. the display went
      * away). Unverified on a real TV: the fork supports secondary
      * displays, but no TV was available to test this path.
+     *
+     * F8, rig-proven 22 Nov: REORDER_TO_FRONT alone does NOT move
+     * the viewer. The launch display only applies to a NEW activity
+     * instance; with REORDER the system just brings the existing
+     * phone instance forward on its own display and the TV stays
+     * empty. So the launch carries MULTIPLE_TASK (a fresh instance
+     * on the target display; the phone keeps its own viewer, which
+     * is also what makes unplug trivially safe). Repeat taps for
+     * the same display create another instance on it (no
+     * in-app way to read a task's display: RecentTaskInfo has no
+     * displayId); the older one stays backgrounded, harmless.
      */
     fun openViewerOnDisplay(context: Context, display: android.view.Display): Boolean {
         return try {
@@ -473,7 +484,11 @@ object X11Session {
             // phone's stored exact (the phone's own path migrates).
             ViewerPrefs.applyMudifDefaults(context, resolution, migrateExact = false)
             val intent = Intent(context, com.termux.x11.MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                )
             }
             val options = android.app.ActivityOptions.makeBasic()
                 .setLaunchDisplayId(display.displayId)

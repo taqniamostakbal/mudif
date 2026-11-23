@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8 half B: web remote control, one screen top-to-bottom:
+     status, address (large, Latin digits), QR card, password
+     (copy + show/hide), connected count, start/stop. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/mudif_purple"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/remote_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="‹"
+            android:textSize="30sp"
+            android:textColor="@android:color/white" />
+
+        <TextView style="@style/Widget.Mudif.HeaderTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/ui_remote_title"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:fontFamily="@font/lifta"
+            android:paddingStart="8dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/remote_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ui_remote_status_stopped"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:fontFamily="@font/cairo" />
+
+            <TextView
+                android:id="@+id/remote_error"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="14sp"
+                android:textColor="@android:color/holo_red_dark"
+                android:fontFamily="@font/cairo"
+                android:visibility="gone" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/ui_remote_address"
+                android:textSize="14sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:fontFamily="@font/cairo" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/remote_address"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/mudifAccent"
+                    android:fontFamily="@font/cairo"
+                    android:textDirection="ltr" />
+
+                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                    android:id="@+id/remote_copy_address"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ui_remote_copy"
+                    android:textSize="12sp"
+                    android:fontFamily="@font/cairo" />
+            </LinearLayout>
+
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.Mudif.Card.Large"
+                android:id="@+id/remote_qr_card"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@android:color/white"
+                app:strokeColor="?attr/mudifAccent"
+                app:strokeWidth="2dp"
+                app:cardCornerRadius="16dp">
+
+                <ImageView
+                    android:id="@+id/remote_qr"
+                    android:layout_width="240dp"
+                    android:layout_height="240dp"
+                    android:layout_margin="16dp"
+                    android:contentDescription="@string/ui_remote_scan" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:text="@string/ui_remote_scan"
+                android:textSize="14sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:fontFamily="@font/cairo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/ui_remote_password"
+                android:textSize="14sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:fontFamily="@font/cairo" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/remote_password"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface"
+                    android:fontFamily="@font/cairo"
+                    android:textDirection="ltr" />
+
+                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                    android:id="@+id/remote_show_password"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ui_remote_show"
+                    android:textSize="12sp"
+                    android:fontFamily="@font/cairo" />
+
+                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                    android:id="@+id/remote_copy_password"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/ui_remote_copy"
+                    android:textSize="12sp"
+                    android:fontFamily="@font/cairo" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/remote_clients"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="16sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:fontFamily="@font/cairo" />
+
+                <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Secondary"
+                    android:id="@+id/remote_disconnect_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ui_remote_disconnect_all"
+                    android:textSize="12sp"
+                    android:fontFamily="@font/cairo" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton style="@style/Widget.Mudif.Button.Primary"
+                android:id="@+id/remote_toggle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/ui_remote_start"
+                android:textSize="16sp"
+                android:fontFamily="@font/cairo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/ui_remote_lan_only"
+                android:textSize="13sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:fontFamily="@font/cairo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/ui_remote_no_tls"
+                android:textSize="13sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:fontFamily="@font/cairo" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

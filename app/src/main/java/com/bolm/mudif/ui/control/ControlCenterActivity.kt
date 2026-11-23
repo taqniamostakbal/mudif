@@ -28,7 +28,11 @@ import androidx.core.content.ContextCompat
 import com.bolm.mudif.ui.MudifActivity
 import com.bolm.mudif.R
 import com.bolm.mudif.databinding.ActivityControlCenterBinding
+import com.bolm.mudif.engine.RemoteControlService
+import com.bolm.mudif.ui.remote.RemoteControlActivity
 import com.bolm.mudif.ui.settings.AppTheme
+import com.bolm.mudif.ui.settings.SettingsActivity
+import com.bolm.mudif.ui.settings.ViewerPrefs
 import java.io.File
 import java.util.Locale
 
@@ -85,6 +89,20 @@ class ControlCenterActivity : MudifActivity() {
             startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
         }
         binding.btnRefresh.setOnClickListener { refreshAll() }
+        // F8 half B: web remote control entry (the other entry is
+        // the viewer overlay FAB button). The screen itself owns
+        // start/stop; this card only shows the live state.
+        binding.btnRemoteOpen.setOnClickListener {
+            startActivity(Intent(this, RemoteControlActivity::class.java))
+        }
+        // F2: clipboard sharing status (state + Settings button, never
+        // a toggle). The sync itself lives in the fork: LorieView reads
+        // the clipboardEnable switch from the same prefs file and syncs
+        // both ways. This row only shows its live state; the switch
+        // lives in the viewer settings.
+        binding.btnClipboardSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
 
         setupVolume()
         setupBrightness()
@@ -274,10 +292,27 @@ class ControlCenterActivity : MudifActivity() {
         // runs on onResume, so the row re-reads after the user
         // returns from the system settings or enable dialog.
         refreshBluetooth()
+        // F8 half B: remote control state (in-memory read, cheap).
+        val remoteAddress = RemoteControlService.address()
+        binding.remoteState.text =
+            if (RemoteControlService.state == RemoteControlService.State.RUNNING && remoteAddress != null) {
+                getString(R.string.ui_remote_cc_running, remoteAddress)
+            } else {
+                getString(R.string.ui_remote_cc_stopped)
+            }
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val wifi = cm.getNetworkCapabilities(cm.activeNetwork)
             ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
         binding.wifiState.text = if (wifi) getString(R.string.ui_cc_wifi_on) else getString(R.string.ui_cc_wifi_off)
+        // F2: clipboard sync state, read live from the same prefs file
+        // the fork reads (ViewerPrefs.prefs). Absent means the fork
+        // default, which is true (preferences.xml defaultValue).
+        val clipboardOn = ViewerPrefs.prefs(this).getBoolean("clipboardEnable", true)
+        binding.clipboardState.text = if (clipboardOn) {
+            getString(R.string.ui_cc_clipboard_on)
+        } else {
+            getString(R.string.ui_cc_clipboard_off)
+        }
 
         val battery = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1

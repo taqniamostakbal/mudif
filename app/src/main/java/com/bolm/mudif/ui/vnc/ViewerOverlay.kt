@@ -23,14 +23,16 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import com.bolm.mudif.R
+import com.bolm.mudif.engine.ExternalDisplay
 import com.bolm.mudif.engine.GuestSession
 import com.bolm.mudif.engine.HudStats
 import com.bolm.mudif.engine.PulseAudio
 import com.bolm.mudif.engine.ScreenRecorder
 import com.bolm.mudif.engine.X11Session
 import java.io.File
+import com.bolm.mudif.ui.MudifDialog
 import com.bolm.mudif.ui.control.ControlCenterActivity
-import com.bolm.mudif.ui.settings.ViewerPrefs
+import com.bolm.mudif.ui.remote.RemoteControlActivity
 
 /**
  * Phase 1d: floating icon controls over the viewer. The VncActivity
@@ -63,6 +65,9 @@ class ViewerOverlay(private val context: Context) {
     private var lastFps: Float? = null
     private var lastFpsSeen = false
     private var logcatFailedLogged = false
+
+    // F8 half A: external-display detection while the overlay lives.
+    private var displayListener: android.hardware.display.DisplayManager.DisplayListener? = null
 
     fun isShown(): Boolean = shown
 
@@ -166,6 +171,23 @@ class ViewerOverlay(private val context: Context) {
             fabView = fab
             fabParams = params
             shown = true
+            // F8 half A: notice a presentation display appearing or
+            // disappearing while the viewer is open (plug / unplug,
+            // Smart View connect / disconnect). Best-effort: a
+            // failed registration only loses the toast.
+            displayListener = ExternalDisplay.registerListener(
+                context.applicationContext,
+                onAdded = {
+                    (context as? android.app.Activity)?.runOnUiThread {
+                        Toast.makeText(context, context.getString(R.string.ui_display_found), Toast.LENGTH_LONG).show()
+                    }
+                },
+                onRemoved = {
+                    (context as? android.app.Activity)?.runOnUiThread {
+                        Toast.makeText(context, context.getString(R.string.ui_display_lost), Toast.LENGTH_LONG).show()
+                    }
+                }
+            )
         } catch (e: Exception) {
             // Overlay not available (permission revoked, etc.): skip silently.
             shown = false
@@ -175,6 +197,8 @@ class ViewerOverlay(private val context: Context) {
     /** Hide the FAB and the panel. */
     fun hide() {
         hideHud()
+        ExternalDisplay.unregisterListener(context.applicationContext, displayListener)
+        displayListener = null
         try { panelView?.let { wm.removeView(it) } } catch (_: Exception) { }
         try { fabView?.let { wm.removeView(it) } } catch (_: Exception) { }
         panelView = null
@@ -194,12 +218,12 @@ class ViewerOverlay(private val context: Context) {
 
     /** Panel position next to the FAB: right of it when there is room,
      *  left of it near the right edge (so it never runs off-screen).
-     *  The panel is ~296dp wide (5 x 48dp buttons + margins/padding). */
+     *  The panel is ~344dp wide (6 x 48dp buttons + margins/padding). */
     private fun panelPosition(): Pair<Int, Int> {
         val fx = fabParams?.x ?: dp(16)
         val fy = fabParams?.y ?: dp(120)
         val screenW = context.resources.displayMetrics.widthPixels
-        val panelW = dp(296)
+        val panelW = dp(344)
         val x = if (fx + dp(64) + panelW > screenW) fx - panelW else fx + dp(64)
         return Pair(x, fy)
     }
@@ -230,6 +254,8 @@ class ViewerOverlay(private val context: Context) {
         panel.addView(iconButton(R.drawable.ic_audio, context.getString(R.string.ui_overlay_audio)) { onAudio(panel) })
         panel.addView(iconButton(R.drawable.ic_controls, context.getString(R.string.control_center)) { onControlCenter() })
         panel.addView(iconButton(R.drawable.ic_hud, context.getString(R.string.ui_overlay_hud)) { onHud(panel) })
+        // F8 half B: web remote control, the 6th panel button.
+        panel.addView(iconButton(R.drawable.ic_remote, context.getString(R.string.ui_remote_title)) { onRemote() })
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -319,9 +345,11 @@ class ViewerOverlay(private val context: Context) {
     }
 
     /**
-     * Phase 2, TV: a system-connected display (Smart View / DeX /
-     * HDMI) opens the viewer on it (unchanged). With no such display,
-     * p36 defect 3 routes through the SAME chooser as the status
+     * F8 half A, TV: a system-connected display (Smart View / DeX /
+     * HDMI) opens the viewer on it (unchanged). With more than one
+     * presentation display, a branded picker asks which one; with
+     * exactly one it opens directly. With no such display, p36
+     * defect 3 routes through the SAME chooser as the status
      * screen (VncActivity.showTvChooser, Cast first): this activity
      * is brought forward with EXTRA_SHOW_TV_CHOOSER and the chooser
      * opens from its onNewIntent. Never a direct settings open from
@@ -330,8 +358,7 @@ class ViewerOverlay(private val context: Context) {
      */
     private fun onTv() {
         Thread {
-            val dm = context.getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
-            val displays = dm.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
+            val displays = ExternalDisplay.presentationDisplays(context)
             if (displays.isEmpty()) {
                 // No system display: hand the TV choice to
                 // VncActivity, same dialog as its btnTv, so the user
@@ -357,17 +384,43 @@ class ViewerOverlay(private val context: Context) {
                 }
                 return@Thread
             }
-            ViewerPrefs.prefs(context).edit()
-                .putBoolean("storeSecondaryDisplayPreferencesSeparately", true).apply()
-            val ok = X11Session.openViewerOnDisplay(context, displays[0])
-            (context as? android.app.Activity)?.runOnUiThread {
-                Toast.makeText(
-                    context,
-                    if (ok) context.getString(R.string.tv_opened) else context.getString(R.string.tv_no_display),
-                    Toast.LENGTH_LONG
-                ).show()
+            if (displays.size == 1) {
+                openOnDisplay(displays[0])
+                return@Thread
+            }
+            // More than one external display: ask which one. The
+            // dialog MUST be shown by the resumed VncActivity, not
+            // from here: a dialog attached to this stopped activity
+            // (the viewer is in front) exists as a window but never
+            // gains input focus — rig-proven 22 Nov, DPAD and BACK
+            // both go to the viewer instead. So route there, like
+            // the no-display case, and VncActivity shows the picker
+            // directly (EXTRA_SHOW_DISPLAY_PICKER).
+            try {
+                val intent = Intent(context, VncActivity::class.java).apply {
+                    putExtra(VncActivity.EXTRA_SHOW_DISPLAY_PICKER, true)
+                    addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                // Explicit in-app intent: unreachable in practice.
+                // Fall back to the first display, never strand the
+                // user without a TV path.
+                Thread { openOnDisplay(displays[0]) }.start()
             }
         }.start()
+    }
+
+    /** Open the viewer on one presentation display + report the result. */
+    private fun openOnDisplay(display: android.view.Display) {
+        val ok = ExternalDisplay.openViewerOn(context, display)
+        (context as? android.app.Activity)?.runOnUiThread {
+            Toast.makeText(
+                context,
+                if (ok) context.getString(R.string.tv_opened) else context.getString(R.string.tv_no_display),
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     /** Audio toggle (same rule as VncActivity). */
@@ -417,6 +470,19 @@ class ViewerOverlay(private val context: Context) {
             // Explicit in-app intent: unreachable in practice.
             // Stay silent rather than promise a panel that did
             // not open.
+        }
+    }
+
+    /** F8 half B: web remote control, the 6th panel button. Opens
+     *  the remote screen; the feature starts only there, never
+     *  from this button alone. The panel collapses so it does not
+     *  sit over the remote screen covering the address row. */
+    private fun onRemote() {
+        try {
+            collapsePanel()
+            context.startActivity(Intent(context, RemoteControlActivity::class.java))
+        } catch (_: Exception) {
+            // Explicit in-app intent: unreachable in practice.
         }
     }
 

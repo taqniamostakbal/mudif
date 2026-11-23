@@ -148,6 +148,9 @@ dependencies {
     // library). The 5 tab animations are LottieFiles JSON in res/raw/,
     // one LottieAnimationView per tab in ui.nav.BottomNavView.
     implementation(libs.lottie)
+    // F8 half B: ZXing core for the remote-control QR code (address
+    // only, never the password). Jar from the local Maven repo.
+    implementation(libs.zxing.core)
     // p118: JUnit 4 for the one KeyboardLayout unit test.
     testImplementation(libs.junit)
 }
