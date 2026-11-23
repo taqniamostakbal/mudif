@@ -66,7 +66,7 @@ A Windows layer built on the translator runs Windows programs inside the Mudif d
 
 ### The store
 
-A catalog of 1,228 programs (internet, office, media, development, AI, system, fonts, games), all free and open source. The store's All tile shows 1,139, because fonts (87) and Windows programs (2) have their own tiles. Install with one tap from inside the app, and installed programs appear in the app list.
+A catalog of 1,228 programs (internet, office, media, development, AI, system, fonts, games), all free and open source. The store's All tile shows 1,139, because fonts (87) and Windows programs (2) have their own tiles. Install with one tap from inside the app, and installed programs appear in the app list. The full list of programs is in `app/src/main/assets/store-catalog.json` in this repository: the Arabic and English name, description, category, and install method of each program. Most programs (1,191) are Debian packages installed with apt, and their source is in Debian's source repositories. The rest: 28 deb packages from their own projects (the download link is in the catalog), 6 install scripts in this repository under `app/src/main/assets/`, 2 Windows programs translated by Mudif's own translator, and 1 font. Mudif's own code (the app, the translator, the Windows layer, and the store) is all in this repository under the MIT license.
 
 ### The p128 release (six new features)
 
