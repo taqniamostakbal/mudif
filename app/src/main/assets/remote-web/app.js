@@ -1,5 +1,5 @@
 // نظام مضيف — التحكم عن بعد. عميل سطح المكتب في المتصفح.
-// يستعمل نواة noVNC كمكتبة (core/rfb.js) فقط؛ واجهة noVNC الجاهزة مخفية تماما.
+// يستعمل مكتبة RFB (core/rfb.js) فقط؛ الواجهة الجاهزة مخفية تماما.
 import RFB from './core/rfb.js';
 import KeyTable from './core/input/keysym.js';
 
@@ -162,7 +162,7 @@ const NAMED_KEYS = {
     'ArrowUp': 'XK_Up', 'ArrowRight': 'XK_Right', 'ArrowDown': 'XK_Down',
     'Home': 'XK_Home', 'End': 'XK_End', 'PageUp': 'XK_Page_Up', 'PageDown': 'XK_Page_Down',
 };
-// Arabic letters: Unicode codepoint -> X keysym (from keysymdef.h, via noVNC keysymdef.js).
+// Arabic letters: Unicode codepoint -> X keysym (from keysymdef.h).
 const ARABIC_KEYSYMS = {
     0x0621: 0x05c1, 0x0627: 0x05c7, 0x0628: 0x05c8, 0x0629: 0x05c9,
     0x062a: 0x05ca, 0x062b: 0x05cb, 0x062c: 0x05cc, 0x062d: 0x05cd,
