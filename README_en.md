@@ -24,12 +24,26 @@
 
 <p align="center">
   <a href="https://github.com/taqniamostakbal/mudif/releases">Releases</a> ·
+  <a href="#start-here">Start here</a> ·
   <a href="#features">Features</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="#install">Install</a> ·
   <a href="#status">Project status</a> ·
-  <a href="#contributing">Contributing</a>
+  <a href="#contributing">Contributing</a> ·
+  <a href="https://www.youtube.com/@taqniaMostakbal">YouTube</a> ·
+  <a href="https://x.com/yts5zqp">X</a>
 </p>
+
+<a id="start-here"></a>
+## Start here
+
+Pick one row. The time shown is for that first step only.
+
+| You are | Do this first | Time |
+|---|---|---|
+| On Android 9 or newer | Install the APK from [Releases](https://github.com/taqniamostakbal/mudif/releases) over the old version | 2 minutes |
+| Want to try a Windows program | Open the store, search `notepad`, and install Notepad | 1 minute |
+| A developer | Build from source with the command in the [Install](#install) section | 5 minutes |
 
 <a id="about"></a>
 ## What is Mudif
@@ -98,7 +112,10 @@ All screenshots are from the test device (Redroid emulator), not designed images
 
 ### From the releases
 
-Ready APK builds are on the [Releases](https://github.com/taqniamostakbal/mudif/releases) page in this repository. Install over any previous version, and never uninstall the app (uninstalling wipes the whole Debian system).
+Ready APK builds are on the [Releases](https://github.com/taqniamostakbal/mudif/releases) page in this repository. Install over any previous version.
+
+> [!TIP]
+> Never uninstall the app. Uninstalling wipes the whole Debian system with all its files.
 
 ### From source
 

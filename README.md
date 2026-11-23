@@ -24,12 +24,26 @@
 
 <p align="center">
   <a href="https://github.com/taqniamostakbal/mudif/releases">الإصدارات</a> ·
+  <a href="#start-here">ابدأ هنا</a> ·
   <a href="#features">الميزات</a> ·
   <a href="#screenshots">لقطات الشاشة</a> ·
   <a href="#install">التثبيت</a> ·
   <a href="#status">حالة المشروع</a> ·
-  <a href="#contributing">المساهمة</a>
+  <a href="#contributing">المساهمة</a> ·
+  <a href="https://www.youtube.com/@taqniaMostakbal">يوتيوب</a> ·
+  <a href="https://x.com/yts5zqp">إكس</a>
 </p>
+
+<a id="start-here"></a>
+## ابدأ هنا
+
+اختر صفا واحدا. الوقت المعروض هو للخطوة الأولى فقط.
+
+| أنت | افعل هذا أولا | الوقت |
+|---|---|---|
+| على أندرويد 9 أو أحدث | ثبّت الـ APK من [الإصدارات](https://github.com/taqniamostakbal/mudif/releases) فوق النسخة القديمة | دقيقتان |
+| تريد تجربة برنامج ويندوز | افتح المتجر وابحث عن `notepad` وثبّت المفكرة | دقيقة واحدة |
+| مطور | ابنِ من المصدر بالأمر في قسم [التثبيت](#install) | 5 دقائق |
 
 <a id="about"></a>
 ## ما هو مضيف
@@ -98,7 +112,10 @@
 
 ### من الإصدارات
 
-نشرات APK الجاهزة في صفحة [الإصدارات](https://github.com/taqniamostakbal/mudif/releases) في هذا المستودع. ثبّت فوق أي نسخة سابقة، ولا تلغ تثبيت التطبيق أبدا (إلغاء التثبيت يمسح نظام دبيان كاملا).
+نشرات APK الجاهزة في صفحة [الإصدارات](https://github.com/taqniamostakbal/mudif/releases) في هذا المستودع. ثبّت فوق أي نسخة سابقة.
+
+> [!TIP]
+> لا تلغ تثبيت التطبيق أبدا. إلغاء التثبيت يمسح نظام دبيان كاملا مع كل ملفاته.
 
 ### من المصدر
 
