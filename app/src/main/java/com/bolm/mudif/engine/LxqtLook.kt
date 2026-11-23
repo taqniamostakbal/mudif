@@ -526,7 +526,7 @@ object LxqtLook {
     // (KeyboardLayout latinRow1Shift/2Shift/3Shift); Arabic diacritics
     // and F1 needed no code change (rig-proven: the marks arrive, the
     // terminal does not render them; F1 ^[OP matches terminfo kf1).
-    const val MARKER_VERSION = "p67"
+    const val MARKER_VERSION = "p68"
     const val WALLPAPER_GUEST_PATH = "/usr/share/backgrounds/mudif-wallpaper.png"
     private const val WALLPAPER_ASSET = "mudif-wallpaper.png"
     private const val WALLPAPER_POMEGRANATE_ASSET = "mudif-wallpaper-pomegranate.png"
