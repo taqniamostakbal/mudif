@@ -21,6 +21,11 @@ junit = "4.13.2"
 # from the VM. Min SDK 21, Kotlin 1.9+, AGP 8.x: compatible with
 # this project (minSdk 28, Kotlin 2.0.20, AGP 8.5.2).
 lottie = "6.7.1"
+# F8 half B: ZXing core for the remote-control QR (address only,
+# never the password). 3.5.2 jar fetched from Maven Central and
+# staged in the local Maven repo (~/workspace/mudif-local-maven),
+# same as the JitPack termux-x11 AAR.
+zxingCore = "3.5.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -50,6 +55,8 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 # p48: Lottie (com.airbnb.android:lottie) for the bottom-nav animated
 # icons. The 5 tab animations are LottieFiles JSON in res/raw/.
 lottie = { group = "com.airbnb.android", name = "lottie", version.ref = "lottie" }
+# F8 half B: ZXing core for the remote-control QR code.
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxingCore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

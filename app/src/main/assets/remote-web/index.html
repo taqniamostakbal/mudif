@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>نظام مضيف</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="stage">
+  <div id="topbar">
+    <span id="statusDot" class="dot connecting" title="الحالة"></span>
+    <span id="addr"></span>
+    <span class="spacer"></span>
+    <button id="btnFull" type="button" title="ملء الشاشة">ملء الشاشة</button>
+    <button id="btnKeys" type="button" title="لوحة المفاتيح">لوحة المفاتيح</button>
+    <button id="btnClip" type="button" title="الحافظة">الحافظة</button>
+    <button id="btnDisc" type="button" title="قطع الاتصال">قطع الاتصال</button>
+  </div>
+  <div id="clipbar" hidden>
+    <input id="clipText" type="text" placeholder="اكتب نصا ثم اضغط لصق لإرساله إلى سطح المكتب" dir="auto">
+    <button id="btnPaste" type="button">لصق</button>
+  </div>
+  <div id="screen"></div>
+  <input id="hiddenInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-hidden="true">
+</div>
+<div id="login">
+  <div id="loginCard">
+    <img id="logo" src="penguin.png" alt="مضيف">
+    <h1>نظام مضيف</h1>
+    <p class="sub">تقنية المستقبل | Exploring Tech</p>
+    <div id="passRow">
+      <input id="password" type="password" placeholder="كلمة المرور" autocomplete="off" dir="ltr">
+      <button id="btnShowPass" type="button" title="إظهار كلمة المرور">إظهار</button>
+    </div>
+    <button id="btnConnect" type="button">اتصال</button>
+    <p id="loginStatus"></p>
+  </div>
+</div>
+<div id="gone" hidden>
+  <div id="goneCard">
+    <h1>انقطع الاتصال</h1>
+    <p id="goneReason"></p>
+    <button id="btnReconnect" type="button">إعادة الاتصال</button>
+  </div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

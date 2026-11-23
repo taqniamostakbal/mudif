@@ -26,6 +26,22 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+    <!-- F3 fix (23 Nov 2026): SharedFilesActivity grants the shared
+         file URI explicitly to every app that can open/share it
+         (grantUriToHandlers). On Android 11+ that query returns
+         nothing unless the intents are declared here, so the grant
+         silently went to nobody and the target was denied. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MudifApplication"
         android:allowBackup="true"
@@ -95,6 +111,18 @@
             android:name=".ui.control.TaskManagerActivity"
             android:exported="false"
             android:label="@string/task_manager_title" />
+        <activity
+            android:name=".ui.control.DeviceReportActivity"
+            android:exported="false"
+            android:label="@string/device_report_title" />
+        <activity
+            android:name=".ui.control.SharedFilesActivity"
+            android:exported="false"
+            android:label="@string/shared_files_title" />
+        <activity
+            android:name=".ui.remote.RemoteControlActivity"
+            android:exported="false"
+            android:label="@string/ui_remote_title" />
         <!-- Take 4: FileProvider for the in-app updater. The APK in
              the app cache is shared with the system installer only. -->
         <provider
@@ -106,6 +134,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/updater_file_paths" />
         </provider>
+        <!-- F3: the shared folder is served by the single .updates
+             provider above (its paths XML also lists mudif-shared).
+             A second FileProvider declaration (.shared) was removed:
+             the system routed both authorities to the one provider
+             instance created first, so shared URIs were served with
+             the updater paths and the file was not found. -->
         <receiver
             android:name=".ui.control.ScreenRecordReceiver"
             android:exported="false">
