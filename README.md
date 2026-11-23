@@ -14,6 +14,7 @@
   <img src="docs/images/badges/android.svg" alt="android 9+">
   <img src="docs/images/badges/kotlin.svg" alt="kotlin 2.0.20">
   <img src="docs/images/badges/store.svg" alt="store 1228 programs">
+  <img src="docs/images/badges/license.svg" alt="license MIT">
 </p>
 
 <p align="center"><em>«المستخدم لا يسمع كلمة لينكس أبدا.»</em></p>
