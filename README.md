@@ -22,6 +22,10 @@
 </p>
 
 <p align="center">
+  مشروع شخصي من تقنية المستقبل | Exploring Tech — بناء taqniamostakbal.
+</p>
+
+<p align="center">
   <a href="https://github.com/taqniamostakbal/mudif/releases"><img src="docs/images/badges/nav-releases-ar.png" height="28" alt="الإصدارات"></a>
   <a href="#start-here"><img src="docs/images/badges/nav-start-ar.png" height="28" alt="ابدأ هنا"></a>
   <a href="#features"><img src="docs/images/badges/nav-features-ar.png" height="28" alt="الميزات"></a>
