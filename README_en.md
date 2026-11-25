@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/icons/globe.svg" width="16" height="16" alt="language"> [العربية](README.md) | **English**
+<a href="README.md"><img src="docs/images/badges/lang-ar.png" height="28" alt="العربية"></a> <img src="https://img.shields.io/static/v1?label=&message=English&color=593BFE&style=for-the-badge&logo=googletranslate&logoColor=white" alt="English">
 
 </div>
 
@@ -17,10 +17,8 @@
   <img src="docs/images/badges/license.svg" alt="license MIT">
 </p>
 
-<p align="center"><em>"The user never hears the word Linux."</em></p>
-
 <p align="center">
-  <strong>Mudif turns your phone into a full computer: a Debian system with the LXQt desktop, in Fusha Arabic, running Windows programs from the store.</strong>
+  <strong>Mudif turns your phone into a full computer: a Debian system with the LXQt desktop, in Arabic, running Windows programs from the store.</strong>
 </p>
 
 <p align="center">
@@ -49,9 +47,9 @@ Pick one row. The time shown is for that first step only.
 <a id="about"></a>
 ## What is Mudif
 
-Mudif is an Android app (`com.bolm.mudif`) that runs a full Debian (trixie) system with the LXQt desktop on the phone. The interface is entirely in Fusha Arabic, the fonts are Cairo and Lifta, the brand color is purple `#593BFE`, and the logo is a penguin. It runs on Android 9 and above.
+Mudif is an Android app (`com.bolm.mudif`) that runs a full Debian (trixie) system with the LXQt desktop on the phone. The interface is entirely in Arabic, the fonts are Cairo and Lifta, the brand color is purple `#593BFE`, and the logo is a penguin. It runs on Android 9 and above.
 
-> Vision: the user never hears the word Linux. They tap what they want to do, and the system handles the rest.
+> Vision: They tap what they want to do, and the system handles the rest.
 
 <a id="features"></a>
 ## Features

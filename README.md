@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/icons/globe.svg" width="16" height="16" alt="language"> **العربية** | [English](README_en.md)
+<img src="docs/images/badges/lang-ar.png" height="28" alt="العربية"> <a href="README_en.md"><img src="https://img.shields.io/static/v1?label=&message=English&color=593BFE&style=for-the-badge&logo=googletranslate&logoColor=white" alt="English"></a>
 
 </div>
 
@@ -17,10 +17,8 @@
   <img src="docs/images/badges/license.svg" alt="license MIT">
 </p>
 
-<p align="center"><em>«المستخدم لا يسمع كلمة لينكس أبدا.»</em></p>
-
 <p align="center">
-  <strong>مضيف يحوّل هاتفك إلى حاسوب كامل: نظام دبيان مع واجهة LXQt، بالعربية الفصحى، وتشغيل برامج ويندوز من المتجر.</strong>
+  <strong>مضيف يحوّل هاتفك إلى حاسوب كامل: نظام دبيان مع واجهة LXQt، بالعربية، وتشغيل برامج ويندوز من المتجر.</strong>
 </p>
 
 <p align="center">
@@ -49,9 +47,9 @@
 <a id="about"></a>
 ## ما هو مضيف
 
-مضيف تطبيق أندرويد (`com.bolm.mudif`) يشغّل نظام دبيان (trixie) كاملا مع واجهة LXQt على الهاتف. واجهة المستخدم عربية فصحى بالكامل، والخطان Cairo وLifta، واللون البنفسجي `#593BFE` هو لون الهوية، والبطريق هو الشعار. يعمل على أندرويد 9 فما فوق.
+مضيف تطبيق أندرويد (`com.bolm.mudif`) يشغّل نظام دبيان (trixie) كاملا مع واجهة LXQt على الهاتف. واجهة المستخدم عربية بالكامل، والخطان Cairo وLifta، واللون البنفسجي `#593BFE` هو لون الهوية، والبطريق هو الشعار. يعمل على أندرويد 9 فما فوق.
 
-> الرؤية: المستخدم لا يسمع كلمة لينكس أبدا. يضغط على ما يريد فعله، والنظام يتولى الباقي.
+> الرؤية: يضغط على ما يريد فعله، والنظام يتولى الباقي.
 
 <a id="features"></a>
 ## الميزات
