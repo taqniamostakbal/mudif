@@ -24,15 +24,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/taqniamostakbal/mudif/releases">الإصدارات</a> ·
-  <a href="#start-here">ابدأ هنا</a> ·
-  <a href="#features">الميزات</a> ·
-  <a href="#screenshots">لقطات الشاشة</a> ·
-  <a href="#install">التثبيت</a> ·
-  <a href="#status">حالة المشروع</a> ·
-  <a href="#contributing">المساهمة</a> ·
-  <a href="https://www.youtube.com/@taqniaMostakbal">يوتيوب</a> ·
-  <a href="https://x.com/yts5zqp">إكس</a>
+  <a href="https://github.com/taqniamostakbal/mudif/releases"><img src="docs/images/badges/nav-releases-ar.png" height="28" alt="الإصدارات"></a>
+  <a href="#start-here"><img src="docs/images/badges/nav-start-ar.png" height="28" alt="ابدأ هنا"></a>
+  <a href="#features"><img src="docs/images/badges/nav-features-ar.png" height="28" alt="الميزات"></a>
+  <a href="#screenshots"><img src="docs/images/badges/nav-screenshots-ar.png" height="28" alt="لقطات الشاشة"></a>
+  <a href="#install"><img src="docs/images/badges/nav-install-ar.png" height="28" alt="التثبيت"></a>
+  <a href="#status"><img src="docs/images/badges/nav-status-ar.png" height="28" alt="حالة المشروع"></a>
+  <a href="#contributing"><img src="docs/images/badges/nav-contributing-ar.png" height="28" alt="المساهمة"></a>
+  <a href="https://www.youtube.com/@taqniaMostakbal"><img src="docs/images/badges/nav-youtube-ar.png" height="28" alt="يوتيوب"></a>
+  <a href="https://x.com/yts5zqp"><img src="docs/images/badges/nav-x-ar.png" height="28" alt="إكس"></a>
 </p>
 
 <a id="start-here"></a>
