@@ -24,15 +24,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/taqniamostakbal/mudif/releases">Releases</a> ·
-  <a href="#start-here">Start here</a> ·
-  <a href="#features">Features</a> ·
-  <a href="#screenshots">Screenshots</a> ·
-  <a href="#install">Install</a> ·
-  <a href="#status">Project status</a> ·
-  <a href="#contributing">Contributing</a> ·
-  <a href="https://www.youtube.com/@taqniaMostakbal">YouTube</a> ·
-  <a href="https://x.com/yts5zqp">X</a>
+  <a href="https://github.com/taqniamostakbal/mudif/releases"><img src="https://img.shields.io/static/v1?label=&message=Releases&color=593BFE&style=for-the-badge&logo=github&logoColor=white" alt="Releases"></a>
+  <a href="#start-here"><img src="https://img.shields.io/static/v1?label=&message=Start+here&color=593BFE&style=for-the-badge&logo=rocket&logoColor=white" alt="Start here"></a>
+  <a href="#features"><img src="https://img.shields.io/static/v1?label=&message=Features&color=593BFE&style=for-the-badge&logo=zap&logoColor=white" alt="Features"></a>
+  <a href="#screenshots"><img src="https://img.shields.io/static/v1?label=&message=Screenshots&color=593BFE&style=for-the-badge&logo=sharex&logoColor=white" alt="Screenshots"></a>
+  <a href="#install"><img src="https://img.shields.io/static/v1?label=&message=Install&color=593BFE&style=for-the-badge&logo=box&logoColor=white" alt="Install"></a>
+  <a href="#status"><img src="https://img.shields.io/static/v1?label=&message=Project+status&color=593BFE&style=for-the-badge&logo=grafana&logoColor=white" alt="Project status"></a>
+  <a href="#contributing"><img src="https://img.shields.io/static/v1?label=&message=Contributing&color=593BFE&style=for-the-badge&logo=git&logoColor=white" alt="Contributing"></a>
+  <a href="https://www.youtube.com/@taqniaMostakbal"><img src="https://img.shields.io/static/v1?label=&message=YouTube&color=FF0000&style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube"></a>
+  <a href="https://x.com/yts5zqp"><img src="https://img.shields.io/static/v1?label=&message=X&color=000000&style=for-the-badge&logo=x&logoColor=white" alt="X"></a>
 </p>
 
 <a id="start-here"></a>
