@@ -22,6 +22,10 @@
 </p>
 
 <p align="center">
+  A personal project by تقنية المستقبل | Exploring Tech — built by taqniamostakbal.
+</p>
+
+<p align="center">
   <a href="https://github.com/taqniamostakbal/mudif/releases"><img src="https://img.shields.io/static/v1?label=&message=Releases&color=593BFE&style=for-the-badge&logo=github&logoColor=white" alt="Releases"></a>
   <a href="#start-here"><img src="https://img.shields.io/static/v1?label=&message=Start+here&color=593BFE&style=for-the-badge&logo=rocket&logoColor=white" alt="Start here"></a>
   <a href="#features"><img src="https://img.shields.io/static/v1?label=&message=Features&color=593BFE&style=for-the-badge&logo=zap&logoColor=white" alt="Features"></a>
