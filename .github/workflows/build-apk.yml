@@ -29,7 +29,23 @@ jobs:
         with:
           gradle-version: 8.7
 
+      - name: Restore debug keystore
+        # The pinned debug keystore is NOT in the repo (never commit it):
+        # it lives in the DEBUG_KEYSTORE_BASE64 repository secret.
+        # Same key across builds keeps install-over working.
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "DEBUG_KEYSTORE_BASE64 secret is missing" >&2
+            exit 1
+          fi
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 -d > app/debug.keystore
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+
       - name: Build debug APK
+        env:
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
         run: gradle assembleDebug --no-daemon
 
       - name: Upload APK to release

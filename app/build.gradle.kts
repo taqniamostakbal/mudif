@@ -20,10 +20,29 @@ android {
 
     signingConfigs {
         getByName("debug") {
-            storeFile = file("debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            // Pinned debug keystore: the SAME key across builds so updates
+            // install in-place instead of failing with "signature does not
+            // match". Fingerprint recorded in
+            // app/debug.keystore.fingerprint.txt.
+            // The keystore file and its passwords are NEVER committed:
+            // CI restores app/debug.keystore from the
+            // DEBUG_KEYSTORE_BASE64 repository secret and passes the
+            // passwords as environment variables
+            // (DEBUG_KEYSTORE_PASSWORD, DEBUG_KEY_PASSWORD); local builds
+            // use -PdebugKeystorePassword=... -PdebugKeyPassword=... (or
+            // the same env vars). Without the file, Gradle falls back to
+            // its auto-generated debug keystore.
+            val ksFile = file(System.getenv("DEBUG_KEYSTORE_FILE") ?: "debug.keystore")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                val sp = System.getenv("DEBUG_KEYSTORE_PASSWORD")
+                    ?: project.findProperty("debugKeystorePassword") as String?
+                if (sp != null) storePassword = sp
+                keyAlias = "androiddebugkey"
+                val kp = System.getenv("DEBUG_KEY_PASSWORD")
+                    ?: project.findProperty("debugKeyPassword") as String?
+                if (kp != null) keyPassword = kp
+            }
         }
     }
 
