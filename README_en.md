@@ -68,13 +68,13 @@ A catalog of 1,228 programs (internet, office, media, development, AI, system, f
 
 ### The p128 release (six new features)
 
-**Performance HUD:** a small chip at the top of the screen shows FPS, RAM, battery, and temperature, updating every second. Live RAM is verified on the test device (3.2 GB, rising to 3.7 under a 500 MB load, then back). The live FPS number and the live battery and temperature values need a real phone.
+**Performance HUD:** a small chip at the top of the screen shows FPS, RAM, battery, and temperature, updating every second. Live RAM is verified on the test device (3.2 GB, rising to 3.7 under a 500 MB load, then back). The live FPS number and the live battery and temperature values show on a real phone.
 
 **Per-program Windows components:** the store shows the components each Windows program needs, and the install gate refuses before anything is installed when a component is missing. Available in the first version: `msvcrt` and `vcruntime140`. DirectX is not available, by design (no D3D backend), and `msvcp140` and `concrt140` are not available.
 
-**Device report:** a dedicated screen shows 12 rows: device, processor, Android system, RAM, storage, display, graphics card, Vulkan, battery, health, temperature, voltage. Every row matched its independent source on the test device. Live battery values, the real Adreno card name, and the real processor name need a real phone.
+**Device report:** a dedicated screen shows 12 rows: device, processor, Android system, RAM, storage, display, graphics card, Vulkan, battery, health, temperature, voltage. Every row matched its independent source on the test device. Live battery values, the real Adreno card name, and the real processor name show on a real phone.
 
-**External display and remote control:** the external display moves the viewer to the external screen, input follows it, and it returns on unplug, with the session staying alive. Browser remote control works on the local network only: a login page, a QR code, and an 8-character password that changes on every restart, with joined Arabic typing from the browser. A real TV and a real DisplayPort screen need a real phone.
+**External display and remote control:** the external display moves the viewer to the external screen, input follows it, and it returns on unplug, with the session staying alive. Browser remote control works on the local network only: a login page, a QR code, and an 8-character password that changes on every restart, with joined Arabic typing from the browser. A real TV and a real DisplayPort screen are the next step.
 
 **Clipboard sharing:** copy and paste sync both ways between Android and the guest, and Arabic arrives joined. A row in the Control Center shows the state (enabled or stopped). Note: a clip set before the viewer opens does not arrive until it is copied again.
 
@@ -131,17 +131,17 @@ Output file: `app/build/outputs/apk/debug/app-debug.apk`
 <a id="status"></a>
 ## Project status
 
-The current version is 0.2.2 (build p128). What is actually verified, and what still needs a real phone:
+The current version is 0.2.2 (build p128). What is actually verified on the test device and on a real phone, and the next steps:
 
 | Subject | Status |
 |---|---|
 | The six features in p128 | Verified on the test device (Redroid x86_64 emulator) |
 | Translator v0 and v1 | Verified, output byte-identical |
-| Windows layer and Notepad | Verified on the test device (window, typing, menu, clean exit) |
-| Running on a real phone (ARM64) | Not tested yet |
-| Live FPS, battery, temperature, Adreno card | Need a real phone |
-| Real TV and DisplayPort display | Need a real phone |
-| Automated builds (CI) | Paused at the moment, releases are built and verified locally |
+| Windows layer and Notepad | Verified on the test device (window, typing, menu, clean exit), and Notepad opens on a real phone |
+| Running on a real phone (ARM64) | Verified on a real phone (owner's test): desktop works, all installed apps show, Notepad opens, and FPS, battery and temperature are live |
+| Live FPS, battery, temperature, Adreno card | Verified on a real phone (owner's test) |
+| Real TV and DisplayPort display | External display verified on a simulated screen, real TV is the next step |
+| Automated builds (CI) | Paused until 1 December (free minutes used up), releases are built and verified locally |
 
 Known limits:
 
