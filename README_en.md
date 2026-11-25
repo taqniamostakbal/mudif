@@ -137,9 +137,9 @@ The current version is 0.2.2 (build p128). What is actually verified on the test
 |---|---|
 | The six features in p128 | Verified on the test device (Redroid x86_64 emulator) |
 | Translator v0 and v1 | Verified, output byte-identical |
-| Windows layer and Notepad | Verified on the test device (window, typing, menu, clean exit), and Notepad opens on a real phone |
-| Running on a real phone (ARM64) | Verified on a real phone (owner's test): desktop works, all installed apps show, Notepad opens, and FPS, battery and temperature are live |
-| Live FPS, battery, temperature, Adreno card | Verified on a real phone (owner's test) |
+| Windows layer and Notepad | Verified on the test device (window, typing, menu, clean exit), and Notepad opens on a phone |
+| Running on a real phone (ARM64) | Tested on a phone: desktop works, all installed apps show, Notepad opens, and FPS, battery and temperature are live |
+| Live FPS, battery, temperature, Adreno card | Tested on a phone |
 | Real TV and DisplayPort display | External display verified on a simulated screen, real TV is the next step |
 | Automated builds (CI) | Paused until 1 December (free minutes used up), releases are built and verified locally |
 
